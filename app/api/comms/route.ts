@@ -6,6 +6,8 @@ import { coerceOutboxStatus } from "@/app/_lib/comms-status";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { deriveCommsView, pageCommsFeed } from "@/app/_lib/comms-view";
 import { safeJsonError } from "@/app/_lib/api-response";
+import { can } from "@/app/_lib/auth/current-user";
+import { withLinksRedactedUnless } from "@/app/_lib/comms-link-redaction";
 
 
 // W6-2 (SIM1) — the recruiter comms read. Every candidate-facing message (8
@@ -48,7 +50,10 @@ export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
     const truncated = base.length >= DERIVE_WINDOW;
     const view = deriveCommsView(base, { windowTruncated: truncated });
     const filtered = status ? view.filter((m) => m.status === status) : view;
-    const { messages, hasMore, nextCursor, cursorExpired } = pageCommsFeed(filtered, { limit, cursor });
+    const page = pageCommsFeed(filtered, { limit, cursor });
+    const { hasMore, nextCursor, cursorExpired } = page;
+    // A read-only seat gets the letter without the candidate's capability links.
+    const messages = withLinksRedactedUnless(await can("pipeline:write"), page.messages);
 
     // Resolve each distinct ref to the candidate it names, so the center can
     // group/label rows without N client round-trips. Refs that aren't pipeline

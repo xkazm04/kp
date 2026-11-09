@@ -1,0 +1,157 @@
+{
+ "schema": "conform-run/1",
+ "worker": "adddd0eb-009e-49b7-9e38-90006d968f14",
+ "subject": "test-harness",
+ "evaluatedAt": "2026-11-09T00:13:40.870077+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "apply-surface-tests",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/apply/[id]/quick/quick-apply-status-link.test.ts:68 The 'renders' claim is pinned by a bare identifier that StatusClient.tsx's import on line 8 satisfies, so deleting `<LanguageSwitcher />` on line 224 leaves this pin green.",
+   "techniques": [
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:63 read() never normalises line endings and this needle needs bare LF; *.tsx is only text=auto in .gitattributes, whose header names autocrlf=true as the norm, so a CRLF checkout gets end=-1 and goes red on correct code. Lines 162 and 168 of the same file do handle \\r?\\n. Lines 188-189 and 198-201 are also presence needles not tied to the honeypot element."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:186 The name claims the server KO contract, but the test reads only the client QuickApplyForm.tsx. Separately, adoption of an extracted unit is pinned well at apply-draft-fingerprint.test.ts:91."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:81 A seeded copy of the real block proves the needle fires, and fails loudly if the replace did not land. Only a few of the pins carry such a control."
+    },
+    {
+     "technique": "proved-off-the-path",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/apply-draft-fingerprint.test.ts:6 Runs the shipped helper rather than a test twin, and line 91 pins that the hook calls it."
+    }
+   ]
+  },
+  {
+   "context": "tests-matching-taxonomy",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/tests/test_archetype_sanity.py:98 The claim that the dump stamps the boolean rests on a subscript string that a read or a comment could also satisfy, because the needle has no assignment token and does not tie the value to `needs` (pipeline.py:920).",
+   "techniques": [
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_archetype_sanity.py:98 The needle is not a write that prose cannot spell, and the test does not state that this is an interim text match."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_archetype_sanity.py:68 Records the mutation that exposed the gap and adds the case that catches it."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_archetype_sanity.py:82 The control isolates which producer caused the flag."
+    },
+    {
+     "technique": "gate-scope-is-not-report-scope",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_taxonomy_coverage_gate.py:44 The floor set is checked against every family, so a new one cannot sit outside the ratchet."
+    },
+    {
+     "technique": "approval-snapshots-with-guarded-update",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_taxonomy_coverage_gate.py:96 The test only compares; recording needs the explicit --write-report command, so the suite has no record mode to leave on."
+    },
+    {
+     "technique": "fixture-economics",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_match_cli.py:22 The seed goes through the product's own normaliser instead of a raw record."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_taxonomy_contract.py:50 The walk declares a floor before iterating."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_agentfit.py:203 The environment override is scoped to the call and points at a test ledger."
+    },
+    {
+     "technique": "a-test-helper-is-a-fork-of-the-driver",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/_helpers.py:81 The helper ports the bridge's readers, and shared fixtures compare the port with the originals; run_cli's docstring states it runs in-process."
+    },
+    {
+     "technique": "proved-off-the-path",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_match_cli.py:15 Drives the shipped CLI entry point rather than a composition built for the test."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "test-harness",
+   "context": "shell-setup-pipeline",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "test-harness",
+   "context": "llm-config-provider",
+   "reason": "evidence leans on testing/unit-db.ts, which is not a tracked file"
+  },
+  {
+   "subject": "test-harness",
+   "context": "interview-simulator",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-09T00:13:40.870077+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "proved-off-the-path",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "apply-surface-tests",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T00:13:40.870077+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "a-test-helper-is-a-fork-of-the-driver",
+    "approval-snapshots-with-guarded-update",
+    "derived-selection-must-be-measured",
+    "fixture-economics",
+    "gate-scope-is-not-report-scope",
+    "isolation-lanes",
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "proved-off-the-path",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "tests-matching-taxonomy",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -1,0 +1,133 @@
+{
+  "schema": "conform-run/1",
+  "worker": "a6d2f6a9-3469-4e7b-a3e2-df4780c4851a",
+  "subject": "table",
+  "evaluatedAt": "2026-11-07T05:03:58.491013+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "devcase-workspace",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/features/tools/devcases/useDevTabData.ts:51 The Cases ledger's free-text title filter is a server round trip committed per keystroke behind a 250ms debounce instead of on an explicit act, and useLoader keeps the old predicate's rows on screen until the new answer lands, so the table shows rows from an abandoned filter.",
+      "techniques": [
+        {
+          "technique": "filtering",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/devcases/useDevTabData.ts:51 Server-regime text filter commits on a debounce guess, not submit/Enter; rows from the previous predicate are not cleared on a filter change (useLoader keeps data across URL change)."
+        },
+        {
+          "technique": "client-server-split",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/devcases/casesPage.ts:20 Filter and window both owned by the server, filter applied before the limit; no client sort over a truncated page."
+        },
+        {
+          "technique": "pagination",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/devcases/useDevTabData.ts:57 A new predicate resets the window to the first page; truncation is announced (DevCasesTable truncated status) rather than silently stopping."
+        },
+        {
+          "technique": "loading-and-empty-states",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/devcases/useDevTabData.ts:72 Defaulted decode between response and body state: a payload whose shape changed renders as the first-run empty ledger instead of a mismatch/failure state. Settle-before-empty itself is honoured (DevCasesTable.tsx:70)."
+        },
+        {
+          "technique": "compressed-scroll-space",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/casesPage.ts:7 At most 500 rows, fully mounted, no windowing, so no scroll-space ceiling."
+        }
+      ]
+    },
+    {
+      "context": "shared-client-hooks",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/_lib/useInfiniteScroll.ts:79 The shared load-more engine pages by offset for a sequential infinite-scroll consumer and appends each page with no identity dedupe, so a row inserted while the user scrolls repeats or drops a row at the page boundary.",
+      "techniques": [
+        {
+          "technique": "pagination",
+          "verdict": "deviation",
+          "evidence": "app/_lib/useInfiniteScroll.ts:79 Offset cursor for load-more/infinite scroll, where the technique calls for keyset; appended pages are not deduplicated by row identity."
+        },
+        {
+          "technique": "loading-and-empty-states",
+          "verdict": "conformant",
+          "evidence": "app/_lib/useInfiniteScroll.ts:141 Initial placeholder is held behind a 300ms grace so warm loads never flash; error phase is distinct from empty; useJsonFetch.reload keeps rendered data (line 105)."
+        },
+        {
+          "technique": "filtering",
+          "verdict": "conformant",
+          "evidence": "app/_lib/useLoader.ts:50 Latest-wins: a newer request aborts the one in flight, so a superseded predicate's answer cannot land. Clearing rows on a predicate change is left to consumers (see the devcase-workspace and analytics-sections verdicts)."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "table",
+      "context": "pipeline-board-ui",
+      "reason": "absence contradicted: app/features/hiring/pipeline/orbit/OrbitLanes.tsx:77 contains 'ColumnHead' (4 hit(s) in the context's directories)"
+    },
+    {
+      "subject": "table",
+      "context": "analytics-sections",
+      "reason": "evidence leans on db/pipeline.ts, which is not a tracked file"
+    },
+    {
+      "subject": "table",
+      "context": "form-controls",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor Select.tsx:24 is incidental, because it does not show that no table or grid surface exists. The grep over app/_components did hit several raw <table> elements outside this context's files, so only a narrow file-level absence holds, and the search terms (role=\"grid\", aria-rowcount, colSpan"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-07T05:03:58.491013+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "table"
+      ],
+      "techniques": [
+        "client-server-split",
+        "compressed-scroll-space",
+        "filtering",
+        "loading-and-empty-states",
+        "pagination"
+      ],
+      "deviations": 1,
+      "context": "devcase-workspace",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-07T05:03:58.491013+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "table"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "form-controls",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-07T05:03:58.491013+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "table"
+      ],
+      "techniques": [
+        "filtering",
+        "loading-and-empty-states",
+        "pagination"
+      ],
+      "deviations": 1,
+      "context": "shared-client-hooks",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

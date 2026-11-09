@@ -1,4 +1,6 @@
-// ADR 0019 — what an entry-less KO decline leaves behind, and when it goes.
+// ADR 0019 — what an entry-less KO decline leaves behind, and when it goes. These rows now
+// exist only from before the Q1 ruling (2026-11-09); the last two tests say what covers
+// the NEW case, where the contact lives on a held entry.
 //
 // A declined applicant has no pipeline entry, so the ref-keyed outbox scrub in
 // anonymizeEntry never reaches their letter, and the ko_declined event keeps their name.
@@ -23,7 +25,7 @@ import {
   sweepKoDeclineContacts,
 } from "./db/pipeline.ts";
 import { pipelineAnalytics } from "./db/analytics.ts";
-import { dispatchKnockoutDecline } from "./comms-dispatch.ts";
+import { dispatchKnockoutRejection } from "./comms-dispatch.ts";
 import { LOCALES } from "@/i18n/locales";
 
 after(() => cleanupUnitDb());
@@ -180,26 +182,44 @@ test("expiry erases by address the same way", () => {
   assert.equal(row(id).recipient, null);
 });
 
-test("the letter carries the window in every locale", () => {
+// Since the Q1 ruling (2026-11-09) a failed must-have files a HELD entry, so the contact is
+// carried by the ENTRY and the letter sent when a person confirms the rejection is the
+// entry's own row (ref = entry id). The 30-day window above therefore governs only the
+// LEGACY ref-less rows (every decline before Q1) — nothing was shortened or lengthened:
+// the sweep and its pins stay as they were, and the entry's own retention rule (consent
+// expiry → anonymizeEntry, or erasure on request) now covers the new rows.
+test("the confirmed letter is the entry's own row, so the entry's erasure scrubs it — and the sweep leaves it alone", async () => {
+  const address = "held.letter@example.cz";
+  const { entry } = createPipelineEntry({
+    candidateId: "cand-ko-held-letter",
+    candidateLabel: "Held Letter",
+    jobId: "job-ko-held-letter",
+    jobTitle: "Retention Engineer",
+    contact: address,
+    locale: "en",
+    workspaceId: TEAM,
+  });
+  await dispatchKnockoutRejection(entry, ["ko_auth"]);
+  const letter = ensureDb()
+    .prepare(`SELECT id, ref, recipient, body FROM dev_outbox WHERE recipient = ? AND kind = 'ko_decline'`)
+    .get(address) as { id: string; ref: string | null; recipient: string | null; body: string | null };
+  assert.equal(letter.ref, entry.id, "ref'd to the entry");
+  ensureDb().prepare(`UPDATE dev_outbox SET created_at = ? WHERE id = ?`).run(iso(400), letter.id);
+
+  sweepKoDeclineContacts(NOW.toISOString());
+  assert.equal(row(letter.id).recipient, address, "the 30-day sweep is for ref-less rows; an entry's letter is the entry's");
+
+  anonymizeEntry(entry.id, "erasure", TEAM);
+  assert.equal(row(letter.id).recipient, null, "erasing the entry scrubs the letter's recipient");
+  assert.equal(row(letter.id).body, null, "…and its body");
+});
+
+test("the letter makes no 30-day claim in any locale: the contact is on the entry now, under the entry's own retention", () => {
   for (const locale of LOCALES) {
     const messages = JSON.parse(readFileSync(path.join(process.cwd(), "messages", `${locale}.json`), "utf-8"));
     const t = createTranslator({ locale, messages, namespace: "comms" });
-    const body = t("koDecline.body", {
-      name: "N",
-      role: "R",
-      team: "T",
-      mustHaves: "- x",
-      days: KO_DECLINE_CONTACT_RETENTION_DAYS,
-    });
-    assert.ok(body.includes(String(KO_DECLINE_CONTACT_RETENTION_DAYS)), `${locale}: the letter must state ${KO_DECLINE_CONTACT_RETENTION_DAYS} days`);
-    assert.ok(!body.includes("{days}"), `${locale}: placeholder left unrendered`);
+    const body = t("koDecline.body", { name: "N", role: "R", team: "T", mustHaves: "- x" });
+    assert.ok(!body.includes(String(KO_DECLINE_CONTACT_RETENTION_DAYS)), `${locale}: the letter must not promise the retired 30-day window`);
+    assert.ok(!/\{days\}/.test(body), `${locale}: no unrendered placeholder`);
   }
-});
-
-test("the dispatched letter is composed with the constant", async () => {
-  await dispatchKnockoutDecline({ email: "composed@example.cz", name: "Composed", jobTitle: "Retention Engineer", locale: "en", workspaceId: TEAM });
-  const sent = ensureDb()
-    .prepare(`SELECT body FROM dev_outbox WHERE recipient = 'composed@example.cz' AND kind = 'ko_decline'`)
-    .get() as { body: string };
-  assert.match(sent.body, new RegExp(`after ${KO_DECLINE_CONTACT_RETENTION_DAYS} days`));
 });

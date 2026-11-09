@@ -97,6 +97,7 @@ const KIND_RUNG: Readonly<Record<string, RoleRunStageKind>> = {
   interview_reminder_sent: "interview",
   interview_prep_generated: "interview",
   interview_scorecard: "scorecard",
+  interview_scorecard_human: "scorecard",
   offer_drafted: "offer_draft",
   offer_sent: "offer_draft",
   offer_accepted: "offer_draft",

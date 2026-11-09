@@ -1,0 +1,145 @@
+{
+ "schema": "conform-run/1",
+ "worker": "a3fe7732-3a87-408f-87e1-f572a3dc8fe0",
+ "subject": "quality-gates",
+ "evaluatedAt": "2026-11-04T00:10:30.138743+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "llm-api",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/llm/usage/usage-route-contract.test.ts:34 The guard that pins the usage route's authorization order runs over raw source text with no comment or string stripping. A comment naming `requireHomeOrgReader()` above the ledger read would satisfy it, which is exactly the authorization-guard case match-the-resolved-artifact measures. The other context guards strip comments, and a behavioural test outside this context (app/api/deployment-read-gate.test.ts) drives the real handler, so today the impact is limited to this instrument.",
+   "techniques": [
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "deviation",
+     "evidence": "app/api/llm/usage/usage-route-contract.test.ts:34 Raw-text presence/order assertion for an auth gate. The haystack is never normalised to code, and the probe does not say why a raw read is safe."
+    },
+    {
+     "technique": "gate-liveness",
+     "verdict": "conformant",
+     "evidence": "app/api/llm/test/test-code-lockstep.test.ts:71 An anti-vacuity floor on the parse asserts the instrument read something before the equality result is trusted."
+    },
+    {
+     "technique": "unparseable-form-is-a-finding",
+     "verdict": "conformant",
+     "evidence": "app/api/llm/test/test-code-lockstep.test.ts:38 A declaration in a form the matcher does not recognise turns the test red instead of yielding an empty, passing set."
+    },
+    {
+     "technique": "refusal-names-a-reachable-remedy",
+     "verdict": "conformant",
+     "evidence": "app/api/llm/test/test-code-lockstep.test.ts:84 The refusal names an in-tree remedy (both union sides plus messages/*.json)."
+    },
+    {
+     "technique": "vacuous-by-evaluation",
+     "verdict": "conformant",
+     "evidence": "app/api/llm/test/verdict.test.ts:47 Each leak test first proves the pre-fix payload carried the raw text, so the passing assertion is shown able to fail."
+    },
+    {
+     "technique": "decidable-in-a-window",
+     "verdict": "conformant",
+     "evidence": "app/api/automation/run/route.test.ts:35 A locally decidable rule (no await between check and call) is guarded by a bounded window scan within one file."
+    }
+   ]
+  },
+  {
+   "context": "llm-inference-runtime",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/llm-spawn-contract.test.ts:31 The env-routing contract covers only a hand-written module list, not the population of spawn sites in the tree. intake-run.ts, companion-run.ts, interview-letter-run.ts, job-translate-run.ts, jobseeker-run.ts and the jobseeker rules/propose route all spawn LLM-resolving Python CLIs and all pass buildLlmConfigEnv, but none is in the map. Dropping the env pin from any of them would leave the suite green, which is the same gap the file's own history records (a fifth site found only by a manual sweep).",
+   "techniques": [
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "deviation",
+     "evidence": "app/_lib/llm-spawn-contract.test.ts:31 There is no reach assertion: the population comes from the expectation list rather than the tracked tree, so unlisted spawn modules are invisible. The haystack itself is comment-stripped (line 63)."
+    },
+    {
+     "technique": "chokepoint-tag-registry",
+     "verdict": "deviation",
+     "evidence": "app/_lib/llm-spawn-contract.test.ts:68 The check runs one way only (registry row \u2192 module). No direction goes from spawn call sites to registry rows, and no negative-space rule confines LLM-resolving spawns to listed modules."
+    },
+    {
+     "technique": "prose-rule-drift",
+     "verdict": "deviation",
+     "evidence": "app/_lib/llm-spawn-contract.test.ts:8 Enrolling a new spawn site is a prose obligation with no mechanism. A forgotten entry is indistinguishable from compliance."
+    },
+    {
+     "technique": "gate-liveness",
+     "verdict": "conformant",
+     "evidence": "app/_lib/llm-spawn-contract.test.ts:85 Per listed module, zero matched spawn calls is a failure, not an empty pass."
+    },
+    {
+     "technique": "policy-projection",
+     "verdict": "conformant",
+     "evidence": "app/_lib/redact-secrets.test.ts:86 The redactor's coverage is derived from the secret-scan table (the single enumeration of credential shapes) and checked in both directions, with a row-count floor."
+    },
+    {
+     "technique": "vacuous-by-evaluation",
+     "verdict": "conformant",
+     "evidence": "app/_lib/reasoning-cache-first.test.ts:9 A bogus interpreter makes any cache miss throw, so a passing 'cache hit' assertion is proven to discriminate."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "quality-gates",
+   "context": "interview-simulator",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "quality-gates",
+   "context": "cv-analyze-intake",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "quality-gates",
+   "context": "tests-devcase",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-04T00:10:30.138743+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "decidable-in-a-window",
+    "gate-liveness",
+    "match-the-resolved-artifact",
+    "refusal-names-a-reachable-remedy",
+    "unparseable-form-is-a-finding",
+    "vacuous-by-evaluation"
+   ],
+   "deviations": 1,
+   "context": "llm-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-04T00:10:30.138743+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "chokepoint-tag-registry",
+    "gate-liveness",
+    "match-the-resolved-artifact",
+    "policy-projection",
+    "prose-rule-drift",
+    "vacuous-by-evaluation"
+   ],
+   "deviations": 1,
+   "context": "llm-inference-runtime",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -1,0 +1,143 @@
+{
+  "schema": "conform-run/1",
+  "worker": "8bdbea36-2fb4-4d5f-a892-e32a831af13d",
+  "subject": "quality-gates",
+  "evaluatedAt": "2026-11-09T03:08:33.539023+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "devcase-eval",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/features/tools/devcases/useDevTabActions.ts:55 A 422 probe_audit_failed from the Define-need approve has no errors-catalog entry, so runAction falls back to \"{action} failed. Please try again.\", naming neither the cause nor a remedy, and retrying can never clear the gate because the POST carries no overrideProbeAudit.",
+      "techniques": [
+        {
+          "technique": "refusal-names-a-reachable-remedy",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/devcases/useDevTabActions.ts:55 The remedy as worded (try again) cannot clear a deterministic probe refusal. DevLifecycleReviewPanel already fixed this same gap through approveFallbackFor; this path did not."
+        },
+        {
+          "technique": "policy-projection",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/devcases/DevProbeStrengthBanner.tsx:21 auditProbeStrength gives verdict none for total 0 and enforceProbeGate refuses none, yet the banner meant to project that gate renders nothing for exactly that input, so the surface understates what will block."
+        },
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/devcases/DevTab.approve-error.test.ts:17 Raw text including comments is the haystack and no reason is stated. A comment reading runAction(\"approve\" would satisfy the presence leg after the call was deleted. A latent hazard: the current comment does not contain the needle."
+        },
+        {
+          "technique": "renameable-detector-keys",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/devcases/DevTab.approve-error.test.ts:29 Renaming r to res clears this leg with the behaviour unchanged, while the message states the property rather than the token. The runAction presence leg partly covers it."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/devcases/DevTab.approve-error.test.ts:20 The slice anchor is asserted before any result, so a renamed function fails loudly instead of matching over an empty body."
+        },
+        {
+          "technique": "decidable-in-a-window",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/devcases/DevTab.approve-error.test.ts:21 The rule is about one function body, and the guard is a bounded window over that one file."
+        },
+        {
+          "technique": "unmeasurable-criteria",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/devcases/DevEvalPanelIntegrity.tsx:116 An unverifiable hash chain gets its own third state and never reads as a pass or as tampering."
+        }
+      ]
+    },
+    {
+      "context": "jobs-ai-coach-fit",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/features/library/jobs/jobsCoachPoolCap.test.ts:25 The route also writes this exact text in its empty-pool return (route.ts:51), so dropping the flag from the real scored response at route.ts:91 leaves the guard green while the coach loses the admission the guard exists to protect.",
+      "techniques": [
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jobs/jobsCoachPoolCap.test.ts:25 A raw, unscoped whole-file match over ROUTE: the needle is satisfied by an unrelated branch, so a green does not mean the response that matters carries the flag."
+        },
+        {
+          "technique": "instrument-answers-only-its-own-question",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jobs/jobsCoachPoolCap.test.ts:16 The guard says it pins source text because nothing can execute the pair, stating the question it answers."
+        },
+        {
+          "technique": "decidable-in-a-window",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jobs/jobsCoachPoolCap.test.ts:24 The destructure is decidable from the named file alone. The looseness of line 25 is a needle problem, recorded above, not a decidability one."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "quality-gates",
+      "context": "shell-setup-pipeline",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "quality-gates",
+      "context": "matrix-focus",
+      "reason": "withdrawn after review: reviewer (sonnet): The directory has app/features/insights/matrix/focus/matchReasons.test.ts, which reads source text with readFileSync (pipeline/jobfit/matching.py at line 131 and the messages JSON), so the claim that the context holds no source-text guard is contradicted; the searched terms (process.exit, pre-push, "
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-09T03:08:33.539023+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "quality-gates"
+      ],
+      "techniques": [
+        "decidable-in-a-window",
+        "gate-liveness",
+        "match-the-resolved-artifact",
+        "policy-projection",
+        "refusal-names-a-reachable-remedy",
+        "renameable-detector-keys",
+        "unmeasurable-criteria"
+      ],
+      "deviations": 1,
+      "context": "devcase-eval",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-09T03:08:33.539023+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "quality-gates"
+      ],
+      "techniques": [
+        "decidable-in-a-window",
+        "instrument-answers-only-its-own-question",
+        "match-the-resolved-artifact"
+      ],
+      "deviations": 1,
+      "context": "jobs-ai-coach-fit",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-09T03:08:33.539023+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "quality-gates"
+      ],
+      "techniques": [
+        "gate-liveness",
+        "match-the-resolved-artifact"
+      ],
+      "deviations": 0,
+      "context": "matrix-focus",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

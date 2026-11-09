@@ -304,13 +304,13 @@ export const POST = withWorkspace(async (ws: string, request: Request) => {
       case "cancel": {
         // Free the slot and re-open the invite for re-booking (reuses the candidate
         // primitive). Outcome-bearing → seal the recruiter's decision.
-        const updated = cancelAttendance(body.token);
-        if (!updated) return jsonRefusal("SCHEDULE_CANCEL_NOT_CONFIRMED", 409);
-        // `invite` is the PRE-cancel row and still carries the event id (cancelAttendance
-        // clears the slot, not the calendar handle) — delete exactly that event.
-        await removeInterviewEvent(invite);
+        // Sealed BEFORE the store write (council robustness-1): the record says only what
+        // is already known, and a 503 here means nothing moved, so the same click retries.
+        // Sealed after, the retry would be a 409 (no longer confirmed) with the record lost.
+        // The store's own precondition is asked first so a refusal seals nothing.
+        if (invite.status !== "confirmed") return jsonRefusal("SCHEDULE_CANCEL_NOT_CONFIRMED", 409);
         if (invite.entryId) {
-          sealDecisionSafe({
+          const sealed = sealDecisionSafe({
             kind: "interview_cancelled",
             actor: "human:recruiter",
             policyVersion: "manual",
@@ -319,19 +319,22 @@ export const POST = withWorkspace(async (ws: string, request: Request) => {
             reasonCode: "interview_cancelled",
             inputs: { previousSlot: invite.slot, previousSlotAt: invite.slotAt },
           });
+          if (!sealed) return jsonRefusal("PIPELINE_DECISION_NOT_SEALED", 503);
         }
+        const updated = cancelAttendance(body.token);
+        if (!updated) return jsonRefusal("SCHEDULE_CANCEL_NOT_CONFIRMED", 409);
+        // `invite` is the PRE-cancel row and still carries the event id (cancelAttendance
+        // clears the slot, not the calendar handle) — delete exactly that event.
+        await removeInterviewEvent(invite);
         // Re-read: the calendar removal above wrote calendar_event_state on this row, and
         // the panel needs the post-removal truth (including an 'orphaned' warning).
         return jsonOk({ invite: getScheduleInviteByToken(body.token) ?? updated });
       }
       case "no_show": {
-        const updated = markScheduleInviteNoShow(body.token);
-        if (!updated) return jsonRefusal("SCHEDULE_NO_SHOW_NOT_CONFIRMED", 409);
-        // A no-show keeps slot_at as the record of the missed time, but the interview is
-        // over — the calendar entry should not keep advertising it.
-        await removeInterviewEvent(invite);
+        // Sealed first, for the reason the cancel branch above gives.
+        if (invite.status !== "confirmed") return jsonRefusal("SCHEDULE_NO_SHOW_NOT_CONFIRMED", 409);
         if (invite.entryId) {
-          sealDecisionSafe({
+          const sealed = sealDecisionSafe({
             kind: "interview_no_show",
             actor: "human:recruiter",
             policyVersion: "manual",
@@ -340,7 +343,13 @@ export const POST = withWorkspace(async (ws: string, request: Request) => {
             reasonCode: "interview_no_show",
             inputs: { slot: invite.slot, slotAt: invite.slotAt },
           });
+          if (!sealed) return jsonRefusal("PIPELINE_DECISION_NOT_SEALED", 503);
         }
+        const updated = markScheduleInviteNoShow(body.token);
+        if (!updated) return jsonRefusal("SCHEDULE_NO_SHOW_NOT_CONFIRMED", 409);
+        // A no-show keeps slot_at as the record of the missed time, but the interview is
+        // over — the calendar entry should not keep advertising it.
+        await removeInterviewEvent(invite);
         return jsonOk({ invite: getScheduleInviteByToken(body.token) ?? updated });
       }
       case "reschedule": {
@@ -452,10 +461,10 @@ export const POST = withWorkspace(async (ws: string, request: Request) => {
         // The recruiter couldn't accommodate any proposed time: clear them and record
         // the honest 'declined' state the candidate page reads. The booking (if any) is
         // untouched — declining alternatives isn't cancelling a confirmed interview.
-        const updated = declineScheduleInviteProposals(body.token);
-        if (!updated) return jsonRefusal("SCHEDULE_NO_PROPOSALS", 409);
+        // Sealed first, for the reason the cancel branch above gives.
+        if (invite.proposalStatus !== "pending") return jsonRefusal("SCHEDULE_NO_PROPOSALS", 409);
         if (invite.entryId) {
-          sealDecisionSafe({
+          const sealed = sealDecisionSafe({
             kind: "interview_proposal_declined",
             actor: "human:recruiter",
             policyVersion: "manual",
@@ -464,7 +473,10 @@ export const POST = withWorkspace(async (ws: string, request: Request) => {
             reasonCode: "interview_proposal_declined",
             inputs: {},
           });
+          if (!sealed) return jsonRefusal("PIPELINE_DECISION_NOT_SEALED", 503);
         }
+        const updated = declineScheduleInviteProposals(body.token);
+        if (!updated) return jsonRefusal("SCHEDULE_NO_PROPOSALS", 409);
         return jsonOk({ invite: updated });
       }
       case "resolve_reconcile": {

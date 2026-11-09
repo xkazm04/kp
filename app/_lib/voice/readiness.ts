@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { isOffline } from "../offline.ts";
+import { voiceInterviewEnabled } from "./enabled.ts";
 import { classifyMintFailure, type VoiceMintCause } from "./mint-error.ts";
 import { VOICE_MINUTE_PRICES } from "./minute-prices.ts";
 import { isSelfHostedProvider } from "./self-hosted.ts";
@@ -80,6 +81,10 @@ export type VoiceReadinessReport = {
   preference: VoicePreference | null;
   /** KP_OFFLINE is on: the probe is refused, so the strip does not offer it. */
   offline: boolean;
+  /** KP_VOICE_INTERVIEW=1 (enabled.ts). False = the AI voice interview is switched off on
+   *  this install (owner ruling 2026-11-09): its doors answer as unknown routes, so a
+   *  strip must say "off" rather than offer setup or a probe. */
+  enabled: boolean;
   probeTtlMs: number;
 };
 
@@ -212,6 +217,7 @@ export function buildVoiceReadiness(deps: Deps): VoiceReadinessReport {
     providers,
     preference: voicePreference(availabilityOf(deps.adapters, order)),
     offline: isOffline(),
+    enabled: voiceInterviewEnabled(),
     probeTtlMs: VOICE_PROBE_TTL_MS,
   };
 }

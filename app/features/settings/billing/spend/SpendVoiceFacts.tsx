@@ -6,6 +6,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { BTN_GHOST } from "@/app/_components/ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { VoiceProviderId } from "@/app/_lib/voice/types";
+import { voiceSurfaceVisible } from "@/app/_lib/voice/enabled";
 import type { VoiceReadinessReport, VoiceReadinessRow, VoiceReadinessState } from "@/app/_lib/voice/readiness";
 
 // The realtime voice plane on the operator's System strip (challenge-r09
@@ -75,7 +76,7 @@ export function SpendVoiceFacts() {
       });
   }, [errorMessage, t]);
 
-  if (!report) return null;
+  if (!report || !voiceSurfaceVisible(report.enabled)) return null;
 
   const name = (id: VoiceProviderId) => VOICE_PRODUCT[id];
   const money = (usd: number) => format.number(usd, { style: "currency", currency: "USD", maximumFractionDigits: 2 });

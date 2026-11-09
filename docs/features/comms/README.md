@@ -682,6 +682,25 @@ a bad locale is `STOP_LANGUAGE_INVALID` 400. Locked by `app/api/stop/stop-langua
   `app/_lib/comms-letter-preview.test.ts` and
   `app/api/pipeline/[id]/offer-letter/route.test.ts`.
 
+**AI-drafted line (owner ruling Q10).** Every candidate letter a model wrote carries
+one extra paragraph, `comms.aiDraftedFooter` ("This message was drafted by AI." in
+en; translated in cs, de, fr), ahead of the data and stop footers. It is rendered in
+one place, `renderCandidateFooters` (`comms-dispatch.ts`), from a typed
+`aiDrafted` field on `sendCandidateComm`, never by reading the body, and it does not
+depend on the erasure or opt-out tokens (an erased entry or a store that cannot mint
+still gets it). The send decides from the draft's **stored** source through one
+function, `draftedByModel(source)`: only `template` (or `deterministic`) means "not
+AI"; `llm`, a missing source and an unknown word all mean "AI", so a draft written
+before the source was kept is never labelled human. Where the source lives: an offer
+draft's `verdictSource` in the approval detail; a held outreach letter's nullable
+`outreach_letters.draft_source` (additive column, written by `draftOutreachLetter`,
+re-written by a redraft, untouched by a person's edit, so an edited llm draft keeps
+the line). The offer preview applies the same function, so preview and letter agree.
+Rejection letters are templates plus recorded profile gaps and carry no line. The
+interview feedback letter has a model draft; `dispatchInterviewLetter` accepts the
+draft's `source` but its caller does not pass it, so those letters carry the line.
+The held-outreach read (`outreach-letters/letter-view.ts`) does not yet show it.
+
 ## 8a. Approve before first outreach (comms scope C2)
 
 A first contact is never sent by the machine that wrote it. All three outreach doors —
@@ -700,6 +719,7 @@ first-contacted once.
 | --- | --- | --- |
 | Draft | the outreach task (`draftOutreachLetter`, `app/_lib/outreach-release.ts`) | one row per application (unique on `workspace_id, entry_id`), revision 1, a `message_id` minted now; a re-draft of a still-drafted letter bumps the revision (identical text does not) |
 | Read | `GET /api/outreach-letters/[id]` | the draft, its `revision`, and the letter a release would send: body plus the legal footers with `PREVIEW_TOKEN` links, and a forecast (`refused` / `simulation` / `suppressed` / `relay` / `local`) |
+| List | `GET /api/outreach-letters?state=drafted[&limit=]` | the team's letters in ONE state, oldest first, `{ letters: [{ id, entryId, candidateLabel, jobTitle, subject, state, revision, createdAt, updatedAt }], state, limit, truncated }` — no body (open one through Find / Read); an erased row is left out; `state` absent or unknown folds to `drafted`, `limit` is capped at 200 (`outreachLetterListByState`, on `idx_outreach_letters_open`). Read by `/one`'s "letters waiting" view and its header count |
 | Find | `GET /api/outreach-letters/by-entry/[entryId]` | the drawer's lookup from an application to its letter, same shape as Read; `{ letter: null, preview: null }` when none was drafted, 404 for an entry outside the team |
 | Approve | `POST /api/outreach-letters/[id]/approve` `{ revision }` | a CAS on id + team + revision + `drafted`, naming `humanActor()`; a stale revision answers `409 PIPELINE_MOVE_CONFLICT` with the current `{ state, revision }` |
 | Release | `POST /api/outreach-letters/[id]/release` | `releaseOutreachLetter` → `dispatchOutreach` (consent, then halt, then `sendComm`) carrying the draft's `message_id` |
@@ -1306,6 +1326,35 @@ chunk). The full architecture, the level machine and the owners' contract are in
   from the last drain, never from a cursor of 0). The decisions are pure in
   `setupModel.ts` and `setupDelivery.ts`; `setupGuards.test.ts` pins that the hooks act on
   them.
+- **Level 1, the connectors deck** (`night/connectors/`, comms channels C5, 2026-10-28): the
+  connector catalog (`GET /api/connect`, [docs/features/connect](../connect/README.md)) as cards
+  grouped delivery / ATS / calendar, each with ONE health word; `sealed` and `not_configured` wear
+  different marks and label keys, a keyless install reads every card "Not set up", and the
+  calendar's free/busy is "unknown" unless a check proved it. Under each group sits the panel that
+  sets it up, re-homed as-is from the retired Settings → Integrations tab (calendar, ATS imports,
+  the outbound ATS webhook, then the Personas bridge). It is a level-1 PLACE, not a seventh
+  building: the stepper still walks the six channels. Opened from the "Connectors: n of m
+  connected" door under the needs, from a need, or by `?sec=connectors[:delivery|ats|calendar]`;
+  `?tab=integrations` (bookmarks, the `g o` chord, the Google OAuth callback's
+  `?calendar=<code>`) redirects here (`app/features/shell/tabRedirects.ts`), the outcome param
+  kept so the calendar panel renders it.
+  - **Probe only on a press.** The deck reads `GET /api/connect` and `GET /api/ats/deliveries`
+    (`connectors/connectorsDeckReads.ts` `loadDeck`, GETs only) on mount, on live refresh and on
+    each return to level 0. "Check now" is `POST /api/connect/[id]/probe`, run from a click and
+    nothing else. **smtp is never probed** (operator rule, 2026-10-28: its probe is a real letter):
+    its card opens delivery setup, where the owner-pressed Send test lives, and the probe door
+    refuses it. Pinned by `connectorsDeckReads.test.ts` (including that no effect reaches a probe)
+    and `app/api/connect/[id]/probe/probe-route.test.ts`.
+  - **ATS deliveries with Replay.** The first UI reader of `GET /api/ats/deliveries` (route
+    unchanged): due / dead / stranded in words and every dead-lettered row with Replay, the
+    route's own `POST { replayId }` (requeue under the same ledger id, then a sweep). The dead
+    count is also the need `atsDead` (severity 92), so level 0's headline reads "n outcomes did
+    not reach your ATS" without opening a level, the council must-address for
+    ats-candidate-egress. Pinned by `connectors/atsDeliveries.test.ts` against the real route.
+  - **A revoked calendar grant** (the catalog row's `repair: "reconnect"`) is the need
+    `calendarReconnect` (severity 75) and the calendar card offers Reconnect (the OAuth start),
+    never another probe (`connectors/calendarReconnect.test.ts`). An unread catalog or ledger
+    (in flight, or a seat the operator-only routes refuse) never reads as "nothing wrong".
 - **Level 2, the ledger** (`night/ledger/`): the relay's truth first (no relay: "N messages
   are NOT being sent to candidates", and that configuring one does not send what is already
   recorded), seven verdict chips (needs you first, keys 1-7; a zero only a relay could fill
@@ -1327,7 +1376,7 @@ chunk). The full architecture, the level machine and the owners' contract are in
   `?sec=` stays the tab's one-shot inbox: `comms` / `ledger` open the ledger, `dead` or a
   verdict open it filtered (Settings → Billing → spend's dead-letters alarm links
   `?sec=dead`), `careers|email|ads|feeds|relay|edge[:<receiver token>]` open that channel,
-  `msg:<id>` one message over the ledger; the arrival builds the whole stack so Esc walks
+  `connectors[:delivery|ats|calendar]` the connectors deck, `msg:<id>` one message over the ledger; the arrival builds the whole stack so Esc walks
   back through it, and the param is emptied at once.
 
 **Retired (2026-09-30):** the composition-kit view (`kit/ChannelsKitView.tsx` and its

@@ -1,0 +1,103 @@
+{
+ "schema": "conform-run/1",
+ "worker": "0b2e73fa-3a00-4b62-9080-0fe317196760",
+ "subject": "agent-instruction-files",
+ "evaluatedAt": "2026-11-05T23:49:21.690023+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "agents-api",
+   "subject": "agent-instruction-files",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/agents/dispatch/route.ts:18 These routes send a persona spec (including a systemPromptDraft field, mint.ts:43) to Personas as request data; no file here writes, loads or governs a coding-harness instruction file. Searching app/api/agents, app/api/companion and the parent app/api for AGENTS.md, 'instruction file', copilot-instructions and SKILL.md found 0 files.",
+   "techniques": [],
+   "absenceTerms": [
+    "AGENTS.md",
+    "instruction file",
+    "copilot-instructions",
+    "SKILL.md"
+   ]
+  },
+  {
+   "context": "analyze-engine",
+   "subject": "agent-instruction-files",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/tools/analyze/analyzeCvIntake.ts:1 This context is client-side CV-intake and analysis-run state with no agent harness, instruction file or spawned agent workspace. Searching app/features (which contains app/features/tools/analyze) for CLAUDE.md, AGENTS.md, 'instruction file', copilot-instructions and SKILL.md found 0 files.",
+   "techniques": [],
+   "absenceTerms": [
+    "CLAUDE.md",
+    "AGENTS.md",
+    "instruction file",
+    "copilot-instructions",
+    "SKILL.md"
+   ]
+  },
+  {
+   "context": "hiring-decisions-api",
+   "subject": "agent-instruction-files",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/decisions/screen-wave/route.ts:15 These are screening, decision-record and feedback route handlers; nothing in them writes, loads or governs an agent instruction file. Searching app/api/decisions, app/api/feedback and the parent app/api for AGENTS.md, 'instruction file', copilot-instructions and SKILL.md found 0 files.",
+   "techniques": [],
+   "absenceTerms": [
+    "AGENTS.md",
+    "instruction file",
+    "copilot-instructions",
+    "SKILL.md"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "agent-instruction-files",
+   "context": "github-repo-intelligence",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "agent-instruction-files",
+   "context": "app-master-bench-scenarios",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-05T23:49:21.690023+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-instruction-files"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "agents-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-05T23:49:21.690023+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-instruction-files"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "analyze-engine",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-05T23:49:21.690023+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-instruction-files"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "hiring-decisions-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

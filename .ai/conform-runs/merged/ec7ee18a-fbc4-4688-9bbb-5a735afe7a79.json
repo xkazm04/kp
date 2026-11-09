@@ -1,0 +1,92 @@
+{
+ "schema": "conform-run/1",
+ "worker": "ec7ee18a-fbc4-4688-9bbb-5a735afe7a79",
+ "subject": "hitl-approval",
+ "evaluatedAt": "2026-11-07T02:59:14.391782+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "jobseeker-api",
+   "subject": "hitl-approval",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/jobseeker/sources/[id]/route.ts:55 A tier-B terms acknowledgement is a bare boolean, and the server records whatever termsHash it computes when the write happens (line 60). The record therefore pins the version that is current at write time, not the version the owner was shown in the 409/catalog: if new terms ship between the read and the click, the owner is recorded as acknowledging clauses they never saw.",
+   "techniques": [
+    {
+     "technique": "decision-records",
+     "verdict": "deviation",
+     "evidence": "app/api/jobseeker/sources/[id]/route.ts:55 The acknowledgement does not carry back the hash that was shown; the server binds it to the current hash, so the record's 'what exactly' is not the decider's version."
+    },
+    {
+     "technique": "consent-gates",
+     "verdict": "conformant",
+     "evidence": "app/api/jobseeker/sources/[id]/route.ts:57 First use asks (409 naming the termsHash); the grant is stored keyed to the terms version; a changed hash re-asks; an unchanged one proceeds silently (tested in sources-route.test.ts)."
+    },
+    {
+     "technique": "gate-state-machines",
+     "verdict": "conformant",
+     "evidence": "app/api/jobseeker/sources/[id]/rules/propose/route.ts:25 The LLM-proposed scraping rules have no route to taking effect themselves; only the owner's separate PATCH persists them."
+    },
+    {
+     "technique": "oracle-before-gate",
+     "verdict": "conformant",
+     "evidence": "app/api/jobseeker/sources/[id]/rules/propose/route.ts:104 The proposal comes with a dry run against the same fetched page (per-rule match counts plus sample items), so the reviewer has something concrete to check it against."
+    },
+    {
+     "technique": "resume-after-decision",
+     "verdict": "conformant",
+     "evidence": "app/api/jobseeker/sources/[id]/route.ts:43 On save, the rules the client approved are re-validated, and they are persisted only together with the preview baseline they were measured against."
+    },
+    {
+     "technique": "human-performed-steps",
+     "verdict": "not-applicable",
+     "evidence": "app/api/jobseeker/scan/route.ts:35 No step is handed back to a person to perform; the scan is a machine task the seeker starts."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "hitl-approval",
+   "context": "interview-execution-scoring",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "hitl-approval",
+   "context": "hiring-pipeline-config",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "hitl-approval",
+   "context": "candidate-profile",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "hitl-approval",
+   "context": "consent-erasure-privacy",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-07T02:59:14.391782+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "hitl-approval"
+   ],
+   "techniques": [
+    "consent-gates",
+    "decision-records",
+    "gate-state-machines",
+    "human-performed-steps",
+    "oracle-before-gate",
+    "resume-after-decision"
+   ],
+   "deviations": 1,
+   "context": "jobseeker-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

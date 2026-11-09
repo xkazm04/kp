@@ -22,7 +22,7 @@ export const MINUTES_SAVED_PER_KIND: Record<string, number> = {
   auto_rejected: 5, // reviewing + writing a considered pass. LIVE — produced by the screen-wave bulk reject (screen-wave.ts, actor "system"), NOT by the automation pass (which never rejects unattended; it queues a rejection_review).
   rejection_sent: 4, // composing + sending the rejection note
   interview_invite_sent: 4, // composing + sending the invite + link
-  auto_advanced: 3, // the policy pass moving a candidate a stage on (the machine's OWN advance). The human `advanced` is a recruiter click — NOT saved automation labor — so it is deliberately absent (bug-ui-scan §hiring-automation #3).
+  auto_advanced: 3, // a machine-applied advance (the machine's OWN advance). Since Q2 (owner ruling 2026-11-09) the POLICY PASS no longer writes one: its advance is queued for a person, whose accept is a human `advanced`. Still LIVE for the screen task's clean advance (automation-run.ts) and the guided simulation, and it keeps counting rows written before Q2. The human `advanced` is a recruiter click — NOT saved automation labor — so it is deliberately absent (bug-ui-scan §hiring-automation #3).
   acknowledgement_sent: 2, // the application-received reply
   interview_reminder_sent: 2, // the nudge before a scheduled screen
   screening_hold: 2, // flagging a borderline for human review

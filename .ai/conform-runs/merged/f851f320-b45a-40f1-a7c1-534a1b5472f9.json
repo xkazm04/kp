@@ -1,0 +1,58 @@
+{
+ "schema": "conform-run/1",
+ "worker": "f851f320-b45a-40f1-a7c1-534a1b5472f9",
+ "subject": "node-boot-and-declarative-bootstrap",
+ "evaluatedAt": "2026-10-28T22:59:03.700180+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "platform-admin-ops",
+   "subject": "node-boot-and-declarative-bootstrap",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/sanity-checks.ts:1 The supposed 'startup sanity-check' module is actually the per-analysis trust ledger. The other files are a post-response task deferrer and a per-call origin resolver. None of the context's five files holds a boot step, reload handler, first-start bootstrap, config-born object or seal: grepping them for boot/seal/reload/restart/marker/seed/startup/listen found only comment mentions of 'boot' and the unrelated WARN_MARKERS regex, and grepping app/_lib for SIGHUP, verify-only, restart-only and bootstrap_marker found nothing.",
+   "techniques": [
+    {
+     "technique": "ordered-boot-dag",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/public-base-url.ts:136 The origin-conflict 'boot warning' fires lazily on the first publicBaseUrl() call, not as a step in a startup graph. This module has no startup rung of its own, and the readiness aggregation lives in app/_lib/readiness.ts, which is outside this context."
+    },
+    {
+     "technique": "reload-partition",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/public-base-url.ts:143 The configuration is process env, read on each call. There is no reload signal or reload path here that would need a reloadable/restart-only partition."
+    },
+    {
+     "technique": "request-chain-not-dsl",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/after-response.ts:32 The only scheduled work is an in-code callback deferred past the response. There is no declarative bootstrap file or request chain."
+    }
+   ],
+   "absenceTerms": [
+    "SIGHUP",
+    "verify-only",
+    "restart-only"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-28T22:59:03.700180+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "node-boot-and-declarative-bootstrap"
+   ],
+   "techniques": [
+    "ordered-boot-dag",
+    "reload-partition",
+    "request-chain-not-dsl"
+   ],
+   "deviations": 0,
+   "context": "platform-admin-ops",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

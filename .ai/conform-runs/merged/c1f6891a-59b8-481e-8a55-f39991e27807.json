@@ -1,0 +1,133 @@
+{
+ "schema": "conform-run/1",
+ "worker": "c1f6891a-59b8-481e-8a55-f39991e27807",
+ "subject": "quality-gates",
+ "evaluatedAt": "2026-11-04T02:26:09.986145+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "devcase-core",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/devcase/submission_eval.py:31 The fairness and discrimination gates exit 0 under --strict when a cohort is empty, for example a --count below the 6 behaviours. A run that measured no fairness at all is therefore certified the same way as a passing run. The standard says absence in the gate's own sample must be REFUSE, spelled as failure when the protocol has only two states.",
+   "techniques": [
+    {
+     "technique": "unmeasurable-criteria",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/devcase/submission_eval.py:31 not_evaluable comes from an empty cohort in the harness's own sample (the gate's vision, not the subject's world), yet it exits 0 under --strict. The report states the skip loudly, but the exit code certifies. calibrate.evaluate_gate gets this right (line 280: a judged-but-unmeasured dimension fails), so the two gates in one module resolve the same case in opposite ways."
+    },
+    {
+     "technique": "severity-by-construction",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/devcase/calibrate.py:446 The exit-code path traces directly from the GATE failure reasons to `return 1` under --strict. Without --strict the command is a report and is labelled as one."
+    },
+    {
+     "technique": "gate-liveness",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_devcase_calibrate.py:198 The acceptance gate is proven red by a seeded low case-mean, beside a passing control."
+    },
+    {
+     "technique": "vacuous-by-evaluation",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/devcase/submission_eval.py:647 Identifies a layer that makes reliability unfailable: deterministic templates always pass _check. A separate error_fallbacks condition makes --strict able to refuse that run."
+    },
+    {
+     "technique": "refusal-names-a-reachable-remedy",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/devcase/submission_eval.py:664 The self-grading refusal names a concrete remedy the operator can apply through use-case routing."
+    }
+   ]
+  },
+  {
+   "context": "db-pipeline-store",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/db/pipeline-tenancy.test.ts:7 The per-statement tenancy guard for pipeline_entries walks a hand-written list of 5 files (line 17). A grep finds about 29 non-test files that query pipeline_entries, including pipeline-calibration.ts in this same context, and none of the others are judged. tenancy-coverage.test.ts explicitly delegates per-statement scoping to per-table guards like this one, and the header's 'EVERY file' claim is false.",
+   "techniques": [
+    {
+     "technique": "self-reported-gate-inputs",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/pipeline-tenancy.test.ts:7 The gate's population is enumerated by hand rather than derived from a tree walk, so a new file that queries pipeline_entries is never judged and nothing says so. The >=30 floor cannot see a file it never reads."
+    },
+    {
+     "technique": "gate-liveness",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/pipeline-tenancy.test.ts:67 Checks the instrument before the result: a collapsed SQL extraction fails instead of passing with zero queries."
+    },
+    {
+     "technique": "vacuous-by-evaluation",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/pipeline-tenancy.test.ts:58 Pins the predicate's teeth with a deliberately wrong fixture, so the scoping rule is shown able to refuse."
+    },
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/pipeline-close-guard.test.ts:142 Runs the shipped SQL itself against a real SQLite database instead of matching a retyped copy, and keeps an unguarded control as the non-vacuity case."
+    },
+    {
+     "technique": "renameable-detector-keys",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/pipeline-close-guard.test.ts:54 Renaming the function the detector keys on makes the guard fail loudly instead of silently dropping the finding."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "quality-gates",
+   "context": "devcase-eval",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "quality-gates",
+   "context": "pipeline-actions-commands",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "quality-gates",
+   "context": "cv-analysis-archetypes",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-04T02:26:09.986145+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "gate-liveness",
+    "refusal-names-a-reachable-remedy",
+    "severity-by-construction",
+    "unmeasurable-criteria",
+    "vacuous-by-evaluation"
+   ],
+   "deviations": 1,
+   "context": "devcase-core",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-04T02:26:09.986145+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "gate-liveness",
+    "match-the-resolved-artifact",
+    "renameable-detector-keys",
+    "self-reported-gate-inputs",
+    "vacuous-by-evaluation"
+   ],
+   "deviations": 1,
+   "context": "db-pipeline-store",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

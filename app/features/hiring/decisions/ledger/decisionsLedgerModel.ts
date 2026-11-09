@@ -12,7 +12,7 @@ import { canonicalScoreOf } from "@/app/_lib/match-score";
 import type { Entry } from "@/app/features/shared/decisionsTypes";
 import type { ParsedApproval } from "../decisionsAiReviewCardLogic";
 
-export type LedgerKind = "screening" | "scorecard" | "humanScorecard" | "queuedReject" | "offer";
+export type LedgerKind = "screening" | "scorecard" | "humanScorecard" | "queuedReject" | "queuedAdvance" | "offer";
 
 export type LedgerRow = {
   entry: Entry;
@@ -40,6 +40,10 @@ export function ledgerKindOf(entry: Pick<Entry, "approvalKind">, parsed: ParsedA
   if (entry.approvalKind === "offer_review") return "offer";
   if (entry.approvalKind === "rejection_review") return "queuedReject";
   if (entry.approvalKind === "scorecard_review") return parsed?.source === "human" ? "humanScorecard" : "scorecard";
+  // Q2: the policy pass's advance, queued for a person. Its own kind so no surface can
+  // read it as an AI screening or (worse) a rejection; it is still a plain
+  // screening_review underneath and rides the same accept/reject doors.
+  if (entry.approvalKind === "screening_review" && parsed?.policyAdvance != null && typeof parsed.policyAdvance === "object") return "queuedAdvance";
   return "screening";
 }
 

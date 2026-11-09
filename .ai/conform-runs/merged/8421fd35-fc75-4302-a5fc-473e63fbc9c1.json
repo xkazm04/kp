@@ -1,0 +1,48 @@
+{
+ "schema": "conform-run/1",
+ "worker": "8421fd35-fc75-4302-a5fc-473e63fbc9c1",
+ "subject": "regulated-credential-gating",
+ "evaluatedAt": "2026-10-30T22:18:55.449625+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "tests-matching-taxonomy",
+   "subject": "regulated-credential-gating",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/tests/test_matching.py:52 The suite that pins the matching engine's hard gates covers seniority, education, language and work mode and nothing else, and matching.py has no credential or licence logic at all. A required licence can therefore only reach the matcher as a weighted must-have skill, and the fit tier comes from score thresholds alone, so a strong skills match can still produce a 'strong' verdict on a role whose licence is missing. That is the offsettable-licence failure, and no test here would catch it.",
+   "techniques": [
+    {
+     "technique": "licence-is-a-precondition-not-a-preference",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_match_reasoning.py:109 A healthcare_clinical role (ICU Nurse) is modelled with skill requirements only. There is no precondition class carried as a field, and a missing licence never caps the verdict, so it stays an offsettable weight inside the score."
+    },
+    {
+     "technique": "required-but-missing-as-a-blocking-gate",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_soft_signals.py:175 The only credential-gap assertion in this context checks that the model's free-text sentence survives as an llm_risk_flag antipattern row. Nothing here pins a structured gap object, a capped match verdict, or a ko_filter reason for a missing licence."
+    }
+   ],
+   "registryProposal": "The standard would be easier to apply if it said directly that a second consumer, such as a candidate-to-job matcher or ranker that computes its own fit tier separately from the analysis pass, must read the same precondition gate. Right now that rule is only implied by the 'new caller reaches the result without going through the analysis pass' decision rule, and in this repo the matcher computes its own fit tier and never sees the gate."
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-30T22:18:55.449625+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "regulated-credential-gating"
+   ],
+   "techniques": [
+    "licence-is-a-precondition-not-a-preference",
+    "required-but-missing-as-a-blocking-gate"
+   ],
+   "deviations": 1,
+   "context": "tests-matching-taxonomy",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

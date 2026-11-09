@@ -117,6 +117,12 @@ Three things are worth knowing about the shape:
 - **The group ceiling is the p95 route, not the worst one.** One fat route must
   not buy headroom for two hundred, so anything above p95 gets a named override
   with its own ceiling and is visible in the diff.
+- **Eager edges count; deferred edges do not** ([ADR 0032](../architecture/decisions/0032-import-budget-counts-eager-edges.md)).
+  The walk follows static imports and re-exports. An `import('x')` (what `next/dynamic` and
+  `React.lazy` compile to) is a deferred edge and is not followed, so code reachable only through
+  one is not counted. A module that is also imported statically somewhere on the path still
+  counts. `app/page.tsx` went from 1989 modules / 12009 KB (union) to 255 / 1975 KB (eager) with
+  no ceiling edited. `walkGraph(entry, root, { deferred: true })` gives the union.
 - **`import type` is free** (erased before bundling) and is never counted, in the
   graph or in the barrel rule. That is the same line `app-structure.md` draws.
 
@@ -156,6 +162,17 @@ now carry named overrides rather than a wider group ceiling. The `@sentry/nextjs
 touched only the lockfile and is not in this graph. Ceilings were raised to the measured
 values, each with a `why`, and no slack was added.
 
+**Zero slack is a tripwire for the next merge.** On 2026-10-28 main was red a fourth time:
+33 route overrides sat 1 KB over, and `app/page.tsx` had grown 1977 to 1981 modules and
+11925 to 11970 KB. Nothing structural: 37 commits since 36fbfa7fa moved a few KB each
+(`automation-run.ts`, `comms-backlog.ts`, `connect/catalog.ts`, `connect/probes.ts`,
+`link-base-warning.ts`, `task-fanout.ts`, `tenancy.ts`), all of them on every route's
+path through the task hub. c76400944 (four lines in `api-errors/refusal-errors.ts`, which
+every route imports) was the commit that crossed the line, not the cause; the pre-push
+gate does not run `test:perf`, so nothing stopped it. Only the entries that crossed were
+raised, each by the overage plus 8 KB (30 KB and 3 modules for the page) so the next small
+merge does not turn main red again; no other ceiling moved.
+
 ## When it fails
 
 The message names the file, the measurement and the ceiling. In order of what
@@ -166,9 +183,7 @@ usually fixes it:
 2. **A helper living in a hub module.** Move it to a leaf — that is what
    `plannedInterviewMinutes` → `app/_lib/interview-planned-minutes.ts` was.
 3. **`import type` written as a value import.** Free once it is a type import.
-4. **A heavy subsystem hanging off a hub through `import()`.** A dynamic import
-   is COUNTED — Next pays for the chunk either way — so writing `await
-   import("…")` does not take a module off the graph. What does is a leaf
+4. **A heavy subsystem hanging off a hub through `import()`.** A dynamic import is deferred (ADR 0032), but it is deferred only if NOTHING on the path also imports the module statically; a hub that reaches the module by both routes keeps it counted. What takes it off every path is a leaf
    registry the hub reads and `instrumentation-node.ts` fills at boot, which is
    on no route's path: `app/_lib/task-external-runners.ts` (the job-seeker scan,
    off `app/_lib/tasks.ts`) and `app/_lib/stage-hook-registry.ts` (the
@@ -280,8 +295,7 @@ that only `ci.yml` blocks the loop this budget exists to protect.
   pinned by `scripts/perf/__tests__/devbench.test.mjs` (11 checks) in
   `npm run test:perf`, which also validates the committed file — a ratchet whose
   committed state is malformed is a gate that silently never fires.
-- **What the browser loads first.** This budget walks dynamic imports and server code, so a
-  lazy-loading win cannot move it. `scripts/perf/first-load.mjs` walks STATIC client imports only
+- **What the browser loads first.** This budget counts eager imports (a dynamic `import()` is deferred) and includes server code, so it is a compile-cost proxy, not a first-load measure; a `scripts/perf/first-load.mjs` walks STATIC client imports only
   (shell, each workspace tab chunk, the gate routes; it stops at `'use server'`, found by a linear
   scan past leading comments rather than a backtracking pattern), and
   `npm run perf:vitals` measures cold loads and warm tab switches in a browser. Both are report-only;

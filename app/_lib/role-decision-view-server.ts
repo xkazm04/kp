@@ -20,6 +20,7 @@ import { clearedByFor, heldForAuthorship, readDebriefFindings } from "./devcase-
 import { devCaseIdForEntry, submissionIdForEntry } from "./devcase-identity";
 import { RATING_MAX } from "./format";
 import { getHumanScorecards } from "./interview-prep";
+import { projectForViewer, type ScorecardViewer } from "./human-scorecard-set";
 import { withCanonicalScores } from "./match-score-resolve";
 import { getPipelineAxis } from "./pipeline-axis-server";
 import {
@@ -49,7 +50,11 @@ function aiScorecardOf(entryId: string, ws: string): RoleViewFacts["aiScorecard"
   return sc && typeof sc === "object" && !Array.isArray(sc) ? (sc as RoleViewFacts["aiScorecard"]) : null;
 }
 
-export function loadRoleDecisionView(jobId: string, ws: string): RoleDecisionView {
+/** `viewer` is the caller, for the independent-scoring rule (human-scorecard-set.ts): the
+ *  interview ratings this view carries per candidate are a colleague's verdict in summary,
+ *  so each entry's panel is projected for the round THAT entry is in. No viewer is the
+ *  fail-closed caller: no colleague's records. */
+export function loadRoleDecisionView(jobId: string, ws: string, viewer: ScorecardViewer | null = null): RoleDecisionView {
   const terminal = new Set(getPipelineAxis(ws).stages.filter((s) => s.role === "terminal").map((s) => s.id));
   const active = listEntriesForJob(jobId, ws)
     .filter((e) => activeForDecision(e, terminal))
@@ -69,7 +74,7 @@ export function loadRoleDecisionView(jobId: string, ws: string): RoleDecisionVie
         submissionId,
       },
       submission: ownedSubmission(submissionId, ws),
-      humanScorecards: getHumanScorecards(e.id, ws),
+      humanScorecards: projectForViewer(getHumanScorecards(e.id, ws), viewer, e.stage).records,
       aiScorecard: aiScorecardOf(e.id, ws),
     };
   });

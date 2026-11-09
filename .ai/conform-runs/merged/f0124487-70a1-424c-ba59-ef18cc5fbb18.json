@@ -1,0 +1,143 @@
+{
+ "schema": "conform-run/1",
+ "worker": "f0124487-70a1-424c-ba59-ef18cc5fbb18",
+ "subject": "prompt-assembly",
+ "evaluatedAt": "2026-11-04T22:13:41.653496+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "tests-pipeline-automation",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/tests/test_prompt_version_sync.py:117 The cache-key gate only checks that two hand-bumped version labels agree (TS vs Python). A prompt-text edit that bumps neither label passes, and the prompt cache (reasoning-run.ts lookupPromptCache(hash, REASONING_PROMPT_VERSION)) then serves the old prompt's output for its TTL. The key is a label, not a digest of the standing text.",
+   "techniques": [
+    {
+     "technique": "fingerprinting-and-cache-keys",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_prompt_version_sync.py:117 Label-to-label lockstep. Nothing derives the version from the prompt bytes or checks text against version, so the technique's 'digest identities, not summaries that collide' rule is not met."
+    },
+    {
+     "technique": "context-budgeting",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_prompt_budgets.py:39 Over-budget blocks are pinned to carry an explicit truncation marker naming the budget, and in-budget blocks to pass through byte-identical. Only per-block caps are exercised; no global total is tested."
+    },
+    {
+     "technique": "variable-interpolation",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_prompt_fences.py:1 Untrusted spans are bound to declared fenced insertion points through each prompt's real entry point, and every assertion is proven non-vacuous."
+    },
+    {
+     "technique": "layered-composition",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_prompt_locale.py:113 One shared section renderer (language_directive) is pinned across families, driven from the shipped locale list."
+    }
+   ]
+  },
+  {
+   "context": "jd-intake-brief-logic",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/library/jds/intake/jdsIntakeLogic.ts:441 These modules are client-side state for the intake session: they post only the requestor's new message to /api/intake/[id]/message, and the server assembles the prompt elsewhere. Searching the intake directory found no prompt builder, system prompt, token cap or fence; 'prompt' appears only as a promptVersion fixture field in a test and in voicePhase.ts microphone-permission copy.",
+   "techniques": [],
+   "absenceTerms": [
+    "buildPrompt",
+    "systemPrompt",
+    "maxTokens",
+    "fenced_untrusted"
+   ]
+  },
+  {
+   "context": "analyze-workspace",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/tools/analyze/AnalyzeTab.tsx:36 This is the recruiter's form, history and picker UI, and it delegates all request logic to the analyze-engine hooks. Searching app/features/tools/analyze found no prompt builder, system prompt, token cap or fence; 'prompt' occurs only in UI copy keys (focusPrompt) and a comment.",
+   "techniques": [],
+   "absenceTerms": [
+    "buildPrompt",
+    "systemPrompt",
+    "maxTokens",
+    "fenced_untrusted"
+   ]
+  },
+  {
+   "context": "devcase-eval",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/tools/devcases/DevEvalPanelChecks.tsx:9 These panels and hooks display evaluation verdicts that the Python side computed; prompts are built in pipeline/jobfit/devcase. Searching app/features/tools/devcases and app/features/tools/interview found no prompt builder, system prompt, token cap or fence; 'prompt' appears only as the captured-exchange event kind and the promptSignals display type.",
+   "techniques": [],
+   "absenceTerms": [
+    "buildPrompt",
+    "systemPrompt",
+    "maxTokens",
+    "fenced_untrusted"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "prompt-assembly",
+   "context": "devcase-session-api",
+   "reason": "evidence leans on devcase/chat.py, which is not a tracked file"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-04T22:13:41.653496+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [
+    "context-budgeting",
+    "fingerprinting-and-cache-keys",
+    "layered-composition",
+    "variable-interpolation"
+   ],
+   "deviations": 1,
+   "context": "tests-pipeline-automation",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-04T22:13:41.653496+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "jd-intake-brief-logic",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-04T22:13:41.653496+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "analyze-workspace",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-04T22:13:41.653496+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "devcase-eval",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

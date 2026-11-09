@@ -1,0 +1,128 @@
+{
+ "schema": "conform-run/1",
+ "worker": "966e6a22-53f1-4b53-a5b6-e233f3f738cf",
+ "subject": "docs-sync",
+ "evaluatedAt": "2026-11-08T03:26:14.480089+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "architecture-diagrams-explorer",
+   "subject": "docs-sync",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "app/diagrams/page.tsx:19 The /diagrams page renders the committed .puml sources live at request time, its step citations and catalog copy are held to the tree by tests, and the area is declared in the map to the About doc. The rendered surface cannot drift from its definition, and the prose around it is checked.",
+   "techniques": [
+    {
+     "technique": "source-doc-mapping",
+     "verdict": "conformant",
+     "evidence": "scripts/docs/feature-doc-map.json:571 Declared entry coupling the whole explorer to docs/features/about/README.md, with a _comment saying why."
+    },
+    {
+     "technique": "rendered-surface-coupling",
+     "verdict": "conformant",
+     "evidence": "app/diagrams/readDiagramSource.ts:5 The picture is derived from its definition at view time instead of committed as a capture, so it cannot go stale relative to the .puml."
+    },
+    {
+     "technique": "doc-rot-detection",
+     "verdict": "conformant",
+     "evidence": "app/diagrams/pipelineSteps.test.ts:92 Every repo path the drawer cites to a reader is checked against the tree, so a dead citation fails instead of rotting silently."
+    },
+    {
+     "technique": "translations-drift-against-the-product",
+     "verdict": "conformant",
+     "evidence": "app/diagrams/pipelineSteps.test.ts:178 The four locale catalogs are checked against the live step set (the product), not only against en. A catalog row for a deleted step fails as 'has no STEP_DETAILS entry'."
+    },
+    {
+     "technique": "named-duplication-points",
+     "verdict": "conformant",
+     "evidence": "app/diagrams/pipelineSteps.ts:13 Copy lives in the catalogs and code identifiers live in the module. The split and its single authority are named, and the two halves are checked by a test."
+    },
+    {
+     "technique": "coupled-surface-inventory",
+     "verdict": "conformant",
+     "evidence": "app/diagrams/readDiagramSource.test.ts:54 Every committed .puml must be either rendered or listed as UNLISTED with a reason, so the published surface's inventory is complete by construction."
+    },
+    {
+     "technique": "checked-vs-skipped-denominators",
+     "verdict": "conformant",
+     "evidence": "app/diagrams/readDiagramSource.ts:34 An unreadable source renders as an honest 'Could not read' message and is logged, not shown as an empty diagram. A failed read is also never cached. This only partly fits the technique, which is about reports."
+    },
+    {
+     "technique": "negative-claims-are-pinned",
+     "verdict": "conformant",
+     "evidence": "app/diagrams/pipelineSteps.test.ts:123 The About doc promises that an unknown ?step alias is ignored and the page still renders. A test pins that 'does not act' claim (the `nope` and empty-string cases return null)."
+    }
+   ]
+  },
+  {
+   "context": "platform-admin-ops",
+   "subject": "docs-sync",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "docs/features/candidates/README.md:210 Feature docs describe all three modules: sanity-checks.ts in candidates, afterResponse in candidates, interviews and dev-case, and publicBaseUrl in comms and agents. None of after-response.ts, public-base-url.ts or sanity-checks.ts matches any feature-doc-map.json entry (grep found no hit), so changing them owes no doc.",
+   "techniques": [
+    {
+     "technique": "source-doc-mapping",
+     "verdict": "deviation",
+     "evidence": "docs/features/candidates/README.md:843 The behaviour is documented, but none of the three source files is matched by any map entry, and nothing gates map coverage."
+    },
+    {
+     "technique": "coupled-surface-inventory",
+     "verdict": "deviation",
+     "evidence": "docs/features/comms/README.md:840 public-base-url.ts calls itself the one resolver whose origin is 'documented'. Its documentation is spread across the comms and agents docs, and no entry enumerates those surfaces."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "docs-sync",
+   "context": "shell-setup-wizard",
+   "reason": "evidence leans on companion/README.md, which is not a tracked file"
+  },
+  {
+   "subject": "docs-sync",
+   "context": "db-jobs-devcase-interviews",
+   "reason": "evidence leans on db/interviews.ts, which is not a tracked file"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-08T03:26:14.480089+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "docs-sync"
+   ],
+   "techniques": [
+    "checked-vs-skipped-denominators",
+    "coupled-surface-inventory",
+    "doc-rot-detection",
+    "named-duplication-points",
+    "negative-claims-are-pinned",
+    "rendered-surface-coupling",
+    "source-doc-mapping",
+    "translations-drift-against-the-product"
+   ],
+   "deviations": 0,
+   "context": "architecture-diagrams-explorer",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T03:26:14.480089+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "docs-sync"
+   ],
+   "techniques": [
+    "coupled-surface-inventory",
+    "source-doc-mapping"
+   ],
+   "deviations": 1,
+   "context": "platform-admin-ops",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

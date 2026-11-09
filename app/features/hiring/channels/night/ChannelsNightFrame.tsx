@@ -18,7 +18,7 @@ export const KEYS_LEVEL: readonly KeyHint[] = [{ keys: ["esc"], act: "back" }];
 export const KEYS_CHANNEL: readonly KeyHint[] = [{ keys: ["leftRight"], act: "channel" }, ...KEYS_LEVEL];
 
 /** The token each place's level is tinted with (the rest, and the post book, stay steel). */
-const GROUND: Partial<Record<NightChannel | "book", LevelTone>> = { careers: "moss", ads: "coral", feeds: "amber", edge: "stone" };
+const GROUND: Partial<Record<NightChannel | "book" | "studio", LevelTone>> = { careers: "moss", ads: "coral", feeds: "amber", edge: "stone" };
 
 /**
  * The Night Post's binding of the kit's level frame (app/_components/kit/scene: `LevelFrame`,
@@ -27,7 +27,8 @@ const GROUND: Partial<Record<NightChannel | "book", LevelTone>> = { careers: "mo
  * takes focus when the level opens (`data-level-heading`). night/README.md is the contract.
  */
 export function ChannelsNightFrame({ ground, crumbs, onBack, keys, ...frame }: {
-  ground: NightChannel | "book";
+  /** The place the level belongs to; the connectors deck is the studio's. */
+  ground: NightChannel | "book" | "studio";
   kicker: string;
   title: string;
   lead?: ReactNode;

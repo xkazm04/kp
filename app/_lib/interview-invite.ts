@@ -28,6 +28,7 @@ import { entryContactability } from "@/app/_lib/comms-contactability";
 import { latestPublishedKit } from "@/app/_lib/interview-kit";
 import type { StoredInterviewKit } from "@/app/_lib/interview-kit-types";
 import { buildGroundedInterview } from "@/app/_lib/interview-run";
+import { assertVoiceInterviewEnabled } from "@/app/_lib/voice/enabled";
 import { dispatchInterviewInvite } from "@/app/_lib/comms-dispatch";
 import { deliveryClaim, type DeliveryClaim } from "@/app/_lib/comms-truth";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
@@ -100,6 +101,8 @@ export type VoiceScreenMintInput = {
  * `Error("pipeline entry not found")`); every business refusal is returned.
  */
 export async function mintAndInviteVoiceScreen(input: VoiceScreenMintInput): Promise<VoiceScreenMintResult> {
+  // Switched off (KP_VOICE_INTERVIEW): mint nothing, mail nothing, spend nothing.
+  assertVoiceInterviewEnabled();
   const { entryId, workspaceId, origin = null } = input;
   const avail = voiceAvailability();
   const provider: VoiceProviderId = pickDefaultProvider(input.provider, avail);

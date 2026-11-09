@@ -7,6 +7,7 @@ ported onto real state. The plumbing is a small district you walk into, level by
 |---|---|---|---|
 | **L0** the plumbing | four doors (careers, email intake, ad forms, pull feeds), the studio, the relay depot, the night box (edge), the ledger (post book), the candidates' houses; the headline, the figures, "needs you, worst first" | CH-F | final |
 | **L1** one channel | careers / email / ads / feeds / relay / edge setup, stepper ← → and a dot per channel | CH-S | final (`night/setup/*`) |
+| **L1** the connectors deck | the connector catalog (delivery / ATS / calendar) with one health word per card, ATS deliveries with Replay, the re-homed Integrations panels; not a building, not in the stepper | C5 | final (`connectors/`) |
 | **L2** the ledger | the relay's truth, verdict chips, facets, search, the role scope, the windowed table, paging | CH-L | final (`ledger/`) |
 | **L3** one message | the letter, its verdict, the resend doors, the delivery timeline, prev / next | CH-L | final (`message/`) |
 
@@ -23,6 +24,7 @@ ChannelsTab -> ChannelsNightShell            data (ONE useChannelData, ONE useCo
                  +- LevelTransition x N      (kit scene) one per stack entry (+ the closing one): the circle wipe
                       +- L0 ChannelsNightPlumbingView (Head, Stage | Street, Needs, Keys)
                       +- L1 ChannelsNightSetupLevel   -> ChannelsNightFrame + setup/Setup{Careers,Receivers,Feeds,Relay,Edge}
+                      +- L1 ChannelsNightConnectorsLevel -> ChannelsNightFrame + connectors/{ConnectorCard,AtsDeliveriesBlock}
                       +- L2 ChannelsNightLedgerLevel  -> ChannelsNightFrame + ledger/ChannelsNightLedger
                       +- L3 ChannelsNightMessageLevel -> ChannelsNightFrame + message/ChannelsNightLetter
 ```
@@ -87,6 +89,7 @@ Grammar (`parseNightArrival`, inverse `nightArrivalParam`, both tested):
 | `dead` / `queued` / `sent` / `recovered` / `failed` / `bounced` / `orphaned` | L2 filtered (`dead` = needs you) |
 | `careers` / `email` / `ads` / `feeds` / `relay` / `edge`, optionally `:<receiver token>` | L1 (old section links still land) |
 | `msg:<id>` | L3 over L2 (a message outside the loaded window says so) |
+| `connectors`, optionally `:delivery` / `:ats` / `:calendar` | the connectors deck (L1), scrolled to that part |
 
 The arrival builds the whole stack (0 -> 2 -> 3), so Esc walks back through it. `sec` is not in
 `TAB_SCOPED_PARAM_KEYS` (it never outlives its arrival), so `buildUrl` / `clearedTabScopedParams` are
@@ -244,3 +247,22 @@ The sample-state switch, "Prototype controls", "sample data" / "stylised" chips,
 edge outcomes, the "hand the queue to the relay" batch action and the unmatched-receipt "recover" (no API
 behind either), composed message bodies, the hand-lettered font (the "start here" note uses the register's
 display face), and bare-letter shortcuts (T, L, R: they collide with the workspace chords).
+
+## The connectors deck (C5, 2026-10-28)
+
+`connectors/`: `ChannelsNightConnectorsLevel` (frame, groups, the re-homed Integrations panels),
+`ConnectorCard` (one connector as a `SetupCard`), `AtsDeliveriesBlock` (GET /api/ats/deliveries:
+due / dead / stranded, dead rows with Replay = the route's POST { replayId }), the pure
+`connectorsDeckModel.ts` (health word -> condition + label key, the one door per card) and
+`atsDeliveriesModel.ts`, the wire `connectorsDeckReads.ts` (`loadDeck` GETs only, `pressProbe`,
+`replayDelivery`, each taking its `fetch`) and the state `useConnectorsDeck` (read in the shell: level
+0 draws the door's summary and the `atsDead` / `calendarReconnect` needs from it).
+
+- The entry is `{ level: 1, deck: "connectors", focus }` (`isDeckEntry`, `deckEntry`); it belongs to
+  the studio (`channelOf` -> `"studio"`), has no stepper and no arrow-key step.
+- **smtp is never probed** (operator, 2026-10-28): a probe of it is a real letter. Its card's door is
+  delivery setup (the relay level, where `SetupSmtp`'s Send test is); `pressProbe("smtp")` makes no
+  request; the hook's effects run `loadDeck` only. `connectorsDeckReads.test.ts` reads the hook and the
+  level's source to keep it so.
+- `?tab=integrations` lands here (`app/features/shell/tabRedirects.ts`), the OAuth `calendar=` param kept
+  for the calendar panel.

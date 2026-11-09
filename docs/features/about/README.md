@@ -57,6 +57,13 @@ argument survive with JavaScript still in flight.
 | 5 | Assignments — a work sample that survives delegation | the `sim >= 0.85` prompt gate (`pipeline/jobfit/devcase/artifact_checks.py`), `dev_cases.baseline_json` | `chapters.test.ts` — the gate, the scene's `AIM`, and that the worked example sits below it |
 | 6 | Human gates — the machine ranks, a person decides | `APPROVAL_KINDS` / `needsHumanDecision` (`app/_lib/approval-kinds.ts`), the approval path in `app/_lib/automation-pass.ts` | `chapters.test.ts` — every non-empty `ACTIONS.kind` is `isApprovalKind`, parks iff kind is set, and `needsHumanDecision` still exists |
 
+**A policy advance parks for a person.** Since Q2 the policy pass no longer applies a
+score-threshold advance on its own: it files a `screening_review` and stops at the
+barrier. Chapter 6's advance row (`scenes/gates/data.ts`, `queued_advance`, `parks: true`)
+shows that, so three actions park (advance, reject, offer); holds and alerts still run
+autonomously. The two diagram edges in `app/diagrams/pipelineSteps.ts` that described the
+pass as auto-advancing now say it queues the advance for approval.
+
 **One deliberate exception.** Chapter 3's `120 / 74 / 8` are *not* quoted from
 anything: the shortlist width is whatever the caller asks `match_reasoning` for
 and the survival rate is whatever the gates say about real applicants. They are

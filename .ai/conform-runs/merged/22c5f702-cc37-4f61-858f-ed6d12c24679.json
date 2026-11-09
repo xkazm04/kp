@@ -1,0 +1,71 @@
+{
+ "schema": "conform-run/1",
+ "worker": "22c5f702-cc37-4f61-858f-ed6d12c24679",
+ "subject": "toasts-notifications",
+ "evaluatedAt": "2026-11-02T22:16:08.246431+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "feedback-status-primitives",
+   "subject": "toasts-notifications",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_components/toast-store.ts:62 When more than three toasts arrive, the queue drops the oldest one whatever its severity, with no summary, no ledger record and no count. Repeats are also merged silently, because the nonce bump on line 56 shows no counter. A burst of successes can therefore push an unread error off screen and leave no trace of it.",
+   "techniques": [
+    {
+     "technique": "severity-taxonomy",
+     "verdict": "conformant",
+     "evidence": "app/_components/toast-store.ts:17 There is one closed vocabulary, and the TONE (Toast.tsx:39) and TOAST_DURATION records are total over it. Visual encoding goes through semantic tokens (moss, coral, steel), call sites cannot pick a color, and no other declaration of the vocabulary was found in app/. The set is small but every level is used, which the technique accepts."
+    },
+    {
+     "technique": "queue-discipline",
+     "verdict": "deviation",
+     "evidence": "app/_components/toast-store.ts:62 Some parts conform: the toast id keys rendering and timers, dwell depends on severity, timers are cleared in effect cleanup, and hover or focus pauses the clock. But overflow sheds the oldest toast whatever its severity and sends it nowhere, toast.promise does the same at line 125, and dedup matches the literal message text and shows no count, so it is not 'counted, not silent'."
+    },
+    {
+     "technique": "announcement-accessibility",
+     "verdict": "deviation",
+     "evidence": "app/_components/Toast.tsx:74 Every card mounts as a new live region with its text already inside. The technique names this as the classic silent failure, and it calls instead for one persistent region that a single writer updates. Every error is also assertive, where the technique wants polite unless the error blocks the user. There is no serial queue that drains bursts. Focus is never stolen, and focusing a toast pauses its timer."
+    },
+    {
+     "technique": "actionable-toasts",
+     "verdict": "conformant",
+     "evidence": "app/_components/Toast.tsx:87 A toast can carry at most one labelled action, and the dismiss button (line 95) is a separate, labelled target. duration:0 can keep an obligation from expiring. No call site in app/ passes an action today, so this is the primitive's shape, not proof the feature is used."
+    },
+    {
+     "technique": "durable-notification-ledger",
+     "verdict": "deviation",
+     "evidence": "app/_components/toast-store.ts:75 The only store is an in-memory module array that dismissal and overflow empty. Error toasts have no durable copy, and dropped toasts are not recorded anywhere. A search of app/ for a notification center or unread-count ledger found nothing."
+    },
+    {
+     "technique": "os-escalation",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/toast-store.ts:6 These primitives cover the in-app tier only. A search of app/, packages/ and edge/ for new Notification(, Notification.permission and requestPermission found nothing."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-02T22:16:08.246431+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "toasts-notifications"
+   ],
+   "techniques": [
+    "actionable-toasts",
+    "announcement-accessibility",
+    "durable-notification-ledger",
+    "os-escalation",
+    "queue-discipline",
+    "severity-taxonomy"
+   ],
+   "deviations": 1,
+   "context": "feedback-status-primitives",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

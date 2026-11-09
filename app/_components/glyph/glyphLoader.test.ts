@@ -38,22 +38,33 @@ function stubFetch(respond: (url: string) => Promise<Response>): FetchStub {
 
 const ok = (body: unknown) => Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
 
-test("walkGraph('app/page.tsx') reaches no traced glyph module and not the server catalog", async () => {
+test("neither the eager nor the full graph of app/page.tsx reaches a traced glyph module or the server catalog", async () => {
   const budget = pathToFileURL(path.join(REPO_ROOT, "scripts", "perf", "check-budget.mjs")).href;
+  type Graph = { modules: number; files: Set<string> };
   const { walkGraph } = (await import(budget)) as {
-    walkGraph: (entry: string, root?: string) => { modules: number; files: Set<string> };
+    walkGraph: (entry: string, root?: string, options?: { deferred?: boolean }) => Graph;
   };
-  const graph = walkGraph(path.join(REPO_ROOT, "app", "page.tsx"), REPO_ROOT);
-  const rel = [...graph.files].map((f) => path.relative(REPO_ROOT, f).split(path.sep).join("/"));
-  // Self-check: the walk really covered the workspace, including the renderer and
-  // the loader — an empty walk would pass the real assertion vacuously.
-  assert.ok(graph.modules > 500, `expected the workspace graph, walked ${graph.modules} modules`);
-  assert.ok(rel.includes("app/_components/glyph/MotionizedGlyph.tsx"), "MotionizedGlyph is not on the page graph");
-  assert.ok(rel.includes("app/_components/glyph/glyphLoader.ts"), "glyphLoader is not on the page graph");
+  const entry = path.join(REPO_ROOT, "app", "page.tsx");
+  const relOf = (g: Graph) => [...g.files].map((f) => path.relative(REPO_ROOT, f).split(path.sep).join("/"));
+  const assertNoArt = (rel: string[], label: string) => {
+    const traced = rel.filter((f) => /^app\/_components\/glyph\/glyphs\/[^/]+Glyph\.ts$/.test(f));
+    assert.deepEqual(traced, [], `traced art on the ${label} graph: ${traced.join(", ")}`);
+    assert.ok(!rel.includes("app/_components/glyph/glyphCatalog.ts"), `the server catalog is on the ${label} graph`);
+  };
 
-  const traced = rel.filter((f) => /^app\/_components\/glyph\/glyphs\/[^/]+Glyph\.ts$/.test(f));
-  assert.deepEqual(traced, [], `traced art on the page graph: ${traced.join(", ")}`);
-  assert.ok(!rel.includes("app/_components/glyph/glyphCatalog.ts"), "the server catalog is on the page graph");
+  // Full graph (eager + deferred). Self-check: the walk really covered the workspace,
+  // including the renderer and the loader — an empty walk would pass vacuously.
+  const full = walkGraph(entry, REPO_ROOT, { deferred: true });
+  const fullRel = relOf(full);
+  assert.ok(full.modules > 500, `expected the workspace graph, walked ${full.modules} modules`);
+  assert.ok(fullRel.includes("app/_components/glyph/MotionizedGlyph.tsx"), "MotionizedGlyph is not on the full page graph");
+  assert.ok(fullRel.includes("app/_components/glyph/glyphLoader.ts"), "glyphLoader is not on the full page graph");
+  assertNoArt(fullRel, "full");
+
+  // Eager graph (the default call: static edges only) is a subset, so it holds too.
+  const eager = walkGraph(entry, REPO_ROOT);
+  assert.ok(eager.modules > 0 && eager.modules <= full.modules, "the eager graph must be a non-empty subset of the full graph");
+  assertNoArt(relOf(eager), "eager");
 });
 
 test("glyphUrl maps a GlyphId to its route and an unknown string to null", () => {

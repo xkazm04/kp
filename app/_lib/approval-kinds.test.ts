@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { APPROVAL_KINDS, isApprovalKind, needsHumanDecision } from "./approval-kinds.ts";
+import { APPROVAL_KINDS, isApprovalKind, needsHumanDecision, parsePolicyAdvance, policyAdvanceDetail } from "./approval-kinds.ts";
 import { DECISIONS_QUEUE_KINDS } from "@/app/features/hiring/decisions/decisionsQueueTypes";
 
 // `approvalKind` is the single field that decides whether a pipeline entry is WAITING ON
@@ -109,4 +109,19 @@ test("the Decisions queue is a strict subset of the registry, short exactly the 
     ["calendar"],
     "a registry kind is outside the Decisions queue and is not the calendar hand-off — either the queue is short a card or the hand-off has a second member nobody documented"
   );
+});
+
+// Q2: a policy advance is a screening_review with a mark, not a new kind.
+test("a queued policy advance round-trips and is told apart from every other approval", () => {
+  const detail = policyAdvanceDetail({ rationale: "BAU score 80 cleared screening", toStage: "Interview", matchScore: 80 });
+  assert.deepEqual(parsePolicyAdvance("screening_review", detail), { toStage: "Interview" });
+  const body = JSON.parse(detail);
+  assert.equal(body.recommendation, "advance");
+  assert.equal(body.confidence, 80);
+  assert.equal(body.rationale, "BAU score 80 cleared screening");
+  assert.equal(parsePolicyAdvance("rejection_review", detail), null, "only a screening_review can be one");
+  assert.equal(parsePolicyAdvance("screening_review", JSON.stringify({ recommendation: "advance" })), null, "an AI screening verdict carries no mark");
+  assert.equal(parsePolicyAdvance("screening_review", "not json"), null);
+  assert.equal(parsePolicyAdvance("screening_review", null), null);
+  assert.equal(APPROVAL_KINDS.length, 6, "no kind was added for it");
 });

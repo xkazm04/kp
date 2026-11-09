@@ -146,3 +146,73 @@ test("byline: legacy, a named author, and an unnamed (open-mode) author are thre
   const [open] = humanScorecardViews([rec(null, "interview", "2026-09-23T10:00:00.000Z")]);
   assert.deepEqual(humanScorecardByline(open), { kind: "unnamed", author: null, stage: "interview" });
 });
+
+// ── independent scoring: the one projection every reader passes through ──────────
+
+import { isFiledScorecard, projectForViewer, projectHumanScorecards, projectPrepPayload } from "./human-scorecard-set.ts";
+
+const ME = { author: "me", authorLabel: "Me", stage: "Interview" };
+
+test("a reviewer who has not filed gets no colleague's record, verdict or user id — only a count", () => {
+  const list = [rec("colleague", "Interview", "2026-01-01T00:00:00Z", 5, "colleague verdict")];
+  const p = projectHumanScorecards(list, ME, false);
+  assert.equal(p.mine, null);
+  assert.deepEqual(p.records, []);
+  assert.equal(p.othersCount, 1);
+  assert.equal(JSON.stringify(p).includes("colleague"), false);
+});
+
+test("after filing for this round the caller sees the colleagues' records, without a user id", () => {
+  const list = [rec("colleague", "Interview", "2026-01-01T00:00:00Z", 5, "colleague verdict"), rec("me", "Interview", "2026-01-02T00:00:00Z")];
+  const p = projectHumanScorecards(list, ME, false);
+  assert.equal(p.mine?.author, "me");
+  assert.deepEqual(p.records.map((r) => r.summary).sort(), ["by me", "colleague verdict"]);
+  assert.equal(p.othersCount, 1);
+  assert.equal(JSON.stringify(p.records).includes('"author":'), false, "no author id on a view");
+  assert.equal(JSON.stringify(p.records).includes('"colleague"'), false);
+});
+
+test("filing for ANOTHER round does not reveal this round", () => {
+  const list = [rec("colleague", "Interview", "2026-01-01T00:00:00Z"), rec("me", "Screen", "2026-01-02T00:00:00Z")];
+  assert.deepEqual(projectHumanScorecards(list, ME, false).records, []);
+});
+
+test("a team manager sees every record without filing", () => {
+  const list = [rec("colleague", "Interview", "2026-01-01T00:00:00Z")];
+  assert.equal(projectHumanScorecards(list, ME, true).records.length, 1);
+  assert.equal(projectHumanScorecards(list, { author: null, authorLabel: null, stage: null }, true).records.length, 1);
+});
+
+test("fails closed: no identity and no team:manage reveals nothing, even over an identity-less slot", () => {
+  const list = [rec(null, "Interview", "2026-01-01T00:00:00Z", 4, "open-mode slot")];
+  const p = projectForViewer(list, null, "Interview");
+  assert.deepEqual(p.records, []);
+  assert.equal(p.mine, null);
+  assert.deepEqual(projectForViewer(list, { author: null, authorLabel: null, canManage: false }, "Interview").records, []);
+});
+
+test("a stored zero-rating record does not count as filed, and the projection does not mutate its input", () => {
+  const empty = { ...rec("me", "Interview", "2026-01-02T00:00:00Z"), ratings: [] };
+  const list = [rec("colleague", "Interview", "2026-01-01T00:00:00Z"), empty];
+  const before = JSON.stringify(list);
+  assert.equal(isFiledScorecard(empty), false);
+  assert.equal(isFiledScorecard(list[0]), true);
+  assert.deepEqual(projectHumanScorecards(list, ME, false).records, [], "an empty card opens nothing");
+  assert.equal(JSON.stringify(list), before, "the gate's full set is untouched");
+  assert.equal(readHumanScorecards({ humanScorecards: list }).length, 2, "the full set still counts every record");
+});
+
+test("a prep payload is projected: panel and headline mirror withheld, then shown without author ids", () => {
+  const list = [rec("colleague", "Interview", "2026-01-01T00:00:00Z", 5, "colleague verdict")];
+  const payload = { scenario: "x", humanScorecards: list, humanScorecard: list[0] };
+  const hidden = projectPrepPayload(payload, { author: "me", authorLabel: null, canManage: false }, "Interview");
+  assert.equal(hidden.scenario, "x");
+  assert.equal("humanScorecard" in hidden, false);
+  assert.deepEqual(hidden.humanScorecards, []);
+  assert.equal(readHumanScorecards(hidden).length, 0, "an empty list is not read back as the legacy key");
+  const shown = projectPrepPayload(payload, { author: null, authorLabel: null, canManage: true }, "Interview");
+  assert.equal(JSON.stringify(shown).includes('"author"'), false);
+  assert.equal((shown.humanScorecard as { summary?: string }).summary, "colleague verdict");
+  assert.equal(projectPrepPayload({ scenario: "y" }, null, null).scenario, "y");
+  assert.equal(JSON.stringify(payload).includes('"author":"colleague"'), true, "the input is untouched");
+});

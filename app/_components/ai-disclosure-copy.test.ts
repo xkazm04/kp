@@ -78,39 +78,42 @@ test("the English body still asserts the one guarantee that holds in every confi
   assert.match(body, /human review/i, "the 'ask for a human review' affordance must survive");
 });
 
-// The apply knockout gate is AUTOMATIC: a no to a stated must-have ends the application
-// with no person in front of it (recordKnockoutDecline, ko_declined, classed `auto`). The
-// owner kept it that way and chose to say so — so while the gate exists, the disclosure
-// must NOT say a rejection is always a person's without naming the exception, in every
-// locale. Anchored to the code: if the gate is ever removed this test fails loudly and
-// the absolute may harden again.
-const EXCEPTION: Record<string, RegExp> = {
-  en: /answering no to a must-have[^.]*ends an application automatically/i,
-  cs: /odpověď „ne“ u požadavku[^.]*ukončí přihlášku automaticky/i,
-  de: /mit Nein beantwortet[^.]*endet automatisch/i,
-  fr: /répondre non à une condition[^.]*met fin à la candidature automatiquement/i,
+// The apply knockout gate is a HOLD, not a decision (owner ruling Q1, 2026-11-09): a no to
+// a stated must-have files an entry held for a person, who confirms the rejection or clears
+// the hold (knockout-hold.ts). It replaced the automatic decline ADR 0019 recorded, so the
+// disclosure now says "every rejection is a person's" with no exception, and says what a no
+// to a must-have does instead. Anchored to the code: if the door ever declines on its own
+// again this test fails loudly and the claim must be restated.
+const HELD: Record<string, RegExp> = {
+  en: /answering no to a must-have[^.]*held for a person[^.]*only a person's confirmation rejects it/i,
+  cs: /odpověď „ne“ u požadavku[^.]*čeká na člověka[^.]*zamítne ji teprve jeho potvrzení/i,
+  de: /mit Nein beantwortet[^.]*für einen Menschen zurückgehalten[^.]*erst dessen Bestätigung lehnt sie ab/i,
+  fr: /répondre non à une condition[^.]*mise en attente pour une personne[^.]*seule sa confirmation la rejette/i,
 };
-const OTHER: Record<string, RegExp> = {
-  en: /every other rejection is a person/i,
-  cs: /každé jiné zamítnutí je na člověku/i,
-  de: /jede andere ablehnung trifft ein mensch/i,
-  fr: /tout autre rejet revient à une personne/i,
+const EVERY: Record<string, RegExp> = {
+  en: /every rejection is a person/i,
+  cs: /každé zamítnutí je na člověku/i,
+  de: /jede ablehnung trifft ein mensch/i,
+  fr: /tout rejet revient à une personne/i,
+};
+const RETIRED_AUTOMATIC: Record<string, RegExp> = {
+  en: /ends an application automatically|every other rejection/i,
+  cs: /ukončí přihlášku automaticky|každé jiné zamítnutí/i,
+  de: /endet automatisch|jede andere ablehnung/i,
+  fr: /met fin à la candidature automatiquement|tout autre rejet/i,
 };
 
-test("while the apply knockout gate exists, the disclosure in every locale names the must-have exception", () => {
+test("while the apply knockout gate is a hold, the disclosure in every locale says so and claims no automatic decline", () => {
   const gate = readFileSync(path.join(HERE, "..", "api", "apply", "[id]", "route.ts"), "utf-8");
-  assert.match(gate, /failedKoStepIds\(/, "the apply KO gate is gone — the exception may be retired from the copy");
-  assert.match(gate, /recordKnockoutDecline\(/, "the KO decline is no longer recorded here — re-check the claim");
-  assert.deepEqual(Object.keys(EXCEPTION).sort(), [...LOCALES].sort(), "a locale was added with no exception pattern");
+  assert.match(gate, /failedKoStepIds\(/, "the apply KO gate is gone — the sentence may be retired from the copy");
+  assert.match(gate, /hold: \{ failedKoIds: failedKo \}/, "the KO gate no longer files a hold — re-check the claim");
+  assert.doesNotMatch(gate, /recordKnockoutDecline\(|dispatchKnockoutDecline\(/, "the KO gate declines on its own again — the disclosure is then false");
+  assert.deepEqual(Object.keys(HELD).sort(), [...LOCALES].sort(), "a locale was added with no hold pattern");
   for (const locale of LOCALES) {
     const body = disclosureBody(locale);
-    assert.match(body, EXCEPTION[locale], `${locale}: the disclosure must say a no to a stated must-have ends the application automatically`);
-    assert.match(body, OTHER[locale], `${locale}: …and that every OTHER rejection is a person's`);
-    assert.doesNotMatch(
-      body,
-      /^[^.]*(rejection is always a person|zamítnutí je vždy na člověku|ablehnung trifft immer ein mensch|rejet revient toujours)/i,
-      `${locale}: the unqualified absolute is false while the knockout gate is automatic`,
-    );
+    assert.match(body, HELD[locale], `${locale}: the disclosure must say a no to a stated must-have is held for a person, and only a person's confirmation rejects`);
+    assert.match(body, EVERY[locale], `${locale}: …and that every rejection is a person's`);
+    assert.doesNotMatch(body, RETIRED_AUTOMATIC[locale], `${locale}: the retired automatic-knockout exception is back in the disclosure`);
   }
 });
 

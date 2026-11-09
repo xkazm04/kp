@@ -15,7 +15,11 @@ import { type Entry, type Offer, type Scorecard, type Screening } from "@/app/fe
 // the interview), which `isHumanScorecard` below reads. Different question.
 // Optional throughout — an approval written before this shipped carries neither.
 export type VerdictProvenanceFields = { verdictSource?: "llm" | "template"; verdictProvider?: string | null };
-export type ParsedApproval = Screening & Scorecard & Offer & VerdictProvenanceFields;
+// A policy-pass advance queued for a person (approval-kinds.ts policyAdvanceDetail, Q2):
+// a `screening_review` whose payload carries the mark. It renders as an ADVANCE with the
+// policy's own reason, never as a rejection and never as an AI screening.
+export type PolicyAdvanceFields = { policyAdvance?: { toStage?: string | null } };
+export type ParsedApproval = Screening & Scorecard & Offer & VerdictProvenanceFields & PolicyAdvanceFields;
 
 export function useAiReviewCardLogic(entry: Entry) {
   let parsed: ParsedApproval | null = null;
@@ -61,6 +65,9 @@ export function useAiReviewCardLogic(entry: Entry) {
   // payload shape; the tag names what clicking Reject actually does (apply +
   // email the rejection) so the reviewer knows this card IS the adverse action.
   const isQueuedReject = kind === "rejection_review";
+  // Q2 — a score-threshold advance the policy pass queued instead of applying. Same
+  // payload shape as a screening verdict; the tag names what clicking Accept does.
+  const isQueuedAdvance = kind === "screening_review" && parsed?.policyAdvance != null && typeof parsed.policyAdvance === "object";
   // DEC1 — a human-conducted interview's scorecard reaches this queue too; the
   // tag names the source so the reviewer knows whose judgment they're ratifying.
   const isHumanScorecard = isScorecard && parsed?.source === "human";
@@ -100,5 +107,9 @@ export function useAiReviewCardLogic(entry: Entry) {
   // Only meaningful beside an llm verdict; a template one asked no provider.
   const verdictProvider = verdictSource === "llm" && typeof parsed?.verdictProvider === "string" && parsed.verdictProvider.trim() ? parsed.verdictProvider : null;
 
-  return { parsed, kind, isScorecard, isOffer, unpriced, hasBand, pricingBasis, isQueuedReject, isHumanScorecard, modelSelfReport, verdictSource, verdictProvider };
+  // Keep-in-place (decline_advance) exists only for a queued policy advance: it is the
+  // one card whose "no" is not a rejection of the candidate. Every other card has
+  // accept / reject and nothing else.
+  const canKeepInPlace = isQueuedAdvance;
+  return { parsed, kind, isScorecard, isOffer, unpriced, hasBand, pricingBasis, isQueuedReject, isQueuedAdvance, canKeepInPlace, isHumanScorecard, modelSelfReport, verdictSource, verdictProvider };
 }

@@ -667,11 +667,25 @@ class ClaudeCliProvider:
             # firstParty). `--bare` was deliberately REJECTED for this job:
             # its help states auth becomes "strictly ANTHROPIC_API_KEY or
             # apiKeyHelper" — the exact billing flip the env strip exists to
-            # prevent. repo_scan keeps default sources (behavior parity).
+            # prevent.
             # web_research shares the neutral cwd and so the isolation too — and
             # for it the isolation is a grant question as well: no user settings
             # means no user-level permission rule can widen the web grant.
             args += ["--setting-sources", "project"]
+        elif self.mode == "repo_scan":
+            # The SCANNED repository's own configuration is not ours to load.
+            # Its cwd is the target, so default sources would pick up the
+            # target's `.claude/settings*.json` and CLAUDE.md — and the read-only
+            # stance (allowlist, denylist, plan mode) governs TOOLS, not that.
+            # Measured 2026-11-03 against CLI 2.1.317, n=2 per arm: with default
+            # sources the target's SessionStart and Stop hooks EXECUTED (shell
+            # commands on this machine) and its CLAUDE.md steered the answer;
+            # with `--setting-sources user` neither happened, the tree stayed
+            # readable, and the `--settings` secret-file deny rules still refused
+            # a `.env` read. User sources stay on (auth/behaviour parity with
+            # the previous default); the target's agent docs still reach the
+            # model as quoted excerpts in the prompt, as data.
+            args += ["--setting-sources", "user"]
         if self.model:
             args += ["--model", self.model]
         if self.permission_mode:

@@ -1,0 +1,316 @@
+{
+ "schema": "conform-run/1",
+ "worker": "83f92760-1ada-47a5-ab5e-95b50a0b5aef",
+ "subject": "module-design",
+ "evaluatedAt": "2026-11-07T22:35:54.349706+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "jobseeker-feed-rules",
+   "subject": "module-design",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "app/_lib/jobseeker/fetch/politeFetch.ts:11 Every adapter fetches through one polite door whose clock and fetch can be swapped, and the extraction engine is a pure function from html to items, so the scrape logic runs against fixtures with no network and no real sleeps.",
+   "techniques": [
+    {
+     "technique": "seams-and-adapters",
+     "verdict": "conformant",
+     "evidence": "app/_lib/jobseeker/fetch/politeFetch.ts:11 The network and the clock (things a test cannot run) have an enabling point outside the code under test; adapters also get fetch only through ctx."
+    },
+    {
+     "technique": "io-free-core",
+     "verdict": "conformant",
+     "evidence": "app/_lib/jobseeker/rules/engine.ts:218 The rule engine takes html in and returns items plus per-rule verdicts. boardRules.ts is the driver that fetches pages and decides what to do on collapse."
+    },
+    {
+     "technique": "module-depth",
+     "verdict": "conformant",
+     "evidence": "app/_lib/jobseeker/rules/engine.ts:5 One small call (runRules) hides four locator kinds, post-ops, cardinality and column alignment."
+    },
+    {
+     "technique": "concurrency-at-the-edge",
+     "verdict": "conformant",
+     "evidence": "app/_lib/jobseeker/fetch/politeFetch.ts:150 Per-host single-flight lives only at the fetch door; runRules, isCollapsed and the DSL validator are synchronous."
+    },
+    {
+     "technique": "state-carrier-decides-the-lane",
+     "verdict": "conformant",
+     "evidence": "app/_lib/jobseeker/fetch/politeFetch.ts:3 Sharing module-level per-host state across every source run is a stated decision, not an accidental copy."
+    },
+    {
+     "technique": "declarative-or-sequential",
+     "verdict": "conformant",
+     "evidence": "app/_lib/jobseeker/rules/engine.ts:229 One pass builds two outputs (columns and perRule) and assigns verdicts by branch, so the explicit loop is the right form."
+    },
+    {
+     "technique": "locality-and-leverage",
+     "verdict": "conformant",
+     "evidence": "app/_lib/jobseeker/rules/dsl.ts:3 The rule vocabulary is defined once; the validator only checks against it and keeps no second copy."
+    },
+    {
+     "technique": "mirror-type-at-the-edge",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/jobseeker/adapters/boardRules.ts:45 The core already takes plain strings, and no input type here can only be built by the host, so the precondition does not hold."
+    }
+   ]
+  },
+  {
+   "context": "jd-library-core",
+   "subject": "module-design",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "app/features/library/jds/jdsEditClient.ts:1 The JD write contract (CAS payloads, the 401 gate / 409 conflict / error / ok classification, the injectable fetch) is one pure module under one hook, so both editors share it and every branch can be tested with a fetch stub.",
+   "techniques": [
+    {
+     "technique": "io-free-core",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jds/jdsEditClient.ts:1 classifyJdWriteResponse is a pure status+body -> outcome function; React state stays in useJdEditor."
+    },
+    {
+     "technique": "seams-and-adapters",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jds/jdsEditClient.ts:68 Default-parameter seam: production uses the global fetch and tests pass a stub, the house pattern the scheduler hook lacks."
+    },
+    {
+     "technique": "locality-and-leverage",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jds/jdsEditClient.ts:5 The two editor surfaces had drifted (one had the 401/409 paths, the other didn't); now one module owns the shared change."
+    },
+    {
+     "technique": "module-depth",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jds/useJdEditor.ts:24 The hook hides CAS, the gate latch, the conflict path and revisions; callers supply only copy and success callbacks."
+    },
+    {
+     "technique": "concurrency-at-the-edge",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jds/jdsEditClient.ts:56 Async is confined to two small I/O functions; the classification they call is synchronous."
+    },
+    {
+     "technique": "scoreable-designs-are-built-not-argued",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jds/JdsTab.tsx:9 Competing layouts were built behind a switcher, the Ledger variant won, and the rest were removed."
+    },
+    {
+     "technique": "declarative-or-sequential",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jds/jdsLibrary.ts:302 filterAndSortJds (one input, one output) is a declarative pipeline; statusCounts, which builds several tallies in one pass, is an explicit loop. Each form matches its computation."
+    },
+    {
+     "technique": "mirror-type-at-the-edge",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jds/jdsIntakeTabEntry.ts:22 URLSearchParams is constructible in a test, so the narrow shape is ordinary parameter typing, not a mirror of an unconstructible host type."
+    }
+   ]
+  },
+  {
+   "context": "jd-build-templates",
+   "subject": "module-design",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/jd-build-run.ts:298 runJdBuild spawns three Python steps but its seam substitutes only two, and runMarketSalary (jd-build-run.ts:380, spawnPython at :173) has no enabling point, so the market-research branch, the Promise.all join and the salary-label path into the persisted body can't be reached by the Node-only unit suite (every runJdBuild test either turns marketResearch off or fails validation before spawning).",
+   "techniques": [
+    {
+     "technique": "seams-and-adapters",
+     "verdict": "deviation",
+     "evidence": "app/_lib/jd-build-run.ts:298 A subprocess is something a test cannot run, yet the salary step is hard-wired at line 380 with no stand-in. The seam is two-thirds built."
+    },
+    {
+     "technique": "io-free-core",
+     "verdict": "conformant",
+     "evidence": "app/_lib/brief-edit.ts:19 The provenance and shape rules for a human-edited brief are a pure transition from (stored, incoming). jd-lint.ts and split-ads.ts are pure the same way."
+    },
+    {
+     "technique": "locality-and-leverage",
+     "verdict": "conformant",
+     "evidence": "app/_lib/jd-build-start.ts:5 Four hand-rolled copies of the insert/start/link sequence became one door; the tenant-stamp drift is why."
+    },
+    {
+     "technique": "concurrency-at-the-edge",
+     "verdict": "conformant",
+     "evidence": "app/_lib/jd-build-start.ts:36 The session lookup stays async at the route; the start seam stays synchronous."
+    },
+    {
+     "technique": "module-depth",
+     "verdict": "conformant",
+     "evidence": "app/_lib/jd-build-start.ts:23 Depth is placed: the stamping decisions callers must not make differently are hidden in the seam."
+    },
+    {
+     "technique": "declarative-or-sequential",
+     "verdict": "conformant",
+     "evidence": "app/_lib/split-ads.ts:30 A one-input/one-output transform is written as a split/map/filter pipeline."
+    }
+   ]
+  },
+  {
+   "context": "form-controls",
+   "subject": "module-design",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_components/Select.test.ts:8 Select's commit/typeahead/navigation decisions live inside the .tsx, which the node:test runner can't load, so its tests match regexes against the source text: they pin the implementation's spelling, not the behaviour, which is the failure seams-and-adapters names for code with no seam.",
+   "techniques": [
+    {
+     "technique": "seams-and-adapters",
+     "verdict": "deviation",
+     "evidence": "app/_components/Select.test.ts:8 Without a seam, tests pin internals by source regex (e.g. the disabled-row refusal, the typeahead timer cleanup). Only selectConsumesKeyWhileOpen was extracted."
+    },
+    {
+     "technique": "io-free-core",
+     "verdict": "deviation",
+     "evidence": "app/_components/Select.tsx:144 The listbox state transitions (commit, typeahead buffer, active-row movement) sit inside the component. Its sibling SegmentedControl shows the right form: resolveSegmentedSelection is pure in segmented-control-selection.ts."
+    },
+    {
+     "technique": "borrowed-surface",
+     "verdict": "conformant",
+     "evidence": "app/_components/TextInput.tsx:16 Forwarding the native input surface is correct because the wrapper adds a capability (theme-correct base styling) rather than drawing a distinction."
+    },
+    {
+     "technique": "module-depth",
+     "verdict": "conformant",
+     "evidence": "app/_components/Select.tsx:20 Behind value/onChange/options it hides portalling, clip/stack escape, APG keyboard handling and reduced motion."
+    },
+    {
+     "technique": "locality-and-leverage",
+     "verdict": "conformant",
+     "evidence": "app/_components/SegmentedControl.tsx:19 Radiogroup semantics and the motion standard live once and are reused by every toggle."
+    }
+   ],
+   "registryProposal": "seams-and-adapters could name a mechanical tell for UI layers: a test that readFileSync's a component's source and regex-matches it is the 'tests that reach into internals' failure, made visible when the runner cannot load the host format (.tsx)."
+  },
+  {
+   "context": "pipeline-scheduler-sla",
+   "subject": "module-design",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/hiring/pipeline/useSchedulerControlState.ts:84 The scheduler's pure state machine was moved out of the hook, but its subtlest rule stayed in it: the write-generation rule that drops a poll response issued before a write landed. It sits in a React hook over the global fetch (line 78) with no test, so the logic piles up in the driver where nothing can test it.",
+   "techniques": [
+    {
+     "technique": "io-free-core",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/pipeline/useSchedulerControlState.ts:84 The stale-drop and single-flight protocol is transition logic, the kind that wants exhaustive exploration, yet it is not in schedulerRunState.ts and nothing tests it. The hook's comment at :106 says its rules are 'pure and unit-pinned', but that holds only for the backoff."
+    },
+    {
+     "technique": "mirror-type-at-the-edge",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/schedulerRunState.ts:81 next-intl's translator only exists inside a provider; describeTick takes a structural shape instead, so the test runner reaches all of its branches."
+    },
+    {
+     "technique": "marked-unverifiable-region",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/schedulerRunState.ts:88 The one unchecked cast is announced in the comment above it (\"cast inside\") and enclosed in the local `tr` helper behind a typed entry point. I checked only the marked and enclosed properties."
+    },
+    {
+     "technique": "locality-and-leverage",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/schedulerRunState.ts:67 Adding a fifth outcome bucket is a one-line change that keeps the badge row and the Run-now chip in step."
+    },
+    {
+     "technique": "declarative-or-sequential",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/schedulerRunState.ts:92 A one-in/one-out transform written as a pipeline."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-07T22:35:54.349706+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "module-design"
+   ],
+   "techniques": [
+    "concurrency-at-the-edge",
+    "declarative-or-sequential",
+    "io-free-core",
+    "locality-and-leverage",
+    "mirror-type-at-the-edge",
+    "module-depth",
+    "seams-and-adapters",
+    "state-carrier-decides-the-lane"
+   ],
+   "deviations": 0,
+   "context": "jobseeker-feed-rules",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T22:35:54.349706+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "module-design"
+   ],
+   "techniques": [
+    "concurrency-at-the-edge",
+    "declarative-or-sequential",
+    "io-free-core",
+    "locality-and-leverage",
+    "mirror-type-at-the-edge",
+    "module-depth",
+    "scoreable-designs-are-built-not-argued",
+    "seams-and-adapters"
+   ],
+   "deviations": 0,
+   "context": "jd-library-core",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T22:35:54.349706+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "module-design"
+   ],
+   "techniques": [
+    "concurrency-at-the-edge",
+    "declarative-or-sequential",
+    "io-free-core",
+    "locality-and-leverage",
+    "module-depth",
+    "seams-and-adapters"
+   ],
+   "deviations": 1,
+   "context": "jd-build-templates",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T22:35:54.349706+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "module-design"
+   ],
+   "techniques": [
+    "borrowed-surface",
+    "io-free-core",
+    "locality-and-leverage",
+    "module-depth",
+    "seams-and-adapters"
+   ],
+   "deviations": 1,
+   "context": "form-controls",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T22:35:54.349706+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "module-design"
+   ],
+   "techniques": [
+    "declarative-or-sequential",
+    "io-free-core",
+    "locality-and-leverage",
+    "marked-unverifiable-region",
+    "mirror-type-at-the-edge"
+   ],
+   "deviations": 1,
+   "context": "pipeline-scheduler-sla",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
