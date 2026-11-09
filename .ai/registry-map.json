@@ -22726,7 +22726,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/lint/__tests__/fixtures/known-bad.mjs:46 These known-bad eslint fixtures are imported by no tracked file (git grep finds only the file itself and generated maps), so the seeded failures they exist to prove are never executed.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "module-design",
@@ -23179,7 +23183,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/llm-endpoint-guard.test.ts:101 The stated reason for settling on a text pin over saveProviderKey is false, since llm-config.ts is imported and driven under node --test by llm-config-probe-env.test.ts:12 and llm-capabilities-lockstep.test.ts:34 says so, leaving a loadable call site covered only by source text.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "quality-gates",
@@ -31878,7 +31886,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shell/setup/setupPipelinePresets.test.ts:70 The test name claims what the wizard offers but its assertions read only the SETUP_STAGE_ROLES constant, and no test or e2e spec pins SetupPipelineStageRow.tsx:46 passing it, so the wizard can stop using the list while this stays green.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "quality-gates",

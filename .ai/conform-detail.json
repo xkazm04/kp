@@ -28347,6 +28347,124 @@
           "evidence": "pipeline/jobfit/tests/test_match_cli.py:15 Drives the shipped CLI entry point rather than a composition built for the test."
         }
       ]
+    },
+    "9a31cae5-541c-44b7-8ef5-71f5b0ff42b7/test-harness": {
+      "context": "shell-setup-pipeline",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T00:34:04.323Z",
+      "worker": "846b024b-b2d4-4c10-a091-11f23fe561cd",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/setup/setupPipelinePresets.test.ts:70 Name overstates the assertions at lines 73-75; adoption at SetupPipelineStageRow.tsx:46 (roleOptions={SETUP_STAGE_ROLES}) is unpinned, confirmed by git grep over *.test.ts(x) and e2e/."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/setup/setupPipelinePresets.test.ts:32 Presets are checked through the shipped server validator and the shared axis model rather than a test-local rule."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/setup/setupPipelinePresets.test.ts:102 The guard cases carry a paired positive case at line 103 that would fail if the guard simply disabled the preset."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/setup/setupPipelinePresets.test.ts:25 In-memory construction from the shipped axis, the cheapest fixture that can witness these pure-logic claims."
+        }
+      ]
+    },
+    "0eeb3d35-3c43-4ac7-bcd9-3ae9ffffddcf/test-harness": {
+      "context": "llm-config-provider",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T00:34:04.323Z",
+      "worker": "846b024b-b2d4-4c10-a091-11f23fe561cd",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "app/_lib/llm-endpoint-guard.test.ts:101 A narrow finding: the rule prefers executing the site over a permanent text match, and the module is loadable. saveProviderKey takes no injected lookup (llm-config.ts:214), but a host that cannot resolve would still separate the resolving guard from the string-only one."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-endpoint-guard.test.ts:113 The needle carries an await and a first argument, so an import or a comment cannot satisfy it, and its explanation lives in the asserting file at lines 100-105."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-capabilities-lockstep.test.ts:107 The source parse declares a floor so an empty parse cannot pass the mirror comparisons vacuously; the same floor recurs at lines 108-109 and in llm-base-url-lockstep.test.ts:53."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "app/_lib/provider-key-precedence.test.ts:116 Shows the env value would answer without the stored row, so the no-fallthrough assertion can fail; llm-endpoint-guard.test.ts:34 does the same for the pre-fix gate."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "app/_lib/testing/unit-db.ts:10 The fixture redirects KP_DB_PATH only, so stores still open through openStore with the shipped pragmas instead of a test-local connection."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-config-probe-env.test.ts:35 Rows are seeded through the product's own store function and real encryption rather than raw inserts."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "app/_lib/offline.test.ts:130 Global fetch and the environment keys the test mutates are restored in finally, and unit-db clears inherited shell variables."
+        }
+      ]
+    },
+    "923796fb-9839-4b9d-bbf1-cb4e1cc7574f/test-harness": {
+      "context": "lint-quality-gates",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T00:34:04.323Z",
+      "worker": "846b024b-b2d4-4c10-a091-11f23fe561cd",
+      "techniques": [
+        {
+          "technique": "negative-control-tests",
+          "verdict": "deviation",
+          "evidence": "scripts/lint/__tests__/fixtures/known-bad.mjs:46 test:lint-ratchet runs only the three ratchet tests. app/lint-selector-coverage.test.ts reads the resolved config (calculateConfigForFile) and calls no lintText, so whether a seeded snippet is actually reported stays unobserved."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "scripts/design/check-design-tokens.mjs:194 This regex walk declares no floor on files read or shades matched, so a needle that stops matching reports clean, and its own comment records that happening once. Needle side: ratchet.test.mjs:222 uses ci.includes(`npm run ${script}`), a shape ci.yml comments already spell (ci.yml:74)."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "scripts/lint/__tests__/ts-ratchet.test.mjs:225 The TypeScript ratchet floors its walk here and throws on an empty one at ts-ratchet.mjs:184."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "scripts/perf/__tests__/sqlite-writer-knee.test.mjs:43 The probe restates the app's connection setup, and this test compares its pragma set with openStore() so the fork is checked rather than assumed."
+        },
+        {
+          "technique": "platform-quirk-absorption",
+          "verdict": "conformant",
+          "evidence": "scripts/lint/ruff-ratchet.mjs:273 An unreadable tool answer becomes a named failure rather than an empty measurement, and the venv fallback above it keeps its incident story at lines 255-258."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "not-applicable",
+          "evidence": "scripts/perf/check-budget.mjs:18 No concurrency or cutoff claim is tested here; the budget deliberately gates on a host-independent proxy, which is the case the technique hands to metric-gates."
+        }
+      ]
     }
   }
 }
