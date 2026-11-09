@@ -9,7 +9,8 @@ import {
 } from "@/app/_lib/db/pipeline";
 import { REFUSAL_ERRORS, type RefusalErrorCode } from "@/app/_lib/api-response";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
-import { delivered, dispatchOffer, dispatchRejection } from "@/app/_lib/comms-dispatch";
+import { delivered, dispatchKnockoutRejection, dispatchOffer, dispatchRejection } from "@/app/_lib/comms-dispatch";
+import { parseKnockoutHold } from "@/app/_lib/knockout-hold";
 import { dispatchAtsEvent } from "@/app/_lib/ats-egress";
 import { getOrCreateOpenOffer } from "@/app/_lib/offers-store";
 import { validateOfferTerms } from "@/app/_lib/offer-policy";
@@ -159,12 +160,13 @@ export type EntryActionInput = {
 // Callers pass any subset; the rest default to the real functions.
 export type EntryActionDeps = {
   dispatchRejection: typeof dispatchRejection;
+  dispatchKnockoutRejection: typeof dispatchKnockoutRejection;
   dispatchAtsEvent: typeof dispatchAtsEvent;
   invalidateGroupEvalSelection: typeof invalidateGroupEvalSelection;
   seal: typeof sealDecisionSafe;
 };
 
-const REAL_DEPS: EntryActionDeps = { dispatchRejection, dispatchAtsEvent, invalidateGroupEvalSelection, seal: sealDecisionSafe };
+const REAL_DEPS: EntryActionDeps = { dispatchRejection, dispatchKnockoutRejection, dispatchAtsEvent, invalidateGroupEvalSelection, seal: sealDecisionSafe };
 
 // A plain, transport-agnostic result: status + JSON body. ok is the 200 case.
 export type EntryActionResult = { status: number; body: Record<string, unknown> };
@@ -583,6 +585,11 @@ export async function runPipelineEntryAction(
   const detail = typeof input.detail === "string" ? input.detail : undefined;
   const actOpts = { actor: simActor ? ("system" as const) : ("human" as const), actorRef: sealActor };
   let updated: PipelineEntry | null;
+  // A reject that RESOLVES a knockout hold (knockout-hold.ts): the person confirms the
+  // machine-free "no to a must-have", so the candidate is owed the letter naming it — once,
+  // below, in place of the ordinary rejection letter. Read from the pre-write row: the
+  // write clears the approval the failed ids ride on.
+  let knockoutHold: { failedKoIds: string[] } | null = null;
   if (action === "accept" || action === "reject") {
     // SEAL FIRST — the rule screen-wave.ts states for its own rejections ("no seal, no
     // rejection"), now on the recruiter's commit door too. The seal used to run AFTER
@@ -615,6 +622,10 @@ export async function runPipelineEntryAction(
     // Read from the pre-write row, never from the write's result — the write clears
     // the approval columns the AI verdict lives in.
     const verdict = aiVerdict(live);
+    knockoutHold = action === "reject" ? parseKnockoutHold(live.approvalKind, live.approvalDetail) : null;
+    // A confirmed knockout hold with no typed note: the basis is the must-have the
+    // applicant answered no to, not the generic template.
+    const knockoutRationale = knockoutHold ? `Recruiter confirmed the knockout rejection: ${knockoutHold.failedKoIds.join(", ")}.` : null;
     const viaCommandBar = input.via === "command_bar";
     // A reject that RESOLVES a queued rejection_review ratifies the machine's own
     // reject, so the machine's reason is the decision's reason when the recruiter
@@ -628,7 +639,7 @@ export async function runPipelineEntryAction(
       actor: sealActor,
       policyVersion: viaCommandBar ? "command-bar" : "manual",
       candidateRef: id,
-      rationale: trimmedDetail || ratifiedRationale || `${simActor ? "Guided simulation" : "Recruiter"} ${action} from ${live.stage}.`,
+      rationale: trimmedDetail || ratifiedRationale || knockoutRationale || `${simActor ? "Guided simulation" : "Recruiter"} ${action} from ${live.stage}.`,
       reasonCode: action,
       inputs: {
         fromStage: live.stage,
@@ -644,6 +655,9 @@ export async function runPipelineEntryAction(
         aiReasonCode: verdict.aiReasonCode,
         aiReasonParams: verdict.aiReasonParams,
         approvalKind: live.approvalKind ?? null,
+        // The must-haves the held application failed, so the sealed reasons block names
+        // them (the code and params above carry the same fact for a query).
+        ...(knockoutHold ? { knockoutFailedIds: knockoutHold.failedKoIds } : {}),
         // The rule the recruiter typed is a decisive input: "below 40%" and "below
         // 60%" reject different people, and only the seal can say which was run.
         // Added only for the command bar, so the manual seal's shape is unchanged.
@@ -694,8 +708,14 @@ export async function runPipelineEntryAction(
   if (action === "reject") {
     let commsError: unknown = null;
     try {
-      const outcome = await deps.dispatchRejection(updated);
-      if (outcome.claim === "failed") commsError = `dead-lettered: ${outcome.detail ?? "no detail recorded"}`;
+      // A confirmed knockout hold sends the knockout letter (names the must-have, says
+      // how to ask for a review) INSTEAD of the ordinary rejection — one letter, once:
+      // the reject above refuses a second one on a closed entry. `null` = no letter owed
+      // (no address on file), which is neither a failure nor a send.
+      const outcome = knockoutHold
+        ? await deps.dispatchKnockoutRejection(updated, knockoutHold.failedKoIds)
+        : await deps.dispatchRejection(updated);
+      if (outcome?.claim === "failed") commsError = `dead-lettered: ${outcome.detail ?? "no detail recorded"}`;
     } catch (thrown) {
       commsError = thrown;
     }

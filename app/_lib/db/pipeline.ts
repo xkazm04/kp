@@ -1523,9 +1523,12 @@ export type CreatePipelineInput = {
   // after the fact, never at creation. Omitted (the default) leaves the entry
   // ungated — every non-Match add path is byte-identical to before.
   approvalKind?: "decision" | null;
-  // (No approval_detail input: an add files no gate payload. A Match add's reasons used
-  // to ride here as prose and were cleared by the first transition; the route now seals
-  // them as a `match_verdict` decision record before this insert — ADR 0018.)
+  // The gate's payload, written only WITH `approvalKind` (ignored without it). A Match add
+  // files none: its reasons used to ride here as prose and were cleared by the first
+  // transition; the route now seals them as a `match_verdict` decision record before this
+  // insert — ADR 0018. The knockout hold (knockout-hold.ts) is the one caller that files
+  // one: the must-haves the applicant answered no to, so the reviewer can read them.
+  approvalDetail?: string | null;
   // Applicant's locale from inbound apply (SIM3); drives downstream comm
   // language. Omitted by recruiter/Match adds ⇒ NULL ⇒ "en" at dispatch.
   locale?: string | null;
@@ -1724,12 +1727,12 @@ export function createPipelineEntry(input: CreatePipelineInput): CreatePipelineR
       db.prepare(
         `INSERT INTO pipeline_entries
            (id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
-            stage, match_score, status, approval_kind, created_at, stage_changed_at, updated_at,
+            stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at, updated_at,
             intake_degraded, intake_degraded_reason, contact, locale, github_json, github_handle, source_channel,
             source_campaign, source_variant, dev_case_id, dev_submission_id, workspace_id, applicant_key,
             population, rubric_version)
          VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
-            @stage, @match_score, 'active', @approval_kind, @now, @now, @now,
+            @stage, @match_score, 'active', @approval_kind, @approval_detail, @now, @now, @now,
             @intake_degraded, @intake_degraded_reason, @contact, @locale, @github_json, @github_handle, @source_channel,
             @source_campaign, @source_variant, @dev_case_id, @dev_submission_id, @workspace_id, @applicant_key,
             @population, @rubric_version)`
@@ -1744,6 +1747,7 @@ export function createPipelineEntry(input: CreatePipelineInput): CreatePipelineR
         stage,
         match_score: input.matchScore ?? null,
         approval_kind: input.approvalKind ?? null,
+        approval_detail: input.approvalKind ? input.approvalDetail ?? null : null,
         now,
         intake_degraded: intakeDegraded,
         intake_degraded_reason: intakeDegradedReason,
@@ -3422,6 +3426,13 @@ export function recordAutomationEvent(
   });
 }
 
+// LEGACY WRITER, no door calls it since the Q1 ruling (2026-11-09): a failed must-have now
+// files a HELD entry behind the `decision` approval (knockout-hold.ts, application-filing.ts
+// `hold`) and a person confirms or clears it. Kept because the `ko_declined` rows it wrote
+// before that stay readable (analytics, the activity feed, the 30-day contact sweep below),
+// and its pins (ko-decline-tenancy, ko-decline-retention) still exercise those readers.
+// The text below describes the pre-Q1 design these rows came from.
+//
 // E2 (Erika gap) — auditable knockout discards. A KO-failed application creates
 // NO pipeline entry (deliberate: a mis-tapped eligibility toggle must not mint a
 // terminal row the candidate can never retry past), so without this the discard

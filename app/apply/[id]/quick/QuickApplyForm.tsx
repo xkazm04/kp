@@ -87,7 +87,7 @@ export function QuickApplyForm({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [done, setDone] = useState<{
-    result: "accepted" | "declined";
+    result: "accepted" | "declined" | "held";
     message: string;
     duplicate?: boolean;
     // The entry's opaque lead token (from the accept response) — carried on the
@@ -206,7 +206,9 @@ export function QuickApplyForm({
             {done.result === "accepted" ? (done.duplicate ? t("alreadyApplied") : t("youreIn")) : t("thanksApplying")}
           </p>
           <p className="mt-1 text-base text-steel">{done.message}</p>
-          {done.result === "declined" ? <ApplyDeclineDetail names={done.failedKoNames ?? []} reviewByEmail={Boolean(done.reviewByEmail)} /> : null}
+          {done.result === "declined" || done.result === "held" ? (
+            <ApplyDeclineDetail names={done.failedKoNames ?? []} reviewByEmail={Boolean(done.reviewByEmail)} held={done.result === "held"} />
+          ) : null}
           {done.result === "declined" ? (
             <button
               type="button"

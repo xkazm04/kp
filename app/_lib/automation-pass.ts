@@ -11,6 +11,7 @@ import { planCommit, type CommitSelection, type CommitVerdict } from "./automati
 import { getPipelineAxis } from "./pipeline-axis-server";
 import { roleOf, stageHasRole, type StageDef, type StageRole } from "./pipeline-stages";
 import { nextStageOnAxis } from "./db/pipeline-core";
+import { parseKnockoutHold } from "./knockout-hold";
 
 // Audit event kind logged when the TS fairness backstop refuses a Python reject
 // and downgrades it to a hold. A non-zero count here means an upstream regression
@@ -576,7 +577,15 @@ export function withPolicyStageFacts<E extends { stage: string; workspaceId: str
 }
 
 async function executeAutomationPass(dryRun: boolean, selection?: CommitSelection, entryIds?: readonly string[]): Promise<AutomationPassResult> {
-  const entries = scopeToEntryIds(entriesForPass(listActiveEntriesForAutomation(), selection?.workspace), entryIds);
+  // A KNOCKOUT HOLD IS LEFT ALONE until a person acts (owner ruling Q1, knockout-hold.ts).
+  // It never reaches scoring or the policy. The approval is NOT enough on its own here:
+  // `evaluate_entry` holds a pending approval on a screening column, but its entry-column
+  // branch advances any SCORED entry without reading `approvalKind` — and a held stub
+  // becomes scorable the moment a recruiter resolves its degraded intake. So the guard is
+  // this exclusion, applied before the sweep and the snapshot, not the policy's own hold.
+  const entries = scopeToEntryIds(entriesForPass(listActiveEntriesForAutomation(), selection?.workspace), entryIds).filter(
+    (e) => !parseKnockoutHold(e.approvalKind, e.approvalDetail)
+  );
   const summary: AutomationSummary = { advanced: 0, rejected: 0, held: 0, alerts: 0, errors: 0, evaluated: entries.length };
   if (entries.length === 0) return { summary, decisions: [] };
 

@@ -1,8 +1,10 @@
 // E2/E3 (Erika gap) — the shared lead-intake core behind every minimal-field
 // inbound surface: the quick-apply form and the channel webhooks. One place
 // owns the contract so the channels can't drift:
-//   - a KO fail is AUDITED (entry-less ko_declined event), never a silent
-//     discard, and never a terminal row a mis-tap couldn't retry past;
+//   - a KO fail is a HELD entry (owner ruling Q1, 2026-11-09): a real pipeline entry
+//     behind the `decision` approval, carrying the failed must-have ids, for a person to
+//     confirm (the candidate then gets the letter naming the must-have) or clear. Never a
+//     machine decision, never a silent discard, never a terminal row;
 //   - identity is the email (findApplicationByApplicant), a repeat backfills
 //     the original entry's contact and re-acks if it just became reachable;
 //   - a passing lead files at Accepted as an intake-degraded stub carrying
@@ -17,9 +19,8 @@
 
 import type { JobRecord } from "./db/core";
 import { getJobWorkspace } from "./db/jobs";
-import { ensureLeadEnrichToken, recordKnockoutDecline } from "./db/pipeline";
+import { ensureLeadEnrichToken } from "./db/pipeline";
 import { fileApplication, type FilingProof } from "./application-filing";
-import { dispatchKnockoutDecline } from "./comms-dispatch";
 import { sanitizeFreeText } from "./text-sanitize";
 import { codedReasonDetail } from "./coded-reason";
 
@@ -45,7 +46,8 @@ export type LeadIntakeInput = {
   sourceVariant?: string | null;
   /** Event prose for the audit trail ("quick apply", "boards webhook"). */
   channelLabel: string;
-  /** KO ids that FAILED under the caller's verdict semantics — any present ⇒ decline. */
+  /** KO ids that FAILED under the caller's verdict semantics — any present ⇒ the lead is
+   *  filed as a knockout HOLD for a person (no decline, no letter at intake). */
   failedKoIds: string[];
   /** KO ids the lead EXPLICITLY answered true under the caller's verdict —
    *  recorded on the entry so the enrichment chat skips exactly those gates and
@@ -74,9 +76,9 @@ export type LeadIntakeInput = {
    *  in keeps byte-identical ordering. Only the dispatch's TIMING moves — every
    *  dispatch still happens, including the "newly reachable" re-ack below. */
   defer?: (task: () => Promise<void>) => void;
-  /** @deprecated No effect. A KO-declined lead is now told by email at EVERY door
-   *  whenever an address is in hand (the gate is automatic, so the letter names the
-   *  must-have and the review route); webhook callers still pass true. */
+  /** @deprecated No effect. Nothing is sent at intake for a failed must-have: the letter
+   *  goes out once, when a person confirms the rejection (pipeline-entry-action.ts);
+   *  webhook callers still pass true. */
   notifyDecline?: boolean;
   /** What a repeat may write (application-filing.ts PROOF). Default "channel": a
    *  tokened webhook is an authenticated integration. A PUBLIC door whose match can
@@ -86,7 +88,12 @@ export type LeadIntakeInput = {
 };
 
 export type LeadIntakeOutcome =
-  | { result: "declined" }
+  | {
+      /** A failed must-have: filed as a held entry for a person. Nothing was decided and
+       *  no letter went out. */
+      result: "held";
+      entryId: string;
+    }
   | {
       result: "accepted";
       duplicate: boolean;
@@ -122,52 +129,8 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
   const sourceCampaign = input.sourceCampaign ? sanitizeFreeText(input.sourceCampaign) || null : null;
   const sourceVariant = input.sourceVariant ? sanitizeFreeText(input.sourceVariant) || null : null;
 
-  // Knockout gate — audited, entry-less (see recordKnockoutDecline).
-  if (input.failedKoIds.length > 0) {
-    recordKnockoutDecline({
-      candidateLabel: name || null,
-      jobTitle: job.title,
-      channel: input.channelLabel,
-      failedKoIds: input.failedKoIds,
-      // Same tenant the accepted path files into — a declined applicant is counted
-      // (and their name shown) only by the team that owns the opening.
-      workspaceId,
-    });
-    // The adverse outcome is where the never-ghost promise matters most — and the
-    // gate is AUTOMATIC, so whenever an address is in hand the candidate is told which
-    // must-have ended the application and how to ask a person to review it (the
-    // letter's reply route; comms-dispatch dispatchKnockoutDecline). Best-effort like
-    // the ack: a comms failure never changes the intake verdict, the outbox row makes
-    // the decline auditable, and a local start with no relay degrades exactly as the
-    // other comms do. Deferred off the response path when the caller can (the ack's
-    // rule): the decline screen must not wait on an SMTP round-trip.
-    if (email) {
-      const send = async (): Promise<void> => {
-        try {
-          // Same tenant the decline RECORD above was filed into: the notice is entry-less
-          // (no entry exists yet), so without this its outbox row lands in the DEFAULT
-          // team's Comms Center — invisible to the team that owns the opening.
-          await dispatchKnockoutDecline({
-            email,
-            name: name || null,
-            jobTitle: job.title,
-            locale: input.locale,
-            workspaceId,
-            failedKoIds: input.failedKoIds,
-          });
-        } catch (declineErr) {
-          // Never the address: the log line names the role, not the person.
-          console.error(
-            `[lead-intake] KO decline recorded but notification failed for job ${job.id}:`,
-            declineErr instanceof Error ? declineErr.message : declineErr
-          );
-        }
-      };
-      if (input.defer) input.defer(send);
-      else await send();
-    }
-    return { result: "declined" };
-  }
+  // Knockout gate — a failed must-have FILES the lead, held for a person (below).
+  const held = input.failedKoIds.length > 0;
 
   // The stub reason is the recruiter-visible story of WHY this entry is thin —
   // including which eligibility gates the source form never asked (E3: ungated
@@ -179,11 +142,13 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
   // KO steps), never payload text. The cap is a last-resort guard on the ENCODED string:
   // a cut token would simply fail to parse, so it degrades to the paramless code.
   const ungated = input.ungatedKoIds?.length ? input.ungatedKoIds.join(", ") : "";
-  let stubReason = ungated
-    ? codedReasonDetail("leadPendingUngated", { channel: input.channelLabel, ungated })
-    : codedReasonDetail("leadPending", { channel: input.channelLabel });
+  let stubReason = held
+    ? codedReasonDetail("knockoutHeld", { channel: input.channelLabel })
+    : ungated
+      ? codedReasonDetail("leadPendingUngated", { channel: input.channelLabel, ungated })
+      : codedReasonDetail("leadPending", { channel: input.channelLabel });
   if (stubReason.length > STUB_REASON_MAX) {
-    stubReason = codedReasonDetail("leadPending", { channel: input.channelLabel });
+    stubReason = codedReasonDetail(held ? "knockoutHeld" : "leadPending", { channel: input.channelLabel });
   }
 
   // The FILING is the shared core's (application-filing.ts): tenant, identity before
@@ -219,11 +184,16 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
     proof: input.proof ?? "channel",
     stub: { idPrefix: "lead", reason: stubReason },
     defer: input.defer,
+    ...(held ? { hold: { failedKoIds: input.failedKoIds } } : {}),
     onEntry: (entry) => {
       leadToken = ensureLeadEnrichToken(entry.id, input.passedKoIds, workspaceId);
     },
     enrichLinkFor: (entry, kind) => (kind === "reack" && !entry.intakeDegraded ? null : withLeadToken(input.enrichLink, leadToken)),
     statusLinkFor: input.statusLinkFor ? (entry) => input.statusLinkFor?.(entry.id) ?? null : undefined,
   });
+  // A hold the filing core actually CREATED is the held answer. A repeat of a known
+  // applicant wrote nothing (the core's hold rule), so the lead is answered as the repeat
+  // it is — never as a hold nobody filed.
+  if (held && outcome.kind === "created") return { result: "held", entryId: outcome.entry.id };
   return { result: "accepted", duplicate: outcome.kind === "duplicate", entryId: outcome.entry.id, leadToken };
 }

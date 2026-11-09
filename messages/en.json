@@ -577,7 +577,7 @@
     },
     "koDecline": {
       "subject": "Your application: {role}",
-      "body": "Hi {name},\n\nThank you for applying for {role}. You answered no to a requirement the role states as a must-have:\n\n{mustHaves}\n\nThat ends the application automatically. A person did not make this decision. If you think it's wrong, or you answered by mistake, reply to this message and a person will review it.\n\nWe keep this email address only to record that this letter was sent, and delete it automatically after {days} days.\n\nRequirements can change as roles evolve. We'd be glad to see you apply again in the future.\n\nWishing you the very best,\n{team}",
+      "body": "Hi {name},\n\nThank you for applying for {role}. You answered no to a requirement the role states as a must-have:\n\n{mustHaves}\n\nA person reviewed your application and confirmed that it does not meet this requirement, so we can't take it further. If you think that's wrong, or you answered by mistake, reply to this message and a person will review it again.\n\nYour application, including this email address, stays on file like any other application, and you can ask us to erase it at any time with the link below.\n\nRequirements can change as roles evolve. We'd be glad to see you apply again in the future.\n\nWishing you the very best,\n{team}",
       "mustHaveFallback": "one of the role's eligibility requirements"
     },
     "offer": {
@@ -902,7 +902,7 @@
       "subtitle": "Built for regulated hiring under the EU AI Act and GDPR: the machine does the reading, but a qualified person makes every decision that touches a candidate.",
       "human": {
         "title": "Human in the loop",
-        "body": "Apart from one automatic knockout, a rejection is a person's: the machine cannot commit one, and a bulk reject needs a signed human approval of that exact list. The knockout: answering no to a must-have the role states ends that application at once, and the candidate is told which one and can ask a person to review it. A person approves every offer, and no workspace setting can hand a screening or offer decision to the machine."
+        "body": "A rejection is a person's: the machine cannot commit one, and a bulk reject needs a signed human approval of that exact list. Answering no to a must-have the role states rejects no one: the application is held for a person, who confirms the rejection or clears the hold, and only a confirmed rejection tells the candidate which must-have it was and how to ask a person to review it. A person approves every offer, and no workspace setting can hand a screening or offer decision to the machine."
       },
       "oversight": {
         "title": "AI Act, article by article"
@@ -1235,7 +1235,7 @@
     "loadFailed": "Could not confirm this workspace's rules. Showing the default disclosure.",
     "retry": "Try again",
     "title": "How this works",
-    "body": "We use AI to assist screening and interviews, assessing your <highlight>skills, experience, and fit</highlight> for the role. Answering no to a must-have the role states ends an application automatically; you are told which one and can ask a person to review it. Every other rejection is a person's: no setting can hand that decision to the machine. A person approves every offer, and no workspace setting can hand a screening or offer decision to the machine. You can ask for a human review at any point.",
+    "body": "We use AI to assist screening and interviews, assessing your <highlight>skills, experience, and fit</highlight> for the role. Answering no to a must-have the role states does not end an application by itself: it is held for a person, and only a person's confirmation rejects it. You are then told which must-have it was and can ask a person to review it. Every rejection is a person's: no setting can hand that decision to the machine. A person approves every offer, and no workspace setting can hand a screening or offer decision to the machine. You can ask for a human review at any point.",
     "dataConsent": "By submitting, you agree we may process your personal data for this role for up to {months, plural, one {# month} other {# months}}. You can review or request erasure of your data anytime via the link in our messages.",
     "interviewData": "About this interview: the recruiter can read your transcript and the AI scorecard for up to {months, plural, one {# month} other {# months}}. After that, your words are hidden from them. To ask us to delete your data, use the \"Your data\" link at the bottom of any message from us. To ask for a person to review a decision, reply to any message from the hiring team.",
     "regimeNote": "Assessed under {framework}; your personal data is processed under {dataLaw}."
@@ -2353,9 +2353,12 @@
       "lang": "The role's working language"
     },
     "declinedMustHave": "Must-have not met:",
-    "declinedAutoNote": "Answering no to a must-have the role states ends an application automatically. A person did not make this decision, and you can ask one to review it.",
+    "declinedAutoNote": "You can ask a person to review this decision.",
     "declinedReviewEmail": "We're emailing this decision to the address you gave. Reply to that message and a person will review it. If nothing arrives, contact the hiring team for this role directly.",
-    "declinedReviewNoEmail": "We couldn't email you this decision. To have a person review it, contact the hiring team for this role directly."
+    "declinedReviewNoEmail": "We couldn't email you this decision. To have a person review it, contact the hiring team for this role directly.",
+    "heldMessage": "Thanks for applying. Because of one of your answers, a person will look at your application before anything is decided.",
+    "heldMustHave": "You answered no to:",
+    "heldNote": "Nothing has been decided. A person reviews your application first. If they confirm it does not meet this requirement, you are told which one it was and how to ask for a review. If they clear it, your application continues as usual."
   },
   "interview": {
     "completedTitle": "Thank you",
@@ -4086,7 +4089,8 @@
     "intakeReasons": {
       "leadPending": "{channel} lead: profile pending enrichment. The full-apply link was sent in the acknowledgement.",
       "leadPendingUngated": "{channel} lead: profile pending enrichment. The full-apply link was sent in the acknowledgement. Eligibility not verified by the source form: {ungated}",
-      "atsImported": "Imported from {channel}: no CV profile yet. Build one from the candidate's CV to score them."
+      "atsImported": "Imported from {channel}: no CV profile yet. Build one from the candidate's CV to score them.",
+      "knockoutHeld": "{channel}: answered no to a must-have the role states. Held for a person to confirm the rejection or clear the hold. Nothing was decided and no letter was sent."
     },
     "offAxis": {
       "title": "Off the board",
@@ -4288,7 +4292,7 @@
       "standardFallback": "four-fifths analysis",
       "postureCoveredTitle": "What the platform enforces",
       "postureCeilingTitle": "What it does not do",
-      "covered1": "A human reviews and makes every advance, offer, and rejection once an application is in. The one automatic decision is the knockout: a no to a stated must-have ends the application, and the candidate is told which one and can ask a person to review it ({oversight}).",
+      "covered1": "A human reviews and makes every advance, offer, and rejection once an application is in. A no to a stated must-have decides nothing: it holds the application for a person, who confirms the rejection (the candidate is then told which must-have it was and can ask a person to review it) or clears the hold ({oversight}).",
       "covered2": "Every decision is sealed to a tamper-evident audit record.",
       "covered3": "Candidates see an AI-use disclosure and can request human review anytime.",
       "covered4": "Early-career and unclassified candidates are shielded from automated rejection (fail-closed).",
@@ -12291,7 +12295,7 @@
       "ai": {
         "title": "AI transparency",
         "oversight": "Under the EU AI Act, screening, scoring, ranking and interviewing candidates is a high-risk use. Every candidate-facing page shows an AI disclosure before an AI reads your data, as Article 50 requires.",
-        "sealed": "By default no candidate is advanced or offered by the machine alone (a workspace can delegate either, and every unattended step is logged). The only rejection the machine makes alone is the knockout: answering no to a must-have the role states ends that application automatically, and the candidate is told which one and can ask a person to review it. Every other adverse decision requires a human, and every decision, human or automated, is sealed into a tamper-evident audit record stating who made it and why."
+        "sealed": "By default no candidate is advanced or offered by the machine alone (a workspace can delegate either, and every unattended step is logged). The machine rejects no one alone: answering no to a must-have the role states holds that application for a person, who confirms the rejection or clears the hold, and only a confirmed rejection tells the candidate which must-have it was and how to ask a person to review it. Every adverse decision requires a human, and every decision, human or automated, is sealed into a tamper-evident audit record stating who made it and why."
       },
       "subprocessors": {
         "title": "Subprocessors",
@@ -12722,7 +12726,7 @@
       "gate": "a person",
       "stops": "stops",
       "applied": "applied automatically",
-      "noteRejection": "The rejection row is the one that matters. The pass computes it, clears it through the fairness gate, and then refuses to apply it, queueing it for a person instead. A rejection is the one irreversible, candidate-visible adverse action in the product, so nothing applies one on its own. (The one automatic decline comes before this: a candidate who answers no to a must-have the role states is told which one and can ask a person to review it.)",
+      "noteRejection": "The rejection row is the one that matters. The pass computes it, clears it through the fairness gate, and then refuses to apply it, queueing it for a person instead. A rejection is the one irreversible, candidate-visible adverse action in the product, so nothing applies one on its own. (A failed must-have does not change that: it holds the application for a person, who confirms the rejection or clears the hold.)",
       "noteAutonomous": "Advances, holds, alerts, scoring and drafting stay autonomous, and naming that plainly is what makes the rest of the claim worth anything.",
       "noteHired": "Hired is not on this road at all. A manual move to Hired returns 422, because that stage is set when the candidate accepts an offer and by nothing else.",
       "status": {
@@ -16756,7 +16760,7 @@
       "flow4Text": "What was decided about them, and why.",
       "rejection": "Rejection",
       "neverUnlocks": "never unlocks",
-      "neverText": "A knockout no ends an application automatically, and says why. Every other rejection is a person’s.",
+      "neverText": "A no to a must-have holds the application for a person. Nothing is rejected until a person confirms it, and the candidate is then told why. Every rejection is a person’s.",
       "detailNote": "One switch pauses every step that runs unattended."
     }
   },

@@ -163,8 +163,11 @@ export async function ingestInboundLeadJson(input: InboundLeadJsonInput): Promis
     settleWebhookIdempotency(idemKey);
     claimedIdemKey = null;
 
-    if (outcome.result === "declined") {
-      return { status: 200, body: { result: "declined", code: "knockout_failed", failed: lead.failedKoIds } };
+    if (outcome.result === "held") {
+      // A failed must-have is filed as a held entry for a person (owner ruling Q1). The
+      // integrator hears that it is held, never that the lead was declined: nothing was
+      // decided and no letter went out.
+      return { status: 200, body: { result: "held", code: "knockout_held", failed: lead.failedKoIds, entryId: outcome.entryId } };
     }
     // Stamp an ACCEPTED lead only for a genuinely NEW candidate — not a probe
     // (already 422'd above), a KO-decline, or a duplicate re-apply — so the Channels

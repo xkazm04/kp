@@ -577,7 +577,7 @@
     },
     "koDecline": {
       "subject": "Votre candidature : {role}",
-      "body": "Bonjour {name},\n\nMerci d’avoir postulé pour {role}. Vous avez répondu non à une condition que le poste exige expressément :\n\n{mustHaves}\n\nCela met fin à la candidature automatiquement ; aucune personne n’a pris cette décision. Si vous pensez qu’il s’agit d’une erreur, ou si vous avez répondu par erreur, répondez à ce message et une personne réexaminera la décision.\n\nNous ne conservons cette adresse e-mail que pour consigner l’envoi de ce message, et nous la supprimons automatiquement après {days} jours.\n\nLes conditions peuvent évoluer avec les postes. Nous serions ravis de vous revoir postuler à l’avenir.\n\nNous vous souhaitons le meilleur,\n{team}",
+      "body": "Bonjour {name},\n\nMerci d’avoir postulé pour {role}. Vous avez répondu non à une condition que le poste exige expressément :\n\n{mustHaves}\n\nUne personne a examiné votre candidature et confirmé qu’elle ne remplit pas cette condition ; nous ne pouvons donc pas la poursuivre. Si vous pensez qu’il s’agit d’une erreur, ou si vous avez répondu par erreur, répondez à ce message et une personne la réexaminera.\n\nVotre candidature, y compris cette adresse e-mail, reste conservée comme toute autre candidature, et vous pouvez à tout moment nous demander de l’effacer grâce au lien ci-dessous.\n\nLes conditions peuvent évoluer avec les postes. Nous serions ravis de vous revoir postuler à l’avenir.\n\nNous vous souhaitons le meilleur,\n{team}",
       "mustHaveFallback": "l’une des conditions du poste"
     },
     "offer": {
@@ -902,7 +902,7 @@
       "subtitle": "Conçu pour le recrutement réglementé par le règlement européen sur l’AI (EU AI Act) et le RGPD : la machine lit, mais une personne qualifiée prend chaque décision qui concerne un candidat.",
       "human": {
         "title": "L’humain dans la boucle",
-        "body": "Hormis un seul refus automatique, un rejet revient à une personne : la machine ne peut pas en prononcer un, et un rejet en masse exige l’approbation humaine signée de cette liste exacte. Ce refus automatique est l’élimination : répondre non à une condition que le poste exige expressément met fin à la candidature aussitôt, et le candidat sait laquelle et peut demander qu’une personne réexamine la décision. Chaque offre est validée par une personne, et aucun réglage d’un espace de travail ne peut confier à la machine une décision de présélection ou d’offre."
+        "body": "Un rejet revient à une personne : la machine ne peut pas en prononcer un, et un rejet en masse exige l’approbation humaine signée de cette liste exacte. Répondre non à une condition que le poste exige expressément ne rejette personne : la candidature est mise en attente pour une personne, qui confirme le rejet ou lève l’attente, et seul un rejet confirmé indique au candidat de quelle condition il s’agissait et comment demander qu’une personne réexamine la décision. Chaque offre est validée par une personne, et aucun réglage d’un espace de travail ne peut confier à la machine une décision de présélection ou d’offre."
       },
       "oversight": {
         "title": "AI Act, article par article"
@@ -1235,7 +1235,7 @@
     "loadFailed": "Impossible de confirmer les règles de cet espace de travail. Les informations par défaut sont affichées.",
     "retry": "Réessayer",
     "title": "Comment ça marche",
-    "body": "Nous utilisons l’AI pour assister la présélection et les entretiens, en évaluant vos <highlight>compétences, votre expérience et votre adéquation</highlight> au poste. Répondre non à une condition que le poste exige expressément met fin à la candidature automatiquement ; vous savez laquelle et vous pouvez demander qu’une personne réexamine la décision. Tout autre rejet revient à une personne : aucun réglage ne peut confier cette décision à la machine. Chaque offre est validée par une personne, et aucun réglage d’un espace de travail ne peut confier à la machine une décision de présélection ou d’offre. Vous pouvez demander un examen humain à tout moment.",
+    "body": "Nous utilisons l’AI pour assister la présélection et les entretiens, en évaluant vos <highlight>compétences, votre expérience et votre adéquation</highlight> au poste. Répondre non à une condition que le poste exige expressément ne met pas fin seule à la candidature : elle est mise en attente pour une personne, et seule sa confirmation la rejette. Vous savez ensuite de quelle condition il s’agissait et vous pouvez demander qu’une personne réexamine la décision. Tout rejet revient à une personne : aucun réglage ne peut confier cette décision à la machine. Chaque offre est validée par une personne, et aucun réglage d’un espace de travail ne peut confier à la machine une décision de présélection ou d’offre. Vous pouvez demander un examen humain à tout moment.",
     "dataConsent": "En soumettant, vous acceptez que nous traitions vos données personnelles pour ce poste pendant une durée maximale de {months, plural, one {# mois} other {# mois}}. Vous pouvez consulter vos données ou en demander l’effacement à tout moment via le lien présent dans nos messages.",
     "interviewData": "À propos de cet entretien : le recruteur peut lire votre transcription et l’évaluation de l’AI pendant {months, plural, one {# mois} other {# mois}} au maximum. Ensuite, vos propos lui sont masqués. Pour demander l’effacement de vos données, utilisez le lien « Vos données » en bas de chacun de nos messages. Pour demander qu’une personne réexamine une décision, répondez à n’importe quel message de l’équipe de recrutement.",
     "regimeNote": "Évalué selon {framework}. Vos données personnelles sont traitées selon {dataLaw}."
@@ -2353,9 +2353,12 @@
       "lang": "La langue de travail du poste"
     },
     "declinedMustHave": "Condition non remplie :",
-    "declinedAutoNote": "Répondre non à une condition que le poste exige expressément met fin à la candidature automatiquement. Aucune personne n’a pris cette décision, et vous pouvez demander qu’une personne la réexamine.",
+    "declinedAutoNote": "Vous pouvez demander qu’une personne réexamine cette décision.",
     "declinedReviewEmail": "Nous vous envoyons cette décision par e-mail à l’adresse indiquée. Répondez simplement à ce message et une personne la réexaminera. Si rien n’arrive, contactez directement l’équipe qui recrute pour ce poste.",
-    "declinedReviewNoEmail": "Nous n’avons pas pu vous envoyer cette décision par e-mail. Pour qu’une personne la réexamine, contactez directement l’équipe qui recrute pour ce poste."
+    "declinedReviewNoEmail": "Nous n’avons pas pu vous envoyer cette décision par e-mail. Pour qu’une personne la réexamine, contactez directement l’équipe qui recrute pour ce poste.",
+    "heldMessage": "Merci de votre candidature. À cause d’une de vos réponses, une personne examinera d’abord votre candidature avant que quoi que ce soit ne soit décidé.",
+    "heldMustHave": "Vous avez répondu non à :",
+    "heldNote": "Rien n’est décidé. Une personne examine d’abord votre candidature. Si elle confirme que cette condition n’est pas remplie, vous savez laquelle et comment demander un réexamen. Si elle lève l’attente, votre candidature suit son cours normal."
   },
   "interview": {
     "completedTitle": "Merci",
@@ -4086,7 +4089,8 @@
     "intakeReasons": {
       "leadPending": "Lead via {channel} : profil en attente d'enrichissement. Le lien vers la candidature complète a été envoyé dans l'accusé de réception.",
       "leadPendingUngated": "Lead via {channel} : profil en attente d'enrichissement. Le lien vers la candidature complète a été envoyé dans l'accusé de réception. Éligibilité non vérifiée par le formulaire source : {ungated}",
-      "atsImported": "Importé depuis {channel} : pas encore de profil de CV. Créez-en un à partir du CV du candidat pour l’évaluer."
+      "atsImported": "Importé depuis {channel} : pas encore de profil de CV. Créez-en un à partir du CV du candidat pour l’évaluer.",
+      "knockoutHeld": "{channel} : a répondu non à une condition que le poste exige expressément. En attente d’une personne qui confirme le rejet ou lève l’attente. Rien n’est décidé et aucune lettre n’a été envoyée."
     },
     "offAxis": {
       "title": "Hors du tableau",
@@ -4288,7 +4292,7 @@
       "standardFallback": "analyse des quatre cinquièmes",
       "postureCoveredTitle": "Ce que la plateforme applique",
       "postureCeilingTitle": "Ce qu’elle ne fait pas",
-      "covered1": "Un humain examine et prend chaque décision d’avancement, d’offre et de rejet une fois la candidature reçue. La seule décision automatique est l’élimination : un non à une condition exigée expressément met fin à la candidature, et le candidat sait laquelle et peut demander qu’une personne réexamine la décision ({oversight}).",
+      "covered1": "Un humain examine et prend chaque décision d’avancement, d’offre et de rejet une fois la candidature reçue. Un non à une condition exigée expressément ne décide rien : la candidature est mise en attente pour une personne, qui confirme le rejet (le candidat sait alors laquelle et peut demander qu’une personne réexamine la décision) ou lève l’attente ({oversight}).",
       "covered2": "Chaque décision est scellée dans un enregistrement d’audit inviolable.",
       "covered3": "Les candidats voient une mention d’utilisation d’AI et peuvent demander un examen humain à tout moment.",
       "covered4": "Les candidats en début de carrière et non classés sont protégés du rejet automatisé (fail-closed).",
@@ -12387,7 +12391,7 @@
       "ai": {
         "title": "Transparence de l’AI",
         "oversight": "Au titre du règlement européen sur l’AI, trier, noter, classer et interroger des candidats est un usage à haut risque. Chaque page destinée aux candidats affiche donc une mention AI avant qu’une AI ne lise vos données, comme l’exige l’article 50.",
-        "sealed": "Par défaut, aucun candidat n’est retenu ni destinataire d’une offre par la seule machine (un espace de travail peut déléguer l’un ou l’autre, et chaque étape sans surveillance est journalisée). Le seul refus que la machine prononce seule est l’élimination : répondre non à une condition que le poste exige expressément met fin à la candidature automatiquement, et le candidat sait laquelle et peut demander qu’une personne réexamine la décision. Toute autre décision défavorable exige un humain, et chaque décision, humaine ou automatisée, est scellée dans un registre d’audit infalsifiable indiquant qui a décidé et pourquoi."
+        "sealed": "Par défaut, aucun candidat n’est retenu ni destinataire d’une offre par la seule machine (un espace de travail peut déléguer l’un ou l’autre, et chaque étape sans surveillance est journalisée). La machine ne rejette personne seule : répondre non à une condition que le poste exige expressément met la candidature en attente pour une personne, qui confirme le rejet ou lève l’attente, et seul un rejet confirmé indique au candidat de quelle condition il s’agissait et comment demander qu’une personne réexamine la décision. Toute décision défavorable exige un humain, et chaque décision, humaine ou automatisée, est scellée dans un registre d’audit infalsifiable indiquant qui a décidé et pourquoi."
       },
       "subprocessors": {
         "title": "Sous-traitants",
@@ -12722,7 +12726,7 @@
       "gate": "une personne",
       "stops": "s'arrête",
       "applied": "appliqué automatiquement",
-      "noteRejection": "La ligne qui compte est celle du rejet. La passe le calcule, le fait passer par le garde-fou d'équité, puis refuse de l'appliquer et le met en file pour une personne. Un rejet est la seule action irréversible et visible par le candidat dans le produit, donc rien ne l'applique de lui-même. (Le seul refus automatique intervient avant : le candidat qui répond non à une condition que le poste exige expressément sait laquelle et peut demander qu’une personne réexamine la décision.)",
+      "noteRejection": "La ligne qui compte est celle du rejet. La passe le calcule, le fait passer par le garde-fou d'équité, puis refuse de l'appliquer et le met en file pour une personne. Un rejet est la seule action irréversible et visible par le candidat dans le produit, donc rien ne l'applique de lui-même. (Une condition non remplie n’y change rien : la candidature est mise en attente pour une personne, qui confirme le rejet ou lève l’attente.)",
       "noteAutonomous": "Les avancées, les mises en attente, les alertes, l'évaluation et la rédaction des brouillons restent autonomes, et c'est le fait de le dire franchement qui donne du poids au reste.",
       "noteHired": "Recruté ne se trouve pas du tout sur ce chemin. Un passage manuel à Recruté renvoie 422, car cette étape est fixée par l'acceptation d'une offre par le candidat et par rien d'autre.",
       "status": {
@@ -16644,7 +16648,7 @@
       "flow4Text": "Ce qui a été décidé à son sujet, et pourquoi.",
       "rejection": "Refus",
       "neverUnlocks": "jamais déverrouillé",
-      "neverText": "Un non à une condition exigée met fin à la candidature automatiquement et dit pourquoi. Tout autre refus revient à une personne.",
+      "neverText": "Un non à une condition exigée met la candidature en attente pour une personne. Rien n’est rejeté tant qu’une personne ne l’a pas confirmé, et le candidat en connaît alors la raison. Tout rejet revient à une personne.",
       "detailNote": "Un seul interrupteur met en pause toutes les étapes qui tournent sans surveillance."
     }
   },

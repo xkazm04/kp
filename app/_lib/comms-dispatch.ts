@@ -4,7 +4,7 @@ import { isSimTitle } from "@/app/_lib/sim-marker";
 import type { OutboxStatus } from "./comms-status";
 import type { DeliveryClaim } from "./comms-truth";
 import type { PipelineEntry } from "./db/core";
-import { KO_DECLINE_CONTACT_RETENTION_DAYS, ensureErasureToken, ensureOptOutToken, entryProfileGaps, recordAutomationEvent } from "./db/pipeline";
+import { ensureErasureToken, ensureOptOutToken, entryProfileGaps, recordAutomationEvent } from "./db/pipeline";
 import { buildRejectionFeedback, renderRejectionFeedback } from "./rejection-feedback";
 import { outreachHaltFor, recordOutreachSend } from "./outreach-state-store";
 import type { HaltReason } from "./outreach-halt";
@@ -642,43 +642,39 @@ export async function dispatchInterviewLetter(
   return (await sendCandidateComm(entry, t, { subject, body: lines.join("\n"), kind: "interview_letter" }, letter.locale)).status;
 }
 
-/** Tell a KO-declined lead the outcome — entry-less by design. Leads are
- *  declined BEFORE any pipeline entry exists (lead-intake's knockout gate, and the
- *  conversational door's own), so the one identity in hand is the email; `ref` is
- *  omitted and the envelope ships null context (comms-envelope handles a missing
- *  entry). EVERY door sends it whenever an address is in hand: the gate is automatic,
- *  so the letter names the must-have and carries the human-review route (a reply
- *  reaches a person — the same promise as status.decisions.humanReviewNote). Webhook
- *  candidates additionally saw only "submitted" on a third-party board.
+/** The letter for a knockout rejection a PERSON confirmed (owner ruling Q1, 2026-11-09):
+ *  it names the must-have(s) that ended the application and says how to ask for a review.
  *
- *  TENANT (comms-tenancy-pair): with no entry there is nothing for recordOutbox to
- *  derive a workspace from, so the row used to land in the DEFAULT team's Comms
- *  Center — for a non-default team, in a board its recruiters cannot see, while the
- *  decline itself was correctly recorded (recordKnockoutDecline) in their own. The
- *  caller holds the authoritative tenant (the webhook's / the opening's team) and
- *  passes it here, so the notice and the decline record file together. */
-export async function dispatchKnockoutDecline(input: {
-  email: string;
-  name?: string | null;
-  jobTitle?: string | null;
-  locale?: string | null;
-  /** The team that owns the declined lead. Omitted ⇒ the default workspace. */
-  workspaceId?: string | null;
-  /** The KO step ids the candidate answered no to. The letter NAMES them (in the
-   *  letter's language) and carries the human-review route — the decline is automatic,
-   *  so the person it affects is told which must-have it was and who to ask. */
-  failedKoIds?: readonly string[];
-}): Promise<DispatchOutcome> {
-  const locale = candidateLocale(input.locale, input.workspaceId);
+ *  It is sent from the CONFIRM only — pipeline-entry-action.ts calls it once, after the
+ *  decision is sealed and written — never at intake: a failed must-have files a held
+ *  entry (knockout-hold.ts) and the candidate hears nothing until a person decides. So
+ *  the letter may say a person reviewed it, and it does not claim an automatic decision.
+ *
+ *  The entry now exists and carries the contact, so the letter goes through the ordinary
+ *  candidate send: ref'd to the entry (its erasure and expiry scrub the row with the
+ *  entry), the data footer and the opt-out headers included. Returns null when no letter
+ *  is owed — an anonymous applicant or a lead with no address on file; the label is not
+ *  an address, and a relay could only dead-letter it. */
+export async function dispatchKnockoutRejection(
+  entry: PipelineEntry,
+  failedKoIds: readonly string[]
+): Promise<DispatchOutcome | null> {
+  if (!(entry.contact ?? "").trim()) return null;
+  const locale = candidateLocale(entry.locale, entry.workspaceId);
   const t = await commsTranslator(locale);
   const ta = await namespaceTranslator(locale, "apply");
-  const name = (input.name ?? "").trim() || t("there");
-  const role = input.jobTitle ?? t("theRole");
+  const name = (entry.candidateLabel ?? "").trim() || t("there");
+  const role = entry.jobTitle ?? t("theRole");
   const subject = t("koDecline.subject", { role });
-  const named = koMustHaveNames(input.failedKoIds ?? [], ta);
+  const named = koMustHaveNames(failedKoIds, ta);
   const mustHaves = (named.length > 0 ? named : [t("koDecline.mustHaveFallback")]).map((n) => `- ${n}`).join("\n");
-  const body = t("koDecline.body", { name, role, team: t("team"), mustHaves, days: KO_DECLINE_CONTACT_RETENTION_DAYS });
-  return dispatchOutcome(await sendCommUnlessSim({ to: input.email, subject, body, kind: "ko_decline", workspaceId: input.workspaceId }, input.jobTitle));
+  const body = t("koDecline.body", { name, role, team: t("team"), mustHaves });
+  const outcome = await sendCandidateComm(entry, t, { subject, body, kind: "ko_decline" }, locale);
+  // As dispatchRejection: a dead letter or a refusal is not a sent letter, so the
+  // timeline never claims the candidate was told when nothing went.
+  if (!delivered(outcome)) return outcome;
+  recordAutomationEvent(entry.id, "rejection_sent", "manual reject · knockout letter", entry.workspaceId);
+  return outcome;
 }
 
 /**
