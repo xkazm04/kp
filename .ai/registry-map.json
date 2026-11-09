@@ -23527,8 +23527,12 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "deviation",
+          "priorNotApplicable": 3,
+          "evidence": "app/_lib/python-runner.ts:602 On a timeout or abort, spawnPython SIGKILLs the Python child and then folds in only the ledger lines that were already written. A metered generation that was in flight at the kill gets no llm_usage row at all, and the ledger's outcome vocabulary has no 'indeterminate' value to record one. This is the technique's 'spend is real and unrecorded' case.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:c29c78bbbf9eb4fe",
+          "evaluatedRevision": 29
         },
         {
           "subject": "module-design",
@@ -36612,9 +36616,10 @@
           "changedAt": "2026-10-14",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "app/api/tasks/route.ts:23 A search across workspace configuration routes for agent runtime assembly constructs found zero occurrences; this API suite exposes background task job tracking and tenant settings rather than an LLM agent execution assembly.",
-          "evaluatedAt": "2026-10-13",
-          "stale": true
+          "evidence": "app/api/tasks/route.ts:36 These routes are configuration doors and the background-task queue's read, start and retry doors. The only run-shaped thing here is the job queue's restart sweep, which belongs to the neighbouring job-coordination subject. Searching app/api/{me,brand,palette,demo,templates,tasks,profile,compliance} for plugin, checkpoint, subagent, tool_call/toolCall/tool_use, extension and middleware found zero hits, so there is no hook chain, contributed code, tool loop or conversation checkpoint for this subject to govern.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:c29c78bbbf9eb4fe",
+          "evaluatedRevision": 29
         },
         {
           "subject": "agent-instruction-files",

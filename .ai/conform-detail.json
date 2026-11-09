@@ -2463,13 +2463,14 @@
       "subject": "agent-runtime-assembly",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T03:17:22.945Z",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T22:55:44.973Z",
+      "worker": "97b11d99-ce12-440a-b6fb-e0de1e2e7bb5",
       "techniques": [
         {
           "technique": "indeterminate-closure-on-interruption",
           "verdict": "not-applicable",
-          "evidence": "app/api/tasks/[id]/retry/route.ts:42 'interrupted' is a first-class job status separate from 'failed', but it is assigned in app/_lib/tasks.ts (outside this context) and is job-coordination's vocabulary under the golden path's 'the job record is not this subject' boundary."
+          "evidence": "app/api/tasks/route.ts:36 This is a task row, not a conversation transcript, so job-coordination owns it. In spirit it would conform: tasks.ts marks running orphans with a first-class 'interrupted' status rather than 'failed', and re-queues 'queued' rows that never started."
         },
         {
           "technique": "session-scoped-capability",
@@ -2521,14 +2522,15 @@
           "evaluatedAt": "2026-10-13T03:19:23.520Z",
           "worker": "a09186b8-21cb-4d2c-bcda-2a6704e6f88f",
           "reason": "replaced by 2021454a-96f1-4840-9526-159f07ce5c6f"
+        },
+        {
+          "state": "not-applicable",
+          "evidence": "app/api/tasks/route.ts:23 A search across workspace configuration routes for agent runtime assembly constructs found zero occurrences; this API suite exposes background task job tracking and tenant settings rather than an LLM agent execution assembly.",
+          "evaluatedAt": "2026-10-13",
+          "worker": null,
+          "reason": "replaced by 97b11d99-ce12-440a-b6fb-e0de1e2e7bb5"
         }
-      ],
-      "withdrawn": {
-        "worker": "2021454a-96f1-4840-9526-159f07ce5c6f",
-        "state": "not-applicable",
-        "at": "2026-10-24T03:17:56.193559+00:00",
-        "reason": "reviewer (sonnet): The technique anchor app/api/tasks/[id]/retry/route.ts:42 is only a comment about a 'crash-interrupted row' and does not show 'interrupted' as a first-class status separate from 'failed'. The 'interrupted' assignments are in app/_lib/tasks.ts, outside this context. The golden-path boundary 'the job "
-      }
+      ]
     },
     "a756a7a4-eeeb-4ac4-b43b-b2afb7f3e4a2/agent-runtime-assembly": {
       "context": "voice-stt-package",
@@ -30094,6 +30096,28 @@
       "evaluatedTs": "2026-11-09T05:34:37.149Z",
       "worker": "b246c836-46dd-46c4-853d-ecdfa4cc69a4",
       "techniques": []
+    },
+    "e7a9bc1c-fe25-4247-a48f-d05ce318eb98/agent-runtime-assembly": {
+      "context": "llm-inference-runtime",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T22:55:44.973Z",
+      "worker": "97b11d99-ce12-440a-b6fb-e0de1e2e7bb5",
+      "techniques": [
+        {
+          "technique": "indeterminate-closure-on-interruption",
+          "verdict": "deviation",
+          "evidence": "app/_lib/python-runner.ts:602 A killed metered generation is never closed: no synthetic row, no unknown-outcome status, and the spend goes unreconciled. The caller-facing half does conform: SpawnFailureKind at line 161 is a first-class kind rather than a message the caller has to parse."
+        },
+        {
+          "technique": "nested-run-is-not-its-parent",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-request-context.ts:54 Work the run owns (a companion turn running inside the digest task) inherits the outer run's id. A standalone companion turn names itself, and a spawn outside any scope inherits nothing (python-runner.ts:653 sets KP_LLM_REQUEST_ID only when a scope is open)."
+        }
+      ],
+      "registryProposal": "indeterminate-closure-on-interruption covers restart recovery and runtime-held calls. It does not name the case where the host deliberately kills a metering subprocess on timeout or abort, and the child's ledger write dies with it. That is the commonest way a metered generation goes unrecorded in a spawn-per-request runtime, and the fix there is a parent-side synthetic row."
     }
   }
 }

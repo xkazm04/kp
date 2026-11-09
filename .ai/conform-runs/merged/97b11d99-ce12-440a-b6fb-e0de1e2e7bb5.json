@@ -1,0 +1,150 @@
+{
+ "schema": "conform-run/1",
+ "worker": "97b11d99-ce12-440a-b6fb-e0de1e2e7bb5",
+ "subject": "agent-runtime-assembly",
+ "evaluatedAt": "2026-11-09T22:55:44.973573+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "workspace-config-api",
+   "subject": "agent-runtime-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/tasks/route.ts:36 These routes are configuration doors and the background-task queue's read, start and retry doors. The only run-shaped thing here is the job queue's restart sweep, which belongs to the neighbouring job-coordination subject. Searching app/api/{me,brand,palette,demo,templates,tasks,profile,compliance} for plugin, checkpoint, subagent, tool_call/toolCall/tool_use, extension and middleware found zero hits, so there is no hook chain, contributed code, tool loop or conversation checkpoint for this subject to govern.",
+   "techniques": [
+    {
+     "technique": "indeterminate-closure-on-interruption",
+     "verdict": "not-applicable",
+     "evidence": "app/api/tasks/route.ts:36 This is a task row, not a conversation transcript, so job-coordination owns it. In spirit it would conform: tasks.ts marks running orphans with a first-class 'interrupted' status rather than 'failed', and re-queues 'queued' rows that never started."
+    }
+   ],
+   "absenceTerms": [
+    "plugin",
+    "checkpoint",
+    "subagent",
+    "toolCall",
+    "tool_use"
+   ]
+  },
+  {
+   "context": "llm-inference-runtime",
+   "subject": "agent-runtime-assembly",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/python-runner.ts:602 On a timeout or abort, spawnPython SIGKILLs the Python child and then folds in only the ledger lines that were already written. A metered generation that was in flight at the kill gets no llm_usage row at all, and the ledger's outcome vocabulary has no 'indeterminate' value to record one. This is the technique's 'spend is real and unrecorded' case.",
+   "techniques": [
+    {
+     "technique": "indeterminate-closure-on-interruption",
+     "verdict": "deviation",
+     "evidence": "app/_lib/python-runner.ts:602 A killed metered generation is never closed: no synthetic row, no unknown-outcome status, and the spend goes unreconciled. The caller-facing half does conform: SpawnFailureKind at line 161 is a first-class kind rather than a message the caller has to parse."
+    },
+    {
+     "technique": "nested-run-is-not-its-parent",
+     "verdict": "conformant",
+     "evidence": "app/_lib/llm-request-context.ts:54 Work the run owns (a companion turn running inside the digest task) inherits the outer run's id. A standalone companion turn names itself, and a spawn outside any scope inherits nothing (python-runner.ts:653 sets KP_LLM_REQUEST_ID only when a scope is open)."
+    }
+   ],
+   "registryProposal": "indeterminate-closure-on-interruption covers restart recovery and runtime-held calls. It does not name the case where the host deliberately kills a metering subprocess on timeout or abort, and the child's ledger write dies with it. That is the commonest way a metered generation goes unrecorded in a spawn-per-request runtime, and the fix there is a parent-side synthetic row."
+  },
+  {
+   "context": "devcase-lifecycle-api",
+   "subject": "agent-runtime-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/devcase/lifecycle/[id]/approve/route.ts:135 These routes move lifecycle state and hand the automated walk to the task queue (that is the job-coordination and hitl-approval subjects). Redesign makes one runDesignArtifacts call. Searching app/api/devcase for plugin, checkpoint, subagent, tool_call/toolCall/tool_use, extension and middleware found zero hits, so there is no runtime assembly here (hook chain, contributed code, tool loop or conversation checkpoint).",
+   "techniques": [],
+   "absenceTerms": [
+    "plugin",
+    "checkpoint",
+    "subagent",
+    "toolCall",
+    "tool_use"
+   ]
+  },
+  {
+   "context": "devcase-session-api",
+   "subject": "agent-runtime-assembly",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/devcase/session/[id]/chat/route.ts:105 The candidate's message is stored before the generation, and the only thing that closes it is a successful reply (line 133). An abort, timeout or crash leaves an unanswered user turn with no status saying the outcome is unknown. Both later readers then trip over that gap: the next turn feeds it to the model through getDevSessionChat, and the evaluator reads the captured prompt channel as evidence.",
+   "techniques": [
+    {
+     "technique": "indeterminate-closure-on-interruption",
+     "verdict": "deviation",
+     "evidence": "app/api/devcase/session/[id]/chat/route.ts:105 The request is recorded before the call, but nothing closes it when the call is interrupted. Only the success path writes a reply (line 133: `if (reply) appendDevSessionChat(id, channel, \"model\", reply);`)."
+    },
+    {
+     "technique": "additive-input-at-the-call-boundary",
+     "verdict": "not-applicable",
+     "evidence": "app/api/devcase/session/[id]/chat/route.ts:104 Each request is a single model call over the transcript as it stood before the message. There is no multi-call unit for a follow-up to join."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "agent-runtime-assembly",
+   "context": "candidate-apply-api",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-09T22:55:44.973573+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-runtime-assembly"
+   ],
+   "techniques": [
+    "indeterminate-closure-on-interruption"
+   ],
+   "deviations": 0,
+   "context": "workspace-config-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T22:55:44.973573+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-runtime-assembly"
+   ],
+   "techniques": [
+    "indeterminate-closure-on-interruption",
+    "nested-run-is-not-its-parent"
+   ],
+   "deviations": 1,
+   "context": "llm-inference-runtime",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T22:55:44.973573+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-runtime-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "devcase-lifecycle-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T22:55:44.973573+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-runtime-assembly"
+   ],
+   "techniques": [
+    "additive-input-at-the-call-boundary",
+    "indeterminate-closure-on-interruption"
+   ],
+   "deviations": 1,
+   "context": "devcase-session-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
