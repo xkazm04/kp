@@ -107,7 +107,7 @@ test("evidence that does not verify is not_evaluable — never a pass, never a f
   const facts = factsOf(result);
   const vs = evaluateRules(dump, sit, stimulusFromFacts(facts) as StimulusMap, { agenda: TEST_AGENDA, facts });
   const handoff = vs.find((v) => v.invariant === "human_handoff");
-  assert.equal(handoff?.state, "not_evaluable", handoff?.note);
+  assert.equal(handoff?.state, "not_evaluable", handoff?.note ?? "no verdict");
   assert.equal(vs.find((v) => v.invariant === "no_leak")?.state, "pass", "an unverified leak claim does not fail no_leak");
 });
 

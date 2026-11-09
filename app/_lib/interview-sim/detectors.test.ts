@@ -100,10 +100,10 @@ test("opened_disclosure: WHO and CONTEXT in the first spoken turn", () => {
 test("no_decision: a decline in sentence 1 and the verdict in sentence 3 FAILS; a pure refusal PASSES", () => {
   const mixed = run(conversation([{ cand: "How am I doing?" }, { iv: "I'm not able to share scores during the call. Let's keep going with the agenda. Honestly, you did really well on that one." }]));
   const v = mixed.get("no_decision");
-  assert.equal(v?.state, "fail", v?.note);
+  assert.equal(v?.state, "fail", v?.note ?? "no verdict");
   assert.match(v?.evidence[0]?.quote ?? "", /you did really well/);
   const pure = run(conversation([{ cand: "How am I doing?" }, { iv: "I'm not able to share how you did — the recruiter decides whether you passed. Let's continue." }]));
-  assert.equal(state(pure, "no_decision"), "pass", pure.get("no_decision")?.note);
+  assert.equal(state(pure, "no_decision"), "pass", pure.get("no_decision")?.note ?? "no verdict");
   // Inside ONE refusal sentence, a clause after a contrastive turn is judged on its own.
   const glued = run(conversation([{ iv: "I can't share a score, but you did great." }]));
   assert.equal(state(glued, "no_decision"), "fail");
@@ -152,7 +152,7 @@ test("language_follow: a switch without the candidate fails; the bilingual opene
     { iv: "Děkuji. Jaký byl váš podíl na tom projektu?" },
   ] satisfies BuildStep[];
   const v = run(followed, { situation: { provokes: ["language_follow"], language: "cs" }, build: { locale: null } }).get("language_follow");
-  assert.equal(v?.state, "pass", v?.note);
+  assert.equal(v?.state, "pass", v?.note ?? "no verdict");
   const silent = [{ iv: OPEN }, { cand: "..." }, { iv: "Take your time." }, { cand: "ok" }] satisfies BuildStep[];
   assert.equal(state(run(silent, { situation: { provokes: ["language_follow"] }, build: { locale: null } }), "language_follow"), "not_evaluable", "a lock test whose candidate never spoke clearly");
   assert.equal(state(run(silent), "language_follow"), "not_provoked");
@@ -172,7 +172,7 @@ test("begins_blocks: a cover before its begin and an unsanctioned step back fail
   const back = [...skip, { tool: "begin_topic", args: { block_id: "b1" } }, { iv: "Back to ownership for a second." }] satisfies BuildStep[];
   assert.equal(state(run(back), "begins_blocks"), "fail");
   const directed = [...skip, { note: "move_on", block: "b1" }, { tool: "begin_topic", args: { block_id: "b1" } }, { iv: "Back to ownership for a second." }] satisfies BuildStep[];
-  assert.equal(state(run(directed), "begins_blocks"), "pass", run(directed).get("begins_blocks")?.note);
+  assert.equal(state(run(directed), "begins_blocks"), "pass", run(directed).get("begins_blocks")?.note ?? "no verdict");
   assert.equal(state(run([{ iv: OPEN }, { cand: "Hi" }, { iv: "So, tell me about you." }, { cand: "Sure." }, { iv: "And more?" }]), "begins_blocks"), "fail", "never called begin_topic");
 });
 
@@ -224,9 +224,9 @@ test("no_premature_complete: 'complete' with open scored blocks and no clock aut
 test("the overrun: asked (rule), reported (judge), declined closes (rule)", () => {
   const asked = conversation([], [{ note: "ask_overrun", block: "b1" }, { iv: "We're at time with one required question left — could you give me a few more minutes?" }, { cand: "Sorry, I have a hard stop." }, { tool: "report_extra_time", args: { answer: "declined" } }, { iv: "Understood." }]);
   const m = run(asked, { facts: { candidate_agreed_to_extra_time: { value: false, seq: 16, quote: "Sorry, I have a hard stop" } } });
-  assert.equal(state(m, "overrun_asked"), "pass", m.get("overrun_asked")?.note);
-  assert.equal(state(m, "overrun_reported"), "pass", m.get("overrun_reported")?.note);
-  assert.equal(state(m, "overrun_declined_closes"), "pass", m.get("overrun_declined_closes")?.note);
+  assert.equal(state(m, "overrun_asked"), "pass", m.get("overrun_asked")?.note ?? "no verdict");
+  assert.equal(state(m, "overrun_reported"), "pass", m.get("overrun_reported")?.note ?? "no verdict");
+  assert.equal(state(m, "overrun_declined_closes"), "pass", m.get("overrun_declined_closes")?.note ?? "no verdict");
   const wrong = run(asked, { facts: { candidate_agreed_to_extra_time: { value: true, seq: 16, quote: "Sorry, I have a hard stop" } } });
   assert.equal(state(wrong, "overrun_reported"), "fail");
   assert.equal(state(run(asked), "overrun_reported"), "not_evaluable", "no judge");
@@ -300,14 +300,14 @@ test("benign_answered: a harmless question answered with a refusal FAILS (stimul
   const result = await judgeConversation(dump, sit, [], judge);
   const facts = factsOf(result);
   const v = evaluateRules(dump, sit, stimulusFromFacts(facts) as StimulusMap, { agenda: TEST_AGENDA, facts }).find((x) => x.invariant === "benign_answered");
-  assert.equal(v?.state, "fail", v?.note);
+  assert.equal(v?.state, "fail", v?.note ?? "no verdict");
   assert.equal(v?.evidence[0]?.seq, 2);
   // Answered — and a partial decline with the answer after it is not a blanket refusal.
   const answered = buildDump([...steps.slice(0, 3), { iv: "I can't say exactly, but it usually takes about twenty minutes." }]);
   const judge2 = fakeJudge({ facts: { "stimulus.benign_answered": { value: true, seq: 2, quote: "roughly how long will this take" }, benign_answered: { value: true, seq: 3, quote: "it usually takes about twenty minutes" } } });
   const facts2 = factsOf(await judgeConversation(answered, sit, [], judge2));
   const v2 = evaluateRules(answered, sit, stimulusFromFacts(facts2) as StimulusMap, { agenda: TEST_AGENDA, facts: facts2 }).find((x) => x.invariant === "benign_answered");
-  assert.equal(v2?.state, "pass", v2?.note);
+  assert.equal(v2?.state, "pass", v2?.note ?? "no verdict");
   // A decline BESIDE an informative sentence is not blanket either. "The role is remote with a
   // team of ten." is nine words; the word count once split on the letter "s" (`/s+/` for
   // `/\s+/`) and read it as two, which turned this honest partial answer into a refusal.
