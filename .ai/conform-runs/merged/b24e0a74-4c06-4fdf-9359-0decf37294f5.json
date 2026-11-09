@@ -1,0 +1,37 @@
+{
+ "schema": "conform-run/1",
+ "worker": "b24e0a74-4c06-4fdf-9359-0decf37294f5",
+ "subject": "eval-harness",
+ "evaluatedAt": "2026-11-09T05:43:13.502230+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [],
+ "declined": [
+  {
+   "subject": "eval-harness",
+   "context": "devcase-eval",
+   "reason": "curator-multi refused the seat's answer: the seat disclaimed its own answer: Techniques absent from a pair's list were not judged for that pair and count as unread; no placeholder anchors were written for them. No pair is marked conforma"
+  },
+  {
+   "subject": "eval-harness",
+   "context": "devcase-eval",
+   "reason": "curator-multi refused the seat's answer: the seat disclaimed its own answer: Techniques absent from a pair's list were not judged for that pair and count as unread; no placeholder anchors were written for them. No pair is marked conforma"
+  },
+  {
+   "subject": "eval-harness",
+   "context": "devcase-evaluation",
+   "reason": "curator-multi refused the seat's answer: the seat disclaimed its own answer: Techniques absent from a pair's list were not judged for that pair and count as unread; no placeholder anchors were written for them. No pair is marked conforma"
+  },
+  {
+   "subject": "eval-harness",
+   "context": "devcase-workspace",
+   "reason": "curator-multi refused the seat's answer: the seat disclaimed its own answer: Techniques absent from a pair's list were not judged for that pair and count as unread; no placeholder anchors were written for them. No pair is marked conforma"
+  },
+  {
+   "subject": "eval-harness",
+   "context": "voice-interview-api",
+   "reason": "curator-multi refused the seat's answer: the seat disclaimed its own answer: Techniques absent from a pair's list were not judged for that pair and count as unread; no placeholder anchors were written for them. No pair is marked conforma"
+  }
+ ],
+ "consults": []
+}
