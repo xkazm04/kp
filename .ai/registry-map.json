@@ -4332,7 +4332,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/tools/analyze/analyzeGithubRunPolicy.test.ts:25 The test drives only the lifted predicate, and no test pins its call sites at useAnalyzeForm.ts:595 and 681, so reverting the launch to a bare `hasGithub` check leaves the blind-mode identity rule green.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "prompt-assembly",
@@ -18362,7 +18366,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/interview-sim/providers.test.ts:18 The test name claims what reaches the child process, but it only drives the pure claudeChildEnv helper, so removing `env: claudeChildEnv()` from either spawn at providers.ts:141-142 stays green, and the argv built at providers.ts:209-221 has no test at all.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "quality-gates",
@@ -29273,7 +29281,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/review/agent-review.mjs:302 The fixture header names 'null is read as no findings' as the failure to prevent, but this guard sits in an unexported main() that no fixture calls or spawns, so deleting it leaves test:review green.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "translation-pipeline-topology",
@@ -30903,7 +30915,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/sanity-checks.test.ts:15 The comment says a renamed engine warning will show up here, but the list is a hand-copied TS array and the file never reads pipeline.py, so renaming an emitter leaves this suite green.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "browser-credential-boundary",

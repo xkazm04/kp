@@ -28465,6 +28465,146 @@
           "evidence": "scripts/perf/check-budget.mjs:18 No concurrency or cutoff claim is tested here; the budget deliberately gates on a host-independent proxy, which is the case the technique hands to metric-gates."
         }
       ]
+    },
+    "050c760b-ee78-46e0-a86f-77d80d89b3bf/test-harness": {
+      "context": "interview-simulator",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T00:53:43.718Z",
+      "worker": "4af4b211-1f87-494e-952f-44f08e687321",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-sim/providers.test.ts:18 Adoption of the lifted helper at the spawn is unpinned. A search of test files for --system-prompt-file, setting-sources, no-session-persistence, quoteForCmd and neutralCwd found nothing, although the argument list could be lifted into a pure builder. The per-call KP_OFFLINE refusal at providers.ts:208 is also unreached; the test covers construction only."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/director-loop.ts:90 The simulator calls the same exchange kernel as the live route and swaps only the store. Lines 12-14 name what is not carried over, and fakeJudge has no passing default (fake.ts:247 answers null unless scripted)."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/clock.test.ts:69 Time claims are read from recorded spans on the simulated clock, never from wall time, so load cannot change the verdict."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/engine.test.ts:129 The lane asserts its own precondition: the suite must be on the throwaway database, and lines 131-135 prove the guard refuses the operator's database and other wrong paths."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "scripts/interview-sim.ts:94 The driver returns exit 2 when the filters select nothing, so an empty selection is not a green run."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/clock.test.ts:31 The expensive instrument is built once per file. In run output, staleness is keyed on the brief digest (runner.ts:190), so an old dump is not reused against a changed instrument."
+        }
+      ]
+    },
+    "1a8b63b3-ac28-4460-a74c-fbbe54884aec/test-harness": {
+      "context": "analyze-engine",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T00:53:43.718Z",
+      "worker": "4af4b211-1f87-494e-952f-44f08e687321",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/analyze/analyzeGithubRunPolicy.test.ts:25 The lift created the adoption gap the technique names. A repo search finds shouldRunGithubDeepDive only in the policy module, this test and useAnalyzeForm.ts; the same file does pin adoption for the cancel path, but not for this rule."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/analyze/analyzeGithubRunPolicy.test.ts:33 The 'non-vacuity' proof asserts a function defined in the test file against itself (line 20), so it cannot fail and does not exercise production code. naiveCancelStatus repeats the shape."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/analyze/analyzeDragCounter.test.ts:84 A bare name on the unstripped source is satisfied by the import at useAnalyzeDropZoneHighlight.ts line 4, so the claim of consumption is not pinned. The same test does strip comments for its setIsOver check."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/analyzeRunDelivery.test.ts:24 Delivery and abort are asserted through an injected timer surface and pending counts, with no real 320 ms wait."
+        }
+      ],
+      "registryProposal": "negative-control-tests could list a frozen copy of the pre-fix logic asserted against itself as a control that proves nothing, since this shape reads as rigorous in review."
+    },
+    "ebfe3268-6c14-4997-a49c-091483d763b5/test-harness": {
+      "context": "shared-api-utilities",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T00:53:43.718Z",
+      "worker": "4af4b211-1f87-494e-952f-44f08e687321",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "app/_lib/sanity-checks.test.ts:15 The stated lockstep is never reached. A search of the file finds no readFileSync and only this comment names pipeline.py, so the reach probe of mutating the named emitter would stay green."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "app/_lib/app-currency-literal.test.ts:66 The walk declares no floor on files read, so a filter that stopped selecting files would report a clean tree. The rest of the instrument is good: needles require a currency position, line endings are normalised, and the allowlist is checked in both directions at lines 91-101."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "app/_lib/rate-limit.test.ts:27 The window reset is proven by passing an explicit instant to the limiter, with no real waiting."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "app/_lib/catalog-translator.test.ts:11 The asserting file records the production mutation that makes the named test fail, as step 4 of the technique asks. The run itself was not repeated here."
+        }
+      ]
+    },
+    "de71aa9b-3319-42bc-8b1f-cc8e185ebebe/test-harness": {
+      "context": "review-gates",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T00:53:43.718Z",
+      "worker": "4af4b211-1f87-494e-952f-44f08e687321",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "scripts/review/agent-review.mjs:302 The fixtures pin extractJson returning null and verdictFor in isolation. A search of scripts/review/__tests__ for spawn, execFile, execSync and main( found nothing, so neither this consuming decision nor the adoption at line 321 is reached."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "deviation",
+          "evidence": "scripts/review/agent-review.mjs:255 Reviewing nothing exits 0 with a quiet line on the next statement, unlike the loud keyless path. The sibling lens fixed exactly this case with exit 2 (constitution-check.mjs:700 and 718)."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "scripts/review/__tests__/constitution-check.test.mjs:90 Rules are proved in fire and no-fire pairs on real diff fragments, for example lines 90 and 95, so a rule that never fires goes red."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "conformant",
+          "evidence": "scripts/review/constitution-check.mjs:232 The needle requires a call parenthesis and runs on comment-masked text. The seeded pair at constitution-check.test.mjs:187 and 202 separates a comment from the real construct, and workflow-yaml.test.mjs:261 declares a floor on the real tree."
+        },
+        {
+          "technique": "proved-off-the-path",
+          "verdict": "conformant",
+          "evidence": "scripts/review/__tests__/gate-check.test.mjs:274 The committed ruleset and workflows go through the same two calls that gate-check's main() composes, not a test-only arrangement."
+        }
+      ]
     }
   }
 }
