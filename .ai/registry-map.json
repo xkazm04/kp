@@ -32460,7 +32460,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shell/simulation/simWalkSteps.test.ts:47 The check that a real surface renders each spotlight hook searches raw .tsx text including comments, and ChannelsNightHead.tsx:20 spells data-sim=\"channel-inbound\" in prose, so removing the attribute at line 69 would stay green for the redesign this test was written to catch.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "fleet-orchestration",

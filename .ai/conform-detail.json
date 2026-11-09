@@ -29199,6 +29199,63 @@
           "evidence": "i18n/server.ts:5 The audit question 'if someone did this right now, what fails, and where?' answers nothing. locales.test.ts pins the precedence inside getServerLocale, which is a different claim from there being only one path. No present violation was found."
         }
       ]
+    },
+    "e7da66f4-7fae-4984-a81a-c031ee891301/test-harness": {
+      "context": "saved-analysis-report",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T02:39:02.754Z",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/ResultPanel.contract.test.ts:17 The only test found reading this page belongs to the ResultPanel context, where that pin should be judged. No e2e spec under e2e/ matched a /history/ route."
+        }
+      ],
+      "withdrawn": {
+        "worker": "57038e4d-cf81-4557-a178-a677ad0f05d8",
+        "state": "not-applicable",
+        "at": "2026-11-09T02:39:29.335587+00:00",
+        "reason": "reviewer (sonnet): The not-applicable is contradicted: app/_components/results/ResultPanel.contract.test.ts reads app/history/[slug]/page.tsx source at line 17 as a pin, and HistoryTypes.test.ts also references the history path. The anchor, a context-map.json description line, only shows the manifest and not that no p"
+      }
+    },
+    "e09b50cc-6de9-4f28-a548-d93ca898a7f0/test-harness": {
+      "context": "shell-simulation-engine",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T02:39:02.754Z",
+      "worker": "57038e4d-cf81-4557-a178-a677ad0f05d8",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/simulation/simWalkSteps.test.ts:47 The haystack holds prose as well as code. The walk also has no floor: line 46 skips any target the regex does not match, so a change of quoting style would skip every chapter and pass."
+        },
+        {
+          "technique": "proved-off-the-path",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/simulation/constants.test.ts:95 The test composes its own merge. Production at screen-wave.ts:148 and :159 validates through validateScreeningOverride and then merges, and neither step runs here. Today's behaviour agrees (validateFamilyFloors keeps an empty map), but reversing the shipped merge would not turn this red."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/simulation/constants.test.ts:88 The comment claims the real merge; line 95 is a restatement of it. The resolver is real, the merge is not."
+        },
+        {
+          "technique": "platform-quirk-absorption",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/simulation/constants.test.ts:33 Re-solves '@/' and extensionless resolution in one test file, although the launcher already loads scripts/test-alias-loader.mjs for every run. simDrafts.test.ts in the same folder imports '@/i18n/locales' with no hook."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/simulation/simRunControl.test.ts:54 The ordering claim is proved from a recorded sequence, with no clock involved."
+        }
+      ]
     }
   }
 }
