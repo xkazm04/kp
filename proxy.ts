@@ -5,6 +5,7 @@ import { SESSION_COOKIE, verifySessionEdge, type EdgeSession } from "./app/_lib/
 import { isPublicPath } from "./app/_lib/auth/public-routes";
 import { crossSiteWriteRefused } from "./app/_lib/auth/same-origin";
 import { isJobseekerPath, jobseekerEnabled, UNKNOWN_ROUTE_PATH } from "./app/_lib/jobseeker/enabled";
+import { isVoiceInterviewPath, voiceInterviewEnabled } from "./app/_lib/voice/enabled";
 
 // Auth foundation (P2) — the recruiter-surface gate (Next 16 `proxy` convention,
 // the renamed successor to `middleware`). FAIL-CLOSED: every path is gated EXCEPT
@@ -145,7 +146,10 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   //     only through the SECOND matcher entry below — the first skips every dotted
   //     path — so it gets what an unmatched path gets: no CSP, no auth gate (the route
   //     re-verifies itself), just passed through when on and the unknown route when off.
-  const seekerHidden = isJobseekerPath(req.nextUrl.pathname) && !jobseekerEnabled();
+  // 00b) The AI voice interview (app/_lib/voice/enabled.ts) is gated the same way: OFF
+  //      unless KP_VOICE_INTERVIEW=1, its session-starting doors answer as an unknown route.
+  const voiceHidden = isVoiceInterviewPath(req.nextUrl.pathname) && !voiceInterviewEnabled();
+  const seekerHidden = (isJobseekerPath(req.nextUrl.pathname) && !jobseekerEnabled()) || voiceHidden;
   if (isJobseekerPath(req.nextUrl.pathname) && req.nextUrl.pathname.includes(".")) {
     return seekerHidden ? NextResponse.rewrite(new URL(UNKNOWN_ROUTE_PATH, req.url)) : NextResponse.next();
   }

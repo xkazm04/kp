@@ -287,6 +287,14 @@ answers, nothing in the app links to it, and the `jobseeker_scan` clock job is n
 registered nor run. Set `KP_JOBSEEKER=1` (exactly `1`) only to run it for yourself — the
 switch is read in one place, `app/_lib/jobseeker/enabled.ts`.
 
+**The AI voice interview is off unless you turn it on.** It is out of the 1.0 cut (human
+interviews remain the path), so with `KP_VOICE_INTERVIEW` unset `/interview/<token>` and the
+doors that start or serve a live voice session (`/api/interview/connect|create|director|simulate`,
+`/api/intake/<id>/voice-*`, the interview-kit rehearse route) answer exactly what an unknown
+route answers, and no candidate is sent a voice-interview link. Records of sessions already
+held stay readable and erasable. Set `KP_VOICE_INTERVIEW=1` (exactly `1`) to run it — the
+switch is read in one place, `app/_lib/voice/enabled.ts`.
+
 ### 3b. Sizing the Python engine
 
 The jobfit pipeline is **spawned per request** ([ADR: spawn-per-request](decisions/))

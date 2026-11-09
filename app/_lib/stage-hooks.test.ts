@@ -23,6 +23,8 @@ after(() => cleanupUnitDb());
 // target, which is exactly the `queued` half of the truthful-claim contract.
 before(() => {
   process.env.OPENAI_API_KEY = "test-key-not-used-for-any-call";
+  // The AI voice interview ships off (voice/enabled.ts); these cases exercise it ON.
+  process.env.KP_VOICE_INTERVIEW = "1";
 });
 
 // A three-column board: entry → interview → terminal. Valid per
@@ -101,6 +103,21 @@ test("auto gate: entering the AI interview step mints ONE link and invites the c
   // The invite's ledger row is the dispatcher's own, carrying the Outbox status —
   // this hook adds no vocabulary of its own.
   assert.ok(kinds(entry.id, WS_AUTO).includes("interview_invite_sent"), "the invite is on the candidate timeline");
+});
+
+test("voice interview switched OFF: an AI-round arrival mints no link and invites nobody", async () => {
+  const saved = process.env.KP_VOICE_INTERVIEW;
+  delete process.env.KP_VOICE_INTERVIEW;
+  try {
+    const entry = entryAt(WS_AUTO, "Interview", "off@example.com");
+    const res = await runStageEnteredHook({ entryId: entry.id, stage: "Interview", workspaceId: WS_AUTO });
+    assert.deepEqual(res, { outcome: "skipped", reason: "no_ai_round" });
+    assert.equal(sessionsFor(entry.id, WS_AUTO).length, 0, "no voice session minted");
+    assert.ok(!kinds(entry.id, WS_AUTO).includes("interview_invite_sent"), "no invite on the timeline");
+  } finally {
+    if (saved === undefined) delete process.env.KP_VOICE_INTERVIEW;
+    else process.env.KP_VOICE_INTERVIEW = saved;
+  }
 });
 
 test("re-entering the same step mints no second link", async () => {
