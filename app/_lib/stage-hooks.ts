@@ -50,7 +50,6 @@ import { listPipelineEventsForEntry } from "./db/pipeline-events";
 import { getInterviewPlan } from "./interview-plan";
 import { GROUNDED_DEFAULT_MIN } from "./interview-duration.mjs";
 import { stageHookInvite } from "./stage-hooks-invite";
-import { voiceInterviewEnabled } from "./voice/enabled";
 import { getPipelineAxis } from "./pipeline-axis-server";
 import { arrivalBranch, resolveInterviewGate } from "./pipeline-arrival-plan";
 import { runHomeworkArrival, type HomeworkArrivalOutcome } from "./stage-hooks-homework";
@@ -235,9 +234,9 @@ export async function runStageEnteredHook(input: StageEnteredInput): Promise<Sta
     // round is a human conversation, is somebody else's job: a person books it on
     // the Schedule tab's calendar and no link is minted.
     // The AI voice interview ships switched off (KP_VOICE_INTERVIEW, voice/enabled.ts):
-    // with it off an AI-round column is treated as having no AI round, so no link is
+    // with it off the planner (arrivalBranch) treats an AI-round column as having no AI round, so no link is
     // minted and no candidate is invited to — or told to expect — a voice interview.
-    if (branch === "no_ai_round" || !voiceInterviewEnabled()) return { outcome: "skipped", reason: "no_ai_round" };
+    if (branch === "no_ai_round") return { outcome: "skipped", reason: "no_ai_round" };
 
     // IDEMPOTENCE, before any spend — both halves, because they catch different
     // races. The EVENT half catches an invite that already went out while the
