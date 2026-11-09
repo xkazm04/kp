@@ -146,3 +146,27 @@ test("the interview consent sentence names the AI scorecard and the recommendati
     assert.match(note ?? "", /\{months/, `${locale}: aiDisclosure.interviewData states the retention window`);
   }
 });
+
+// Owner ruling Q7 (docs/product/oss-1.0-cut.md §3): every candidate-facing line that sends a
+// candidate to a human review takes the workspace's contact address as an ICU parameter, in all
+// four locales. Rendering both variants is workspace-review-contact.test.ts; this pins the shape
+// so a catalog edit cannot quietly put back "reply to any message", which no in-app door receives.
+test("the human-review lines take {contact} through a hasContact select and no longer say to reply", () => {
+  for (const locale of LOCALES) {
+    const raw = readFileSync(path.join(HERE, "..", "..", "messages", `${locale}.json`), "utf-8");
+    const c = JSON.parse(raw) as {
+      aiDisclosure: { interviewData: string };
+      status: { decisions: { humanReviewNote: string } };
+      apply: { declinedReviewEmail: string };
+      comms: { koDecline: { body: string } };
+    };
+    for (const [name, text] of Object.entries({
+      interviewData: c.aiDisclosure.interviewData,
+      humanReviewNote: c.status.decisions.humanReviewNote,
+      declinedReviewEmail: c.apply.declinedReviewEmail,
+      koDeclineBody: c.comms.koDecline.body,
+    })) {
+      assert.match(text, /{hasContact, select, yes {[^]*{contact}[^]*} other {/, `${locale} ${name}: names the address through the select`);
+    }
+  }
+});

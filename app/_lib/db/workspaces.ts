@@ -13,7 +13,10 @@ export const DEFAULT_WORKSPACE_ID = "workspace";
 // A workspace IS a team (P0): `orgId` is the parent organization it belongs to,
 // `type` distinguishes a 'team' from a future org-level pseudo-workspace. Both are
 // NULL only on a pre-P0 legacy row until the seed backfill links it to org-default.
-export type Workspace = { id: string; name: string | null; orgId: string | null; type: string | null; createdAt: string };
+export type Workspace = { id: string; name: string | null; orgId: string | null; type: string | null; createdAt: string;
+  /** Where a candidate is told to write for a human review (owner ruling Q7); null = none named. */
+  reviewContactEmail: string | null;
+};
 
 function rowToWorkspace(r: Record<string, unknown>): Workspace {
   return {
@@ -22,6 +25,7 @@ function rowToWorkspace(r: Record<string, unknown>): Workspace {
     orgId: (r.org_id as string) ?? null,
     type: (r.type as string) ?? null,
     createdAt: r.created_at as string,
+    reviewContactEmail: typeof r.review_contact_email === "string" && r.review_contact_email ? r.review_contact_email : null,
   };
 }
 
@@ -166,7 +170,7 @@ export function createWorkspace(name: string, orgId: string = DEFAULT_ORG_ID): W
     createdAt,
     valid(org?.default_locale),
   );
-  return { id, name: cleanName, orgId, type: "team", createdAt };
+  return { id, name: cleanName, orgId, type: "team", createdAt, reviewContactEmail: null };
 }
 
 /** Rename a team. Same 80-char clamp + empty fallback as createWorkspace, so the
@@ -177,6 +181,32 @@ export function renameWorkspace(id: string, name: string): Workspace | null {
   const cleanName = name.trim().slice(0, 80) || "Untitled workspace";
   const info = db.prepare(`UPDATE workspaces SET name = ? WHERE id = ?`).run(cleanName, id);
   return Number(info.changes) > 0 ? getWorkspace(id) : null;
+}
+
+/** Loose on purpose, the same shape the signup and apply doors accept: it rejects obvious
+ *  garbage, and a person reads the address before it goes live. */
+export const REVIEW_CONTACT_EMAIL_RE = /^[^s@]+@[^s@]+.[^s@]+$/;
+
+/** The address a candidate is told to write to for a human review, or null when the team
+ *  has named none. ONE team's value, read by the workspace id a candidate surface already
+ *  holds server-side (token, entry or job) — never an id from the client. */
+export function getWorkspaceReviewContact(id: string): string | null {
+  const row = ensureDb().prepare(`SELECT review_contact_email FROM workspaces WHERE id = ?`).get(id) as
+    | { review_contact_email?: string | null }
+    | undefined;
+  return row?.review_contact_email ? row.review_contact_email : null;
+}
+
+export type ReviewContactResult = { ok: true; workspace: Workspace } | { ok: false; reason: "invalid" | "not_found" };
+
+/** Set (or, with an empty value, clear) a team's review address. Validated here, at the
+ *  write boundary, so no caller can store a value the candidate copy would print. */
+export function setWorkspaceReviewContact(id: string, value: string): ReviewContactResult {
+  const email = value.trim();
+  if (email && (email.length > 254 || !REVIEW_CONTACT_EMAIL_RE.test(email))) return { ok: false, reason: "invalid" };
+  const info = ensureDb().prepare(`UPDATE workspaces SET review_contact_email = ? WHERE id = ?`).run(email || null, id);
+  const workspace = Number(info.changes) > 0 ? getWorkspace(id) : null;
+  return workspace ? { ok: true, workspace } : { ok: false, reason: "not_found" };
 }
 
 /** The teams a user actually belongs to, in the same created_at order as

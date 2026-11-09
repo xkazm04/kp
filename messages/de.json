@@ -578,7 +578,7 @@
     },
     "koDecline": {
       "subject": "Ihre Bewerbung: {role}",
-      "body": "Hallo {name},\n\nvielen Dank für Ihre Bewerbung auf {role}. Sie haben eine Voraussetzung, die die Stelle ausdrücklich verlangt, mit Nein beantwortet:\n\n{mustHaves}\n\nEin Mensch hat Ihre Bewerbung geprüft und bestätigt, dass sie diese Voraussetzung nicht erfüllt, deshalb können wir sie nicht weiterführen. Halten Sie das für falsch oder haben Sie sich vertippt, antworten Sie einfach auf diese Nachricht, dann prüft ein Mensch sie erneut.\n\nIhre Bewerbung, einschließlich dieser E-Mail-Adresse, bleibt wie jede andere Bewerbung bei uns gespeichert, und Sie können jederzeit über den Link unten verlangen, dass wir sie löschen.\n\nAnforderungen können sich mit der Zeit ändern. Wir würden uns freuen, wenn Sie sich in Zukunft erneut bewerben.\n\nAlles Gute für Sie,\n{team}",
+      "body": "Hallo {name},\n\nvielen Dank für Ihre Bewerbung auf {role}. Sie haben eine Voraussetzung, die die Stelle ausdrücklich verlangt, mit Nein beantwortet:\n\n{mustHaves}\n\nEin Mensch hat Ihre Bewerbung geprüft und bestätigt, dass sie diese Voraussetzung nicht erfüllt, deshalb können wir sie nicht weiterführen. Halten Sie das für falsch oder haben Sie sich vertippt, {hasContact, select, yes {schreiben Sie an {contact}, dann prüft ein Mensch sie erneut.} other {wenden Sie sich an das Team, das die Stelle besetzt, und bitten Sie um eine erneute Prüfung durch einen Menschen.}}\n\nIhre Bewerbung, einschließlich dieser E-Mail-Adresse, bleibt wie jede andere Bewerbung bei uns gespeichert, und Sie können jederzeit über den Link unten verlangen, dass wir sie löschen.\n\nAnforderungen können sich mit der Zeit ändern. Wir würden uns freuen, wenn Sie sich in Zukunft erneut bewerben.\n\nAlles Gute für Sie,\n{team}",
       "mustHaveFallback": "eine der Voraussetzungen der Stelle"
     },
     "offer": {
@@ -1238,7 +1238,7 @@
     "title": "So funktioniert es",
     "body": "Wir setzen AI zur Unterstützung von Screening und Interviews ein und bewerten dabei Ihre <highlight>Fähigkeiten, Erfahrung und Eignung</highlight> für die Stelle. Wer eine Voraussetzung, die die Stelle ausdrücklich nennt, mit Nein beantwortet, dessen Bewerbung endet dadurch nicht von selbst: sie wird für einen Menschen zurückgehalten, und erst dessen Bestätigung lehnt sie ab. Danach erfahren Sie, um welche Voraussetzung es ging, und können eine Überprüfung durch einen Menschen verlangen. Jede Ablehnung trifft ein Mensch: keine Einstellung kann diese Entscheidung an die Maschine übergeben. Jedes Angebot gibt ein Mensch frei, und keine Einstellung eines Workspace kann eine Screening- oder Angebotsentscheidung an die Maschine übergeben. Sie können jederzeit eine Prüfung durch einen Menschen verlangen.",
     "dataConsent": "Mit dem Absenden stimmen Sie zu, dass wir Ihre personenbezogenen Daten für diese Stelle bis zu {months, plural, one {# Monat} other {# Monate}} verarbeiten dürfen. Sie können Ihre Daten jederzeit über den Link in unseren Nachrichten einsehen oder deren Löschung verlangen.",
-    "interviewData": "Zu diesem Interview: Der/die Recruiter/in kann Ihr Transkript und die AI-Bewertung bis zu {months, plural, one {# Monat} other {# Monate}} lesen. Danach bleiben Ihre Worte verborgen. Um die Löschung Ihrer Daten zu verlangen, nutzen Sie den Link „Ihre Daten“ am Ende jeder unserer Nachrichten. Um eine Überprüfung durch eine Person zu verlangen, antworten Sie auf eine beliebige Nachricht des Einstellungsteams.",
+    "interviewData": "Zu diesem Interview: Der/die Recruiter/in kann Ihr Transkript und die AI-Bewertung bis zu {months, plural, one {# Monat} other {# Monate}} lesen. Danach bleiben Ihre Worte verborgen. Um die Löschung Ihrer Daten zu verlangen, nutzen Sie den Link „Ihre Daten“ am Ende jeder unserer Nachrichten. Um eine Überprüfung durch eine Person zu verlangen, {hasContact, select, yes {schreiben Sie an {contact}.} other {wenden Sie sich an das Team, bei dem Sie sich beworben haben.}}",
     "regimeNote": "Bewertet gemäß {framework}; Ihre personenbezogenen Daten werden gemäß {dataLaw} verarbeitet."
   },
   "errors": {
@@ -1669,6 +1669,7 @@
     "VOICE_PREFLIGHT_NO_WEBRTC": "Dieser Browser unterstützt die Echtzeitverbindung (WebRTC) nicht, die dieses Gespräch braucht. Öffnen Sie den Link in einem aktuellen Browser wie Chrome, Edge oder Safari.",
     "OFFER_RESPONSE_INVALID": "Bitte antworten Sie mit Annehmen oder Ablehnen.",
     "STATUS_LINK_INVALID": "Dieser Statuslink ist nicht gültig.",
+    "REVIEW_CONTACT_EMAIL_INVALID": "Das ist keine gültige E-Mail-Adresse.",
     "STATUS_NPS_NOT_APPLICABLE": "Diese Frage wird freigeschaltet, sobald Ihre Bewerbung abgeschlossen ist.",
     "STATUS_LETTER_NOT_ELIGIBLE": "Schriftliches Feedback zu Ihrem Interview ist für diese Bewerbung nicht verfügbar.",
     "STATUS_LETTER_ALREADY_REQUESTED": "Sie haben bereits Feedback zu diesem Interview angefordert.",
@@ -2146,7 +2147,7 @@
       "automated": "Automatisiert",
       "automatedPersonApproved": "Automatisiert, von einer Person freigegeben",
       "human": "Menschliche Entscheidung",
-      "humanReviewNote": "Sie können jederzeit eine menschliche Überprüfung jeder Entscheidung anfordern. Antworten Sie einfach auf eine beliebige Nachricht des Recruiting-Teams.",
+      "humanReviewNote": "Sie können jederzeit eine menschliche Überprüfung jeder Entscheidung anfordern. {hasContact, select, yes {Schreiben Sie an {contact}.} other {Wenden Sie sich an das Team, bei dem Sie sich beworben haben.}}",
       "reasons": {
         "reject": "Die entscheidenden Fakten: Ihr Match-Score von {score} lag unter der Screening-Schwelle von {threshold}.",
         "staleScore": "Dieser Score wurde berechnet, bevor die Stellenbeschreibung zuletzt geändert wurde, und spiegelt die aktuellen Anforderungen daher möglicherweise nicht wider. Sie können eine menschliche Überprüfung anfordern.",
@@ -2357,7 +2358,7 @@
     },
     "declinedMustHave": "Nicht erfüllte Voraussetzung:",
     "declinedAutoNote": "Sie können verlangen, dass ein Mensch diese Entscheidung überprüft.",
-    "declinedReviewEmail": "Wir senden Ihnen diese Entscheidung per E-Mail an die angegebene Adresse. Antworten Sie einfach auf diese Nachricht, dann prüft ein Mensch sie. Kommt nichts an, wenden Sie sich direkt an das Team, das die Stelle besetzt.",
+    "declinedReviewEmail": "Wir senden Ihnen diese Entscheidung per E-Mail an die angegebene Adresse. {hasContact, select, yes {Damit ein Mensch sie prüft, schreiben Sie an {contact}. Kommt nichts an, wenden Sie sich direkt an das Team, das die Stelle besetzt.} other {Damit ein Mensch sie prüft, wenden Sie sich direkt an das Team, das die Stelle besetzt.}}",
     "declinedReviewNoEmail": "Wir konnten Ihnen die Entscheidung nicht per E-Mail schicken. Damit ein Mensch sie überprüft, wenden Sie sich bitte direkt an das Team, das die Stelle besetzt.",
     "heldMessage": "Danke für Ihre Bewerbung. Wegen einer Ihrer Antworten sieht sich zuerst ein Mensch Ihre Bewerbung an, bevor etwas entschieden wird.",
     "heldMustHave": "Mit Nein beantwortet:",
@@ -7725,6 +7726,11 @@
     "renameAria": "Arbeitsbereich {workspace} umbenennen",
     "renamed": "Arbeitsbereich umbenannt.",
     "renameFailed": "Arbeitsbereich konnte nicht umbenannt werden.",
+    "reviewContactLabel": "Kontaktadresse für Überprüfungen",
+    "reviewContactHint": "Bewerbende erfahren, dass sie an diese Adresse schreiben können, um eine Entscheidung von einer Person überprüfen zu lassen. Bleibt das Feld leer, werden sie an das Team verwiesen, bei dem sie sich beworben haben. Diese App liest keine Antworten.",
+    "reviewContactSave": "Adresse speichern",
+    "reviewContactSaved": "Adresse für Überprüfungen gespeichert.",
+    "reviewContactFailed": "Adresse für Überprüfungen konnte nicht gespeichert werden.",
     "addMember": "Hinzufügen",
     "addExisting": "Jemand von hier",
     "addByEmail": "Per E-Mail",

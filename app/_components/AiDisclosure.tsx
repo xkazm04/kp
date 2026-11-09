@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { DEFAULT_REGIME_ID, getRegime, type RegimeId } from "@/app/_lib/compliance-regimes";
+import { DEFAULT_REGIME_ID, getRegime, reviewContactArgs, type RegimeId } from "@/app/_lib/compliance-regimes";
 
 // Candidate-facing transparency note. Our differentiator vs. opaque AI-hiring
 // vendors: AI assists, a human decides, and assessment is on talent/fit.
@@ -87,6 +87,7 @@ export function AiDisclosure({
   interviewNote = false,
   regimeId,
   retentionMonths,
+  reviewContact,
 }: {
   className?: string;
   showDataConsent?: boolean;
@@ -101,6 +102,9 @@ export function AiDisclosure({
   /** The enforced consent-retention window in whole months, resolved server-side
    *  by the same call. */
   retentionMonths?: number;
+  /** The workspace's review-contact address, resolved server-side (`disclosureComplianceFor`).
+   *  Absent/null = none named, and the interview note then promises no reply door. */
+  reviewContact?: string | null;
 }) {
   const t = useTranslations("aiDisclosure");
   // Only ever written by the fetch fallback; a prop-fed surface leaves it empty
@@ -166,7 +170,7 @@ export function AiDisclosure({
       {showDataConsent ? (
         <p className="mt-2 text-meta text-steel">{t("dataConsent", { months })}</p>
       ) : null}
-      {interviewNote ? <p className="mt-2 text-meta text-steel">{t("interviewData", { months })}</p> : null}
+      {interviewNote ? <p className="mt-2 text-meta text-steel">{t("interviewData", { months, ...reviewContactArgs(reviewContact) })}</p> : null}
     </div>
   );
 }

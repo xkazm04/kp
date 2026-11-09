@@ -30,7 +30,7 @@ const membersOk = (canManage: boolean): MembersResponse => ({
 });
 
 const workspacesOk: WorkspacesResponse = {
-  workspaces: [{ id: "sales", name: "Sales", orgId: "org-default", type: null, createdAt: "2026-01-01", memberCount: 1, role: "owner", canManage: true }],
+  workspaces: [{ id: "sales", name: "Sales", orgId: "org-default", type: null, createdAt: "2026-01-01", reviewContactEmail: null, memberCount: 1, role: "owner", canManage: true }],
   current: "sales",
   defaultWorkspace: "sales",
   multiWorkspace: true,

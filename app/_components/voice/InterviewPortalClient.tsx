@@ -41,6 +41,8 @@ export type InterviewPortalClientProps = {
   /** AI-disclosure regime for the workspace that owns this session. */
   regimeId: RegimeId;
   retentionMonths: number;
+  /** The owning workspace's review-contact address, or null (owner ruling Q7). */
+  reviewContact?: string | null;
   /** Whether this workspace offers an audio recording (WP3 owns what it then does). */
   recordingOffered: boolean;
   /** The candidate's durable /status link, for the closing card. */
@@ -56,6 +58,7 @@ export function InterviewPortalClient({
   runOfShow,
   regimeId,
   retentionMonths,
+  reviewContact,
   recordingOffered,
   statusHref,
 }: InterviewPortalClientProps) {
@@ -78,7 +81,7 @@ export function InterviewPortalClient({
       <div className="order-1 lg:order-2">
         {/* M2: the AI/human-review disclosure sits ABOVE the call card so the
             reassurance is visible before the Start decision. */}
-        <AiDisclosure className="mb-6" interviewNote regimeId={regimeId} retentionMonths={retentionMonths} />
+        <AiDisclosure className="mb-6" interviewNote regimeId={regimeId} retentionMonths={retentionMonths} reviewContact={reviewContact} />
         <div className={`${PANEL} p-5 sm:p-6`}>
           <VoiceInterviewClient
             token={token}

@@ -175,7 +175,10 @@ test("CONFIRM: a person's reject sends exactly ONE letter naming the must-have, 
   assert.equal(letters.length, 1, "exactly one letter");
   const mail = letters[0].body ?? "";
   assert.match(mail, /Legal authorization to work/, "the letter names the must-have");
-  assert.match(mail, /reply to this message and a person will review it again/i, "…and says how to ask for a review");
+  // Owner ruling Q7: no review address is set on this workspace, so the letter must not promise
+  // that a reply reaches anyone (C6 is out) — it points at the hiring team instead.
+  assert.match(mail, /ask the hiring team for this role to have a person review it again/i, "…and says how to ask for a review, without promising a reply door");
+  assert.doesNotMatch(mail, /reply to this message/i, "…and does not tell the candidate to reply");
   assert.match(mail, /A person reviewed your application and confirmed/, "…and says a PERSON decided");
   assert.doesNotMatch(mail, /automatically|A person did not make this decision/i, "…and claims no automatic decision");
   assert.equal(letters[0].ref, held.id, "the letter belongs to the entry, so its erasure and expiry reach it");

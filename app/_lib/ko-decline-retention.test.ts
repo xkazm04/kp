@@ -218,7 +218,7 @@ test("the letter makes no 30-day claim in any locale: the contact is on the entr
   for (const locale of LOCALES) {
     const messages = JSON.parse(readFileSync(path.join(process.cwd(), "messages", `${locale}.json`), "utf-8"));
     const t = createTranslator({ locale, messages, namespace: "comms" });
-    const body = t("koDecline.body", { name: "N", role: "R", team: "T", mustHaves: "- x" });
+    const body = t("koDecline.body", { name: "N", role: "R", team: "T", mustHaves: "- x", hasContact: "no", contact: "" });
     assert.ok(!body.includes(String(KO_DECLINE_CONTACT_RETENTION_DAYS)), `${locale}: the letter must not promise the retired 30-day window`);
     assert.ok(!/\{days\}/.test(body), `${locale}: no unrendered placeholder`);
   }

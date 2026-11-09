@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { reviewContactArgs } from "@/app/_lib/compliance-regimes";
 
 /** What a failed must-have owes the applicant, shared by BOTH doors' screens (the
  *  conversational ApplyDoneCard and the quick form): the must-have(s) they answered no
@@ -14,7 +15,18 @@ import { useTranslations } from "next-intl";
  *  The names arrive from the server already localized (`failedKoNames`). The review
  *  line says an email is being SENT, never that one arrived: the server can vouch for
  *  handing it to a relay, not for delivery — and with no relay it says so instead. */
-export function ApplyDeclineDetail({ names, reviewByEmail, held = false }: { names: readonly string[]; reviewByEmail: boolean; held?: boolean }) {
+export function ApplyDeclineDetail({
+  names,
+  reviewByEmail,
+  held = false,
+  reviewContact,
+}: {
+  names: readonly string[];
+  reviewByEmail: boolean;
+  held?: boolean;
+  /** The job's workspace review-contact address, or null (owner ruling Q7). */
+  reviewContact?: string | null;
+}) {
   const t = useTranslations("apply");
   return (
     <div className="mt-3 space-y-2 text-body text-steel">
@@ -33,7 +45,7 @@ export function ApplyDeclineDetail({ names, reviewByEmail, held = false }: { nam
       ) : (
         <>
           <p>{t("declinedAutoNote")}</p>
-          <p>{reviewByEmail ? t("declinedReviewEmail") : t("declinedReviewNoEmail")}</p>
+          <p>{reviewByEmail ? t("declinedReviewEmail", reviewContactArgs(reviewContact)) : t("declinedReviewNoEmail")}</p>
         </>
       )}
     </div>

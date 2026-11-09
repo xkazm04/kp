@@ -207,7 +207,7 @@ export function QuickApplyForm({
           </p>
           <p className="mt-1 text-base text-steel">{done.message}</p>
           {done.result === "declined" || done.result === "held" ? (
-            <ApplyDeclineDetail names={done.failedKoNames ?? []} reviewByEmail={Boolean(done.reviewByEmail)} held={done.result === "held"} />
+            <ApplyDeclineDetail names={done.failedKoNames ?? []} reviewByEmail={Boolean(done.reviewByEmail)} held={done.result === "held"} reviewContact={compliance.reviewContact} />
           ) : null}
           {done.result === "declined" ? (
             <button

@@ -1,3 +1,5 @@
+import { reviewContactArgs } from "./compliance-regimes";
+import { reviewContactFor } from "./compliance-disclosure";
 import { sendComm, type OutboundMessage } from "./comms";
 import { recordOutbox, type OutboxEntry } from "./db/devcase";
 import { isSimTitle } from "@/app/_lib/sim-marker";
@@ -717,7 +719,7 @@ export async function dispatchKnockoutRejection(
   const subject = t("koDecline.subject", { role });
   const named = koMustHaveNames(failedKoIds, ta);
   const mustHaves = (named.length > 0 ? named : [t("koDecline.mustHaveFallback")]).map((n) => `- ${n}`).join("\n");
-  const body = t("koDecline.body", { name, role, team: t("team"), mustHaves });
+  const body = t("koDecline.body", { name, role, team: t("team"), mustHaves, ...reviewContactArgs(reviewContactFor(entry.workspaceId)) });
   const outcome = await sendCandidateComm(entry, t, { subject, body, kind: "ko_decline" }, locale);
   // As dispatchRejection: a dead letter or a refusal is not a sent letter, so the
   // timeline never claims the candidate was told when nothing went.

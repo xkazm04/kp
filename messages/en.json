@@ -578,7 +578,7 @@
     },
     "koDecline": {
       "subject": "Your application: {role}",
-      "body": "Hi {name},\n\nThank you for applying for {role}. You answered no to a requirement the role states as a must-have:\n\n{mustHaves}\n\nA person reviewed your application and confirmed that it does not meet this requirement, so we can't take it further. If you think that's wrong, or you answered by mistake, reply to this message and a person will review it again.\n\nYour application, including this email address, stays on file like any other application, and you can ask us to erase it at any time with the link below.\n\nRequirements can change as roles evolve. We'd be glad to see you apply again in the future.\n\nWishing you the very best,\n{team}",
+      "body": "Hi {name},\n\nThank you for applying for {role}. You answered no to a requirement the role states as a must-have:\n\n{mustHaves}\n\nA person reviewed your application and confirmed that it does not meet this requirement, so we can't take it further. If you think that's wrong, or you answered by mistake, {hasContact, select, yes {write to {contact} and a person will review it again.} other {ask the hiring team for this role to have a person review it again.}}\n\nYour application, including this email address, stays on file like any other application, and you can ask us to erase it at any time with the link below.\n\nRequirements can change as roles evolve. We'd be glad to see you apply again in the future.\n\nWishing you the very best,\n{team}",
       "mustHaveFallback": "one of the role's eligibility requirements"
     },
     "offer": {
@@ -1238,7 +1238,7 @@
     "title": "How this works",
     "body": "We use AI to assist screening and interviews, assessing your <highlight>skills, experience, and fit</highlight> for the role. Answering no to a must-have the role states does not end an application by itself: it is held for a person, and only a person's confirmation rejects it. You are then told which must-have it was and can ask a person to review it. Every rejection is a person's: no setting can hand that decision to the machine. A person approves every offer, and no workspace setting can hand a screening or offer decision to the machine. You can ask for a human review at any point.",
     "dataConsent": "By submitting, you agree we may process your personal data for this role for up to {months, plural, one {# month} other {# months}}. You can review or request erasure of your data anytime via the link in our messages.",
-    "interviewData": "About this interview: the recruiter can read your transcript and the AI scorecard for up to {months, plural, one {# month} other {# months}}. After that, your words are hidden from them. To ask us to delete your data, use the \"Your data\" link at the bottom of any message from us. To ask for a person to review a decision, reply to any message from the hiring team.",
+    "interviewData": "About this interview: the recruiter can read your transcript and the AI scorecard for up to {months, plural, one {# month} other {# months}}. After that, your words are hidden from them. To ask us to delete your data, use the \"Your data\" link at the bottom of any message from us. To ask for a person to review a decision, {hasContact, select, yes {write to {contact}.} other {contact the hiring team you applied to.}}",
     "regimeNote": "Assessed under {framework}; your personal data is processed under {dataLaw}."
   },
   "errors": {
@@ -1669,6 +1669,7 @@
     "VOICE_PREFLIGHT_NO_WEBRTC": "This browser doesn't support the real-time connection (WebRTC) this call needs. Open the link in an up-to-date browser like Chrome, Edge or Safari.",
     "OFFER_RESPONSE_INVALID": "Respond with either accept or decline.",
     "STATUS_LINK_INVALID": "This status link is not valid.",
+    "REVIEW_CONTACT_EMAIL_INVALID": "That is not a valid email address.",
     "STATUS_NPS_NOT_APPLICABLE": "This question opens once your application has finished.",
     "STATUS_LETTER_NOT_ELIGIBLE": "Written feedback on your interview is not available for this application.",
     "STATUS_LETTER_ALREADY_REQUESTED": "You have already asked for feedback on this interview.",
@@ -2146,7 +2147,7 @@
       "automated": "Automated",
       "automatedPersonApproved": "Automated, approved by a person",
       "human": "Human decision",
-      "humanReviewNote": "You can request a human review of any decision at any time. Just reply to any message from the hiring team.",
+      "humanReviewNote": "You can request a human review of any decision at any time. {hasContact, select, yes {Write to {contact}.} other {Contact the hiring team you applied to.}}",
       "reasons": {
         "reject": "The decisive facts: your match score of {score} was below the screening threshold of {threshold}.",
         "staleScore": "This score was calculated before the role description was last changed, so it may not reflect the current requirements. You can ask for a human review.",
@@ -2357,7 +2358,7 @@
     },
     "declinedMustHave": "Must-have not met:",
     "declinedAutoNote": "You can ask a person to review this decision.",
-    "declinedReviewEmail": "We're emailing this decision to the address you gave. Reply to that message and a person will review it. If nothing arrives, contact the hiring team for this role directly.",
+    "declinedReviewEmail": "We're emailing this decision to the address you gave. {hasContact, select, yes {To have a person review it, write to {contact}. If nothing arrives, contact the hiring team for this role directly.} other {To have a person review it, contact the hiring team for this role directly.}}",
     "declinedReviewNoEmail": "We couldn't email you this decision. To have a person review it, contact the hiring team for this role directly.",
     "heldMessage": "Thanks for applying. Because of one of your answers, a person will look at your application before anything is decided.",
     "heldMustHave": "You answered no to:",
@@ -7725,6 +7726,11 @@
     "renameAria": "Rename {workspace}",
     "renamed": "Workspace renamed.",
     "renameFailed": "Couldn't rename the workspace.",
+    "reviewContactLabel": "Review contact address",
+    "reviewContactHint": "Candidates are told to write to this address to ask for a person to review a decision. Leave it empty and they are told to contact the hiring team they applied to. This app does not read replies.",
+    "reviewContactSave": "Save address",
+    "reviewContactSaved": "Review address saved.",
+    "reviewContactFailed": "Couldn't save the review address.",
     "addMember": "Add",
     "addExisting": "Someone here",
     "addByEmail": "By email",

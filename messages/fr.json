@@ -578,7 +578,7 @@
     },
     "koDecline": {
       "subject": "Votre candidature : {role}",
-      "body": "Bonjour {name},\n\nMerci d’avoir postulé pour {role}. Vous avez répondu non à une condition que le poste exige expressément :\n\n{mustHaves}\n\nUne personne a examiné votre candidature et confirmé qu’elle ne remplit pas cette condition ; nous ne pouvons donc pas la poursuivre. Si vous pensez qu’il s’agit d’une erreur, ou si vous avez répondu par erreur, répondez à ce message et une personne la réexaminera.\n\nVotre candidature, y compris cette adresse e-mail, reste conservée comme toute autre candidature, et vous pouvez à tout moment nous demander de l’effacer grâce au lien ci-dessous.\n\nLes conditions peuvent évoluer avec les postes. Nous serions ravis de vous revoir postuler à l’avenir.\n\nNous vous souhaitons le meilleur,\n{team}",
+      "body": "Bonjour {name},\n\nMerci d’avoir postulé pour {role}. Vous avez répondu non à une condition que le poste exige expressément :\n\n{mustHaves}\n\nUne personne a examiné votre candidature et confirmé qu’elle ne remplit pas cette condition ; nous ne pouvons donc pas la poursuivre. Si vous pensez qu’il s’agit d’une erreur, ou si vous avez répondu par erreur, {hasContact, select, yes {écrivez à {contact} et une personne la réexaminera.} other {contactez l’équipe qui recrute pour ce poste et demandez un nouvel examen par une personne.}}\n\nVotre candidature, y compris cette adresse e-mail, reste conservée comme toute autre candidature, et vous pouvez à tout moment nous demander de l’effacer grâce au lien ci-dessous.\n\nLes conditions peuvent évoluer avec les postes. Nous serions ravis de vous revoir postuler à l’avenir.\n\nNous vous souhaitons le meilleur,\n{team}",
       "mustHaveFallback": "l’une des conditions du poste"
     },
     "offer": {
@@ -1238,7 +1238,7 @@
     "title": "Comment ça marche",
     "body": "Nous utilisons l’AI pour assister la présélection et les entretiens, en évaluant vos <highlight>compétences, votre expérience et votre adéquation</highlight> au poste. Répondre non à une condition que le poste exige expressément ne met pas fin seule à la candidature : elle est mise en attente pour une personne, et seule sa confirmation la rejette. Vous savez ensuite de quelle condition il s’agissait et vous pouvez demander qu’une personne réexamine la décision. Tout rejet revient à une personne : aucun réglage ne peut confier cette décision à la machine. Chaque offre est validée par une personne, et aucun réglage d’un espace de travail ne peut confier à la machine une décision de présélection ou d’offre. Vous pouvez demander un examen humain à tout moment.",
     "dataConsent": "En soumettant, vous acceptez que nous traitions vos données personnelles pour ce poste pendant une durée maximale de {months, plural, one {# mois} other {# mois}}. Vous pouvez consulter vos données ou en demander l’effacement à tout moment via le lien présent dans nos messages.",
-    "interviewData": "À propos de cet entretien : le recruteur peut lire votre transcription et l’évaluation de l’AI pendant {months, plural, one {# mois} other {# mois}} au maximum. Ensuite, vos propos lui sont masqués. Pour demander l’effacement de vos données, utilisez le lien « Vos données » en bas de chacun de nos messages. Pour demander qu’une personne réexamine une décision, répondez à n’importe quel message de l’équipe de recrutement.",
+    "interviewData": "À propos de cet entretien : le recruteur peut lire votre transcription et l’évaluation de l’AI pendant {months, plural, one {# mois} other {# mois}} au maximum. Ensuite, vos propos lui sont masqués. Pour demander l’effacement de vos données, utilisez le lien « Vos données » en bas de chacun de nos messages. Pour demander qu’une personne réexamine une décision, {hasContact, select, yes {écrivez à {contact}.} other {contactez l’équipe de recrutement auprès de laquelle vous avez postulé.}}",
     "regimeNote": "Évalué selon {framework}. Vos données personnelles sont traitées selon {dataLaw}."
   },
   "errors": {
@@ -1669,6 +1669,7 @@
     "VOICE_PREFLIGHT_NO_WEBRTC": "Ce navigateur ne prend pas en charge la connexion en temps réel (WebRTC) dont cet appel a besoin. Ouvrez le lien dans un navigateur à jour comme Chrome, Edge ou Safari.",
     "OFFER_RESPONSE_INVALID": "Répondez en acceptant ou en refusant l'offre.",
     "STATUS_LINK_INVALID": "Ce lien de suivi n'est pas valide.",
+    "REVIEW_CONTACT_EMAIL_INVALID": "Ce n’est pas une adresse e-mail valide.",
     "STATUS_NPS_NOT_APPLICABLE": "Cette question s'ouvrira une fois votre candidature terminée.",
     "STATUS_LETTER_NOT_ELIGIBLE": "Un retour écrit sur votre entretien n’est pas disponible pour cette candidature.",
     "STATUS_LETTER_ALREADY_REQUESTED": "Vous avez déjà demandé un retour sur cet entretien.",
@@ -2146,7 +2147,7 @@
       "automated": "Automatisée",
       "automatedPersonApproved": "Automatisée, approuvée par une personne",
       "human": "Décision humaine",
-      "humanReviewNote": "Vous pouvez à tout moment demander un réexamen humain de toute décision. Il vous suffit de répondre à n’importe quel message de l’équipe de recrutement.",
+      "humanReviewNote": "Vous pouvez à tout moment demander un réexamen humain de toute décision. {hasContact, select, yes {Écrivez à {contact}.} other {Contactez l’équipe de recrutement auprès de laquelle vous avez postulé.}}",
       "reasons": {
         "reject": "Les éléments décisifs : votre score de correspondance de {score} était inférieur au seuil de présélection de {threshold}.",
         "staleScore": "Ce score a été calculé avant la dernière modification de la description du poste : il peut ne pas refléter les exigences actuelles. Vous pouvez demander un réexamen humain.",
@@ -2357,7 +2358,7 @@
     },
     "declinedMustHave": "Condition non remplie :",
     "declinedAutoNote": "Vous pouvez demander qu’une personne réexamine cette décision.",
-    "declinedReviewEmail": "Nous vous envoyons cette décision par e-mail à l’adresse indiquée. Répondez simplement à ce message et une personne la réexaminera. Si rien n’arrive, contactez directement l’équipe qui recrute pour ce poste.",
+    "declinedReviewEmail": "Nous vous envoyons cette décision par e-mail à l’adresse indiquée. {hasContact, select, yes {Pour qu’une personne la réexamine, écrivez à {contact}. Si rien n’arrive, contactez directement l’équipe qui recrute pour ce poste.} other {Pour qu’une personne la réexamine, contactez directement l’équipe qui recrute pour ce poste.}}",
     "declinedReviewNoEmail": "Nous n’avons pas pu vous envoyer cette décision par e-mail. Pour qu’une personne la réexamine, contactez directement l’équipe qui recrute pour ce poste.",
     "heldMessage": "Merci de votre candidature. À cause d’une de vos réponses, une personne examinera d’abord votre candidature avant que quoi que ce soit ne soit décidé.",
     "heldMustHave": "Vous avez répondu non à :",
@@ -7725,6 +7726,11 @@
     "renameAria": "Renommer l’espace {workspace}",
     "renamed": "Espace de travail renommé.",
     "renameFailed": "Impossible de renommer l’espace de travail.",
+    "reviewContactLabel": "Adresse de contact pour un réexamen",
+    "reviewContactHint": "Les candidats sont invités à écrire à cette adresse pour demander qu’une personne réexamine une décision. Laissez le champ vide et ils sont renvoyés vers l’équipe de recrutement auprès de laquelle ils ont postulé. Cette application ne lit pas les réponses.",
+    "reviewContactSave": "Enregistrer l’adresse",
+    "reviewContactSaved": "Adresse de réexamen enregistrée.",
+    "reviewContactFailed": "Impossible d’enregistrer l’adresse de réexamen.",
     "addMember": "Ajouter",
     "addExisting": "Quelqu’un d’ici",
     "addByEmail": "Par e-mail",

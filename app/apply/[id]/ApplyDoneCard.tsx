@@ -8,7 +8,16 @@ import { ApplyDeclineDetail } from "./ApplyDeclineDetail";
 /** The outcome card that closes the conversation — the last bubble in the
  *  transcript's aria-live log, so a screen reader announces the verdict the same
  *  way it announced every prompt. */
-export function ApplyDoneCard({ done, onRestart }: { done: ApplyOutcome; onRestart: () => void }) {
+export function ApplyDoneCard({
+  done,
+  onRestart,
+  reviewContact,
+}: {
+  done: ApplyOutcome;
+  onRestart: () => void;
+  /** The job's workspace review-contact address, or null (owner ruling Q7). */
+  reviewContact?: string | null;
+}) {
   const t = useTranslations("apply");
 
   return (
@@ -28,7 +37,7 @@ export function ApplyDoneCard({ done, onRestart }: { done: ApplyOutcome; onResta
       </p>
       <p className="mt-1 text-base text-steel">{done.message}</p>
       {done.result === "declined" || done.result === "held" ? (
-        <ApplyDeclineDetail names={done.failedKoNames ?? []} reviewByEmail={Boolean(done.reviewByEmail)} held={done.result === "held"} />
+        <ApplyDeclineDetail names={done.failedKoNames ?? []} reviewByEmail={Boolean(done.reviewByEmail)} held={done.result === "held"} reviewContact={reviewContact} />
       ) : null}
       {/* idea-e76a6fb2 — a tokenized link so the applicant can track their
           status instead of going dark after applying. */}

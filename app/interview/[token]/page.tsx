@@ -161,6 +161,7 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
         runOfShow={session.runOfShow ?? []}
         regimeId={compliance.regimeId}
         retentionMonths={compliance.retentionMonths}
+        reviewContact={compliance.reviewContact}
         recordingOffered={offers.recording && recordingOffer(session.workspaceId)}
         statusHref={statusHref}
       />

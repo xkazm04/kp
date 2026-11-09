@@ -9,6 +9,7 @@ import { TextInput } from "@/app/_components/TextInput";
 import { BTN_GHOST, BTN_PRIMARY, META_LABEL, PANEL, TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
 import { ASSIGNABLE_ROLES, roleDescription, roleLabel } from "@/app/features/shared/memberUi";
 import { type MemberRole } from "@/app/_lib/auth/roles";
+import { WorkspaceReviewContact } from "./WorkspaceReviewContact";
 import { WorkspaceMembersTable } from "./WorkspaceMembersTable";
 import { invitesForWorkspace, memberName, membersNotInWorkspace, membersOfWorkspace } from "./workspaceAdminHelpers";
 import type { InviteDto, MemberTeam, OrgMemberDto, WorkspaceDto } from "./useWorkspaceAdmin";
@@ -36,6 +37,7 @@ export function WorkspaceDetailPanel({
   pendingMembers,
   onSwitch,
   onRename,
+  onReviewContactSaved,
   onSeatMember,
   onInvite,
   onPatchMember,
@@ -59,6 +61,7 @@ export function WorkspaceDetailPanel({
   pendingMembers: string[];
   onSwitch: (id: string) => void;
   onRename: (id: string, name: string) => void;
+  onReviewContactSaved: () => Promise<unknown> | void;
   onSeatMember: (userId: string, workspaceId: string, role: MemberRole) => void;
   onInvite: (email: string, role: MemberRole, workspaceId: string) => Promise<void> | void;
   onPatchMember: (userId: string, body: Record<string, unknown>) => void;
@@ -160,6 +163,16 @@ export function WorkspaceDetailPanel({
           </button>
         ) : null}
       </div>
+
+      {/* Where a candidate is told to write for a human review (owner ruling Q7). */}
+      {canManageTeams ? (
+        <WorkspaceReviewContact
+          key={`${workspace.id}:${workspace.reviewContactEmail ?? ""}`}
+          workspaceId={workspace.id}
+          value={workspace.reviewContactEmail}
+          onSaved={onReviewContactSaved}
+        />
+      ) : null}
 
       {/* Add a person: seat an existing colleague, or invite a new address. Both
           write against THIS workspace, which is what makes multi-team membership

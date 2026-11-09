@@ -105,6 +105,9 @@ export type DisclosureCompliance = {
    *  (`consentRetentionMonths()`) — the disclosed ceiling must never be shorter
    *  than what is actually enforced. */
   retentionMonths: number;
+  /** The workspace's review-contact address (owner ruling Q7), resolved server-side from the
+   *  same workspace as the regime. Absent/null = the team named none. */
+  reviewContact?: string | null;
 };
 
 /** Coerce any stored / posted value to a known RegimeId, defaulting unknown or
@@ -119,4 +122,12 @@ export function normalizeRegimeId(value: unknown): RegimeId {
 /** The full regime record for a (possibly untrusted) id, normalized first. */
 export function getRegime(id: unknown): ComplianceRegime {
   return COMPLIANCE_REGIMES[normalizeRegimeId(id)];
+}
+
+/** The two ICU arguments every review-request line takes (owner ruling Q7): the address
+ *  is a message PARAMETER, never concatenated text, and `hasContact` selects the variant
+ *  that names it versus the one that promises nothing a reply could not keep. */
+export function reviewContactArgs(address: string | null | undefined): { hasContact: "yes" | "no"; contact: string } {
+  const contact = (address ?? "").trim();
+  return { hasContact: contact ? "yes" : "no", contact };
 }

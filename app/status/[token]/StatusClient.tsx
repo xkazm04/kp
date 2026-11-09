@@ -20,7 +20,7 @@ import { rubricLabel } from "@/app/_lib/interview-rubric";
 import { useRubricStrings } from "@/app/_lib/use-rubric-strings";
 import type { InterviewRecommendation } from "@/app/_lib/interview-recommendation";
 import type { CandidateDecisionView } from "@/app/_lib/status-decisions";
-import type { DisclosureCompliance } from "@/app/_lib/compliance-regimes";
+import { reviewContactArgs, type DisclosureCompliance } from "@/app/_lib/compliance-regimes";
 import type { CandidateLetterView } from "@/app/_lib/interview-letter-types";
 import {
   CANDIDATE_TIMELINE,
@@ -394,7 +394,7 @@ export function StatusClient({
                 ))}
               </ol>
               {/* Echoes aiDisclosure.body's promise on the surface where it matters most. */}
-              <p className="mt-3 border-t border-stone-200 pt-3 text-meta text-steel">{t("decisions.humanReviewNote")}</p>
+              <p className="mt-3 border-t border-stone-200 pt-3 text-meta text-steel">{t("decisions.humanReviewNote", reviewContactArgs(compliance.reviewContact))}</p>
             </section>
           ) : null}
 

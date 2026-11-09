@@ -345,6 +345,7 @@ export function WorkspaceTab() {
               pendingMembers={pendingMembers}
               onSwitch={(id) => void switchTo(id)}
               onRename={(id, name) => void renameWorkspace(id, name)}
+              onReviewContactSaved={reload}
               onSeatMember={(userId, workspaceId, role) => void seatMember(userId, workspaceId, role)}
               onInvite={invite}
               onPatchMember={(userId, body) => void patchMember(userId, body)}

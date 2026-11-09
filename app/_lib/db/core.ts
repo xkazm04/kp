@@ -2421,6 +2421,11 @@ export function ensureDb(): Database.Database {
     // than a new table: the value is one word per tenant, and this repo has no
     // key-value settings store to put it in.
     "ALTER TABLE workspaces ADD COLUMN companion_brain_consent TEXT",
+    // The address candidates are told to write to for a human review (owner ruling Q7,
+    // docs/product/oss-1.0-cut.md). Nullable, additive, never backfilled: NULL means the
+    // team has named none, and the candidate copy then says to contact the hiring team
+    // without promising a reply reaches anyone (C6, an in-app reply door, is out of 1.0).
+    "ALTER TABLE workspaces ADD COLUMN review_contact_email TEXT",
     // ONE THREAD (JD → assignment): the job this assignment was cut for, i.e.
     // `jd-<slug>` for the JD the recruiter picked in DevNeedForm. Until now the pick
     // survived ONLY as `need_json.jdSlug` — a value inside an opaque blob that no

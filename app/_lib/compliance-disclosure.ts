@@ -1,3 +1,4 @@
+import { getWorkspaceReviewContact, DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { getActiveRegimeId } from "./decision-config-store";
 import { consentRetentionMonths } from "./consent";
 import { DEFAULT_REGIME_ID, type DisclosureCompliance } from "./compliance-regimes";
@@ -34,14 +35,26 @@ export function disclosureComplianceFor(workspaceId: string | null | undefined):
   // per-workspace tier to read, so it is global by construction — but it is still
   // derived, never the hardcoded "12 months" the copy used to carry.
   const retentionMonths = consentRetentionMonths();
+  const reviewContact = reviewContactFor(workspaceId);
   try {
-    return { regimeId: getActiveRegimeId(workspaceId ?? undefined), retentionMonths };
+    return { regimeId: getActiveRegimeId(workspaceId ?? undefined), retentionMonths, reviewContact };
   } catch (error) {
     console.warn(
       `[compliance-disclosure] could not read the active regime for workspace ${workspaceId ?? "(default)"} — ` +
         `the candidate disclosure falls back to the ${DEFAULT_REGIME_ID.toUpperCase()} default, which may be the wrong law ` +
         `for this workspace: ${error instanceof Error ? error.message : String(error)}`
     );
-    return { regimeId: DEFAULT_REGIME_ID, retentionMonths };
+    return { regimeId: DEFAULT_REGIME_ID, retentionMonths, reviewContact };
+  }
+}
+
+/** The team's review address, or null. Never throws: an unreadable row means "no address
+ *  named", and the copy then promises nothing. Only the address leaves the store. */
+export function reviewContactFor(workspaceId: string | null | undefined): string | null {
+  try {
+    return getWorkspaceReviewContact(workspaceId ?? DEFAULT_WORKSPACE_ID);
+  } catch (error) {
+    console.warn(`[compliance-disclosure] could not read the review contact: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
   }
 }

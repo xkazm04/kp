@@ -99,3 +99,19 @@ export function useWorkspaceAdmin() {
     reload,
   };
 }
+
+/** Save (or, with an empty string, clear) a team's review-contact address through the
+ *  same PATCH door as a rename (team:manage). `body` carries the coded refusal, so the
+ *  caller renders `errors.<CODE>` in the reader's language, never the server's English. */
+export async function saveReviewContact(
+  workspaceId: string,
+  reviewContactEmail: string
+): Promise<{ ok: true } | { ok: false; body: { code?: string | null } | null }> {
+  const res = await fetch(`/api/workspaces/${workspaceId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reviewContactEmail }),
+  }).catch(() => null);
+  if (res?.ok) return { ok: true };
+  return { ok: false, body: res ? ((await res.json().catch(() => null)) as { code?: string | null } | null) : null };
+}

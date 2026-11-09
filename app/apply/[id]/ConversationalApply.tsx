@@ -493,7 +493,7 @@ export function ConversationalApply({
             </span>
           </div>
         ))}
-        {done ? <ApplyDoneCard done={done} onRestart={restartConversation} /> : null}
+        {done ? <ApplyDoneCard done={done} onRestart={restartConversation} reviewContact={compliance.reviewContact} /> : null}
         <div ref={endRef} />
       </div>
 

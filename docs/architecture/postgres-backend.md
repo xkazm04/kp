@@ -116,7 +116,9 @@ only on the `KP_SEED_DEMO=1` opt-in (ADR 0002's amendment); by default — and a
 the default org and nothing else, and leaves `onboarding_state` NULL so the first-run
 wizard fires (`app/_lib/db/core-empty-boot.test.ts`). The on-demand path,
 `seedDemoCorpus()`, runs the same seeders followed by the same backfill, so a demo seeded
-from the first-run choice never leaves a NULL `workspace_id` either.
+from the first-run choice never leaves a NULL `workspace_id` either. (Additive nullable
+columns such as `workspaces.review_contact_email` follow the same `ALTER TABLE` list in
+`core.ts`; no backfill.)
 
 **The SQL itself is largely portable** (run `npm run db:pg-audit` for the live list):
 no `strftime` / `json_extract`, and `PRAGMA` appears in connection setup rather than in

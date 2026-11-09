@@ -578,7 +578,7 @@
     },
     "koDecline": {
       "subject": "Vaše přihláška: {role}",
-      "body": "Dobrý den, {name},\n\nděkujeme za přihlášku na pozici {role}. U požadavku, který pozice výslovně stanoví, jste odpověděli „ne“:\n\n{mustHaves}\n\nČlověk vaši přihlášku posoudil a potvrdil, že tento požadavek nesplňuje, takže v ní nemůžeme pokračovat. Pokud si myslíte, že jde o omyl, nebo jste odpověď zadali omylem, odpovězte na tuto zprávu a člověk ji posoudí znovu.\n\nVaše přihláška, včetně této e-mailové adresy, zůstává u nás uložená jako každá jiná přihláška a kdykoli nás můžete požádat o její smazání pomocí odkazu níže.\n\nPodmínky se mohou s vývojem pozic měnit. Budeme rádi, když se v budoucnu přihlásíte znovu.\n\nPřejeme vám vše dobré,\n{team}",
+      "body": "Dobrý den, {name},\n\nděkujeme za přihlášku na pozici {role}. U požadavku, který pozice výslovně stanoví, jste odpověděli „ne“:\n\n{mustHaves}\n\nČlověk vaši přihlášku posoudil a potvrdil, že tento požadavek nesplňuje, takže v ní nemůžeme pokračovat. Pokud si myslíte, že jde o omyl, nebo jste odpověď zadali omylem, {hasContact, select, yes {napište na {contact} a člověk ji posoudí znovu.} other {obraťte se na tým, který pozici obsazuje, a požádejte o nové posouzení člověkem.}}\n\nVaše přihláška, včetně této e-mailové adresy, zůstává u nás uložená jako každá jiná přihláška a kdykoli nás můžete požádat o její smazání pomocí odkazu níže.\n\nPodmínky se mohou s vývojem pozic měnit. Budeme rádi, když se v budoucnu přihlásíte znovu.\n\nPřejeme vám vše dobré,\n{team}",
       "mustHaveFallback": "jedna ze základních podmínek pozice"
     },
     "offer": {
@@ -1238,7 +1238,7 @@
     "title": "Jak to funguje",
     "body": "K asistenci při screeningu a pohovorech používáme AI a posuzujeme vaše <highlight>dovednosti, zkušenosti a vhodnost</highlight> pro danou pozici. Odpověď „ne“ u požadavku, který pozice výslovně stanoví, přihlášku sama o sobě neukončí: čeká na člověka a zamítne ji teprve jeho potvrzení. Poté se dozvíte, o který požadavek šlo, a můžete požádat, aby rozhodnutí posoudil člověk. Každé zamítnutí je na člověku: žádné nastavení toto rozhodnutí stroji nesvěří. Každou nabídku schvaluje člověk a žádné nastavení pracovního prostoru nemůže rozhodnutí o screeningu ani o nabídce svěřit stroji. Kdykoli můžete požádat o přezkoumání člověkem.",
     "dataConsent": "Odesláním souhlasíte, že můžeme zpracovávat vaše osobní údaje pro tuto pozici po dobu až {months, plural, one {# měsíc} few {# měsíce} other {# měsíců}}. Své údaje můžete kdykoli zkontrolovat nebo požádat o jejich výmaz přes odkaz v našich zprávách.",
-    "interviewData": "K tomuto pohovoru: recruiter si může přečíst váš přepis a hodnocení od AI po dobu až {months, plural, one {# měsíc} few {# měsíce} other {# měsíců}}. Poté mu vaše slova zůstanou skrytá. O výmaz svých údajů požádáte přes odkaz „Vaše údaje“ na konci kterékoli naší zprávy. O posouzení rozhodnutí člověkem požádáte odpovědí na kteroukoli zprávu od náborového týmu.",
+    "interviewData": "K tomuto pohovoru: recruiter si může přečíst váš přepis a hodnocení od AI po dobu až {months, plural, one {# měsíc} few {# měsíce} other {# měsíců}}. Poté mu vaše slova zůstanou skrytá. O výmaz svých údajů požádáte přes odkaz „Vaše údaje“ na konci kterékoli naší zprávy. O posouzení rozhodnutí člověkem požádáte {hasContact, select, yes {na adrese {contact}.} other {u náborového týmu, u kterého jste se hlásili.}}",
     "regimeNote": "Posuzováno podle {framework}; vaše osobní údaje zpracováváme podle {dataLaw}."
   },
   "errors": {
@@ -1669,6 +1669,7 @@
     "VOICE_PREFLIGHT_NO_WEBRTC": "Tento prohlížeč nepodporuje připojení v reálném čase (WebRTC), které tento hovor potřebuje. Otevřete odkaz v aktuálním prohlížeči, například v Chrome, Edge nebo Safari.",
     "OFFER_RESPONSE_INVALID": "Odpovězte prosím přijetím, nebo odmítnutím nabídky.",
     "STATUS_LINK_INVALID": "Tento odkaz na stav přihlášky už neplatí.",
+    "REVIEW_CONTACT_EMAIL_INVALID": "Toto není platná e-mailová adresa.",
     "STATUS_NPS_NOT_APPLICABLE": "Tato otázka se otevře, až bude vaše výběrové řízení uzavřeno.",
     "STATUS_LETTER_NOT_ELIGIBLE": "Písemná zpětná vazba k vašemu pohovoru není u této přihlášky k dispozici.",
     "STATUS_LETTER_ALREADY_REQUESTED": "O zpětnou vazbu k tomuto pohovoru už jste požádali.",
@@ -2146,7 +2147,7 @@
       "automated": "Automatizované",
       "automatedPersonApproved": "Automatizované, schválené člověkem",
       "human": "Lidské rozhodnutí",
-      "humanReviewNote": "Kdykoli můžete požádat o lidské přezkoumání kteréhokoli rozhodnutí. Stačí odpovědět na libovolnou zprávu od náborového týmu.",
+      "humanReviewNote": "Kdykoli můžete požádat o lidské přezkoumání kteréhokoli rozhodnutí. {hasContact, select, yes {Napište na {contact}.} other {Obraťte se na náborový tým, u kterého jste se hlásili.}}",
       "reasons": {
         "reject": "Rozhodující skutečnosti: vaše skóre shody {score} bylo pod prahem screeningu {threshold}.",
         "staleScore": "Toto skóre bylo spočítáno před poslední změnou popisu pozice, takže nemusí odpovídat současným požadavkům. Můžete požádat o lidské přezkoumání.",
@@ -2357,7 +2358,7 @@
     },
     "declinedMustHave": "Nesplněný požadavek:",
     "declinedAutoNote": "Můžete požádat, aby toto rozhodnutí posoudil člověk.",
-    "declinedReviewEmail": "Rozhodnutí vám posíláme e-mailem na adresu, kterou jste uvedli. Stačí na tu zprávu odpovědět a posoudí ho člověk. Pokud nic nedorazí, obraťte se přímo na tým, který pozici obsazuje.",
+    "declinedReviewEmail": "Rozhodnutí vám posíláme e-mailem na adresu, kterou jste uvedli. {hasContact, select, yes {Chcete-li, aby ho posoudil člověk, napište na {contact}. Pokud nic nedorazí, obraťte se přímo na tým, který pozici obsazuje.} other {Chcete-li, aby ho posoudil člověk, obraťte se přímo na tým, který pozici obsazuje.}}",
     "declinedReviewNoEmail": "Rozhodnutí se nám e-mailem odeslat nepodařilo. Chcete-li, aby ho posoudil člověk, obraťte se přímo na tým, který pozici obsazuje.",
     "heldMessage": "Děkujeme za přihlášku. Kvůli jedné z vašich odpovědí se na ni nejdřív podívá člověk, teprve potom se o ní rozhodne.",
     "heldMustHave": "Odpověděli jste „ne“ u požadavku:",
@@ -7725,6 +7726,11 @@
     "renameAria": "Přejmenovat prostor {workspace}",
     "renamed": "Pracovní prostor přejmenován.",
     "renameFailed": "Pracovní prostor se nepodařilo přejmenovat.",
+    "reviewContactLabel": "Kontaktní adresa pro přezkoumání",
+    "reviewContactHint": "Uchazeči se dozvědí, že na tuto adresu mají napsat, když chtějí, aby rozhodnutí posoudil člověk. Nechte ji prázdnou a budou odkázáni na náborový tým, u kterého se hlásili. Tato aplikace odpovědi nečte.",
+    "reviewContactSave": "Uložit adresu",
+    "reviewContactSaved": "Adresa pro přezkoumání je uložena.",
+    "reviewContactFailed": "Adresu pro přezkoumání se nepodařilo uložit.",
     "addMember": "Přidat",
     "addExisting": "Někoho odsud",
     "addByEmail": "Podle e-mailu",

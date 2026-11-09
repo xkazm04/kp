@@ -895,7 +895,11 @@ cannot enter a client bundle. It is used only to bucket legacy invites, whose
 `workspaces` table. The org's language is `organizations.default_locale`; a team's
 explicit language is `workspaces.locale_override` (NULL = follow the org), and
 `workspaces.default_locale` is its legacy mirror (see **One language authority
-per org** above).
+per org** above). `workspaces.review_contact_email` (nullable, additive, owner ruling Q7)
+is the address candidate copy names for a human review; it is set from the Workspaces
+console (PATCH `/api/workspaces/[id]`, `team:manage`, empty clears, a non-email is refused
+with `REVIEW_CONTACT_EMAIL_INVALID`) and read server-side by `disclosureComplianceFor`.
+With none set the copy says to contact the hiring team and promises no reply door.
 
 Cross-company reference reads (curated shared library + aggregated benchmarks,
 never raw PII) are designed but not the current focus of this doc — see the

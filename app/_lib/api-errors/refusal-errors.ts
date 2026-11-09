@@ -1670,6 +1670,8 @@ export const REFUSAL_ERRORS = {
   /** GET /api/gigs/[id]/proposal (404): no client proposal yet - one is written when a plan
    *  is accepted, or on request (gigs/proposal/run.ts) - or the recorded file is gone. */
   GIG_PROPOSAL_NOT_FOUND: "This gig has no client proposal yet. It is written when a plan is accepted, or on request.",
+  /** The review-contact address a team admin typed is not an email address (400). */
+  REVIEW_CONTACT_EMAIL_INVALID: "That is not a valid email address.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;
