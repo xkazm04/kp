@@ -43,3 +43,11 @@ export function isVoiceInterviewPath(pathname: string): boolean {
   if (seg[1] === "jobs") return seg[3] === "interview-kit" && seg[4] === "rehearse";
   return false;
 }
+
+/** Should a recruiter surface that STARTS a voice interview be drawn? `enabled` is the
+ *  readiness report's field (GET /api/voice/readiness); `null` is "not answered yet" and
+ *  reads as hidden, so a switched-off install never flashes a button that would 404.
+ *  Records of past interviews do not ask this — they stay readable either way. */
+export function voiceSurfaceVisible(enabled: boolean | null | undefined): boolean {
+  return enabled === true;
+}
