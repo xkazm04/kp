@@ -20875,7 +20875,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsCompareCohorts.ts:19 The context groups and displays human interview ratings and a fairness matrix over candidates; a case-insensitive search of app/features/library/jobs found no golden, trial, holdout, passRate, pass_rate, win-rate, scenario or temperature, and its 'judge' and 'benchmark' hits are coach judgement comments and salary benchmarks outside the compare files, so no model is evaluated here.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "agent-memory",
@@ -28458,7 +28462,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/tools/profile/candidateMatrixView.ts:41 The context is a roster and archetype board that bands already-stored candidate scores; a case-insensitive search of app/features/tools/profile for golden, judge, trial, holdout, passRate, pass_rate, worst-of, anchor set, win-rate, benchmark, scenario, temperature and gold label found no hits, so no model is run or scored here.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "candidate-archetype-routing",
@@ -32584,7 +32592,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shell/simulation/simDrafts.ts:41 The context is a scripted product demo with fixed values and no model under test; a case-insensitive search of app/features/shell/simulation found no golden, trial, passRate, pass_rate, win-rate, benchmark, scenario or temperature, and its only 'judge' and 'holdout' hits are a DOM click effect check (simMove.ts), a comment in simCriteria.ts and an automation holdoutPercent setting (constants.ts), none of them eval machinery.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "mcp-tools",

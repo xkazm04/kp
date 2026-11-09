@@ -29908,6 +29908,74 @@
           "evidence": "app/features/settings/models/ModelsQualityOverview.tsx:135 Judged only for this surface's duty: partial coverage is printed per model, and unmeasured cells and use cases are rendered as such rather than as a complete matrix."
         }
       ]
+    },
+    "e6b85437-3bfd-4a78-828e-ce67fb2e6114/eval-harness": {
+      "context": "profile-roster-matrix",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T05:05:18.782Z",
+      "worker": "48f24ddf-24b6-4861-a538-77c973015121",
+      "techniques": [
+        {
+          "technique": "comparison-modes",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/candidateMatrixView.ts:6 'Matrix' here is a people-by-archetype layout, not a model × variant × scenario run; this word is what produced the map's match."
+        },
+        {
+          "technique": "assertion-vs-judgment",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/candidateMatrixView.ts:38 An unscored person gets its own band; this is display of missing data, not a pass/fail/error verdict on an eval run."
+        }
+      ]
+    },
+    "e09b50cc-6de9-4f28-a548-d93ca898a7f0/eval-harness": {
+      "context": "shell-simulation-engine",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T05:05:18.782Z",
+      "worker": "48f24ddf-24b6-4861-a538-77c973015121",
+      "techniques": [
+        {
+          "technique": "judge-stability",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/simulation/simMove.ts:11 'Judged' here is a deterministic board-effect check on a UI walk, not a model scoring another model."
+        },
+        {
+          "technique": "comparison-modes",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/simulation/useSimulationEngine.ts:307 Starts the product's group_eval task to compare job candidates in the demo; it does not compare models or variants."
+        }
+      ]
+    },
+    "6e4380dc-8992-4f22-8017-d42ce053a5ca/eval-harness": {
+      "context": "jobs-candidates-compare",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T05:05:18.782Z",
+      "worker": "48f24ddf-24b6-4861-a538-77c973015121",
+      "techniques": [
+        {
+          "technique": "judge-stability",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsCompareCohorts.ts:8 Surfaces rubric-version drift in interview ratings of people; this resembles an instrument change but is no judge packet over model outputs."
+        },
+        {
+          "technique": "comparison-modes",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsCompareCohorts.ts:1 A recruiter's grid of candidates, not an eval comparison geometry."
+        },
+        {
+          "technique": "resolution-precondition",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsFairnessMatrix.ts:11 Cross-scheme robustness of candidate scores; the technique governs published orders over models, prompts or configurations."
+        }
+      ]
     }
   }
 }
