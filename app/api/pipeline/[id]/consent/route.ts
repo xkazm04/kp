@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPipelineEntry, listConsentEvents } from "@/app/_lib/db/pipeline";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { consentStatus } from "@/app/_lib/consent";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
@@ -30,12 +30,11 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 // "Data & consent" panel was dead, not merely wrong. Reading the events under the
 // same resolved id also means an entry can never be shown beside another tenant's
 // audit trail.
-export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const GET = withWorkspace(async (workspaceId: string, _request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { id } = await context.params;
-    const workspaceId = await currentWorkspace();
     const entry = getPipelineEntry(id, workspaceId);
     if (!entry) return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
     return NextResponse.json({
@@ -54,4 +53,4 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
   } catch (error) {
     return safeJsonError(error, "api:pipeline:consent", "CONSENT_LOOKUP_FAILED");
   }
-}
+});

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { journeyEntryView } from "@/app/_lib/journey/project";
@@ -28,13 +28,12 @@ import { journeyEntryView } from "@/app/_lib/journey/project";
  *  that reaches a comparison. */
 const MAX_EVENT_PARAM = 200;
 
-export async function GET(request: NextRequest, context: { params: Promise<{ entryId: string }> }) {
+export const GET = withWorkspace(async (workspaceId: string, request: NextRequest, context: { params: Promise<{ entryId: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { entryId } = await context.params;
     const eventId = (new URL(request.url).searchParams.get("event") ?? "").trim().slice(0, MAX_EVENT_PARAM);
-    const workspaceId = await currentWorkspace();
     const view = journeyEntryView(entryId, workspaceId);
     if (!view) return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
     if (eventId) {
@@ -45,4 +44,4 @@ export async function GET(request: NextRequest, context: { params: Promise<{ ent
   } catch (error) {
     return safeJsonError(error, "api:journeys/[entryId]", "PIPELINE_TIMELINE_FAILED");
   }
-}
+});

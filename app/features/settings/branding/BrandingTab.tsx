@@ -184,7 +184,7 @@ export function BrandingTab() {
 
       {loadFailed ? (
         <div className={`${PANEL_SUNKEN} p-4`}>
-          <p className="text-base text-coral">{t("loadFailed")}</p>
+          <p className="text-base text-coral-ink">{t("loadFailed")}</p>
         </div>
       ) : (
         <div className="animate-arrive-in grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
@@ -202,6 +202,13 @@ export function BrandingTab() {
               // Retry the preview whenever the URL changes (clears a prior load
               // error) — done in the event, not an effect.
               setLogoError(false);
+            }}
+            onLogoUploaded={(url) => {
+              // Already stored by POST/DELETE /api/brand/logo: show it and re-baseline so
+              // the form is not left "dirty" over a change the server has.
+              setLogo(url);
+              setLogoError(false);
+              setBaseline((b) => ({ ...b, logo: url }));
             }}
             dirty={dirty}
             saving={saving}

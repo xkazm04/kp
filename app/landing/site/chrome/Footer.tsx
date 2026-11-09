@@ -23,9 +23,9 @@ export default async function Footer({ page }: { page: MkMode }) {
           <a
             className="brand"
             href={onAbout ? "/" : "#top"}
-            aria-label={onAbout ? t("brand.home", { brand: BRAND.name }) : t("brand.toTop", { brand: BRAND.name })}
           >
             <BrandMark />
+            <span className="sr-only">{onAbout ? t("brand.home", { brand: BRAND.name }) : t("brand.toTop", { brand: BRAND.name })}</span>
           </a>
           <p>{tl("footer.tagline")}</p>
           <a className="totop" href="#top">

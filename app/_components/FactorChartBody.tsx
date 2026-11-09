@@ -79,9 +79,11 @@ export default function FactorChartBody({ score }: FactorChartBodyProps) {
           ))}
         </tbody>
       </table>
+      {/* recharts 3 makes the svg focusable (accessibilityLayer); inside aria-hidden that is a
+          focusable-in-hidden WCAG violation, and the bars are decorative here (the factor list carries the data). */}
       <div aria-hidden="true" style={{ aspectRatio: "5 / 2", minHeight: 200 }}>
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-        <BarChart data={data} margin={{ top: 8, right: 4, left: -24, bottom: 0 }}>
+        <BarChart accessibilityLayer={false} data={data} margin={{ top: 8, right: 4, left: -24, bottom: 0 }}>
           <CartesianGrid stroke={chrome.grid} vertical={false} />
           <XAxis dataKey="factor" tick={{ fill: chrome.tick, fontSize: 12 }} tickLine={false} axisLine={false} />
           <YAxis

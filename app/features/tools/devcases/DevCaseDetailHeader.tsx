@@ -172,7 +172,7 @@ export function DevCaseDetailHeader({
             disabled={sourcing === kase.id}
             title={t("sourceHint")}
             aria-expanded={previewOpen}
-            className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 text-micro font-semibold text-coral hover:border-coral/40 disabled:opacity-50"
+            className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 text-micro font-semibold text-coral-ink hover:border-coral/40 disabled:opacity-50"
           >
             <Users size={12} />{" "}
             {sourcing === kase.id

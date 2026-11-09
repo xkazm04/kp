@@ -27,6 +27,7 @@ import { pathToFileURL } from "node:url";
 process.env.NODE_TEST_CONTEXT = "child-v8";
 delete process.env.KP_MULTI_WORKSPACE;
 delete process.env.KP_EMPTY;
+process.env.KP_SEED_DEMO = "1"; // the demo corpus seeds at boot only on opt-in since triage T1
 
 const core = await import(pathToFileURL(path.join(process.cwd(), "app/_lib/db/core.ts")).href);
 const db = core.ensureDb();
@@ -59,7 +60,7 @@ function boot(dbPath: string): Counts {
       encoding: "utf8",
       // Same colour pinning as the sibling child-process tests: inherited FORCE_COLOR
       // would wrap stdout in escape codes and silently break the match below.
-      env: { ...process.env, KP_DB_PATH: dbPath, NO_COLOR: "1", FORCE_COLOR: "0", KP_EMPTY: "" },
+      env: { ...process.env, KP_DB_PATH: dbPath, NO_COLOR: "1", FORCE_COLOR: "0", KP_EMPTY: "", KP_SEED_DEMO: "1" },
     }
   );
   const m = /COUNTS (\{.*\})/.exec(res.stdout);

@@ -56,7 +56,7 @@ export function ScopeBadge({ scope, isDefault }: { scope: "org" | "team"; isDefa
   return (
     <span className="inline-flex items-center gap-1">
       <span className={CHIP_QUIET}>{scope === "org" ? t("org") : t("team")}</span>
-      {isDefault ? <span className={`${CHIP_QUIET} text-coral`}>{t("default")}</span> : null}
+      {isDefault ? <span className={`${CHIP_QUIET} text-coral-ink`}>{t("default")}</span> : null}
     </span>
   );
 }
@@ -81,7 +81,7 @@ export function PlaceholderChips({ onInsert }: { onInsert: (token: string) => vo
   return (
     <div className="space-y-2">
       <p className={META_LABEL}>{t("placeholders")}</p>
-      <div className="flex flex-wrap gap-1">{TEMPLATE_PLACEHOLDERS.map((p) => chip(p, "text-coral"))}</div>
+      <div className="flex flex-wrap gap-1">{TEMPLATE_PLACEHOLDERS.map((p) => chip(p, "text-coral-ink"))}</div>
       <p className={META_LABEL}>{t("localizedTokens")}</p>
       <div className="flex flex-wrap gap-1">{TEMPLATE_LOCALIZED_TOKENS.map((p) => chip(p, "text-moss"))}</div>
       <p className="text-micro text-steel">{t("tokenHint", { supported: SUPPORTED_PLACEHOLDER_LIST })}</p>

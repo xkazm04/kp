@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { searchEntities } from "@/app/_lib/db/analytics";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
@@ -32,7 +32,7 @@ const MAX_QUERY_LENGTH = 64;
 // only kind this route may carry.
 const SEARCH_RATE_LIMIT = { limit: 3000, windowMs: 10 * 60_000 };
 
-export async function GET(request: Request) {
+export const GET = withWorkspace(async (ws: string, request: Request) => {
   try {
     const { searchParams } = new URL(request.url);
     const q = (searchParams.get("q") ?? "").trim().slice(0, MAX_QUERY_LENGTH);
@@ -45,8 +45,8 @@ export async function GET(request: Request) {
     if (!rateLimit(`search:${clientIpFrom(request.headers)}`, SEARCH_RATE_LIMIT)) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
-    return NextResponse.json({ results: searchEntities(q, 5, await currentWorkspace()) });
+    return NextResponse.json({ results: searchEntities(q, 5, ws) });
   } catch (error) {
     return safeJsonError(error, "api:search", "SEARCH_FAILED");
   }
-}
+});

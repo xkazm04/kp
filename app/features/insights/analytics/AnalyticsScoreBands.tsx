@@ -92,7 +92,7 @@ export function ScoreBands({
               {isOpen ? (
                 <div className="border-t border-stone-100 px-3 py-2">
                   {error ? (
-                    <p className="text-sm text-coral" role="alert">
+                    <p className="text-sm text-coral-ink" role="alert">
                       {t("bandError")}
                     </p>
                   ) : !data ? (
@@ -110,7 +110,7 @@ export function ScoreBands({
                               <Link
                                 href={boardHref(c.label)}
                                 title={t("bandViewInBoard")}
-                                className="focus-ring rounded text-ink underline-offset-2 hover:text-coral hover:underline"
+                                className="focus-ring rounded text-ink underline-offset-2 hover:text-coral-ink hover:underline"
                               >
                                 {c.label}
                               </Link>
@@ -121,7 +121,7 @@ export function ScoreBands({
                           <span className="flex shrink-0 items-center gap-2 text-meta">
                             <span
                               className={`rounded-full px-1.5 py-0.5 font-semibold ${
-                                c.outcome === 1 ? "bg-moss/10 text-moss" : "bg-coral/10 text-coral"
+                                c.outcome === 1 ? "bg-moss/10 text-moss" : "bg-coral/10 text-coral-ink"
                               }`}
                             >
                               {c.outcome === 1 ? t("bandOutcomeAdvanced") : t("bandOutcomeRejected")}

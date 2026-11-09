@@ -21,6 +21,8 @@ export const POSTING_TAB_IDS = [
   "kit",
   "compare",
   "agentfit",
+  // The role run (ADR 0011): start it, cross its three human gates, one batch each.
+  "run",
 ] as const;
 
 export type PostingTabId = (typeof POSTING_TAB_IDS)[number];

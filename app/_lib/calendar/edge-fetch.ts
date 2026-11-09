@@ -1,4 +1,5 @@
 import { isOffline } from "../offline";
+import { egressSealed } from "../egress-seal";
 import { CALENDAR_TIMEOUT_MS } from "./constants";
 
 // The ONE outbound door of the calendar integration: offline gating, the timeout, and the
@@ -25,12 +26,35 @@ import { CALENDAR_TIMEOUT_MS } from "./constants";
 // names one, CAPPED — an honest "unavailable" beats a booking page that hangs because
 // Google asked for 300 seconds.
 
+/** The URL as an error message may name it: origin + path, never the query. The revoke
+ *  call carries the OAuth token IN its query (google-oauth.ts revokeToken), so a message
+ *  that quoted the whole URL put a live credential into whatever logged it. */
+export function redactedUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    return `${u.origin}${u.pathname}`;
+  } catch {
+    return "(unparseable url)";
+  }
+}
+
 /** Thrown INSTEAD of touching the network when KP_OFFLINE is on. Callers map it onto the
  *  same "no information" value they already return for an outage — never onto an error. */
 export class CalendarOfflineError extends Error {
   constructor(url: string) {
-    super(`KP_OFFLINE: the calendar edge did not call ${url}`);
+    super(`KP_OFFLINE: the calendar edge did not call ${redactedUrl(url)}`);
     this.name = "CalendarOfflineError";
+  }
+}
+
+/** Thrown INSTEAD of touching the network when the egress seal (KP_NO_COMMS_EGRESS=1) is
+ *  on. A subclass of the offline error on purpose: every caller already maps that onto
+ *  "unknown" (null / not-ok), never onto "free" and never onto a logged failure. */
+export class CalendarSealedError extends CalendarOfflineError {
+  constructor(url: string) {
+    super(url);
+    this.message = `KP_NO_COMMS_EGRESS: the calendar edge did not call ${redactedUrl(url)}`;
+    this.name = "CalendarSealedError";
   }
 }
 
@@ -107,6 +131,7 @@ export async function calendarFetch(
   opts: CalendarFetchOptions = {}
 ): Promise<Response> {
   if (isOffline(opts.env ?? process.env)) throw new CalendarOfflineError(url);
+  if (egressSealed(opts.env ?? process.env)) throw new CalendarSealedError(url);
   const timeoutMs = opts.timeoutMs ?? CALENDAR_TIMEOUT_MS;
   const res = await attempt(url, init, timeoutMs);
   if (!opts.retry || !isRetryableStatus(res.status)) return res;

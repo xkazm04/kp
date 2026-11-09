@@ -22,7 +22,7 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
         <div className={`${NOTICE("critical")} mb-3 space-y-1.5 px-3 py-2 text-sm`}>
           <p role="alert">{m.error}</p>
           {m.conflict ? (
-            <button type="button" onClick={m.reloadConflict} className={`${BTN_SECONDARY} h-8 px-2.5 text-sm font-semibold text-coral`}>
+            <button type="button" onClick={m.reloadConflict} className={`${BTN_SECONDARY} h-8 px-2.5 text-sm font-semibold text-coral-ink`}>
               {m.t("reloadLatest")}
             </button>
           ) : null}

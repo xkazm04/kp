@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { createManualGig, listGigs } from "@/app/_lib/db/gigs";
@@ -28,11 +28,10 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 const MAX_BODY_CHARS = 60_000;
 const MAX_TITLE_CHARS = 300;
 
-export async function GET(request: Request): Promise<NextResponse> {
+export const GET = withWorkspace(async (ws: string, request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
-    const ws = await currentWorkspace();
     const q = new URL(request.url).searchParams;
     const arenaParam = q.get("arena");
     if (arenaParam && !isGigArena(arenaParam)) return jsonRefusal("GIG_INPUT_INVALID", 400, { field: "arena" });
@@ -60,7 +59,7 @@ export async function GET(request: Request): Promise<NextResponse> {
   } catch (error) {
     return safeJsonError(error, "api:gigs", "GIG_STORE_FAILED");
   }
-}
+});
 
 type ForwardBody = {
   arena?: unknown;
@@ -87,7 +86,7 @@ function parseReward(v: unknown): GigReward | null | false {
   return { amount, currency, text };
 }
 
-export async function POST(request: Request): Promise<NextResponse> {
+export const POST = withWorkspace(async (ws: string, request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -117,7 +116,6 @@ export async function POST(request: Request): Promise<NextResponse> {
     const org = typeof body.org === "string" && body.org.trim() ? body.org.trim() : null;
     const tags = Array.isArray(body.tags) ? body.tags.filter((t): t is string => typeof t === "string") : [];
 
-    const ws = await currentWorkspace();
     // The honeypot scan runs on the brief exactly as a scanned listing's does: a brief the
     // operator pasted is still text a stranger wrote.
     const suspectReasons = scanGigForHoneypots({ bodyText, bodyHtml: null, title });
@@ -130,4 +128,4 @@ export async function POST(request: Request): Promise<NextResponse> {
   } catch (error) {
     return safeJsonError(error, "api:gigs", "GIG_STORE_FAILED");
   }
-}
+});

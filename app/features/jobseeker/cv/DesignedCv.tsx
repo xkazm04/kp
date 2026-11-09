@@ -106,6 +106,16 @@ export function DesignedCv({ doc, template, accent, id }: { doc: CvDocument; tem
   const h = CV_HEADINGS[doc.lang];
   const projects = doc.projects;
   const titled = doc.skills.some((g) => g.title);
+  const projectsSection = projects.length ? (
+    <section className="cv-sec">
+      <h3 className="cv-sec-title">{h.projects}</h3>
+      <div className="cv-entries">
+        {projects.map((r, i) => (
+          <Role key={i} r={r} />
+        ))}
+      </div>
+    </section>
+  ) : null;
 
   return (
     <article id={id} className="cvsheet" data-template={template} data-accent={accent} lang={doc.lang}>
@@ -144,6 +154,9 @@ export function DesignedCv({ doc, template, accent, id }: { doc: CvDocument; tem
             <p className="cv-summary">{doc.summary}</p>
           </section>
         ) : null}
+        {/* A tailored career change whose bridge is outside paid work sets the projects
+            first (cvTailor.ts, projectsFirst); the experience keeps its date order. */}
+        {doc.projectsFirst ? projectsSection : null}
         {doc.experience.length ? (
           <section className="cv-sec">
             <h3 className="cv-sec-title">{h.experience}</h3>
@@ -154,16 +167,7 @@ export function DesignedCv({ doc, template, accent, id }: { doc: CvDocument; tem
             </div>
           </section>
         ) : null}
-        {projects.length ? (
-          <section className="cv-sec">
-            <h3 className="cv-sec-title">{h.projects}</h3>
-            <div className="cv-entries">
-              {projects.map((r, i) => (
-                <Role key={i} r={r} />
-              ))}
-            </div>
-          </section>
-        ) : null}
+        {doc.projectsFirst ? null : projectsSection}
         {/* Education is among the first things read: it stays in the flow on every
             template, never in a side column. */}
         {doc.education.length ? (

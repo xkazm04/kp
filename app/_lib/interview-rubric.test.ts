@@ -561,3 +561,42 @@ test("REGRESSION: adding coverage reporting left every resolved rubric byte-iden
     }
   }
 });
+
+// ---------------------------------------------------------------------------
+// S1 — the optional "Working with AI tools" axis (dev case attached only)
+// ---------------------------------------------------------------------------
+
+test("S1: without a dev case every rubric — and its version stamp — is byte-identical to pre-S1", () => {
+  // Same literals as the parity anchor above, reached through the new third argument.
+  assert.equal(rubricVersionHash(rubricForArchetype("bau", null, false)), "c5303546821999e1");
+  assert.equal(rubricVersionHash(rubricForArchetype("student", null, false)), "981e0b005f004e88");
+  assert.equal(rubricVersionHash(rubricForArchetype("bau", "healthcare_clinical", false)), "706059338ba7503e");
+  assert.deepEqual(rubricForArchetype("bau", "healthcare_clinical"), rubricForArchetype("bau", "healthcare_clinical", false));
+  // It is a separate optional axis, never inside a base list.
+  for (const base of Object.values(INTERVIEW_RUBRICS as Record<string, { competency: string }[]>)) {
+    assert.ok(!base.some((c) => c.competency === "Working with AI tools"));
+  }
+});
+
+test("S1: with a dev case the axis is appended last, BARS 1-5, and the version moves (pinned to the Python stamp)", () => {
+  for (const archetype of ["bau", "student"]) {
+    const plain = rubricForArchetype(archetype);
+    const withCase = rubricForArchetype(archetype, null, true);
+    assert.equal(withCase.length, plain.length + 1);
+    assert.deepEqual(withCase.slice(0, -1), plain);
+    const axis = withCase[withCase.length - 1];
+    assert.equal(axis.competency, "Working with AI tools");
+    assert.deepEqual(Object.keys(axis.anchors ?? {}), ["1", "2", "3", "4", "5"]);
+    assert.notEqual(rubricVersionHash(withCase), rubricVersionHash(plain));
+  }
+  // Must equal automation.rubric_version_hash(rubric_for_candidate(..., dev_case=True)).
+  assert.equal(rubricVersionHash(rubricForArchetype("bau", null, true)), "9386895b760c9505");
+  assert.equal(rubricVersionHash(rubricForArchetype("student", null, true)), "d152a9389079978e");
+  assert.equal(rubricVersionHash(rubricForArchetype("bau", "healthcare_clinical", true)), "4e5754969aaf5010");
+});
+
+test("S1: the axis scores behaviour — no tool nouns", () => {
+  const axis = rubricForArchetype("bau", null, true).at(-1)!;
+  const text = [axis.description, ...Object.values(axis.anchors ?? {})].join(" ");
+  assert.ok(!/chatgpt|copilot|claude|gemini|cursor/i.test(text));
+});

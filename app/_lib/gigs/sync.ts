@@ -63,10 +63,10 @@ export const GIG_DELIVERABLE_FILE_MAX_BYTES = 512 * 1024;
 export function readGigDeliverableFile(workdir: string, notBefore: string): string | null {
   const file = path.join(workdir, GIG_DELIVERABLE_FILE);
   try {
-    if (!lstatSync(file).isFile()) return null;
-    // Size and mtime come from the OPEN descriptor that is then read (js/file-system-race).
+    // Size and mtime come from the OPEN descriptor that is read (js/file-system-race).
     const fd = openSync(file, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0));
     try {
+      if (!lstatSync(file).isFile()) return null;
       const st = fstatSync(fd);
       if (!st.isFile() || st.size > GIG_DELIVERABLE_FILE_MAX_BYTES) return null;
       const since = Date.parse(notBefore);

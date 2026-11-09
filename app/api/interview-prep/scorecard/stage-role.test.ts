@@ -43,11 +43,8 @@ function withAxis(axis: { stages: { id: string; label: string; role: string }[] 
 
 async function postRecommendation(entryId: string): Promise<Response> {
   const url = new URL(`http://localhost/api/interview-prep/scorecard?entry=${encodeURIComponent(entryId)}`);
-  return (await POST({
-    nextUrl: url,
-    headers: new Headers(),
-    json: async () => ({ ratings: [{ competency: "Ownership", rating: 4 }], recommendation: "advance" }),
-  } as never)) as unknown as Response;
+  const body = JSON.stringify({ ratings: [{ competency: "Ownership", rating: 4 }], recommendation: "advance" });
+  return (await POST(Object.assign(new Request(url, { method: "POST", body }), { nextUrl: url }) as never)) as unknown as Response;
 }
 
 test("an active entry on a renamed interview-role column gates into scorecard_review", async () => {
@@ -98,4 +95,18 @@ test("an active entry on a column still named Interview with role custom does no
       assert.equal(row.approvalKind, null);
     },
   );
+});
+
+test("a human scorecard that opens the gate logs the human kind with a human actor, never the AUTO kind", async () => {
+  const id = preppedAt("Interview");
+  const res = await postRecommendation(id);
+  assert.equal(res.status, 200);
+  assert.equal(((await res.json()) as { gated: boolean }).gated, true);
+  const { listPipelineEventsForEntry } = await import("../../../_lib/db/pipeline.ts");
+  const events = listPipelineEventsForEntry(id);
+  assert.equal(events.filter((e) => e.kind === "interview_scorecard").length, 0, "the AI kind is never written by a person");
+  const ev = events.find((e) => e.kind === "interview_scorecard_human");
+  assert.ok(ev, "the human kind is recorded");
+  assert.ok(ev.actor && ev.actor.startsWith("human:"), `actor is a human token, got ${String(ev.actor)}`);
+  assert.equal(getPipelineEntry(id)?.approvalKind, "scorecard_review");
 });

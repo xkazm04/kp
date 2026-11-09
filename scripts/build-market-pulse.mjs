@@ -51,7 +51,7 @@
  * warning nobody's `&&` can see.
  */
 
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import {
@@ -366,7 +366,12 @@ async function main() {
   // 6) momentum — delta vs the previous snapshot (accrues over runs)
   const now = new Date().toISOString();
   const histPath = path.join(DATA, "market_pulse_history.json");
-  const history = existsSync(histPath) ? JSON.parse(readFileSync(histPath, "utf8")) : [];
+  let history = [];
+  try {
+    history = JSON.parse(readFileSync(histPath, "utf8"));
+  } catch (e) {
+    if (e?.code !== "ENOENT") throw e; // absent history starts empty; a corrupt one still throws
+  }
   const prev = history[history.length - 1];
   if (prev && prev.families) {
     for (const tf of top_families) {

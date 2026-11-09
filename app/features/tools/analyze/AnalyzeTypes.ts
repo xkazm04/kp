@@ -1,7 +1,7 @@
 import type {
   StageId,
   StageStatus,
-} from "@/app/_components/AnalysisProgress";
+} from "@/app/_components/analysis-progress-logic";
 
 export type GithubStatus = "idle" | "loading" | "done" | "error";
 

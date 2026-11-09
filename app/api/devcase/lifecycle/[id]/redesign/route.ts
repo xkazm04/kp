@@ -9,7 +9,7 @@ import { ownedLifecycle } from "../../../devcase-owned-lifecycle";
 import { runDesignArtifacts } from "@/app/_lib/devcase-run";
 import { isAtReviewGate } from "@/app/_lib/devcase-orchestrator";
 import { recordAudit } from "@/app/_lib/dev-control";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import type { DevNeed } from "@/app/_lib/devcase-run";
 
 // One LLM design pass — same budget the github deep-dive route runs under.
@@ -23,7 +23,7 @@ const MAX_FEEDBACK_CHARS = 2000;
 // the design step with the reviewer's feedback appended to the design prompt
 // (devcase_cli --feedback), and keeps the lifecycle at awaiting_approval so
 // the revised case comes back to the same human gate.
-export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (workspace: string, request: Request, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const forbidden = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -39,7 +39,6 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     // `case_designs` meter for a design pass that rewrote another studio's brief - the
     // cross-tenant write and the misbilling were the same bug. A cross-tenant id now
     // answers the same 404 a nonexistent one does.
-    const workspace = await currentWorkspace();
     const lc = ownedLifecycle(id, workspace);
     if (!lc) return NextResponse.json({ error: "lifecycle not found" }, { status: 404 });
     if (!isAtReviewGate(lc.stage)) {
@@ -101,4 +100,4 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     // tracebacks and provider stderr as well as SQLITE_* store detail.
     return safeJsonError(error, "api:devcase/lifecycle/redesign", "DEVCASE_REDESIGN_FAILED");
   }
-}
+});

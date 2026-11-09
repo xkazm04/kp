@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { listAnalysisRecords } from "@/app/_lib/db/analyses";
 import { cachedProfileRecords, profileStaleness } from "@/app/_lib/db/profiles";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { analysisFromRecord, collapsePopulation, profileFromRecord } from "@/app/_lib/candidate-population";
 
 
@@ -25,9 +25,8 @@ import { analysisFromRecord, collapsePopulation, profileFromRecord } from "@/app
 // row also carries its completeness and its staleness (profileStaleness) — what the
 // roster used to read from GET /api/profile on its own. GET /api/profile keeps its
 // shape for its other readers.
-export async function GET() {
+export const GET = withWorkspace(async (ws: string) => {
   try {
-    const ws = await currentWorkspace();
 
     // Every store read takes the caller's workspace — pinned by
     // app/features/tools/profile/candidateMatrixContracts.test.ts.
@@ -42,4 +41,4 @@ export async function GET() {
     // Three store reads; better-sqlite3's thrown text carries the absolute db path.
     return safeJsonError(error, "api:profile:candidates", "PROFILE_CANDIDATES_FAILED");
   }
-}
+});

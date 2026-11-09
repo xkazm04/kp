@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { currentSession } from "@/app/_lib/auth/current-user";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { currentUserId } from "@/app/_lib/auth/session";
@@ -18,7 +18,7 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 const USE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 
 // THROTTLE (rate-limit-contract.test.ts): one profile write per pick; 60/10min per IP.
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> {
+export const POST = withWorkspace(async (ws: string, request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -28,7 +28,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   try {
     const { id } = await params;
-    const [session, ws] = await Promise.all([currentSession(), currentWorkspace()]);
+    const session = await currentSession();
     const userId = currentUserId(session);
     const cv = getJobseekerCv(id, userId, ws);
     if (!cv) return jsonRefusal("JOBSEEKER_CV_NOT_FOUND", 404);
@@ -37,4 +37,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } catch (err) {
     return safeJsonError(err, "api:jobseeker/cvs/use", "JOBSEEKER_STORE_FAILED");
   }
-}
+});

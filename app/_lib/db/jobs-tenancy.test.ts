@@ -61,7 +61,7 @@ const apiDir = path.join(dir, "..", "..", "api", "jobs", "[id]");
 for (const route of ["close", "publish"] as const) {
   test(`POST /api/jobs/[id]/${route} gates the unscoped setJobStatus write on job ownership`, () => {
     const routeSrc = readFileSync(path.join(apiDir, route, "route.ts"), "utf8");
-    assert.match(routeSrc, /currentWorkspace\(\)/, `${route} must resolve the caller's workspace`);
+    assert.match(routeSrc, /withWorkspace\(async \(ws: string/, `${route} must receive the caller's workspace from withWorkspace`);
     assert.match(
       routeSrc,
       /if \(!canWriteJobLifecycle\(id, ws\)\) return[\s\S]*?status: 404/,

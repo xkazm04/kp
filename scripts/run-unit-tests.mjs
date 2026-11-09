@@ -87,12 +87,33 @@
 //      node's exit code was — so is a run that exited 0 and left no count.
 //      Counted through scripts/test/flake-reporter.mjs, never from console text.
 //
+// ─────────────────────────────────────────────────────────────────────────────
+// ONE SUITE PER MACHINE AT A TIME (measured 2026-10-18, node v24.14.0, 16 cores)
+//
+// `node --test` runs availableParallelism()-1 files at once, and many of them spawn
+// children of their own. That sizing assumes the suite has the machine to itself.
+// On a box where parallel agent lanes each run this gate, it does not: three suites
+// started together put ~45 test processes on 16 cores, and the files that assert on
+// wall-clock bounds fail. The python-runner files did it every time at 3 concurrent
+// suites ("Python process timed out after 4s", the 80 ms background bound) and never
+// at 1 or 2. Each passes alone, so it reads as a flake in whichever file lost.
+//
+// So a run takes a machine-wide slot first: a lock directory in os.tmpdir() (mkdir
+// is atomic), owned by this launcher's pid. A second run waits and says whose run
+// it is waiting for. The holder's runner children inherit KP_TEST_SLOT_HELD, so a
+// launcher started BY a test (gate-exit-code.test.ts, the bench driver) does not
+// wait on its own parent. A slot whose owner is dead, or older than
+// SLOT_STALE_MS, is taken over. KP_TEST_SLOT=0 opts out; KP_TEST_SLOT_DIR moves
+// the lock (the fixture in app/_lib/testing/unit-db.test.ts uses it). The lock code lives in
+// scripts/test-slot.mjs, shared with `npm run typecheck` and `npm run build`.
+//
 // Args: none → the full suite (the default globs). Any argv → run exactly
 // those files/patterns instead: `npm run test:unit -- app/_lib/offline.test.ts`.
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { acquireSuiteSlot } from "./test-slot.mjs";
 
 import {
   checkRegister,
@@ -332,11 +353,13 @@ function run(workdir) {
   return failures.length && !outcome.blocking ? 0 : firstCode;
 }
 
+const releaseSlot = acquireSuiteSlot({ label: "test:unit", repoRoot: REPO_ROOT });
 const workdir = fs.mkdtempSync(path.join(os.tmpdir(), "kp-flake-"));
 let code = 1;
 try {
   code = run(workdir);
 } finally {
   fs.rmSync(workdir, { recursive: true, force: true });
+  releaseSlot?.();
 }
 process.exit(code);

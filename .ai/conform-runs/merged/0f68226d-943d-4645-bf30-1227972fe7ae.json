@@ -1,0 +1,109 @@
+{
+  "schema": "conform-run/1",
+  "worker": "0f68226d-943d-4645-bf30-1227972fe7ae",
+  "subject": "plan-entitlements",
+  "evaluatedAt": "2026-10-16T21:12:44.080599+00:00",
+  "provider": "agy",
+  "model": "gemini-3.8-flash-high",
+  "pairs": [
+    {
+      "context": "billing-plan-and-spend",
+      "subject": "plan-entitlements",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evidence": "app/features/settings/billing/BillingSelfHostPanel.tsx:21 The billing settings tab replaces the plan catalog and upgrade controls with an unmetered status panel when self-hosted, ensuring copy and interface actions respect deployment mode.",
+      "techniques": [
+        {
+          "technique": "deployment-mode-short-circuit",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/billing/billingTypes.ts:76 The interface consumes the server deployment mode to suppress checkout buttons, pricing cards, and upgrade banners on self-hosted instances."
+        },
+        {
+          "technique": "entitlement-lifecycle-revocation",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/billing/billingTypes.ts:104 Active and dunning subscriptions are routed to the customer portal rather than checkout, avoiding parallel subscription creation while respecting grace periods."
+        },
+        {
+          "technique": "id-vs-label-split",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/billing/BillingPlanCatalog.tsx:54 UI cards render the human-facing display label plan.name while internal keying and checkout dispatch use the stable plan.id."
+        },
+        {
+          "technique": "price-book-authority",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/billing/BillingTab.tsx:110 Post-checkout success is asserted only when server billing state confirms the granted plan, preventing client-side timers from falsely claiming entitlement."
+        },
+        {
+          "technique": "tier-model-single-source",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/billing/BillingPlanCatalog.tsx:137 The plan catalog view maps over data.catalog.plans, rendering limits and tiers directly from the shared single-source catalog."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "plan-entitlements",
+      "context": "jobseeker-sources-scans",
+      "reason": "Manages candidate job-source acquisition and regulatory compliance tiers (Tier A/B/C for feed rights and terms-of-service compliance), which are scraping and ingestion classifications rather than commercial plan entitlements."
+    },
+    {
+      "subject": "plan-entitlements",
+      "context": "spark-feature-showcase",
+      "reason": "Marketing showcase features and landing page tests; while PricingSection.test.ts pins landing copy against billing plans, the context itself contains marketing copy and testing fixtures rather than the entitlement subsystem."
+    },
+    {
+      "subject": "plan-entitlements",
+      "context": "devcase-lifecycle-api",
+      "reason": "Implements work-sample devcase lifecycle workflows and RBAC seat permissions (pipeline:write), consuming the meterGate purely as a downstream caller rather than defining or managing plan entitlements."
+    },
+    {
+      "subject": "plan-entitlements",
+      "context": "billing-subscriptions",
+      "reason": "withdrawn after review: reviewer (sonnet): The technique anchors cite things I could not find: entitlements.ts has no meterAllows function, and the stale-revoke and reordered-event guards are not at line 64 or anywhere in that file. The deviation itself is also contested: line 54 returns PLANS.free for a missing state, but the comments at li"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-16T21:12:44.080599+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "plan-entitlements"
+      ],
+      "techniques": [
+        "capability-gate-predicates",
+        "deployment-mode-short-circuit",
+        "entitlement-lifecycle-revocation",
+        "id-vs-label-split",
+        "inherited-tier-not-cloned-tier",
+        "live-catalog-edit-is-a-lifecycle-event",
+        "price-book-authority",
+        "provider-publishes-state-not-decision",
+        "subtractive-entitlement",
+        "tier-model-single-source"
+      ],
+      "deviations": 1,
+      "context": "billing-subscriptions",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-16T21:12:44.080599+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "plan-entitlements"
+      ],
+      "techniques": [
+        "deployment-mode-short-circuit",
+        "entitlement-lifecycle-revocation",
+        "id-vs-label-split",
+        "price-book-authority",
+        "tier-model-single-source"
+      ],
+      "deviations": 0,
+      "context": "billing-plan-and-spend",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    }
+  ]
+}

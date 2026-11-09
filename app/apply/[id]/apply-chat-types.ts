@@ -14,13 +14,16 @@ export type Msg = { who: "bot" | "me"; text: string };
 // `enriched` is the repeat that REBUILT their profile (e.g. a quick-apply lead
 // following its enrichment link): that one celebrates — they did what we asked.
 export type ApplyOutcome = {
-  result: "accepted" | "declined";
+  // "held" is a failed must-have: filed as an entry a person reviews (owner ruling Q1).
+  // It claims no decision. "declined" is the pre-Q1 outcome, kept for the contract.
+  result: "accepted" | "declined" | "held";
   message: string;
   duplicate?: boolean;
   enriched?: boolean;
   statusToken?: string | null;
-  // A KO decline's detail: the must-have(s) answered no to, named in the applicant's
-  // language, and whether a decline email is being sent (never that it arrived).
+  // A KO outcome's detail: the must-have(s) answered no to, named in the applicant's
+  // language, and (for the legacy decline) whether an email is being sent (never that it
+  // arrived). A held result sends none: nothing is decided until a person confirms it.
   failedKoNames?: string[];
   reviewByEmail?: boolean;
   // The OPTIONAL post-accept profile-gap follow-up (see ApplyFollowup). Both

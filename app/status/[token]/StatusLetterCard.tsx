@@ -109,7 +109,7 @@ export function StatusLetterCard({
       ) : null}
       {failure ? (
         // Never a silent failure: a candidate told nothing would believe they asked.
-        <p role="alert" className="mt-2 text-base font-semibold text-coral">
+        <p role="alert" className="mt-2 text-base font-semibold text-coral-ink">
           {errMsg(failure, t("letter.failed"))}
         </p>
       ) : null}

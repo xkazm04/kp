@@ -155,7 +155,7 @@ function MatrixGridRowInner({
             >
               {c.blocked ? "–" : c.score}
               {isSel ? (
-                <span className="absolute right-0.5 top-0.5"><Check size={11} className="text-coral" /></span>
+                <span className="absolute right-0.5 top-0.5"><Check size={11} className="text-coral-ink" /></span>
               ) : ringed ? (
                 <span className="absolute right-0.5 top-0.5 text-sm font-bold text-ink/70">
                   {wasAdded && !inPipe ? "+" : STAGE_INITIAL[place?.stage ?? ""] ?? ""}

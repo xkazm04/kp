@@ -44,7 +44,7 @@ export function DevTabSwitcher({
           >
             {t(tab.labelKey)}
             {count != null && count > 0 ? (
-              <span className={`rounded-full px-1.5 text-micro nums ${active ? "bg-coral/10 text-coral" : "bg-stone-200/70 text-steel"}`}>
+              <span className={`rounded-full px-1.5 text-micro nums ${active ? "bg-coral/10 text-coral-ink" : "bg-stone-200/70 text-steel"}`}>
                 {count}
               </span>
             ) : null}

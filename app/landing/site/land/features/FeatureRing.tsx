@@ -427,7 +427,6 @@ export default function FeatureRing({ signupOpen }: { signupOpen: boolean }) {
             type="button"
             className={cls}
             style={vars({ "--x": m.pos.x, "--y": m.pos.y })}
-            aria-label={t("band.medal", { name: tl(`features.${m.key}.title`), n: m.n, total: FEATURE_COUNT })}
             onPointerEnter={() => attend(i)}
             onFocus={() => attend(i)}
             onPointerLeave={unattend}
@@ -441,6 +440,7 @@ export default function FeatureRing({ signupOpen }: { signupOpen: boolean }) {
             <span className="lbl" aria-hidden="true">
               {tl(`features.${m.key}.title`)}
             </span>
+            <span className="sr-only">{t("band.medal", { name: tl(`features.${m.key}.title`), n: m.n, total: FEATURE_COUNT })}</span>
           </button>
         );
       })}

@@ -36,7 +36,7 @@ export function DevSubmissionRowOutcome({
           where the promoted candidate actually went instead of ending here. */}
       <Link
         href="/?tab=decisions"
-        className="focus-ring inline-flex items-center gap-1 font-semibold text-coral hover:underline"
+        className="focus-ring inline-flex items-center gap-1 font-semibold text-coral-ink hover:underline"
       >
         {t("reviewInDecisions")} <ArrowRight size={11} aria-hidden />
       </Link>
@@ -89,7 +89,7 @@ export function DevSubmissionRowOutcome({
             type="button"
             disabled={outcome.busy}
             onClick={() => void recordSubmissionOutcome("rejected")}
-            className={`${btn} text-coral`}
+            className={`${btn} text-coral-ink`}
           >
             {outcomeLabel("rejected")}
           </button>

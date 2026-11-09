@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { createJobseekerSource, listJobseekerSources } from "@/app/_lib/db/jobseeker-sources";
@@ -21,16 +21,15 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 // Operator-gated by the proxy AND re-verified here; the limiter is the real bound in
 // open mode (pinned in app/api/rate-limit-contract.test.ts).
 
-export async function GET(): Promise<NextResponse> {
+export const GET = withWorkspace(async (ws: string): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
-    const ws = await currentWorkspace();
     return NextResponse.json({ catalog: sourcesCatalog(), sources: listJobseekerSources(ws) });
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/sources", "JOBSEEKER_STORE_FAILED");
   }
-}
+});
 
 type CreateBody = { catalogId?: unknown; adapter?: unknown; config?: unknown; host?: unknown };
 
@@ -51,7 +50,7 @@ function kindFor(adapter: string): SourceKind {
   return adapter.startsWith("ats_") ? "ats" : "board";
 }
 
-export async function POST(request: Request): Promise<NextResponse> {
+export const POST = withWorkspace(async (ws: string, request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   // The seeker's own data, but still a WRITE behind a seat: a viewer seat may read the
@@ -82,7 +81,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       if (!host) return jsonRefusal("JOBSEEKER_RULES_INVALID", 400, { field: "config" });
       const refusedConfig = await refuseConfig(host, merged);
       if (refusedConfig) return refusedConfig;
-      const created = createJobseekerSource({ kind: entry.kind, adapter: entry.adapter, tier, host, config: merged }, await currentWorkspace());
+      const created = createJobseekerSource({ kind: entry.kind, adapter: entry.adapter, tier, host, config: merged }, ws);
       return NextResponse.json({ source: created }, { status: 201 });
     }
     if (!isSourceAdapterName(body.adapter)) return jsonRefusal("JOBSEEKER_RULES_INVALID", 400, { field: "adapter" });
@@ -94,9 +93,9 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (tier === "C") return jsonRefusal("JOBSEEKER_SOURCE_REFUSED", 403);
     const refusedConfig = await refuseConfig(host, keyed);
     if (refusedConfig) return refusedConfig;
-    const created = createJobseekerSource({ kind: kindFor(adapter), adapter: body.adapter, tier, host, config: keyed }, await currentWorkspace());
+    const created = createJobseekerSource({ kind: kindFor(adapter), adapter: body.adapter, tier, host, config: keyed }, ws);
     return NextResponse.json({ source: created }, { status: 201 });
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/sources", "JOBSEEKER_STORE_FAILED");
   }
-}
+});

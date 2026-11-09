@@ -151,3 +151,21 @@ test("9. the window commits through commitDecision (keepalive POST with the CAS)
   assert.doesNotMatch(onPageHide, /await|setTimeout/, "…synchronously, inside the handler");
   assert.match(store, /addEventListener\("pagehide", onPageHide\)/);
 });
+
+test("10. a row whose commit is in flight or landed cannot be armed again (one write per identity)", () => {
+  // A is flushed by B's arming, so its commit is in flight while B is pending. A second
+  // surface still holding A's snapshot (the candidate modal) clicks A again: the guard
+  // must read the in-flight set, not only the current window, or A is written twice.
+  const flushed = arm(pendingA(), B, 10).state;
+  assert.equal(flushed.kind, "pending");
+  assert.deepEqual(flushed.inflight.map((d) => d.entryId), ["a"]);
+  const again = arm(flushed, { ...A, action: "accept" }, 20);
+  assert.equal(again.state, flushed, "state unchanged");
+  assert.deepEqual(again.commands, [], "no second commit for an in-flight identity");
+  // The same row after its commit landed and before the queue re-read pruned it.
+  const landed = settled(flushed, { entryId: "a", ok: true }).state;
+  assert.deepEqual(landed.landed, ["a"]);
+  const afterLanded = arm(landed, A, 30);
+  assert.equal(afterLanded.state, landed);
+  assert.deepEqual(afterLanded.commands, []);
+});

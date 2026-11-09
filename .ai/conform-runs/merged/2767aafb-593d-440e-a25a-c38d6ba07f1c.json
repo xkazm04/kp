@@ -1,0 +1,203 @@
+{
+ "schema": "conform-run/1",
+ "worker": "2767aafb-593d-440e-a25a-c38d6ba07f1c",
+ "subject": "design-tokens",
+ "evaluatedAt": "2026-10-17T03:41:30.097676+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "glyph-system",
+   "subject": "design-tokens",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_components/glyph/MotionizedGlyph.tsx:106 The renderer defines a numeric reveal spread outside the preset authority, allowing choreography timing to bypass a closed motion vocabulary.",
+   "techniques": [
+    {
+     "technique": "cross-language-token-parity",
+     "verdict": "conformant",
+     "evidence": "app/_components/glyph/glyphMotionCss.ts:41 The actual CSS animation declaration is generated directly from the scripting preset."
+    },
+    {
+     "technique": "motion-tokens",
+     "verdict": "deviation",
+     "evidence": "app/_components/glyph/MotionizedGlyph.tsx:106 Reveal spread is a local numeric default with an unrestricted number prop rather than a named timing step."
+    },
+    {
+     "technique": "theme-architecture",
+     "verdict": "conformant",
+     "evidence": "app/_components/glyph/glyphTokens.ts:75 Glyph paint retains a CSS variable reference, so theme rebinding changes its value without theme-dependent markup."
+    },
+    {
+     "technique": "token-enforcement",
+     "verdict": "deviation",
+     "evidence": "app/_components/glyph/glyphSizes.test.ts:68 The size guard detects adjacent numeric height/width pairs; reversed, separated, or arbitrary dimensions evade it instead of undergoing vocabulary membership validation."
+    },
+    {
+     "technique": "token-taxonomy",
+     "verdict": "deviation",
+     "evidence": "app/_components/glyph/glyphTokens.ts:18 Rendered accents select a hue-named token directly rather than an intent-named semantic role."
+    }
+   ]
+  },
+  {
+   "context": "ui-recipes-and-layout",
+   "subject": "design-tokens",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_components/ui/SectionTitle.tsx:20 SectionTitle conditionally exposes decorative markup by theme identity, making the theme change structure instead of only role bindings.",
+   "techniques": [
+    {
+     "technique": "motion-tokens",
+     "verdict": "deviation",
+     "evidence": "app/_components/ui/Defer.tsx:51 Reduced-motion handling is implemented through a component-level preference check and mount policy rather than rebinding the motion vocabulary."
+    },
+    {
+     "technique": "theme-architecture",
+     "verdict": "deviation",
+     "evidence": "app/_components/ui/SectionTitle.tsx:20 The squiggle exists visually only in the dark theme, which is a structural theme variant."
+    },
+    {
+     "technique": "token-enforcement",
+     "verdict": "deviation",
+     "evidence": "app/_components/ui/style-debt-rules.ts:72 Type-size enforcement enumerates remembered raw utilities rather than checking all referenced size names against the authority, leaving undefined names outside this check."
+    },
+    {
+     "technique": "token-taxonomy",
+     "verdict": "deviation",
+     "evidence": "app/_components/ui/recipes.ts:248 The severity vocabulary mixes a color name with intent names; the amber member names its binding rather than its warning purpose."
+    }
+   ]
+  },
+  {
+   "context": "brand-theme-tokens",
+   "subject": "design-tokens",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/brand-store.ts:60 Brand persistence retains the accent seed but no derivation algorithm version, so the derivation used for a saved brand cannot be identified after an algorithm change.",
+   "techniques": [
+    {
+     "technique": "cross-language-token-parity",
+     "verdict": "deviation",
+     "evidence": "scripts/design/check-design-tokens.mjs:113 The brand-specific checker validates existing JavaScript entries against CSS but does not compare LIGHT/DARK member sets, so deleting an object member is not itself a parity failure."
+    },
+    {
+     "technique": "theme-architecture",
+     "verdict": "deviation",
+     "evidence": "app/_lib/brand-store.ts:60 The seed is stored and the dark accent is recomputed on read, but neither the stored fields nor the derivation API records an algorithm version."
+    },
+    {
+     "technique": "token-enforcement",
+     "verdict": "deviation",
+     "evidence": "app/_lib/brand-config.ts:130 Computed contrast validation covers the configurable accent against label and canvas grounds; searches found no corresponding gate for the authored foreground/surface role pairings."
+    },
+    {
+     "technique": "token-taxonomy",
+     "verdict": "deviation",
+     "evidence": "app/_lib/brand.ts:83 The documented role-keyed theme map exposes a color-named role rather than an intent such as accent."
+    }
+   ]
+  },
+  {
+   "context": "invite-accept-flow",
+   "subject": "design-tokens",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/invite/[token]/AcceptForm.tsx:131 The sign-in link composes primitive text sizing and weight at the call site instead of consuming a complete semantic typography recipe.",
+   "techniques": [
+    {
+     "technique": "cross-language-token-parity",
+     "verdict": "not-applicable",
+     "evidence": "app/invite/[token]/AcceptForm.tsx:44 Inspection found no scripting mirror of visual tokens; this timer cancels a network request rather than observing an animation."
+    },
+    {
+     "technique": "motion-tokens",
+     "verdict": "not-applicable",
+     "evidence": "app/invite/[token]/AcceptForm.tsx:31 The form defines request timeout timing, with no local animation duration, easing, or choreography selection; button styling is delegated to shared recipes."
+    },
+    {
+     "technique": "theme-architecture",
+     "verdict": "conformant",
+     "evidence": "app/invite/[token]/AcceptForm.tsx:193 The form uses the same markup and CSS-resolved roles across themes, with no theme-identity branch in either supplied file."
+    },
+    {
+     "technique": "token-taxonomy",
+     "verdict": "deviation",
+     "evidence": "app/invite/[token]/AcceptForm.tsx:131 A primitive size utility and separately selected weight bypass the semantic typography recipe layer."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-17T03:41:30.097676+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "design-tokens"
+   ],
+   "techniques": [
+    "cross-language-token-parity",
+    "motion-tokens",
+    "theme-architecture",
+    "token-enforcement",
+    "token-taxonomy"
+   ],
+   "deviations": 1,
+   "context": "glyph-system",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-17T03:41:30.097676+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "design-tokens"
+   ],
+   "techniques": [
+    "motion-tokens",
+    "theme-architecture",
+    "token-enforcement",
+    "token-taxonomy"
+   ],
+   "deviations": 1,
+   "context": "ui-recipes-and-layout",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-17T03:41:30.097676+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "design-tokens"
+   ],
+   "techniques": [
+    "cross-language-token-parity",
+    "theme-architecture",
+    "token-enforcement",
+    "token-taxonomy"
+   ],
+   "deviations": 1,
+   "context": "brand-theme-tokens",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-17T03:41:30.097676+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "design-tokens"
+   ],
+   "techniques": [
+    "cross-language-token-parity",
+    "motion-tokens",
+    "theme-architecture",
+    "token-taxonomy"
+   ],
+   "deviations": 1,
+   "context": "invite-accept-flow",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

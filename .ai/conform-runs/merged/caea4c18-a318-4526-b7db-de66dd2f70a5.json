@@ -1,0 +1,65 @@
+{
+ "schema": "conform-run/1",
+ "worker": "caea4c18-a318-4526-b7db-de66dd2f70a5",
+ "subject": "candidate-outreach-and-halt-rules",
+ "evaluatedAt": "2026-10-26T22:51:25.914158+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "comms-locale-optout",
+   "subject": "candidate-outreach-and-halt-rules",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/outreach-state-store.ts:157 When the reply/manual halt row cannot be read, outreachHaltFor fails OPEN and lets the send go. The halt technique names this as a failure: a storage fault is exactly when a batch of people who already replied get written to again. The code's own comment (lines 144-150) makes the 'consent already fails closed' argument the standard says to resist.",
+   "techniques": [
+    {
+     "technique": "halt-the-sequence-on-any-reply",
+     "verdict": "deviation",
+     "evidence": "app/_lib/outreach-state-store.ts:157 Reply is a timestamp, kept idempotent on the first reply (COALESCE), separate from manual halt, and the manual-over-reply precedence is written down. But an unreadable halt state fails open, against the explicit decision rule. The manual halt is also documented as not reachable from the UI (line 202)."
+    },
+    {
+     "technique": "halt-state-scoped-per-role-not-per-person",
+     "verdict": "deviation",
+     "evidence": "app/_lib/outreach-halt.ts:9 Per-role scope is stated deliberately, and the candidate opt-out is layered above it at the durable candidate_id (candidateOptOutHalt). But the person-level volume ceiling this scope owes is missing: no touch budget or outreach cap was found in app/_lib or app/api."
+    },
+    {
+     "technique": "distinguish-a-reply-from-a-re-application",
+     "verdict": "conformant",
+     "evidence": "app/_lib/outreach-halt.ts:85 Reply vs arrival is decided by the per-entry send counter, not the duplicate flag. The counter sits at the same grain as the halt, and recordOutreachSend runs only after a non-failed handoff."
+    },
+    {
+     "technique": "consent-gate-before-the-first-touch",
+     "verdict": "conformant",
+     "evidence": "app/_lib/bulk-invite.ts:63 The send gate (consent lapsed or erased) is asked first, before addressability. Transactional schedule mail is kept off the outreach opt-out halt. In outreachHaltFor, the candidate opt-out is resolved at the durable identity and fails closed before any workflow halt."
+    },
+    {
+     "technique": "audit-the-non-send",
+     "verdict": "conformant",
+     "evidence": "app/_lib/comms-dispatch.ts:533 This context's halt reasons are recorded as an outreach_suppressed event by the dispatch consumer, from one closed union, OutreachResult. The send marker (recordOutreachSend, store line 162) is kept apart from the refusal and is not written on a refusal or a dead-letter."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-26T22:51:25.914158+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-outreach-and-halt-rules"
+   ],
+   "techniques": [
+    "audit-the-non-send",
+    "consent-gate-before-the-first-touch",
+    "distinguish-a-reply-from-a-re-application",
+    "halt-state-scoped-per-role-not-per-person",
+    "halt-the-sequence-on-any-reply"
+   ],
+   "deviations": 1,
+   "context": "comms-locale-optout",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

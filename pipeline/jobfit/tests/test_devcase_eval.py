@@ -16,6 +16,8 @@ import io
 import unittest
 
 from pipeline.jobfit.devcase.submission_eval import (
+    AI_PENALTY_TOLERANCE,
+    AI_REWARD_TOLERANCE,
     MIN_DISCRIMINATION_MARGIN,
     MIN_GROUP_N,
     MIN_VERIFY_MARGIN,
@@ -257,6 +259,48 @@ class TestAiPenaltyControlGroup(unittest.TestCase):
         self.assertEqual(f["margins"]["ai_gap"], 0.0)
         self.assertTrue(f["ai_not_penalised"])
         self.assertEqual(f["sample"]["non_ai_verifiers"], MIN_GROUP_N)
+
+
+class TestAiNotRewarded(unittest.TestCase):
+    """C1 — the AI check is TWO-sided. Non-inferiority alone passed an evaluator that paid
+    a bonus for verifying through the assistant (the observed landscape read +20)."""
+
+    def _rows(self, ai_judgment, peer_judgment=80):
+        rows = [_row(f"p{i}", verifies=True, usesAI=False, judgment=peer_judgment) for i in range(MIN_GROUP_N)]
+        rows += [_row(f"a{i}", verifies=True, usesAI=True, judgment=ai_judgment) for i in range(MIN_GROUP_N)]
+        rows += [_row(f"n{i}", verifies=False, judgment=10) for i in range(MIN_GROUP_N)]
+        return rows
+
+    def test_an_ai_bonus_fails_the_gate(self):
+        f = fairness(self._rows(100))
+        self.assertTrue(f["ai_not_penalised"], f)  # the one-sided check alone would pass this
+        self.assertFalse(f["ai_not_rewarded"], f)
+        self.assertEqual(f["margins"]["ai_gap"], 20.0)
+        self.assertEqual(f["status"], "fail")
+
+    def test_a_gap_inside_the_band_passes_both_sides(self):
+        for ai in (80 - AI_PENALTY_TOLERANCE, 80, 80 + AI_REWARD_TOLERANCE):
+            f = fairness(self._rows(ai))
+            self.assertTrue(f["ai_not_penalised"], (ai, f))
+            self.assertTrue(f["ai_not_rewarded"], (ai, f))
+            self.assertEqual(f["status"], "pass", (ai, f))
+
+    def test_thin_and_empty_cohorts_withhold_the_verdict(self):
+        thin = [_row("p0", verifies=True, judgment=80), _row("a0", verifies=True, usesAI=True, judgment=100)]
+        thin += [_row(f"n{i}", verifies=False, judgment=10) for i in range(MIN_GROUP_N)]
+        self.assertIsNone(fairness(thin)["ai_not_rewarded"])
+        self.assertEqual(fairness(thin)["status"], "inconclusive")
+        no_ai = [_row(f"p{i}", verifies=True, judgment=80) for i in range(MIN_GROUP_N)]
+        no_ai += [_row(f"n{i}", verifies=False, judgment=10) for i in range(MIN_GROUP_N)]
+        f = fairness(no_ai)
+        self.assertIsNone(f["ai_not_rewarded"])
+        self.assertEqual(f["status"], "not_evaluable")
+
+    def test_the_report_names_the_check(self):
+        sig = signals(self._rows(100))
+        from pipeline.jobfit.devcase.submission_eval import _report_md
+
+        self.assertIn("AI use not rewarded", _report_md([], sig, None))
 
 
 class TestTinyCohortAiComparison(unittest.TestCase):

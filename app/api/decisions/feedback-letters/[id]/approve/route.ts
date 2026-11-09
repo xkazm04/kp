@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
@@ -51,7 +51,7 @@ const APPROVE_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
  *  each, plus the envelope. Enforced on the bytes read (request-body.ts). */
 const MAX_APPROVE_BODY_BYTES = 16 * 1024;
 
-export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // Approving SENDS an email to a candidate on the team's behalf and closes their request:
@@ -60,7 +60,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   if (under) return under;
   try {
     const { id } = await context.params;
-    const ws = await currentWorkspace();
 
     const body = await readJsonWithLimit<{ finalText?: unknown }>(request, MAX_APPROVE_BODY_BYTES, {});
     if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_APPROVE_BODY_BYTES });
@@ -100,4 +99,4 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   } catch (error) {
     return safeJsonError(error, "api:decisions/feedback-letters/approve", "FEEDBACK_LETTER_APPROVE_FAILED");
   }
-}
+});

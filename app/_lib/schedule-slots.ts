@@ -35,7 +35,7 @@ import { DEFAULT_INTERVIEW_MINUTES } from "./calendar/constants";
  *  age out on the same clock. */
 export const INVITE_LINK_TTL_DAYS = 7;
 
-const INVITE_LINK_TTL_MS = INVITE_LINK_TTL_DAYS * 86_400_000;
+export const INVITE_LINK_TTL_MS = INVITE_LINK_TTL_DAYS * 86_400_000;
 
 /** The fields the expiry clock reads: created_at plus the two stamps that restart it. */
 export type ScheduleInviteAnchorInput = {

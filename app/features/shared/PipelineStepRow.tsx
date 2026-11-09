@@ -273,7 +273,7 @@ export function PipelineStepRowControls({
           disabled={!canRemove}
           title={removeTitle}
           aria-label={aria.remove}
-          className={`${BTN_GHOST} p-1 hover:bg-transparent hover:text-coral disabled:opacity-40 disabled:hover:text-steel`}
+          className={`${BTN_GHOST} p-1 hover:bg-transparent hover:text-coral-ink disabled:opacity-40 disabled:hover:text-steel`}
         >
           <X size={14} aria-hidden />
         </button>

@@ -1,0 +1,156 @@
+{
+ "schema": "conform-run/1",
+ "worker": "3058a952-3e79-463a-a885-245c2430391c",
+ "subject": "job-coordination",
+ "evaluatedAt": "2026-10-17T03:49:53.198936+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "jobs-api",
+   "subject": "job-coordination",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/jobs/[id]/publish/route.ts:225 Reopening increments the stored receipt attempt but executes with attempt 1, so the completion CAS misses and leaves the receipt in sourcing.",
+   "techniques": [
+    {
+     "technique": "job-observability",
+     "verdict": "not-applicable",
+     "evidence": "app/api/jobs/[id]/publish/route.ts:80 This endpoint supplies one requisition's receipt, rather than the operator fleet view governed by this technique."
+    },
+    {
+     "technique": "job-state-machines",
+     "verdict": "deviation",
+     "evidence": "app/_lib/golive-receipt-store.ts:258 Completion checks the attempt but not the source state, permitting another completion within that attempt to rewrite an existing verdict."
+    },
+    {
+     "technique": "no-unrestorable-state-at-a-suspension-point",
+     "verdict": "conformant",
+     "evidence": "app/api/jobs/[id]/publish/route.ts:128 Publish admission commits the quota decision, lifecycle flip, role terms, debit and receipt together before asynchronous sourcing."
+    },
+    {
+     "technique": "step-position-and-resumability",
+     "verdict": "deviation",
+     "evidence": "app/_lib/golive-run.ts:105 Resume mode starts sourcing again even after a recorded raise_failed outcome; no persisted sourcing checkpoint selects the first incomplete step."
+    },
+    {
+     "technique": "terminal-state-recovery",
+     "verdict": "deviation",
+     "evidence": "app/api/jobs/[id]/publish/route.ts:225 openReceipt increments an existing attempt at golive-receipt-store.ts:187, but this hard-coded attempt prevents a reopened run from recording its terminal outcome."
+    },
+    {
+     "technique": "terms-travel-permission-does-not",
+     "verdict": "deviation",
+     "evidence": "app/_lib/golive-run.ts:80 A resumed attempt reconstructs its sourcing requirements from the current requisition; the receipt carries neither the submitted requirements nor their policy/version."
+    }
+   ]
+  },
+  {
+   "context": "jobs-posting-campaign",
+   "subject": "job-coordination",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/library/jobs/jobsPublishResult.ts:90 Unknown durable receipt states fall through to an affirmative success-toned message instead of surfacing vocabulary drift.",
+   "techniques": [
+    {
+     "technique": "job-observability",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/JobsLifecycleStrip.tsx:77 The strip summarizes one role's hiring funnel, not all live execution jobs."
+    },
+    {
+     "technique": "job-state-machines",
+     "verdict": "deviation",
+     "evidence": "app/features/library/jobs/jobsPublishResult.ts:90 receiptNote's default branch accepts any unrecognized state and reports tone ok with wentLive, hiding an invalid stored vocabulary."
+    },
+    {
+     "technique": "terminal-state-recovery",
+     "verdict": "deviation",
+     "evidence": "app/features/library/jobs/jobsPublishResult.ts:91 Every sourcing receipt is nonresumable here regardless of startedAt, so an orphan old enough for server-side reclaim receives no Finish sourcing action."
+    }
+   ]
+  },
+  {
+   "context": "ops-observability",
+   "subject": "job-coordination",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/webhook-idempotency.ts:85 Release carries only the delivery key, so an expired claimant can delete a successor's newly acquired claim.",
+   "techniques": [
+    {
+     "technique": "job-observability",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/ops-telemetry.ts:122 This telemetry reports sampled aggregates rather than an operator view of every live job."
+    },
+    {
+     "technique": "lease-renewal",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/webhook-claims.ts:78 Expired claims can be acquired again, but settlement and release have no holder or attempt condition, allowing an old claimant to modify its successor's lease."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "job-coordination",
+   "context": "jobs-table-core",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "job-coordination",
+   "context": "jobs-rediscovery",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-17T03:49:53.198936+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "job-coordination"
+   ],
+   "techniques": [
+    "job-observability",
+    "job-state-machines",
+    "no-unrestorable-state-at-a-suspension-point",
+    "step-position-and-resumability",
+    "terminal-state-recovery",
+    "terms-travel-permission-does-not"
+   ],
+   "deviations": 1,
+   "context": "jobs-api",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-17T03:49:53.198936+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "job-coordination"
+   ],
+   "techniques": [
+    "job-observability",
+    "job-state-machines",
+    "terminal-state-recovery"
+   ],
+   "deviations": 1,
+   "context": "jobs-posting-campaign",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-17T03:49:53.198936+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "job-coordination"
+   ],
+   "techniques": [
+    "job-observability",
+    "lease-renewal"
+   ],
+   "deviations": 1,
+   "context": "ops-observability",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

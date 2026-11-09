@@ -1,0 +1,163 @@
+{
+ "schema": "conform-run/1",
+ "worker": "19aa6446-79d8-45df-85d1-487889e5ae22",
+ "subject": "error-handling",
+ "evaluatedAt": "2026-10-18T23:50:10.741797+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "app-shell-brand",
+   "subject": "error-handling",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_components/AiDisclosure.tsx:131 A compliance-fetch rejection produces a user-visible fallback but no operator event for client-side failures.",
+   "techniques": [
+    {
+     "technique": "consumer-decides-error-shape",
+     "verdict": "conformant",
+     "evidence": "app/_components/ErrorBoundary.ts:61 The application-local reporting boundary retains the original Error aggregate instead of replacing it with display prose."
+    },
+    {
+     "technique": "error-doors",
+     "verdict": "deviation",
+     "evidence": "app/_components/AiDisclosure.tsx:131 The rejection handler sets the flag that renders an alert and retry, but client-side network failures receive no telemetry."
+    },
+    {
+     "technique": "structured-propagation",
+     "verdict": "deviation",
+     "evidence": "app/_components/AiDisclosure.tsx:70 The response status becomes prose in a generic Error; the structured response code and status are not propagated."
+    },
+    {
+     "technique": "swallowed-error-prevention",
+     "verdict": "deviation",
+     "evidence": "app/_lib/auth/session-nav.ts:66 SignOutButton delegates to this helper, whose logout rejection is swallowed without notification or reporting while the session may remain valid."
+    },
+    {
+     "technique": "user-facing-mapping",
+     "verdict": "deviation",
+     "evidence": "messages/en.json:1913 RouteError renders this unconditional reassurance without verifying whether interrupted user work was preserved."
+    }
+   ]
+  },
+  {
+   "context": "ops-observability",
+   "subject": "error-handling",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/ops-telemetry.ts:67 Telemetry read faults become empty results without diagnostics, making unreadable telemetry indistinguishable from a fresh installation.",
+   "techniques": [
+    {
+     "technique": "crash-capture",
+     "verdict": "deviation",
+     "evidence": "app/_lib/sentry-client.ts:74 Synchronous scrubbing runs outside a guard; a non-Error throw whose string coercion throws can escape this supposedly terminal reporter."
+    },
+    {
+     "technique": "error-doors",
+     "verdict": "deviation",
+     "evidence": "app/_lib/ops-telemetry.ts:67 The catch conflates missing logs with read faults and reports neither the fault nor degraded telemetry availability."
+    },
+    {
+     "technique": "structured-propagation",
+     "verdict": "deviation",
+     "evidence": "app/_lib/sentry-client.ts:51 The capture copy preserves name, stack and digest afterward, but drops the original cause chain and machine classification fields."
+    },
+    {
+     "technique": "swallowed-error-prevention",
+     "verdict": "deviation",
+     "evidence": "app/_lib/ops-telemetry.ts:62 Malformed records are intentionally absorbed without a diagnostic or absorption counter; the comment declares the drop but supplies no door."
+    }
+   ]
+  },
+  {
+   "context": "shared-client-hooks",
+   "subject": "error-handling",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/useLoader.ts:56 The loader replaces structured API failures with a generic exception and ultimately a boolean, preventing callers from distinguishing failure categories.",
+   "techniques": [
+    {
+     "technique": "cancellation-attribution",
+     "verdict": "deviation",
+     "evidence": "app/_lib/useJsonFetch.ts:91 An AbortError is silently treated as benign even when the local controller was never aborted, so an unattributed cancellation receives a benign classification."
+    },
+    {
+     "technique": "error-doors",
+     "verdict": "deviation",
+     "evidence": "app/_lib/useLoader.ts:65 Caught transport and selector exceptions become banner state without an operator event; caller rendering supplies only the user door."
+    },
+    {
+     "technique": "structured-propagation",
+     "verdict": "deviation",
+     "evidence": "app/_lib/useLoader.ts:56 The response's code and HTTP status are discarded before the catch reduces the failure to failed:true."
+    },
+    {
+     "technique": "swallowed-error-prevention",
+     "verdict": "deviation",
+     "evidence": "app/_lib/useAddToPipeline.ts:109 After JSON decoding is caught and replaced with null, a 2xx response still returns success, allowing a decode failure to become an added announcement."
+    },
+    {
+     "technique": "user-facing-mapping",
+     "verdict": "deviation",
+     "evidence": "app/_lib/useJsonFetch.ts:53 The generic fallback is hardcoded English; inspected QualityInstrument callers omit errorLabel, bypassing localized failure copy for uncoded failures."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-18T23:50:10.741797+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "error-handling"
+   ],
+   "techniques": [
+    "consumer-decides-error-shape",
+    "error-doors",
+    "structured-propagation",
+    "swallowed-error-prevention",
+    "user-facing-mapping"
+   ],
+   "deviations": 1,
+   "context": "app-shell-brand",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-18T23:50:10.741797+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "error-handling"
+   ],
+   "techniques": [
+    "crash-capture",
+    "error-doors",
+    "structured-propagation",
+    "swallowed-error-prevention"
+   ],
+   "deviations": 1,
+   "context": "ops-observability",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-18T23:50:10.741797+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "error-handling"
+   ],
+   "techniques": [
+    "cancellation-attribution",
+    "error-doors",
+    "structured-propagation",
+    "swallowed-error-prevention",
+    "user-facing-mapping"
+   ],
+   "deviations": 1,
+   "context": "shared-client-hooks",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSeedHealth } from "@/app/_lib/db/core";
 import { countJobs, isJobBrowseSort, isRoleStatus, jobStats, JOBS_WINDOW_LIMIT, listJobsPage, type JobFilter } from "@/app/_lib/db/jobs";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 
@@ -25,12 +25,11 @@ function parseOffset(raw: string | null): number {
   return raw !== null && raw.trim() !== "" && Number.isInteger(n) && n > 0 ? n : 0;
 }
 
-export async function GET(request: NextRequest) {
+export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
   try {
     const sp = request.nextUrl.searchParams;
     const entry = sp.get("entryEligible");
     const open = sp.get("openOnly");
-    const ws = await currentWorkspace();
     // The Roles desk's window. Each value is checked against an allowlist HERE, so an
     // unknown sort/dir/status falls back to the default and never reaches the SQL.
     const rawSort = sp.get("sort");
@@ -95,4 +94,4 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:jobs/list", "JOB_LIST_FAILED");
   }
-}
+});

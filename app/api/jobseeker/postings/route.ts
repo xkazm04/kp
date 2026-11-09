@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { currentSession } from "@/app/_lib/auth/current-user";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentUserId } from "@/app/_lib/auth/session";
 import { countJobseekerPostingsNewSince, listJobseekerPostings, POSTINGS_PAGE_MAX, type ListPostingsOptions } from "@/app/_lib/db/jobseeker-postings";
@@ -68,7 +68,7 @@ function parseListQuery(params: URLSearchParams): { opts: ListPostingsOptions } 
   return { opts };
 }
 
-export async function GET(request: Request): Promise<NextResponse> {
+export const GET = withWorkspace(async (ws: string, request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   if (!rateLimit(`jobseeker-postings:${clientIpFrom(request.headers)}`, { limit: 120, windowMs: 10 * 60_000 })) {
@@ -77,7 +77,6 @@ export async function GET(request: Request): Promise<NextResponse> {
   try {
     const parsed = parseListQuery(new URL(request.url).searchParams);
     if ("field" in parsed) return jsonRefusal("APPLY_SELECTION_INVALID", 400, { field: parsed.field });
-    const ws = await currentWorkspace();
     const { rows, nextCursor } = listJobseekerPostings(parsed.opts, ws);
     // "New since your last visit" is DERIVED here from the seeker's stored anchor by one
     // comparison over the ordering tuple the pager already uses — never a counter. No
@@ -91,4 +90,4 @@ export async function GET(request: Request): Promise<NextResponse> {
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/postings", "JOBSEEKER_STORE_FAILED");
   }
-}
+});

@@ -204,7 +204,7 @@ export function IntegrationsWebhookPanel() {
     <div className={`${PANEL} ${CARD_PAD}`}>
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="flex items-center gap-2 font-serif text-h3 text-ink">
-          <Webhook size={16} className="text-coral" aria-hidden /> {t("title")}
+          <Webhook size={16} className="text-coral-ink" aria-hidden /> {t("title")}
         </h3>
         <span className={META_LABEL}>{t("meta")}</span>
       </div>
@@ -242,12 +242,12 @@ export function IntegrationsWebhookPanel() {
       </div>
 
       {test ? (
-        <p role={test.ok ? "status" : "alert"} className={`mt-2 text-sm ${test.ok ? "text-steel" : "text-coral"}`}>
+        <p role={test.ok ? "status" : "alert"} className={`mt-2 text-sm ${test.ok ? "text-steel" : "text-coral-ink"}`}>
           {test.text}
         </p>
       ) : null}
       {error ? (
-        <div role="alert" className="mt-2 rounded-md border border-coral/40 bg-coral/5 px-3 py-2 text-sm text-coral">
+        <div role="alert" className="mt-2 rounded-md border border-coral/40 bg-coral/5 px-3 py-2 text-sm text-coral-ink">
           <p className="flex items-start gap-1.5">
             <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden /> {error}
           </p>

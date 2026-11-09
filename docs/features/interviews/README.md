@@ -1361,6 +1361,17 @@ by the browser itself (the exact string `voice/director.ts` would have sent, pin
 rendered at the candidate. A 409 additionally closes the channel: that call is no
 longer the live one, so posting again cannot help.
 
+Observations (`focus_lost`, `focus_returned`, `answer_timing`) are not kept forever
+while the director is down: the queue holds `MAX_QUEUED_EVENTS` = **60** and drops the
+oldest past that. Every drop is counted where it happens, on the channel's
+`droppedEvents`: `evicted` for the cap during an outage, `flushed` for what `close()`
+found still queued or what arrived after it. The browser logs one warning when an
+outage starts evicting, not one per drop. A test drives a 100-observation outage and a
+hang-up and requires sent = acknowledged + evicted + flushed with no residual. Without
+the counter that outage delivered 60 and left no trace of the other 40. The count does
+not reach the stored record yet, so a recruiter's focus summary still cannot tell
+"never left the tab" from "the departure was dropped in an outage".
+
 The **client hard stop** is the one rule that does not depend on any of this: at
 `hardCapMin + 2` minutes of live time — including the seconds earlier attempts spent
 (`resume.elapsedSec`) — the browser ends the call itself. The grace is the same
@@ -2685,7 +2696,9 @@ anyone else's, and no save destroys another.
 - **Open mode.** With no operator password (or on an operator-password session)
   there is no user id, so `author` is null and each round keeps today's single slot.
 - **The form seeds from your own record only.** `GET /api/interview-prep/scorecard`
-  answers `{ mine, records }`: `mine` is the caller's record for the candidate's
+  answers `{ mine, records, devCase }`: `devCase` is true when the entry carries a
+  dev-case assignment or submission (the POST's own `hasDevCase`), so the panel
+  offers the optional "Working with AI tools" axis exactly when the POST expects it; `mine` is the caller's record for the candidate's
   current round, scoped by the same `getInterviewPrep(entry, ws)` read the POST
   uses (another team's id answers `INTERVIEW_PREP_NOT_FOUND`).
   `ScheduleHumanScorecardPanel` seeds only from `mine`, so a second interviewer
@@ -2720,7 +2733,7 @@ two signed-in interviewers, a foreign team and open mode).
 | `app/_lib/voice/candidate-brief.ts` | The client-sent ElevenLabs brief's security boundary: allow-list sanitizers + `candidateSafeTopic` |
 | `app/_lib/voice/minute-prices.ts` | Per-minute cost estimates for the usage ledger |
 | `app/_lib/voice/readiness.ts`, `mint-error.ts` | Operator readiness (absent / unchecked / ready / broken, price in force, preference, failovers) and the typed mint failure both adapters throw (see "Operator readiness") |
-| `app/api/voice/readiness/route.ts` | `GET` the readiness report (never mints); `POST` the bounded probe (home-org + `pipeline:write`, 6 per 10 min per IP, refused under `KP_OFFLINE`) |
+| `app/api/voice/readiness/route.ts` | `GET` the readiness report (never mints; stays open with `KP_VOICE_INTERVIEW` off so the Spend strip can read "switched off"); `POST` the bounded probe (home-org + `pipeline:write`, 6 per 10 min per IP, refused under `KP_OFFLINE`, answers 404 with `KP_VOICE_INTERVIEW` off so it mints nothing) |
 | `app/_lib/voice/asr-keywords.mjs` | The recognizer keyword bias — the account-wide floor list and the per-conversation builder (job terms first, capped at 50); shared with `scripts/setup-eleven-agent.mjs` |
 | `app/_lib/interview-run.ts` | `buildGroundedInterview` (interviewer brief + the stored candidate agenda, composed clean via `candidateRunOfShow`), `buildCandidateSafeBrief`, `runInterviewScorecard` |
 | `app/_lib/interview-scorecard-commit.ts` | Voice scorecard atomic commit: attach CAS, gate check (`scorecardGateOpen`), approval and event in one `.immediate()` tx; seal and observed-skills minting post-commit |
@@ -3428,7 +3441,7 @@ A **probe** is a credential mint that opens no conversation: OpenAI's client sec
 signed URL is never dialed. Whether a provider meters an unused mint is not verifiable
 here, so the probe is **operator-triggered only, never on page load, and limited to 6
 per 10 min per IP**; the **Check now** button says a check may spend one mint per paid
-provider. `POST /api/voice/readiness` runs it (`probeVoiceProviders`, concurrent under
+provider. `POST /api/voice/readiness` runs it (404 while `KP_VOICE_INTERVIEW` is off; `probeVoiceProviders`, concurrent under
 `Promise.allSettled`, each bounded by its adapter's 15 s mint timeout); `GET` never
 mints and reports the verdicts the POST remembered for `VOICE_PROBE_TTL_MS` (10 min,
 in process memory, keyed by a hash of the provider's config so a rotated key reads

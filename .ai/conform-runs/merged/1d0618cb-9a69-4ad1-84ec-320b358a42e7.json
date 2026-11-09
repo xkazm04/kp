@@ -1,0 +1,175 @@
+{
+ "schema": "conform-run/1",
+ "worker": "1d0618cb-9a69-4ad1-84ec-320b358a42e7",
+ "subject": "test-harness",
+ "evaluatedAt": "2026-11-08T22:27:28.566592+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "apply-surface-tests",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:63 closedRoleBlock ends its slice on a literal LF-only marker over unnormalised text, so the pin goes red on a CRLF checkout of correct code; it passes today (11/11 run here, working tree w/lf), and .tsx is only text=auto so autocrlf=true yields CRLF.",
+   "techniques": [
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:63 A line-boundary marker with no line-ending normalisation (read() at line 17 does none), though line 162 in the same file allows \\r?\\n. Also line 189 accepts any aria-hidden in the file rather than the honeypot's, and line 188 is a bare /company_url/."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/apply-draft-fingerprint.test.ts:12 The header declares the mount effect unreachable, names where semantics are tested, and pins adoption; resumableAnsweredIds is lifted and driven directly at line 77."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:81 Seeds the offending shape into a copy of the real source. Weaker than a production edit, and the twin at apply-draft-fingerprint.test.ts:122 only removes the literal it then looks for."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:102 The block walk declares a floor, so a split that matches nothing cannot pass the loop vacuously."
+    }
+   ]
+  },
+  {
+   "context": "platform-auth-api",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/public-body-cap-contract.test.ts:101 The test named 'reads its body through the capped helper' is satisfied by the import line alone, so a route importing the helper while reading request.arrayBuffer() stays green; no route has that shape today (checked), so the gap is latent.",
+   "techniques": [
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "app/api/public-body-cap-contract.test.ts:101 The needle is the import, the exact trap upload-size-contract.test.ts:53-57 documents. Line 124 also skips EXEMPT before the raw-read scan, and lines 133-140 never check a 'reads no body' entry still reads none, so the list is checked in one direction only."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "conformant",
+     "evidence": "app/api/route-tenancy-coverage.test.ts:242 The derived surface carries a floor well under the real count, and the file walks at line 253 carry their own."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "app/api/route-tenancy-coverage.test.ts:282 Drives the real scanner over synthetic sources with a known answer, including a prose-only clean fragment."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "app/api/health/seed-catalog-verdict.test.ts:76 Asserts the forced failure really happened before reading the verdicts, and the unparseable seed is one a default cannot answer."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "app/api/health/seed-catalog-verdict.test.ts:49 The broken seed lives in a throwaway root the repo's own files never see, with a named reaper in after() at line 62."
+    },
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "conformant",
+     "evidence": "app/api/rate-limit-contract.test.ts:2867 The window cutoff is proved from an injected clock, so load cannot move the verdict."
+    }
+   ],
+   "registryProposal": "pin-the-call-not-the-name rules out a bare identifier for ordering claims because the import line precedes every call; the same import line defeats a presence claim such as 'this file reads through the helper', and the decision rules could say so explicitly."
+  },
+  {
+   "context": "shell-setup-wizard",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/shell/setup/setupSteps.test.ts:96 The extracted gates are driven only as pure functions: no unit test or e2e pins OnboardingExperience.tsx:95 adopting reachedCeiling or :152 adopting mergeSetupDraft, so reverting either call site leaves these suites green while the revocation and typing-wins rules are gone.",
+   "techniques": [
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/setup/setupSteps.test.ts:96 Behaviour is asserted, adoption is not. The one source pin on the host (setupFinishOutcome.test.ts:291) reads only finish, land and settle, and the e2e reload at first-run-choice.spec.ts:56 happens before anything is typed."
+    },
+    {
+     "technique": "a-test-helper-is-a-fork-of-the-driver",
+     "verdict": "conformant",
+     "evidence": "app/features/shell/setup/setupOnboardingFinish.test.ts:35 The real writers run; the fake has no passing default, so each test states what the network answered."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "app/features/shell/setup/setupOnboardingFinish.test.ts:41 The global stub is restored in finally, scoped to one call."
+    },
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "conformant",
+     "evidence": "app/features/shell/setup/setupFinishOutcome.test.ts:322 The needle carries the argument list, so a mention in prose or an import cannot satisfy it."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "test-harness",
+   "context": "tests-devcase",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "test-harness",
+   "context": "about-product",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-08T22:27:28.566592+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "derived-selection-must-be-measured",
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "apply-surface-tests",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T22:27:28.566592+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "assert-the-schedule-not-the-stopwatch",
+    "derived-selection-must-be-measured",
+    "isolation-lanes",
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "platform-auth-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T22:27:28.566592+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "a-test-helper-is-a-fork-of-the-driver",
+    "isolation-lanes",
+    "pin-the-call-not-the-name",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "shell-setup-wizard",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

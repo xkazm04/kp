@@ -1,4 +1,6 @@
 import { getRelayConfig, getRelaySecret } from "./comms-relay-store";
+import { egressSealed } from "./egress-seal";
+import { CommsSmtpSecretError, getSmtpPrivateConfig, type SmtpPrivateConfig } from "./comms-smtp-store";
 
 // THE capability bit for outbound comms delivery — resolved env → stored config
 // → nothing. Replaces the env-only comms-truth.isRelayConfigured now that the
@@ -61,21 +63,13 @@ function reportUnreadable(reason: string): Resolution {
  * configured — env URL, stored config, both — so every candidate-facing message queues
  * in the local outbox and is honestly recorded `queued` rather than `sent`.
  *
- * It exists for a process that runs the REAL product code against a COPY of a real
- * database: the goal-1 demo run (scripts/kpi/role-demo-run.mjs) approves interview
- * invites and offers on a scratch copy, and that copy carries the operator's own relay
- * configuration while the process inherits their COMMS_WEBHOOK_URL. No code on that path
- * dispatches today, so nothing has ever been sent — but "no send call exists yet" is a
- * fact about today's call graph, not a guarantee, and the thing on the other end of it is
- * a real person's inbox. This is the guarantee.
- *
- * It is deliberately NOT KP_OFFLINE: that seals ALL egress, including the Claude CLI the
- * simulated interview needs, so a run under it would measure nothing. One flag, one
- * question: may this process speak to a candidate?
+ * The predicate itself lives in egress-seal.ts and is shared by every outbound boundary
+ * (ATS delivery, calendar, pull pass, probes); the flag now answers "may this process
+ * speak to any outside party about a candidate". It is still NOT KP_OFFLINE: that seals
+ * ALL egress, including the Claude CLI the simulated interview needs. The goal-1 demo
+ * run (scripts/kpi/role-demo-run.mjs) sets it on a scratch copy of a real database.
  */
-export function commsEgressSealed(env: Readonly<Partial<NodeJS.ProcessEnv>> = process.env): boolean {
-  return env.KP_NO_COMMS_EGRESS === "1";
-}
+export const commsEgressSealed = egressSealed;
 
 function resolve(): Resolution {
   // No fifth health word: `RelayHealth` says what DELIVERS, and under the seal nothing
@@ -115,7 +109,69 @@ export function relayHealth(): RelayHealth {
   return resolve().health;
 }
 
-/** Is a real delivery relay wired? (See resolveRelay for precedence.) */
+/** Is a real SENDER wired: a relay, or (T6) the built-in SMTP sender? Every "sent" vs
+ *  "queued" claim keys off this bit, and an SMTP letter that the server accepted IS sent,
+ *  so the name stayed (thirty callers) while its meaning widened to "a letter can leave".
+ *  See resolveTransport for the precedence between the two. */
 export function isRelayConfigured(): boolean {
-  return resolveRelay() !== null;
+  return resolveTransport().kind !== "none";
+}
+
+// ---- T6: the SMTP sender, a sibling transport behind the same capability bit ----------
+//
+// PRECEDENCE: relay (env, then stored) FIRST, then the stored SMTP sender, then nothing.
+// An install that already wired a relay keeps delivering exactly as it did when an owner
+// later fills in a mailbox, because the relay is the integration someone built on purpose
+// (it can map kp.comm.v1 onto an ATS); SMTP is the no-infrastructure fallback that lets a
+// keyless owner's letters actually leave. Both are sealed by KP_NO_COMMS_EGRESS.
+
+export type SmtpHealth = "configured" | "unconfigured" | "unreadable";
+
+const loggedSmtpReasons = new Set<string>();
+
+function resolveSmtpWithHealth(): { smtp: SmtpPrivateConfig | null; health: SmtpHealth } {
+  if (commsEgressSealed()) return { smtp: null, health: "unconfigured" };
+  try {
+    const smtp = getSmtpPrivateConfig();
+    return smtp ? { smtp, health: "configured" } : { smtp: null, health: "unconfigured" };
+  } catch (e) {
+    if (e instanceof CommsSmtpSecretError) {
+      if (!loggedSmtpReasons.has(e.message)) {
+        loggedSmtpReasons.add(e.message);
+        console.error(
+          `[comms-smtp] An SMTP sender is stored but its password cannot be decrypted: ${e.message} ` +
+            `Letters will keep queueing in the local outbox. Restore the KP_ATS_SECRET_KEY (or KP_SECRET) it was ` +
+            `stored under, or re-enter the password on the Channels tab.`
+        );
+      }
+      return { smtp: null, health: "unreadable" };
+    }
+    console.error(`[comms-smtp] Could not read the stored SMTP sender: ${e instanceof Error ? e.message : e}`);
+    return { smtp: null, health: "unconfigured" };
+  }
+}
+
+/** The SMTP sender with its decrypted password, or null. Server-internal. */
+export function resolveSmtp(): SmtpPrivateConfig | null {
+  return resolveSmtpWithHealth().smtp;
+}
+
+/** What the SMTP card says: `unreadable` is a stored sender whose password no longer
+ *  decrypts, said apart from "not configured" exactly as the relay does. */
+export function smtpHealth(): SmtpHealth {
+  return resolveSmtpWithHealth().health;
+}
+
+export type ResolvedTransport =
+  | { kind: "relay"; relay: ResolvedRelay }
+  | { kind: "smtp"; smtp: SmtpPrivateConfig }
+  | { kind: "none" };
+
+/** THE transport a letter goes out through (see PRECEDENCE above). */
+export function resolveTransport(): ResolvedTransport {
+  const relay = resolveRelay();
+  if (relay) return { kind: "relay", relay };
+  const smtp = resolveSmtp();
+  if (smtp) return { kind: "smtp", smtp };
+  return { kind: "none" };
 }

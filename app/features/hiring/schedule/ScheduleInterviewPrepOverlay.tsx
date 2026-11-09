@@ -80,7 +80,7 @@ export function PrepKitOverlay({ entryId, kit, prep }: { entryId: string; kit: P
         title={canAdd ? undefined : t("addFull", { max: KIT_OVERLAY_MAX_ADDED })}
         className={`${BTN_GHOST} px-2 py-1 text-sm`}
       >
-        <Plus size={13} className="text-coral" aria-hidden /> {label}
+        <Plus size={13} className="text-coral-ink" aria-hidden /> {label}
       </button>
     );
 
@@ -122,7 +122,7 @@ export function PrepKitOverlay({ entryId, kit, prep }: { entryId: string; kit: P
       </p>
 
       {o.problems.length > 0 ? (
-        <ul role="alert" className="space-y-0.5 text-sm text-coral">
+        <ul role="alert" className="space-y-0.5 text-sm text-coral-ink">
           {o.problems.map((p) => (
             <li key={p}>{t(`problems.${p}`, { max: p === "too_many_added" ? KIT_OVERLAY_MAX_ADDED : p === "text_too_long" ? KIT_OVERLAY_MAX_TEXT_CHARS : KIT_MAX_MUST_ASKS })}</li>
           ))}
@@ -132,7 +132,7 @@ export function PrepKitOverlay({ entryId, kit, prep }: { entryId: string; kit: P
       {view.staleRefs > 0 ? (
         <p className="text-sm text-steel">
           {t("stale", { count: view.staleRefs })}{" "}
-          <button type="button" onClick={() => apply(overlayPruneStale(overlay, view))} className="focus-ring font-semibold text-coral underline">
+          <button type="button" onClick={() => apply(overlayPruneStale(overlay, view))} className="focus-ring font-semibold text-coral-ink underline">
             {t("clearStale")}
           </button>
         </p>
@@ -142,7 +142,7 @@ export function PrepKitOverlay({ entryId, kit, prep }: { entryId: string; kit: P
         {o.saveState === "saving" ? (
           <span className="text-steel">{t("saving")}</span>
         ) : o.saveState === "failed" && o.saveError ? (
-          <span className="text-coral">{o.saveError}</span>
+          <span className="text-coral-ink">{o.saveError}</span>
         ) : o.saveState === "saved" ? (
           <span className="text-moss">{t("saved")}</span>
         ) : null}

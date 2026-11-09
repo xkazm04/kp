@@ -4,6 +4,7 @@ import { getEdgeConfig } from "@/app/_lib/edge-config";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded } from "@/app/_lib/api-response";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // "Drain now" — the manual twin of what the clock does every tick, for an operator
 // who has just wired a source and wants to see it land rather than wait a cadence.
@@ -11,7 +12,7 @@ import { jsonRefusal, requireCapabilityCoded } from "@/app/_lib/api-response";
 // Not rate-limited and not public: it is operator-gated, it spends no money and
 // spawns no subprocess (a drained JSON lead files through the same intake a webhook
 // would), and the work it does is bounded by the edge's own page size.
-export async function POST() {
+export const POST = withSession(async () => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). requireOperator above proves a
@@ -31,4 +32,4 @@ export async function POST() {
   }
   if (summary.configured) await sendEdgeHeartbeat();
   return NextResponse.json({ summary, config: getEdgeConfig() });
-}
+});

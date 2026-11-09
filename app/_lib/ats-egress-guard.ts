@@ -12,12 +12,13 @@
 // "use client" components. Import-light on purpose (only `./safe-url.ts` + a lazy
 // node:dns) so it stays unit-loadable under `node --test`.
 //
-// NOTE — this is resolve-and-reject, not a hard IP pin: `fetch` performs its own
-// DNS lookup after this check, so a sub-second rebind between the two lookups is
-// still theoretically possible (TOCTOU). True pinning needs a custom undici
-// dispatcher that dials the vetted IP while preserving SNI/Host; that is out of
-// scope here. Resolve-and-reject blocks the practical rebind and is the minimum
-// the sibling finding asks for.
+// NOTE — this is resolve-and-reject, not a pin: a caller that then hands the URL to
+// `fetch` lets fetch do its own second lookup, which a rebinding name can win
+// (TOCTOU). The pin is `pinnedRequest` (pinned-request.ts): one resolution inside
+// the request, refused with the same `isPrivateAddress`, and that address dialled.
+// The comms relay and the ATS webhook dial through it; the other callers of this
+// guard (connect probes, posting import, llm-config, pull pass, edge drain,
+// jobseeker) still use fetch and are the follow-up adoption set.
 
 import { assertPublicHttpsEndpoint } from "./safe-url.ts";
 
@@ -43,30 +44,64 @@ function isPrivateV4(ip: string): boolean {
   return false;
 }
 
-/** True for an IPv6 address in a non-public range (unspecified, loopback,
- *  unique-local fc00::/7, link-local fe80::/10). IPv4-mapped/embedded forms are
- *  unwrapped to their v4 and range-checked there. */
+/** An IPv6 string as its eight 16-bit groups, or null when it is not one. A trailing
+ *  dotted quad (`::ffff:1.2.3.4`) is folded into the last two groups. */
+function v6Groups(ip: string): number[] | null {
+  let a = ip;
+  const dotted = a.match(/^(.*:)(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+  if (dotted) {
+    const o = dotted[2].split(".").map(Number);
+    if (o.some((x) => x > 255)) return null;
+    a = `${dotted[1]}${((o[0] << 8) | o[1]).toString(16)}:${((o[2] << 8) | o[3]).toString(16)}`;
+  }
+  const halves = a.split("::");
+  if (halves.length > 2) return null;
+  const parse = (s: string) => (s === "" ? [] : s.split(":"));
+  const head = parse(halves[0]);
+  const tail = halves.length === 2 ? parse(halves[1]) : [];
+  const fill = halves.length === 2 ? 8 - head.length - tail.length : 0;
+  if (fill < (halves.length === 2 ? 1 : 0)) return null;
+  const parts = [...head, ...Array<string>(fill).fill("0"), ...tail];
+  if (parts.length !== 8 || parts.some((p) => !/^[0-9a-f]{1,4}$/.test(p))) return null;
+  return parts.map((p) => parseInt(p, 16));
+}
+
+const v4Of = (hi: number, lo: number) => `${hi >> 8}.${hi & 0xff}.${lo >> 8}.${lo & 0xff}`;
+
+/** True for an IPv6 address in a non-public range. Every form that CARRIES an IPv4
+ *  address — mapped, SIIT-translated, compatible, NAT64, 6to4 — is unwrapped and
+ *  judged as that IPv4, in whatever spelling it arrives: the URL parser and
+ *  dns.lookup hand back `::ffff:a9fe:a9fe`, not `::ffff:169.254.169.254`, so a check
+ *  on the dotted spelling alone let the metadata host through. Malformed = unsafe. */
 function isPrivateV6(ip: string): boolean {
-  const a = ip.replace(/^\[/, "").replace(/\]$/, "");
-  if (a === "::" || a === "::1") return true; // unspecified / loopback
-  if (/^f[cd]/.test(a)) return true; // fc00::/7 unique-local
-  if (/^fe[89ab]/.test(a)) return true; // fe80::/10 link-local
+  const g = v6Groups(ip);
+  if (!g) return true;
+  const zeroTo = (n: number) => g.slice(0, n).every((x) => x === 0);
+  if (zeroTo(5) && g[5] === 0xffff) return isPrivateV4(v4Of(g[6], g[7])); // ::ffff:0:0/96 mapped
+  if (zeroTo(4) && g[4] === 0xffff && g[5] === 0) return isPrivateV4(v4Of(g[6], g[7])); // ::ffff:0:0:0/96 SIIT
+  if (zeroTo(6)) return true; // ::/96 — unspecified, loopback, IPv4-compatible (deprecated, never public)
+  if (g[0] === 0x64 && g[1] === 0xff9b) {
+    if (g[2] === 1) return true; // 64:ff9b:1::/48 local-use NAT64
+    if (g.slice(2, 6).every((x) => x === 0)) return isPrivateV4(v4Of(g[6], g[7])); // 64:ff9b::/96 NAT64
+  }
+  if (g[0] === 0x2002) return isPrivateV4(v4Of(g[1], g[2])); // 2002::/16 6to4
+  if (g[0] === 0x2001 && g[1] === 0) return true; // 2001::/32 Teredo (the v4 is obfuscated — refuse)
+  if (g[0] === 0x2001 && g[1] === 0xdb8) return true; // 2001:db8::/32 documentation
+  if (g[0] === 0x100 && g[1] === 0 && g[2] === 0 && g[3] === 0) return true; // 100::/64 discard
+  if ((g[0] & 0xfe00) === 0xfc00) return true; // fc00::/7 unique-local
+  if ((g[0] & 0xffc0) === 0xfe80) return true; // fe80::/10 link-local
+  if ((g[0] & 0xffc0) === 0xfec0) return true; // fec0::/10 site-local (deprecated)
+  if ((g[0] & 0xff00) === 0xff00) return true; // ff00::/8 multicast
   return false;
 }
 
-/** Classify a numeric IP string (v4, v6, or IPv4-mapped v6) as non-public. Used to
- *  vet every address a hostname resolves to before the server fetches it. */
+/** Classify a numeric IP string (v4, v6, or any IPv4-in-IPv6 form) as non-public.
+ *  Used to vet every address a hostname resolves to before the server fetches it. */
 export function isPrivateAddress(ip: string): boolean {
-  let addr = ip.trim().toLowerCase();
+  let addr = ip.trim().toLowerCase().replace(/^\[/, "").replace(/\]$/, "");
   const zone = addr.indexOf("%");
   if (zone !== -1) addr = addr.slice(0, zone); // strip IPv6 zone id (…%eth0)
-  if (addr.includes(":")) {
-    // IPv4-mapped / -embedded IPv6, e.g. ::ffff:169.254.169.254 or ::a9fe:a9fe → v4.
-    const embedded = addr.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
-    if (embedded) return isPrivateV4(embedded[1]);
-    return isPrivateV6(addr);
-  }
-  return isPrivateV4(addr);
+  return addr.includes(":") ? isPrivateV6(addr) : isPrivateV4(addr);
 }
 
 /** How a hostname is resolved to its A/AAAA addresses. The default lazily imports
@@ -75,7 +110,7 @@ export function isPrivateAddress(ip: string): boolean {
  *  is unit-testable offline. */
 export type HostLookup = (host: string) => Promise<Array<{ address: string }>>;
 
-async function defaultHostLookup(host: string): Promise<Array<{ address: string }>> {
+export async function defaultHostLookup(host: string): Promise<Array<{ address: string }>> {
   // Lazy so node:dns never enters a client bundle (safe-url.ts, which IS imported
   // by "use client" components, must never gain this dependency — the guard lives
   // here on purpose).
@@ -103,7 +138,14 @@ export async function assertPublicHttpsEndpointResolved(
   lookupFn: HostLookup = defaultHostLookup,
 ): Promise<string> {
   const href = assertPublicHttpsEndpoint(raw, label); // https + no literal-IP/internal host (FIRST gate)
-  const host = new URL(href).hostname.toLowerCase();
+  const parsed = new URL(href);
+  // Userinfo is refused here, by name only: fetch throws on it with the WHOLE URL in
+  // its message ("…includes credentials: https://user:pass@host/"), and the callers
+  // render a failure reason to the operator, the probe memory and the delivery ledger.
+  if (parsed.username || parsed.password) {
+    throw new Error(`Invalid ${label}: credentials in the URL are not allowed — use the secret field.`);
+  }
+  const host = parsed.hostname.toLowerCase();
   let results: Array<{ address: string }>;
   try {
     results = await lookupFn(host);

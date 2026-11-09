@@ -1,20 +1,22 @@
 import { NextResponse } from "next/server";
-import { deleteJd, getJob, loadJd, setJdArchived, updateJd } from "@/app/_lib/db/jobs";
+import { deleteJd, getJob, getJobOwnerWorkspace, loadJd, setJdArchived, updateJd } from "@/app/_lib/db/jobs";
 import { promotedBriefForJob } from "@/app/_lib/db/intakes";
 import { ingestJobAd, insertJob } from "@/app/_lib/job-ingest";
 import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
+import { effectiveOrgName } from "@/app/_lib/org-name-server";
+import { companyOrDefault } from "@/app/_lib/org-settings";
 import { isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { canDeleteJd, jdDeleteActor } from "@/app/_lib/jds-delete-access";
 import { groundedJdBand, withGroundedBand } from "@/app/_lib/salary-band";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 
 // The best-effort re-ingest on a body edit is one LLM parse.
 export const maxDuration = 60;
 
-export async function GET(request: Request, context: { params: Promise<{ slug: string }> }) {
+export const GET = withWorkspace(async (ws: string, request: Request, context: { params: Promise<{ slug: string }> }) => {
   const { slug } = await context.params;
   try {
     // Tenancy: serve the JD from the CALLER'S library. `/api/jds/*` is a gated
@@ -26,7 +28,6 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
     // workspace while the read looked in the default one; and it handed the DEFAULT
     // team's full body + build artifacts (a private, often unfinished draft) to any
     // other team's signed-in recruiter who knew the slug.
-    const ws = await currentWorkspace();
     const row = loadJd(slug, ws);
     if (!row) {
       return jsonRefusal("JD_NOT_FOUND", 404);
@@ -52,15 +53,26 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
     // ?brief=1 — the promoted role-intake brief behind this JD (Dev tab's
     // structured-need read, UAT L1-EVA-3). Internal authoring material like
     // build_input_json, and read from the same workspace that owns the JD. Null
-    // when no promoted intake backs the JD.
+    // when no promoted intake backs the JD. `jobRoleFamily` rides the same branch:
+    // the role family of the JD's linked job, which the Dev tab falls back to when no
+    // intake brief names one. Null when there is no job or it carries no family. A
+    // job owned by ANOTHER workspace is treated as absent (getJob reads by global id);
+    // a seeded corpus job (no owner) is shared and stays readable.
     if (params.has("brief")) {
-      return NextResponse.json({ ...publicRow, intakeBrief: promotedBriefForJob(jdJobId(slug), ws) });
+      const jobId = jdJobId(slug);
+      const owner = getJobOwnerWorkspace(jobId);
+      const job = owner === null || owner === ws ? getJob(jobId, ws) : null;
+      return NextResponse.json({
+        ...publicRow,
+        intakeBrief: promotedBriefForJob(jobId, ws),
+        jobRoleFamily: job?.roleFamily?.trim() || null,
+      });
     }
     return NextResponse.json(publicRow);
   } catch (error) {
     return safeJsonError(error, "api:jds/[slug]", "JD_LOAD_FAILED");
   }
-}
+});
 
 // W8-4 (JDL1) — the library was fully append-only: no update, delete or
 // archive path existed anywhere (the only DELETE FROM jds is the simulation
@@ -70,7 +82,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
 //   { title, body }      — edit in place (same validateJdFields as save);
 //   { archived: bool }   — archive/unarchive (archived JDs leave listJds and
 //                          the pickers; the public page renders with a banner).
-export async function PATCH(request: Request, context: { params: Promise<{ slug: string }> }) {
+export const PATCH = withWorkspace(async (ws: string, request: Request, context: { params: Promise<{ slug: string }> }) => {
   // The JD detail PAGE (/jds/[slug]) is public/shareable, so edit + archive must be
   // recruiter-only at the handler — not just hidden in the UI. This API route is
   // not: `/api/jds/*` sits behind the session gate (public-routes.ts), and GET above
@@ -86,7 +98,6 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (under) return under;
   const { slug } = await context.params;
-  const ws = await currentWorkspace();
   try {
     const existing = loadJd(slug, ws);
     if (!existing) return jsonRefusal("JD_NOT_FOUND", 404);
@@ -132,9 +143,15 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
     // winnability coach's "+N eligible") answered the OLD text.
     let jobResynced = false;
     const jobId = jdJobId(slug);
-    if (getJob(jobId, ws)) {
+    const linkedJob = getJob(jobId, ws);
+    if (linkedJob) {
       try {
-        const { job } = await ingestJobAd(fields.body, jobId);
+        const { job, source } = await ingestJobAd(fields.body, jobId);
+        // A keyless install parses deterministically (no requirements). Overwriting a
+        // matchable job with that would erase the requirements it already has, so a
+        // re-sync only proceeds on an LLM parse; otherwise the job keeps its fields
+        // and jobResynced stays false (the truth).
+        if (source !== "llm") return NextResponse.json({ ok: true, jobResynced: false });
         // The re-parse reads the pay figure out of the edited WORDING, and
         // insertJob's upsert writes salary_min/salary_max from whatever it got — so
         // this write used to replace the analysis-grounded band the first ingest
@@ -147,7 +164,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
         // (pasted, keyless 0–0 miss) has no grounded band, and the parse stands.
         // No content hash: the row already exists under this explicit id, so the
         // upsert path applies and the lifecycle status is preserved.
-        insertJob(withGroundedBand({ ...job, id: jobId }, groundedJdBand(existing.analysis_json)), undefined, "draft", ws);
+        // The edited wording rarely restates the employer: a blank parsed company keeps
+        // the role's own, then the org name — it must never wipe the apply page's "who".
+        const company = companyOrDefault(job.company, linkedJob.company?.trim() || (await effectiveOrgName()));
+        insertJob(withGroundedBand({ ...job, id: jobId, company }, groundedJdBand(existing.analysis_json)), undefined, "draft", ws);
         jobResynced = true;
       } catch (ingestError) {
         console.error(`[api:jds] JD ${slug} edited but job re-ingest failed`, ingestError);
@@ -157,7 +177,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
   } catch (error) {
     return safeJsonError(error, "api:jds/[slug]", "JD_SAVE_FAILED");
   }
-}
+});
 
 // The Ledger's trash door. The library is the shelf of DESCRIPTIONS regardless of
 // liveness, so a draft that should never have existed needs a way out that isn't
@@ -173,7 +193,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
 //      erase a colleague's draft. jds-delete-access.ts owns the rule; the list
 //      route folds the same function into `canDelete` so the icon and the door
 //      cannot disagree.
-export async function DELETE(_request: Request, context: { params: Promise<{ slug: string }> }) {
+export const DELETE = withWorkspace(async (ws: string, _request: Request, context: { params: Promise<{ slug: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // The capability gate stays FIRST and coarse: a viewer has no business at any
@@ -182,7 +202,6 @@ export async function DELETE(_request: Request, context: { params: Promise<{ slu
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (under) return under;
   const { slug } = await context.params;
-  const ws = await currentWorkspace();
   try {
     const existing = loadJd(slug, ws);
     if (!existing) return jsonRefusal("JD_NOT_FOUND", 404);
@@ -210,4 +229,4 @@ export async function DELETE(_request: Request, context: { params: Promise<{ slu
   } catch (error) {
     return safeJsonError(error, "api:jds/[slug]", "JD_DELETE_FAILED");
   }
-}
+});

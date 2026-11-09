@@ -1,0 +1,68 @@
+{
+ "schema": "conform-run/1",
+ "worker": "59987069-12c0-4042-938c-5de96b9bdd0f",
+ "subject": "copy-quality-gates",
+ "evaluatedAt": "2026-10-16T02:22:38.065238+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "ci-doc-gates",
+   "subject": "copy-quality-gates",
+   "bundle": "localization",
+   "state": "deviation",
+   "evidence": "scripts/i18n/catalog-check.mjs:217 Carried literals are checked by substring presence, allowing changed numbers and missing repeated occurrences despite the standard requiring identity and count.",
+   "techniques": [
+    {
+     "technique": "format-aware-check-catalog",
+     "verdict": "deviation",
+     "evidence": "scripts/i18n/catalog-check.mjs:217 Direct calls returned [] for both literalErrors('12 12', '12') and literalErrors('12', '312'); multiplicity and literal identity are not enforced."
+    },
+    {
+     "technique": "rendered-string-extraction",
+     "verdict": "deviation",
+     "evidence": "scripts/i18n/catalog-check.mjs:236 The typography check receives the stored message directly; this path does not expand ICU branches, substitute typed placeholders or extract rendered samples before checking copy."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "copy-quality-gates",
+   "context": "review-gates",
+   "reason": "not-applicable without the 2+ search terms that prove the absence"
+  },
+  {
+   "subject": "copy-quality-gates",
+   "context": "agents-api",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "copy-quality-gates",
+   "context": "lint-quality-gates",
+   "reason": "not-applicable without the 2+ search terms that prove the absence"
+  },
+  {
+   "subject": "copy-quality-gates",
+   "context": "app-shell-brand",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-16T02:22:38.065238+00:00",
+   "bundle": "localization",
+   "subjects": [
+    "copy-quality-gates"
+   ],
+   "techniques": [
+    "format-aware-check-catalog",
+    "rendered-string-extraction"
+   ],
+   "deviations": 1,
+   "context": "ci-doc-gates",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

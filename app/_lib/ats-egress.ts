@@ -5,7 +5,10 @@ import { getOpenOfferForEntry, listOffersForEntry } from "./offers-store";
 import { AtsRecordRefusedError, buildAtsRecord, type AtsCandidateRecord, type AtsRefusalReason } from "./ats-record.ts";
 import { getAtsConfig, getAtsSecret } from "./ats-config-store.ts";
 import { assertDeliverableWebhookUrl } from "./ats-egress-guard.ts";
+import { pinnedRequest } from "./pinned-request.ts";
+import { egressSealed } from "./egress-seal.ts";
 import {
+  deferSealedAtsDelivery,
   finalizeAtsDelivery,
   leaseAtsDelivery,
   listDueAtsDeliveries,
@@ -108,7 +111,7 @@ export function getAtsRecordResult(
 
 export type DeliveryResult =
   | { delivered: true; status: number }
-  | { delivered: false; reason: string; status?: number; terminal?: boolean };
+  | { delivered: false; reason: string; status?: number; terminal?: boolean; sealed?: boolean };
 
 // ---- Admission control on the outbound NETWORK phase (F-6) -------------------------
 //
@@ -243,6 +246,10 @@ export async function deliver(
 ): Promise<DeliveryResult> {
   const cfg = getAtsConfig();
   if (!cfg.webhookUrl) return { delivered: false, reason: "No webhook URL configured." };
+  // THE EGRESS SEAL (egress-seal.ts), before the SSRF re-vet's DNS lookup and long before
+  // the fetch: a sealed process contacts no third party. `sealed` lets the ledger park the
+  // row without spending an attempt.
+  if (egressSealed()) return { delivered: false, reason: "sealed", sealed: true };
   // Re-vet AND resolve the host immediately before the fetch (not just at write
   // time): https-only, no IP literals / internal names, and reject if the host
   // resolves to a loopback/link-local/RFC-1918/metadata address (DNS-rebind guard).
@@ -294,7 +301,7 @@ export async function deliver(
   // preparation, and two steps of it awaited: the DNS resolve inside the SSRF re-vet and
   // the dynamic import it does. The consent gate that admitted this record ran before all
   // of it, so an erasure committed in between would otherwise be mirrored to a third party
-  // with the gate's stale blessing. No await may be added between here and the fetch.
+  // with the gate's stale blessing. No await may be added between here and the send.
   if (freshness) {
     const verdict = freshness({ webhookUrl: cfg.webhookUrl });
     if (!verdict.ok) {
@@ -302,19 +309,25 @@ export async function deliver(
     }
   }
   try {
-    // `redirect: "manual"` is part of the SSRF boundary, not a nicety. The guard above
-    // vets ONLY the URL we dial; with the default `follow`, a webhook host that passes
-    // every check can answer `302 Location: http://169.254.169.254/…` (or a 307 to
-    // 127.0.0.1, which replays method + the signed PII body) and undici would dial that
-    // address with no re-vetting — turning the vetted endpoint into a redirector into the
-    // internal network, and the returned status into a port-scan oracle via /api/ats/test.
-    // Not following also matches what webhook senders do (GitHub/Stripe don't).
-    const r = await fetch(target, { method: "POST", headers, body, redirect: "manual", signal: AbortSignal.timeout(5000) });
+    // No redirect plus a pinned address is the SSRF boundary, not a nicety. The guard
+    // above vets ONLY the URL we dial, and only at the moment it resolved it:
+    //   • PINNED — `pinnedRequest` resolves the host ONCE inside the request, refuses any
+    //     private answer and dials that address. fetch used to resolve the name a second
+    //     time, and a rebinding host answered public to the vet and 169.254.169.254 to
+    //     the connect. The resolve is part of the request, not an awaited step before it,
+    //     so the freshness check above is still the last statement before the send.
+    //   • NO REDIRECT — a webhook host that passes every check can answer
+    //     `302 Location: http://169.254.169.254/…` (or a 307 to 127.0.0.1, which replays
+    //     method + the signed PII body); following it would turn the vetted endpoint into
+    //     a redirector into the internal network, and the returned status into a
+    //     port-scan oracle via /api/ats/test. Not following also matches what webhook
+    //     senders do (GitHub/Stripe don't).
+    const r = await pinnedRequest(target, { method: "POST", headers, body, signal: AbortSignal.timeout(5000) });
     if (r.ok) return { delivered: true, status: r.status };
-    // A manual redirect surfaces as an opaque-redirect response (per the fetch spec:
-    // status 0, ok false). `|| undefined` on purpose — 0 is not an HTTP status, so the
-    // ledger records no last_status rather than a fake one.
-    if (r.type === "opaqueredirect" || r.status === 0 || (r.status >= 300 && r.status < 400)) {
+    // A redirect surfaces as a 3xx (status 0 is refused too: it is never a real HTTP
+    // answer). `|| undefined` on purpose — 0 is not an HTTP status, so the ledger
+    // records no last_status rather than a fake one.
+    if (r.status === 0 || (r.status >= 300 && r.status < 400)) {
       return {
         delivered: false,
         status: r.status || undefined,
@@ -477,6 +490,10 @@ function crossOrgRefusal(ownerOrgId: string | null, entryId: string, tenant: str
 export async function dispatchAtsEvent(event: AtsEventType, entryId: string, workspaceId?: string): Promise<void> {
   let deliveryId: number | null = null;
   let lease = "";
+  // Log-line copies: the ids and event name reach console.error, and a line break in one must not forge a second line.
+  const logEvent = String(event).replace(/\r|\n/g, " ");
+  const logEntry = String(entryId).replace(/\r|\n/g, " ");
+  const logDelivery = () => String(deliveryId).replace(/\r|\n/g, " ");
   try {
     const cfg = getAtsConfig();
     if (!cfg.webhookUrl || !cfg.events.includes(event)) return;
@@ -504,7 +521,7 @@ export async function dispatchAtsEvent(event: AtsEventType, entryId: string, wor
     const crossOrg = crossOrgRefusal(cfg.ownerOrgId, entryId, tenant);
     if (crossOrg) {
       finalizeAtsDelivery(deliveryId, { delivered: false, reason: crossOrg, terminal: true }, lease);
-      console.error(`[ats] ${event} webhook refused for ${entryId} (recorded #${deliveryId}, terminal): ${crossOrg}`);
+      console.error(`[ats] ${logEvent} webhook refused for ${logEntry} (recorded #${logDelivery()}, terminal): ${String(crossOrg).replace(/\r|\n/g, " ")}`);
       return;
     }
     const { record, refusal } = getAtsRecordResult(entryId, tenant, openedAt.toISOString());
@@ -518,7 +535,7 @@ export async function dispatchAtsEvent(event: AtsEventType, entryId: string, wor
         : `pipeline entry ${entryId} not found in workspace "${tenant}" — nothing to mirror`;
       finalizeAtsDelivery(deliveryId, { delivered: false, reason, terminal: !!refusal }, lease);
       console.error(
-        `[ats] ${event} webhook not delivered for ${entryId} (recorded #${deliveryId}${refusal ? ", terminal" : " for retry"}): ${reason}`
+        `[ats] ${logEvent} webhook not delivered for ${logEntry} (recorded #${logDelivery()}${refusal ? ", terminal" : " for retry"}): ${reason.replace(/\r|\n/g, " ")}`
       );
       return;
     }
@@ -530,16 +547,20 @@ export async function dispatchAtsEvent(event: AtsEventType, entryId: string, wor
       { id: deliveryId, createdAt: openedAt.toISOString() },
       deliveryStillJustified(event, record, entryId, tenant, openedAt.toISOString())
     );
+    if (!result.delivered && result.sealed) {
+      deferSealedAtsDelivery(deliveryId, lease);
+      return;
+    }
     if (!finalizeAtsDelivery(deliveryId, toOutcome(result), lease)) {
-      console.error(`[ats] ${event} #${deliveryId}: outcome dropped, lease reclaimed`);
+      console.error(`[ats] ${logEvent} #${logDelivery()}: outcome dropped, lease reclaimed`);
       return;
     }
     if (!result.delivered) {
-      console.error(`[ats] ${event} webhook not delivered for ${entryId} (recorded #${deliveryId} for retry): ${result.reason}`);
+      console.error(`[ats] ${logEvent} webhook not delivered for ${logEntry} (recorded #${logDelivery()} for retry): ${result.reason.replace(/\r|\n/g, " ")}`);
     }
   } catch (e) {
     const reason = e instanceof Error ? e.message : "dispatch failed";
-    console.error(`[ats] dispatch ${event} failed for ${entryId}:`, reason);
+    console.error(`[ats] dispatch ${logEvent} failed for ${logEntry}:`, reason.replace(/\r|\n/g, " "));
     try {
       if (deliveryId !== null) finalizeAtsDelivery(deliveryId, { delivered: false, reason }, lease);
     } catch {
@@ -569,6 +590,8 @@ export async function retryDueAtsDeliveries(
   now: Date = new Date()
 ): Promise<{ due: number; delivered: number; failed: number; skipped: number; reclaimed: number }> {
   const reclaimed = reclaimExpiredAtsLeases(now);
+  // Sealed: the queue waits, untouched — no lease, no record rebuild, no attempt spent.
+  if (egressSealed()) return { due: 0, delivered: 0, failed: 0, skipped: 0, reclaimed };
   const due = listDueAtsDeliveries(now.toISOString());
   let delivered = 0;
   let failed = 0;
@@ -622,6 +645,10 @@ export async function retryDueAtsDeliveries(
         { id: row.id, createdAt: row.createdAt },
         deliveryStillJustified(row.event, record, row.entryId, tenant, row.createdAt)
       );
+      if (!result.delivered && result.sealed) {
+        deferSealedAtsDelivery(row.id, lease, now);
+        continue;
+      }
       finalizeAtsDelivery(row.id, toOutcome(result), lease);
       if (result.delivered) delivered++;
       else failed++;

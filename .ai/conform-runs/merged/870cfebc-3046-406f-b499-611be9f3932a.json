@@ -1,0 +1,87 @@
+{
+ "schema": "conform-run/1",
+ "worker": "870cfebc-3046-406f-b499-611be9f3932a",
+ "subject": "early-career-potential-assessment",
+ "evaluatedAt": "2026-10-18T22:39:06.632603+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "tests-scoring-fairness",
+   "subject": "early-career-potential-assessment",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/tests/test_transform.py:43 The test requires a low numeric readiness score for an empty student profile, whereas fewer than two measured dimensions should produce an insufficient-evidence state.",
+   "techniques": [
+    {
+     "technique": "domain-distance-grading",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_transform.py:189 The fixture uses an unmapped Professional violinist occupation; the inspected grader treats unmatched surface signals as far instead of preserving unknown or provisional status."
+    },
+    {
+     "technique": "readiness-rubric-replacing-years",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_transform.py:43 The preceding fixture supplies only student archetype and unknown education, yet the assertion requires a numeric score rather than insufficient evidence."
+    }
+   ]
+  },
+  {
+   "context": "score-metric-display",
+   "subject": "early-career-potential-assessment",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_components/PotentialBadge.tsx:19 The potential badge accepts a total and optional signal strings without the four readiness sub-scores, weights or unmeasured states required for a reviewable breakdown.",
+   "techniques": [
+    {
+     "technique": "domain-distance-grading",
+     "verdict": "conformant",
+     "evidence": "app/_components/PotentialBadge.tsx:126 At this display boundary, the supplied bridge band becomes localized words rather than a decimal similarity."
+    },
+    {
+     "technique": "explainable-potential-breakdown",
+     "verdict": "deviation",
+     "evidence": "app/_components/PotentialBadge.tsx:100 The popover conditionally lists existing signals; it provides no four-dimension account with sub-scores, weights and explicit not-measured reasons."
+    },
+    {
+     "technique": "transferable-meta-skill-credit",
+     "verdict": "deviation",
+     "evidence": "app/_components/PotentialBadge.tsx:20 Transferred credits arrive and render as skill names without an attached prior-role source, preventing the recruiter from tracing each credit to its basis."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-18T22:39:06.632603+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "early-career-potential-assessment"
+   ],
+   "techniques": [
+    "domain-distance-grading",
+    "readiness-rubric-replacing-years"
+   ],
+   "deviations": 1,
+   "context": "tests-scoring-fairness",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-18T22:39:06.632603+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "early-career-potential-assessment"
+   ],
+   "techniques": [
+    "domain-distance-grading",
+    "explainable-potential-breakdown",
+    "transferable-meta-skill-credit"
+   ],
+   "deviations": 1,
+   "context": "score-metric-display",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

@@ -11,7 +11,7 @@ import { createWorkdir, persistFile } from "@/app/_lib/python-runner";
 import { startTask } from "@/app/_lib/tasks";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import {
   MAX_CV_VARIANTS,
   validateOptionalUploadServer,
@@ -27,7 +27,7 @@ export const maxDuration = 60;
 // Persists the upload to a stable dir and starts a background `analyze` task,
 // returning { task }. The client polls /api/tasks/[id] (and the global Tasks
 // indicator tracks it) — so the analysis survives navigation + page refresh.
-export async function POST(request: Request) {
+export const POST = withWorkspace(async (workspace: string, request: Request) => {
   // Per-IP abuse containment (backlog #7): in open mode (no KP_OPERATOR_PASSWORD)
   // this route is unauthenticated, and each submit ends in a paid Gemini
   // multimodal call inside the background task. Throttle BEFORE the billing read
@@ -48,7 +48,6 @@ export async function POST(request: Request) {
   // reservation count, and the authoritative reservation. Captured here (request
   // scope) and also stamped on the task so the detached background job targets the
   // same tenant. Single-tenant path resolves to the default workspace (byte-identical).
-  const workspace = await currentWorkspace();
 
   // Billing hard GATE only: a CV analysis is the unit behind the "AI candidates"
   // meter (one person fully worked — variants of the same person count once). The
@@ -214,7 +213,7 @@ export async function POST(request: Request) {
   // No debit here — runAnalyze charges the unit only on a delivered, non-cached result.
   const task = startTask("analyze", params as unknown as Record<string, unknown>, workspace);
   return NextResponse.json({ task });
-}
+});
 
 // Collect the uploaded CV file(s), drop content-duplicate uploads, then label
 // what's left. Dedupe is by CONTENT via the one cvVariantHash helper the client

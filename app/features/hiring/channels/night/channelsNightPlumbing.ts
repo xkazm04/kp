@@ -11,7 +11,7 @@
  * The vocabulary never flattens (docs/features/comms/README.md §2, §11):
  *   off      not configured                      dashed
  *   wait     configured, nothing yet / not pulled yet / never drained / nothing sent yet
- *   reach    received, none filed                caution
+ *   reach    received, none filed / published, but the links reach no candidate   caution
  *   fail     pull failing / secret unreadable / drain failing    red
  *   live     proven by evidence (a lead filed, a message sent, a drain done)
  *   unknown  not read (in flight, failed, denied): never a guess
@@ -20,10 +20,12 @@
 import { commsVerdict } from "@/app/_lib/comms-view.ts";
 import type { ChannelWebhookRecord } from "@/app/_lib/db/channels.ts";
 import type { EdgeErrorKind } from "@/app/_lib/edge-config.ts";
+import type { LinkReach } from "@/app/_lib/link-reach.ts";
 import { isActionable, type Message } from "../channelsCommsHelpers.ts";
 import { receiverHealth } from "../receiverHealth.ts";
 import type { EdgeState, RelayHealthWord } from "./channelsNightReads.ts";
-import type { LedgerVerdict, NightChannel, NightEntry } from "./channelsNightNav.ts";
+import { deckEntry, type LedgerVerdict, type NightChannel, type NightEntry } from "./channelsNightNav.ts";
+import type { AtsDeliveryCounts } from "./connectors/atsDeliveriesModel.ts";
 
 export type NightCondition = "live" | "wait" | "reach" | "fail" | "off" | "unknown";
 /** A building on the district: the six channels, the post book and the studio. */
@@ -49,7 +51,24 @@ export type PlumbingInput = {
   edge: EdgeState | null;
   /** Every source's first read finished (ok or not). Until then nothing is claimed. */
   settled: boolean;
+  /** Who can open the candidate links this page builds (linkReach of publicBaseUrl, the SAME
+   *  base the careers links use); null/absent = not known yet, never read as "public". */
+  linkReach?: LinkReach | null;
+  /** The outbound ATS delivery ledger's counts (GET /api/ats/deliveries); null/absent = not read
+   *  (in flight, or a seat the operator-only route refuses), never read as "nothing dead". */
+  ats?: AtsDeliveryCounts | null;
+  /** The calendar grant needs a Reconnect (the connector catalog's `repair`); null/absent = not read. */
+  calendarReconnect?: boolean | null;
 };
+
+/** The candidate-link base, when it is known NOT to reach candidates; null otherwise. */
+type PrivateReach = Exclude<LinkReach, "public">;
+function privateReach(input: PlumbingInput): PrivateReach | null {
+  const r = input.linkReach ?? null;
+  return r === null || r === "public" ? null : r;
+}
+const REACH_FACT = { "this-computer": "careersLinksThisComputer", "local-network": "careersLinksLocalNetwork", nowhere: "careersLinksNowhere" } as const;
+const REACH_NEED = { "this-computer": "linksThisComputer", "local-network": "linksLocalNetwork", nowhere: "linksNowhere" } as const;
 
 /* ------------------------------------------------------------------ the ledger, counted */
 
@@ -97,7 +116,7 @@ export type PlateChip =
   | "bookNeedsYou" | "bookNoneSent" | "bookClear" | "bookEmpty" | "notRead";
 
 export type PlateFact =
-  | "careersRoles" | "careersNone"
+  | "careersRoles" | "careersNone" | "careersLinksThisComputer" | "careersLinksLocalNetwork" | "careersLinksNowhere"
   | "emailNone" | "adsNone" | "receiversNothing" | "receiversTraffic"
   | "feedsNone" | "feedsFailing" | "feedsNotPulled" | "feedsPulling"
   | "relayQueuedNotSent" | "relayNothingDeliverable" | "relayTraffic" | "relayNoSendYet" | "relayOutboxOnly"
@@ -213,12 +232,16 @@ function rawPlates(input: PlumbingInput): Record<Exclude<NightNode, "studio">, P
   const c = input.messages ? countVerdicts(input.messages) : null;
   const jobs = input.jobs;
   const rs = input.receivers;
+  const reach = privateReach(input);
   return {
     careers:
       jobs === null
         ? UNREAD("careers")
         : jobs.length > 0
-          ? { node: "careers", condition: "live", alert: false, chip: "published", fact: "careersRoles", n: { count: jobs.length }, when: null }
+          ? reach
+            // Published is true; "live" is not: no candidate can open the links (linkReach).
+            ? { node: "careers", condition: "reach", alert: false, chip: "published", fact: REACH_FACT[reach], n: { count: jobs.length }, when: null }
+            : { node: "careers", condition: "live", alert: false, chip: "published", fact: "careersRoles", n: { count: jobs.length }, when: null }
           : { node: "careers", condition: "off", alert: false, chip: "nothingPublished", fact: "careersNone", n: {}, when: null },
     email: rs === null ? UNREAD("email") : receiverDoor("email", rs),
     ads: rs === null ? UNREAD("ads") : receiverDoor("ads", rs),
@@ -263,7 +286,8 @@ export function plumbingFigures(input: PlumbingInput): NightFigure[] {
 
 export type NeedKey =
   | "relayOffQueued" | "relayUnreadable" | "dead" | "pullFailing" | "edgeFailing" | "edgeSecretMissing" | "relayOff"
-  | "orphaned" | "reachedNoLeads" | "queuedWithRelay" | "edgeOff" | "edgePending" | "nothingPublished" | "receiverWaiting";
+  | "orphaned" | "reachedNoLeads" | "queuedWithRelay" | "edgeOff" | "edgePending" | "nothingPublished" | "receiverWaiting"
+  | "linksThisComputer" | "linksLocalNetwork" | "linksNowhere" | "atsDead" | "calendarReconnect";
 
 export type NeedItem = {
   id: string;
@@ -299,8 +323,20 @@ export function rankNeeds(input: PlumbingInput): NeedItem[] {
   else if (on === false && c && c.queued > 0) add({ id: "relay-off", key: "relayOffQueued", sev: 100, tone: "bad", node: "relay", target: relayTarget, n: { count: c.queued } });
   else if (on === false) add({ id: "relay-off", key: "relayOff", sev: 60, tone: "warn", node: "relay", target: relayTarget });
 
+  // Outcomes (a hire, a rejection) the ATS webhook gave up on after its retries: recorded here,
+  // missing in the customer's ATS, and nothing else on the page would say so. Ranked just above
+  // the dead letters (a dead letter at least sits in the ledger the recruiter reads).
+  const atsDead = input.ats?.dead ?? 0;
+  if (atsDead > 0) {
+    add({ id: "ats-dead", key: "atsDead", sev: 92, tone: "bad", node: "studio", target: deckEntry("ats"), n: { count: atsDead } });
+  }
   if (c && c.needs > 0) {
     add({ id: "dead", key: "dead", sev: 90 + Math.min(c.needs, 9) / 10, tone: "bad", node: "book", target: ledger("dead"), n: { count: c.needs, failed: c.needsFailed, bounced: c.needsBounced } });
+  }
+  // A revoked calendar grant: interview slots stop being checked against the recruiter's real
+  // calendar, and no probe or retry can fix it; only the owner's Reconnect (the OAuth again) can.
+  if (input.calendarReconnect) {
+    add({ id: "calendar-reconnect", key: "calendarReconnect", sev: 75, tone: "bad", node: "studio", target: deckEntry("calendar") });
   }
   for (const r of input.receivers ?? []) {
     if (r.pullUrl && r.lastPullError) {
@@ -326,6 +362,10 @@ export function rankNeeds(input: PlumbingInput): NeedItem[] {
   else if (edge && edgePaired && edge.hasSecret && !edge.lastErrorKind && (edge.pending ?? 0) > 0) {
     add({ id: "edge-pending", key: "edgePending", sev: 30, tone: "info", node: "edge", target: edgeTarget, n: { count: edge.pending ?? 0 } });
   }
+  // Every candidate link (apply, schedule, interview) is built on the same base, so this is
+  // listed whether or not a role is published yet; it opens the careers page, where the fix is.
+  const reach = privateReach(input);
+  if (reach) add({ id: "links-reach", key: REACH_NEED[reach], sev: 65, tone: "warn", node: "careers", target: { level: 1, channel: "careers", focus: null } });
   if (input.jobs && input.jobs.length === 0) add({ id: "no-roles", key: "nothingPublished", sev: 25, tone: "info", node: "careers", target: { level: 1, channel: "careers", focus: null } });
   for (const r of input.receivers ?? []) {
     if (receiverHealth(r).verdict === "waiting") {

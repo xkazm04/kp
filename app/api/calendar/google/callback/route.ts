@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { decodeOAuthState, exchangeCode, googleOAuthConfig, missingScopes } from "@/app/_lib/calendar/google-oauth";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
+import { decodeOAuthState, exchangeCode, missingScopes } from "@/app/_lib/calendar/google-oauth";
+import { googleOAuthConfigFor } from "@/app/_lib/calendar/google-client-store";
 import { saveCalendarConnection } from "@/app/_lib/calendar/token-store";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import type { CalendarCallbackStatus } from "@/app/_lib/calendar/callback-status";
@@ -35,7 +36,7 @@ function stateMatches(a: string, b: string): boolean {
   return ba.length === bb.length && timingSafeEqual(ba, bb);
 }
 
-export async function GET(request: NextRequest) {
+export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
 
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code") ?? "";
   if (!code) return back(base, "no_code");
 
-  const config = googleOAuthConfig(base);
+  const config = googleOAuthConfigFor(ws, base);
   if (!config) return back(base, "not_configured");
 
   try {
@@ -82,7 +83,7 @@ export async function GET(request: NextRequest) {
       return back(base, "no_refresh_token");
     }
     const missing = missingScopes(tokens.scopes);
-    saveCalendarConnection({ tokens, missingScopes: missing }, await currentWorkspace());
+    saveCalendarConnection({ tokens, missingScopes: missing }, ws);
     // A partial grant IS stored — free/busy still works without the events scope — but the
     // operator is told, rather than discovering it when a booking silently writes nothing.
     return back(base, missing.length > 0 ? "connected_partial" : "connected");
@@ -90,4 +91,4 @@ export async function GET(request: NextRequest) {
     console.error("[api/calendar/google/callback] token exchange failed", err);
     return back(base, "exchange_failed");
   }
-}
+});

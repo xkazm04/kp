@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { liveRediscoveryAlerts, sweepRediscoveryAlerts } from "@/app/_lib/rediscover";
@@ -24,16 +24,16 @@ export const maxDuration = 180;
 // state changes. Scoped to the session workspace; the POST returns the feed for the SAME
 // resolved workspace its sweep ran on.
 
-export async function GET() {
+export const GET = withWorkspace(async (ws: string) => {
   try {
-    const alerts = liveRediscoveryAlerts(await currentWorkspace());
+    const alerts = liveRediscoveryAlerts(ws);
     return NextResponse.json({ alerts, count: alerts.length });
   } catch (error) {
     return safeJsonError(error, "api:rediscovery-alerts", "REDISCOVERY_ALERTS_FAILED");
   }
-}
+});
 
-export async function PATCH(request: Request) {
+export const PATCH = withWorkspace(async (ws: string, request: Request) => {
   try {
     const body = (await request.json().catch(() => null)) as { id?: unknown } | null;
     const id = typeof body?.id === "string" ? body.id : null;
@@ -43,14 +43,14 @@ export async function PATCH(request: Request) {
     // listRediscoveryAlerts hands it to every recruiter in the feed. So scope the
     // write to the caller's team; `dismissed: false` answers "not yours", "already
     // dismissed" and "never existed" identically, so it is no existence oracle.
-    const dismissed = dismissRediscoveryAlert(id, await currentWorkspace());
+    const dismissed = dismissRediscoveryAlert(id, ws);
     return NextResponse.json({ dismissed });
   } catch (error) {
     return safeJsonError(error, "api:rediscovery-alerts", "REDISCOVERY_ALERTS_FAILED");
   }
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withWorkspace(async (ws: string, request: Request) => {
   try {
     // THROTTLE: this is the heaviest compute surface in the jobs area — one call
     // fans out a `recruiter_cli` child PER published role (bounded by the worker
@@ -72,7 +72,6 @@ export async function POST(request: Request) {
     // Sweep the CALLER's catalog, not the default tenant's (rediscovery-alerts #1):
     // this POST is the feed's Refresh, fired from one team's session, so the roles
     // swept and the alerts raised must match the feed the same request returns below.
-    const ws = await currentWorkspace();
     const { jobsSwept, newAlerts, truncated, failedJobs } = await sweepRediscoveryAlerts({
       signal: request.signal,
       workspaceId: ws,
@@ -86,4 +85,4 @@ export async function POST(request: Request) {
   } catch (error) {
     return safeJsonError(error, "api:rediscovery-alerts", "REDISCOVERY_ALERTS_FAILED");
   }
-}
+});

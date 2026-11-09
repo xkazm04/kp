@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { currentSession, requireCapability } from "@/app/_lib/auth/current-user";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentUserId } from "@/app/_lib/auth/session";
 import { advanceFeedAnchor, getJobseekerProfile } from "@/app/_lib/db/jobseeker-profiles";
@@ -37,7 +37,7 @@ function isCanonicalIso(at: string): boolean {
   return !Number.isNaN(ms) && new Date(ms).toISOString() === at;
 }
 
-export async function POST(request: Request): Promise<NextResponse> {
+export const POST = withWorkspace(async (ws: string, request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -57,7 +57,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (typeof body.id !== "string" || body.id.length === 0 || body.id.length > MAX_TUPLE_CHARS) {
       return jsonRefusal("APPLY_SELECTION_INVALID", 400, { field: "id" });
     }
-    const [session, ws] = await Promise.all([currentSession(), currentWorkspace()]);
+    const session = await currentSession();
     const profile = getJobseekerProfile(currentUserId(session), ws);
     if (!profile) return jsonRefusal("JOBSEEKER_PROFILE_MISSING", 404);
     const anchor = advanceFeedAnchor(profile.id, { at: body.at, id: body.id }, ws);
@@ -65,4 +65,4 @@ export async function POST(request: Request): Promise<NextResponse> {
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/profile/seen", "JOBSEEKER_STORE_FAILED");
   }
-}
+});

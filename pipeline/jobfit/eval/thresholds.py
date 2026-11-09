@@ -219,10 +219,12 @@ MATCHING_BARS: dict[str, Bar] = {
         **_MATCH,
     ),
     "role_relevance_at5": Bar(
-        value=0.84,
+        value=0.87,
         why="Are the top 5 matches in a family the seeker asked for. Ratcheted 2026-09-04 from "
             "0.60, which sat 26 points under what the deterministic engine has been measuring — a "
-            "quarter of the ranking could rot without turning the gate red.",
+            "quarter of the ranking could rot without turning the gate red. Ratcheted again "
+            "2026-10-18 from 0.84 to 0.87: the proof weights (ADR 0027) lifted the measurement "
+            "0.857 -> 0.886 (a tightening, never a loosened bar).",
         slack=0.02,
         **_MATCH,
     ),

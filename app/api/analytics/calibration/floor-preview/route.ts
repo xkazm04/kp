@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { can } from "@/app/_lib/auth/current-user";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { liveScreeningRecommendation } from "@/app/_lib/calibration-recommendation";
 import { previewFloorMove } from "@/app/_lib/floor-move-preview";
@@ -22,7 +22,7 @@ const FLOOR_PREVIEW_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
 // The previewed threshold is never the client's: it is re-derived by the one helper the
 // display route and apply-threshold share, so the people named here are the people the
 // number Apply writes would move. No live recommendation -> the existing 409.
-export async function GET(request: Request) {
+export const GET = withWorkspace(async (ws: string, request: Request) => {
   const denied = await requireOperator();
   if (denied) return denied;
   if (!(await can("pipeline:write"))) return jsonRefusal("ANALYTICS_POLICY_FORBIDDEN", 403);
@@ -38,7 +38,6 @@ export async function GET(request: Request) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
-    const ws = await currentWorkspace();
     const { recommendation } = liveScreeningRecommendation(ws, roleFamily);
     if (!recommendation) return jsonRefusal("CALIBRATION_RECOMMENDATION_ABSENT", 409);
 
@@ -49,4 +48,4 @@ export async function GET(request: Request) {
     // and answers its existing code (no new catalog entry for the same failure).
     return safeJsonError(error, "api:analytics/calibration/floor-preview", "SCREEN_WAVE_FAILED");
   }
-}
+});

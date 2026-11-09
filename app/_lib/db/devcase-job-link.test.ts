@@ -95,6 +95,38 @@ test("resolveCaseJobId verifies the job EXISTS rather than trusting the slug", (
   assert.equal(resolveCaseJobId(null), null);
 });
 
+test("resolveCaseJobId honours a verified need.jobId, even for a job with no JD", () => {
+  insertJob(job("seeded-no-jd", "Seeded No JD"), undefined, "published", "workspace");
+  insertJob(job("jd-both-slug", "Both Slug"), undefined, "published", "workspace");
+  insertJob(job("both-explicit", "Both Explicit"), undefined, "published", "workspace");
+
+  assert.equal(resolveCaseJobId({ jobId: "seeded-no-jd" }), "seeded-no-jd");
+  assert.equal(resolveCaseJobId({ jobId: "no-such-job" }), null, "an unverified id must not become a stored link");
+  assert.equal(resolveCaseJobId({ jobId: "   " }), null, "a blank id is not a job");
+  assert.equal(resolveCaseJobId({ jobId: 42 }), null);
+  assert.equal(
+    resolveCaseJobId({ jobId: "both-explicit", jdSlug: "both-slug" }),
+    "both-explicit",
+    "a verified jobId wins over the slug"
+  );
+  assert.equal(
+    resolveCaseJobId({ jobId: "no-such-job", jdSlug: "both-slug" }),
+    "jd-both-slug",
+    "an unverified jobId falls through to the slug"
+  );
+  assert.equal(resolveCaseJobId({ jobId: "seeded-no-jd" }, "workspace"), "seeded-no-jd");
+  assert.equal(resolveCaseJobId({ jobId: "seeded-no-jd" }, "ws-other"), null, "another team's job does not verify");
+
+  const saved = saveDevCase({
+    need: { title: "Seeded", jobId: "seeded-no-jd" },
+    analysis: {},
+    role: { title: "Seeded" },
+    case: { title: "Seeded case" },
+  }, "workspace");
+  assert.equal(saved.jobId, "seeded-no-jd");
+  assert.equal(listDevCasesForJob("seeded-no-jd", "workspace").length, 1);
+});
+
 test("listDevCasesForJob returns this job's assignments only, newest first, scoped to the team", () => {
   insertJob(job("jd-busy-role", "Busy Role"), undefined, "published", "workspace");
   insertJob(job("jd-quiet-role", "Quiet Role"), undefined, "published", "workspace");

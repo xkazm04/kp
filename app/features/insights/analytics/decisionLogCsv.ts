@@ -14,7 +14,7 @@
 // uses for the funnel/roles files), so the file's shape — the provenance block,
 // the column order, the two time columns — is pinned by a plain unit test rather
 // than by whichever surface happened to render it last.
-import { decisionMeta, withExportProvenance, type Decision, type DecisionPage } from "./analyticsDecisionLogTypes";
+import { decisionMeta, withExportProvenance, type Decision, type DecisionPage } from "@/app/_lib/analytics-decision-types";
 import type { CohortProvenance } from "@/app/_lib/decision-attribution";
 
 /** Provenance + column labels, resolved by the caller from `analytics.log.*`. */

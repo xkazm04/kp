@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { listDraftJobs } from "@/app/_lib/job-ingest";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 
 
 // The drafts awaiting publish, for the JD library's Drafts panel. Seeded corpus jobs
@@ -14,7 +14,6 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 // no reader. Dropped rather than wired up: a payload nobody consumes is a contract
 // nobody can change safely, and `listJobStatuses` is still there for a server-side
 // caller that genuinely needs the map.
-export async function GET() {
-  const ws = await currentWorkspace();
+export const GET = withWorkspace(async (ws: string) => {
   return NextResponse.json({ drafts: listDraftJobs(ws) });
-}
+});

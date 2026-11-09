@@ -1,0 +1,181 @@
+{
+ "schema": "conform-run/1",
+ "worker": "418ad724-8c52-4a33-aef5-61c90eea6c59",
+ "subject": "candidate-status-transparency",
+ "evaluatedAt": "2026-10-18T22:08:25.808572+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "application-status-page",
+   "subject": "candidate-status-transparency",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/status/[token]/StatusClient.tsx:274 The status page renders generic non-selection copy asserting that the team moved forward with other candidates even when the requisition was closed or cancelled without an evaluation of the candidate.",
+   "techniques": [
+    {
+     "technique": "candidate-legible-timeline",
+     "verdict": "deviation",
+     "evidence": "app/status/[token]/StatusClient.tsx:301 The under_review step copy asserts a recruiter is reviewing the profile even during automated scoring or untouched queue states."
+    },
+    {
+     "technique": "candidate-safe-status-projection",
+     "verdict": "conformant",
+     "evidence": "app/status/[token]/StatusNextActionCard.tsx:15 Actions waiting on the candidate display expiry dates and inbox routing but deliberately withhold the action capability tokens from the forwardable status page."
+    },
+    {
+     "technique": "committed-dates-not-forecasts",
+     "verdict": "conformant",
+     "evidence": "app/status/[token]/StatusClient.tsx:315 Shows only recorded updatedAt timestamps and candidate action deadlines without displaying unowned decision forecasts."
+    },
+    {
+     "technique": "honest-failure-classification",
+     "verdict": "deviation",
+     "evidence": "app/status/[token]/StatusClient.tsx:231 Transient retryable errors instruct the candidate to check their connection even on server 5xx/429 faults, and linkInvalid references email link re-issues that the store does not perform."
+    },
+    {
+     "technique": "stage-role-mapping-not-stage-names",
+     "verdict": "conformant",
+     "evidence": "app/status/[token]/StatusClient.tsx:281 Progress along the spine is computed from the role-derived CandidateStatus enum rather than internal pipeline stage names."
+    },
+    {
+     "technique": "terminal-moment-experience-measurement",
+     "verdict": "conformant",
+     "evidence": "app/status/[token]/StatusNpsCard.tsx:69 Prompts candidate NPS only when the server signals eligibility for a terminal outcome, and suppresses re-asking once answered."
+    },
+    {
+     "technique": "terminal-state-copy-without-implying-merit",
+     "verdict": "deviation",
+     "evidence": "app/status/[token]/StatusClient.tsx:274 Renders notSelectedBody for all not_selected states, attributing a comparative merit decision to candidates whose role closed or was cancelled."
+    }
+   ]
+  },
+  {
+   "context": "candidate-apply-flow",
+   "subject": "candidate-status-transparency",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/application-status.ts:84 The status projection collapses requisition closures and lateral rematches into not_selected alongside rejections, erasing the cause needed to distinguish merit decisions from process endings.",
+   "techniques": [
+    {
+     "technique": "candidate-safe-status-projection",
+     "verdict": "conformant",
+     "evidence": "app/_lib/application-status.ts:8 Defines candidate-visible status as a closed set of coarse states by construction without exposing internal database fields or scores."
+    },
+    {
+     "technique": "honest-failure-classification",
+     "verdict": "conformant",
+     "evidence": "app/_lib/application-status.ts:121 Classifies HTTP status codes into retryable transient failures versus invalid link errors."
+    },
+    {
+     "technique": "stage-role-mapping-not-stage-names",
+     "verdict": "deviation",
+     "evidence": "app/_lib/application-status.ts:87 Falls back to stage name lookup and the initial entry bucket (received) instead of a neutral in-progress state when stage role is absent or unmappable."
+    },
+    {
+     "technique": "terminal-moment-experience-measurement",
+     "verdict": "deviation",
+     "evidence": "app/_lib/candidate-nps-store.ts:25 Stores candidate NPS responses without recording the terminal outcome kind (hired, declined, withdrew, requisition ended), preventing outcome-split satisfaction reporting."
+    },
+    {
+     "technique": "terminal-state-copy-without-implying-merit",
+     "verdict": "deviation",
+     "evidence": "app/_lib/application-status.ts:84 Collapses role_closed and rematched into not_selected, conflating structural requisition endings with candidate merit rejections."
+    }
+   ]
+  },
+  {
+   "context": "candidate-status-api",
+   "subject": "candidate-status-transparency",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/api/status/[token]/nps/route.ts:76 The status NPS route records candidate survey scores without capturing the terminal outcome kind that the response followed, preventing satisfaction reporting from splitting ratings by outcome population.",
+   "techniques": [
+    {
+     "technique": "candidate-safe-status-projection",
+     "verdict": "conformant",
+     "evidence": "app/api/status/[token]/route.ts:77 Returns safe projection omitting internal IDs/scores and projects pending actions without leaking action capability tokens."
+    },
+    {
+     "technique": "committed-dates-not-forecasts",
+     "verdict": "conformant",
+     "evidence": "app/api/status/[token]/route.ts:56 Returns recorded event timestamps without generating estimated or forecasted human decision dates."
+    },
+    {
+     "technique": "honest-failure-classification",
+     "verdict": "conformant",
+     "evidence": "app/api/status/[token]/route.ts:43 Emits coded STATUS_LINK_INVALID for missing or invalid tokens and resolves tenant scoping directly from the entry to avoid cross-tenant 404s."
+    },
+    {
+     "technique": "stage-role-mapping-not-stage-names",
+     "verdict": "conformant",
+     "evidence": "app/api/status/[token]/route.ts:53 Derives candidate status on read using the stage role resolved from the workspace pipeline axis."
+    },
+    {
+     "technique": "terminal-moment-experience-measurement",
+     "verdict": "deviation",
+     "evidence": "app/api/status/[token]/nps/route.ts:76 Records survey response without passing or persisting the terminal outcome kind, making outcome-split reporting impossible."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-18T22:08:25.808572+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-status-transparency"
+   ],
+   "techniques": [
+    "candidate-legible-timeline",
+    "candidate-safe-status-projection",
+    "committed-dates-not-forecasts",
+    "honest-failure-classification",
+    "stage-role-mapping-not-stage-names",
+    "terminal-moment-experience-measurement",
+    "terminal-state-copy-without-implying-merit"
+   ],
+   "deviations": 1,
+   "context": "application-status-page",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-18T22:08:25.808572+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-status-transparency"
+   ],
+   "techniques": [
+    "candidate-safe-status-projection",
+    "honest-failure-classification",
+    "stage-role-mapping-not-stage-names",
+    "terminal-moment-experience-measurement",
+    "terminal-state-copy-without-implying-merit"
+   ],
+   "deviations": 1,
+   "context": "candidate-apply-flow",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-18T22:08:25.808572+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-status-transparency"
+   ],
+   "techniques": [
+    "candidate-safe-status-projection",
+    "committed-dates-not-forecasts",
+    "honest-failure-classification",
+    "stage-role-mapping-not-stage-names",
+    "terminal-moment-experience-measurement"
+   ],
+   "deviations": 1,
+   "context": "candidate-status-api",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}

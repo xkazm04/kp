@@ -1,0 +1,66 @@
+{
+ "schema": "conform-run/1",
+ "worker": "c91d206d-f874-49a4-abe7-32d44b3078c6",
+ "subject": "prompt-safety",
+ "evaluatedAt": "2026-10-23T21:18:02.347089+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "tests-pipeline-automation",
+   "subject": "prompt-safety",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/tests/test_credentials.py:105 The test requires unavailable CV corroboration to produce the same empty findings list as a completed clean check, losing the required not-inspected outcome.",
+   "techniques": [
+    {
+     "technique": "cross-language-rule-parity",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_automation_constant_sync.py:110 The surrounding test binds generated prompt limits to Python values and verifies that TypeScript re-exports them without independent declarations."
+    },
+    {
+     "technique": "input-caps-and-clamps",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_prompt_budgets.py:75 Real prompt builders are tested with oversized JD, company and CV blocks, requiring class-specific ceilings and visible truncation markers."
+    },
+    {
+     "technique": "inspection-coverage-is-a-verdict",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_credentials.py:105 Required-licence corroboration silently skips unreadable CV text; its result cannot distinguish not inspected from inspected without findings."
+    },
+    {
+     "technique": "payoff-removal",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_automation.py:1230 A model-issued early-career rejection is structurally rewritten to hold after generation, preventing that response from winning an automated rejection."
+    },
+    {
+     "technique": "untrusted-span-fencing",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_prompt_fences.py:199 Breakout payloads pass through real prompt builders, and disabling marker defusing must make the same fence-integrity assertion fail."
+    }
+   ],
+   "registryProposal": "Align the golden path's mandatory fresh-nonce wording with untrusted-span-fencing's explicit allowance for fixed markers stripped from every payload."
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-23T21:18:02.347089+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-safety"
+   ],
+   "techniques": [
+    "cross-language-rule-parity",
+    "input-caps-and-clamps",
+    "inspection-coverage-is-a-verdict",
+    "payoff-removal",
+    "untrusted-span-fencing"
+   ],
+   "deviations": 1,
+   "context": "tests-pipeline-automation",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

@@ -1,0 +1,165 @@
+{
+ "schema": "conform-run/1",
+ "worker": "2055778f-a98c-4113-a3da-243d34b9ae6b",
+ "subject": "multi-provider-gateway-plane",
+ "evaluatedAt": "2026-11-08T05:18:39.836418+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "application-status-page",
+   "subject": "multi-provider-gateway-plane",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/status/[token]/StatusClient.tsx:99 The page polls one first-party route and fronts no upstream at all; a case-insensitive search of app/status found none of failover/upstream/gateway, so the subject's precondition (one process fronting several interchangeable upstreams) does not hold.",
+   "techniques": [],
+   "absenceTerms": [
+    "failover",
+    "upstream",
+    "gateway"
+   ]
+  },
+  {
+   "context": "candidate-status-api",
+   "subject": "multi-provider-gateway-plane",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/status/[token]/route.ts:33 These are tokenized handlers that project local pipeline rows; a case-insensitive search of app/api/status, app/api/stop and app/api/offer found no failover/upstream/gateway, so no multi-upstream plane exists here.",
+   "techniques": [],
+   "absenceTerms": [
+    "failover",
+    "upstream",
+    "gateway"
+   ]
+  },
+  {
+   "context": "conversational-apply-flow",
+   "subject": "multi-provider-gateway-plane",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/apply/[id]/ConversationalApply.tsx:396 The apply chat only calls first-party routes; a case-insensitive search of app/apply found no failover/upstream/gateway, so there is no candidate tree or upstream translation to judge.",
+   "techniques": [],
+   "absenceTerms": [
+    "failover",
+    "upstream",
+    "gateway"
+   ]
+  },
+  {
+   "context": "voice-provider-io",
+   "subject": "multi-provider-gateway-plane",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/voice/connect-failover.ts:90 The connect failover fails over on ANY throw from dial(): plain config Errors and payload-build bugs inside an adapter's connect() are retried against the alternate provider, because the loop never reads the typed VoiceMintError marker. mint-error.ts's classifyMintFailure also files every unclassified throw as 'upstream' (the provider's side). So a plane-side defect reaches the alternate and gets blamed on the provider; only the agent-prompt build was moved out of the trigger (lines 106-112).",
+   "techniques": [
+    {
+     "technique": "router-versus-candidate-failure",
+     "verdict": "deviation",
+     "evidence": "app/_lib/voice/connect-failover.ts:98 The loop has a single arm and catches everything. No marker separates a router failure (e.g. throw new Error(\"OPENAI_API_KEY is not set\") or a buildOpenAiSessionPayload bug) from a candidate failure. Partial credit: resolveAgentPrompt was deliberately moved outside the failover trigger."
+    },
+    {
+     "technique": "upstream-identity-before-inventory",
+     "verdict": "deviation",
+     "evidence": "app/_lib/voice/self-hosted.ts:77 Hosted ElevenLabs and Gravitone answer the same Agents protocol. Which one is behind the URL is guessed from the configured host's address class, not probed from something only that implementation serves. The answer is a boolean with no 'unknown' state, and minute-prices re-derives it from env at completion time instead of recording it on the session."
+    },
+    {
+     "technique": "strategy-tree-with-inherited-policy",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/voice/connect-failover.ts:93 There is one flat candidate order with one policy (the free-only rescue filter). The technique exempts a depth-one list."
+    },
+    {
+     "technique": "adapter-direction-asymmetry",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/voice/openai.ts:178 There are only two realtime upstreams, so both directions written as code is what the technique's 'two or three upstreams' exemption prescribes."
+    },
+    {
+     "technique": "per-provider-stream-framing",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/voice/elevenlabs.ts:8 The server only mints credentials. Streams go browser-to-provider over the vendor SDK (ElevenLabs) and WebRTC (OpenAI), so a maintained client owns the framing."
+    },
+    {
+     "technique": "one-typed-carrier-for-echoed-state",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/voice/openai.ts:235 The only state handed to a provider is an outbound fingerprint. Session state is held server-side, so no opaque token has to round-trip through a client."
+    },
+    {
+     "technique": "join-breadth-follows-the-wrong-match-cost",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/voice/minute-prices.ts:22 The price lookup is an exact key on the closed provider id. There is no fuzzy name join against an upstream's naming scheme."
+    },
+    {
+     "technique": "exclusive-authorship-of-a-measured-decision",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/voice/connect-failover.ts:35 No production evaluation measures the provider choice. The served provider and the failedOver flag are returned anyway, and the connect route persists failover_from beside provider."
+    }
+   ],
+   "registryProposal": "upstream-identity-before-inventory assumes the plane needs identity to file an inventory. Here identity matters for a money decision (free vs paid) on a configured, not discovered, endpoint, and the code deliberately picks the asymmetric-safe guess (unknown public host = paid). The technique could say whether a conservative default in the cheap-error direction is an acceptable stand-in for 'unknown' when no inventory is imported."
+  }
+ ],
+ "declined": [
+  {
+   "subject": "multi-provider-gateway-plane",
+   "context": "candidate-matching",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-08T05:18:39.836418+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "multi-provider-gateway-plane"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "application-status-page",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T05:18:39.836418+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "multi-provider-gateway-plane"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "candidate-status-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T05:18:39.836418+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "multi-provider-gateway-plane"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "conversational-apply-flow",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T05:18:39.836418+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "multi-provider-gateway-plane"
+   ],
+   "techniques": [
+    "adapter-direction-asymmetry",
+    "exclusive-authorship-of-a-measured-decision",
+    "join-breadth-follows-the-wrong-match-cost",
+    "one-typed-carrier-for-echoed-state",
+    "per-provider-stream-framing",
+    "router-versus-candidate-failure",
+    "strategy-tree-with-inherited-policy",
+    "upstream-identity-before-inventory"
+   ],
+   "deviations": 1,
+   "context": "voice-provider-io",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -1,0 +1,117 @@
+{
+  "schema": "conform-run/1",
+  "worker": "aadc0aeb-a3c6-4c3f-bfb0-0b390aa71ec7",
+  "subject": "optional-dependency-degradation",
+  "evaluatedAt": "2026-10-24T22:11:20.083200+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "group-eval-shared",
+      "subject": "optional-dependency-degradation",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/shared/groupEvalArm.ts:14 The context holds pure types, a URL-param grammar (\"arm\" is a list of candidate ids, not a provider/arm roster from config) and a validator for a stored fairness data blob. It reads no environment and configures no external dependency, and a grep of app/features/shared for process.env, API_KEY, NOT_CONFIGURED and isConfigured returned no hits.",
+      "techniques": [
+        {
+          "technique": "absent-degrades-malformed-fails-fast",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/groupEvalTypes.ts:65 Malformed persisted DATA degrading to an honest 'could not assess' is data validation (error-handling / failure-not-empty-success), not a configuration value."
+        }
+      ],
+      "absenceTerms": [
+        "process.env",
+        "API_KEY",
+        "NOT_CONFIGURED",
+        "isConfigured"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "optional-dependency-degradation",
+      "context": "candidate-apply-api",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "optional-dependency-degradation",
+      "context": "llm-config-provider",
+      "reason": "withdrawn after review: reviewer (sonnet): The deviation anchor app/_lib/offline.ts:15 (KP_OFFLINE parsing) is not among the context's 12 paths in .ai/registry-map.json, which are llm-config.ts, llm-*.test.ts, llm-lighttrack, llm-model-defaults, llm-quality*. provider-key-precedence.ts and llm-secret.ts are also outside it. The line does say"
+    },
+    {
+      "subject": "optional-dependency-degradation",
+      "context": "db-core-migrations",
+      "reason": "withdrawn after review: reviewer (sonnet): The deviation anchor app/_lib/db/seed-gate.ts:5 is not among the context's paths, which are core.ts, the core-*/db-path/pg-portability/rollback tests, and pg-portability.ts. The seed-gate truthy() parsing is real, but the verdict belongs to another context."
+    },
+    {
+      "subject": "optional-dependency-degradation",
+      "context": "setup-studio",
+      "reason": "withdrawn after review: reviewer (sonnet): The deviation anchors scripts/onboard-ui/server.mjs and engine.mjs are not among the context's paths, which are app/features/setup-studio/*.ts(x) and app/setup/studio/page.tsx. The KP_ONBOARD_PORT parse and the +1 retry in listen() are real, but they belong to the onboard-ui script, not this context"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-24T22:11:20.083200+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "optional-dependency-degradation"
+      ],
+      "techniques": [
+        "absent-degrades-malformed-fails-fast",
+        "guarded-singleton-accessor",
+        "misconfiguration-never-reaches-a-fallback",
+        "probe-the-grant-not-the-config"
+      ],
+      "deviations": 1,
+      "context": "llm-config-provider",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-24T22:11:20.083200+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "optional-dependency-degradation"
+      ],
+      "techniques": [
+        "absent-degrades-malformed-fails-fast",
+        "guarded-singleton-accessor",
+        "misconfiguration-never-reaches-a-fallback"
+      ],
+      "deviations": 1,
+      "context": "db-core-migrations",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-24T22:11:20.083200+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "optional-dependency-degradation"
+      ],
+      "techniques": [
+        "absent-degrades-malformed-fails-fast"
+      ],
+      "deviations": 0,
+      "context": "group-eval-shared",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-24T22:11:20.083200+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "optional-dependency-degradation"
+      ],
+      "techniques": [
+        "absent-degrades-malformed-fails-fast",
+        "capability-honest-refusal",
+        "probe-the-grant-not-the-config"
+      ],
+      "deviations": 1,
+      "context": "setup-studio",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { safeJsonError } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { readGigKpiInput } from "@/app/_lib/db/gigs-outcomes";
 import { foldGigKpi } from "@/app/_lib/gigs/kpi";
@@ -12,12 +12,12 @@ import { foldGigKpi } from "@/app/_lib/gigs/kpi";
 // this workspace's rows (db/gigs-outcomes.ts readGigKpiInput). A rate is null - never
 // 0% - while nothing has resolved, and flagged small-sample under 10 resolved.
 
-export async function GET(): Promise<NextResponse> {
+export const GET = withWorkspace(async (ws: string): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
-    return NextResponse.json(foldGigKpi(readGigKpiInput(await currentWorkspace())));
+    return NextResponse.json(foldGigKpi(readGigKpiInput(ws)));
   } catch (error) {
     return safeJsonError(error, "api:gigs/kpi", "GIG_STORE_FAILED");
   }
-}
+});

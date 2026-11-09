@@ -30,9 +30,9 @@ function codeOnly(src: string): string {
 test("PATCH /api/schedule resolves the tenant and rejects a foreign/candidate token before writing the meeting link", () => {
   const dir = path.dirname(fileURLToPath(import.meta.url));
   const src = readFileSync(path.join(dir, "route.ts"), "utf8");
-  const patch = codeOnly(src.slice(src.indexOf("export async function PATCH")));
+  const patch = codeOnly(src.slice(src.search(/export (?:async function|const) PATCH\b/)));
   assert.ok(patch.length > 0, "PATCH handler must exist");
-  assert.match(patch, /currentWorkspace\(\)/, "PATCH must resolve currentWorkspace()");
+  assert.match(patch, /withWorkspace\(async \(ws: string/, "PATCH must receive the caller's workspace from withWorkspace");
   assert.match(patch, /getScheduleInviteByToken\(/, "PATCH must load the invite to check ownership");
   // BOUND, not merely present: the tenant predicate must be the condition of the
   // refusal, and that refusal must be the 404 — an unused `invite.workspaceId !== ws`

@@ -12,7 +12,7 @@
 // tenant is NOT over-scrubbed. Drives the REAL db.ts (+ the isolated sibling stores, which
 // open the same SQLite file) against a throwaway file. Run: npm run test:unit
 import { test, after } from "node:test";
-import { removeTempDirs } from "./testing/tmp-cleanup.ts";
+import { removeTempDirsInHook } from "./testing/tmp-cleanup.ts";
 import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
@@ -75,7 +75,7 @@ const { TENANCY_SCOPED_TABLES, TENANCY_EXEMPT_TABLES } = await import("./tenancy
 const { ERASURE_EXEMPT, ERASURE_DELEGATED_SCRUBS } = await import("./db/pipeline.ts");
 const { recordMatchRun, loadMatchRunFacts } = await import("./db/match-runs.ts");
 
-after(() => removeTempDirs(TMP_DIR));
+after(() => removeTempDirsInHook([TMP_DIR]));
 
 const NAME = "Zdenka Procházková";
 const EMAIL = "zdenka.prochazkova@example.com";

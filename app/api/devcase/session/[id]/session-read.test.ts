@@ -81,7 +81,7 @@ test("GET /session/[id] - the operator gate runs before the store read", async (
   // handler must call requireOperator() before it touches the store.
   const { readFileSync } = await import("node:fs");
   const src = readFileSync(new URL("./route.ts", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  const get = src.slice(src.indexOf("export async function GET("));
+  const get = src.slice(src.search(/export (?:async function|const) GET\b/));
   const gate = get.indexOf("await requireOperator()");
   const read = get.indexOf("getDevSession(");
   assert.ok(gate >= 0, "GET must call requireOperator()");

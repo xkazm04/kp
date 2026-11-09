@@ -78,7 +78,7 @@ export function NeedForm({
             <button
               type="button"
               onClick={reloadJds}
-              className="focus-ring font-semibold text-coral underline-offset-2 hover:underline"
+              className="focus-ring font-semibold text-coral-ink underline-offset-2 hover:underline"
             >
               {tJds("retry")}
             </button>
@@ -91,7 +91,7 @@ export function NeedForm({
                 writing one, and the ledger it used to point at is where one lands. */}
             {t.rich("noJds", {
               link: (chunks) => (
-                <Link href="/?tab=intake" className="font-semibold text-coral underline-offset-2 hover:underline">
+                <Link href="/?tab=intake" className="font-semibold text-coral-ink underline-offset-2 hover:underline">
                   {chunks}
                 </Link>
               ),
@@ -140,7 +140,7 @@ export function NeedForm({
                     type="button"
                     onClick={() => removeRepo(i)}
                     aria-label={t("removeCodebaseAria", { n: i + 1 })}
-                    className="focus-ring shrink-0 rounded-md border border-stone-200 p-2 text-steel hover:border-coral/40 hover:text-coral"
+                    className="focus-ring shrink-0 rounded-md border border-stone-200 p-2 text-steel hover:border-coral/40 hover:text-coral-ink"
                   >
                     <X size={13} />
                   </button>
@@ -156,7 +156,7 @@ export function NeedForm({
           <button
             type="button"
             onClick={addRepo}
-            className="focus-ring mt-1.5 inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-sm font-semibold text-coral hover:bg-coral/5"
+            className="focus-ring mt-1.5 inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-sm font-semibold text-coral-ink hover:bg-coral/5"
           >
             <Plus size={13} /> {t("addCodebase")}
           </button>
@@ -177,7 +177,7 @@ export function NeedForm({
         onClick={runLifecycle}
         disabled={lifecycleActive || jdMissing}
         title={t("lifecycleTitle")}
-        className="focus-ring inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-md bg-coral text-base font-semibold text-white hover:opacity-90 disabled:opacity-50"
+        className="focus-ring inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-md bg-coral-solid text-base font-semibold text-white hover:opacity-90 disabled:opacity-50"
       >
         {lifecycleActive ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
         {lifecycleActive ? t("lifecycleRunning") : t("runLifecycle")}
@@ -197,7 +197,7 @@ export function NeedForm({
               <li key={task.id}>
                 <button type="button" onClick={() => selectNeed(task.id)}
                   className={`focus-ring w-full truncate rounded px-1.5 py-1 text-left text-sm ${
-                    viewed?.id === task.id ? "bg-coral/10 text-coral" : "text-ink/80 hover:bg-paper"
+                    viewed?.id === task.id ? "bg-coral/10 text-coral-ink" : "text-ink/80 hover:bg-paper"
                   }`}>
                   {task.label?.replace("Need analysis · ", "") || task.id}
                 </button>

@@ -1,0 +1,186 @@
+{
+ "schema": "conform-run/1",
+ "worker": "d15a75bc-a200-4777-82d5-febba4d9f37e",
+ "subject": "quality-gates",
+ "evaluatedAt": "2026-11-04T03:28:38.505019+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "cv-analyze-workspace",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/tools/analyze/analyzeDesignSurface.test.ts:51 The design-surface source guard checks that HistoryTab 'uses' EYEBROW/TITLE_DISPLAY/INTRO by matching the raw file text, and the import on HistoryTab.tsx:5 already satisfies that match, so the presence check would stay green even if the recipe were imported but never applied.",
+   "techniques": [
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/analyze/analyzeDesignSurface.test.ts:51 The haystack is raw source, not normalised to what executes. The import line `import { ... EYEBROW, INTRO, PANEL, TITLE_DISPLAY }` on HistoryTab.tsx:5 matches this pattern by itself, and comments are not stripped either."
+    },
+    {
+     "technique": "renameable-detector-keys",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/analyze/analyzeDesignSurface.test.ts:42 The 're-typed PANEL' absence check is keyed on one literal class order. Reordering the same classes re-types the card and passes. Meanwhile the header (line 10) says each assertion names the property rather than the string."
+    },
+    {
+     "technique": "gate-liveness",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/analyze/analyzeDesignSurface.test.ts:79 The test confirms all three needles exist before it compares their DOM order, so a missing control turns the test red instead of making the order comparison pass by default."
+    },
+    {
+     "technique": "refusal-names-a-reachable-remedy",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/analyze/analyzeDesignSurface.test.ts:37 Each failure message names the file and the recipe to apply. The remedy resolves inside the tree."
+    },
+    {
+     "technique": "prose-rule-drift",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/analyze/analyzeDesignSurface.test.ts:1 The 'compose recipes, do not re-type them' rule used to exist only as prose. Here it is mechanised for this surface, and the header records the drift that happened while it was prose-only (21 files with no recipe imports)."
+    },
+    {
+     "technique": "blocking-by-input-determinism",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/analyze/analyzeDesignSurface.test.ts:22 The guard reads only files from the tree it gates, so it is deterministic and may legitimately block."
+    }
+   ]
+  },
+  {
+   "context": "devcase-eval",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/tools/devcases/DevTab.approve-error.test.ts:27 The approve() guard matches raw source text that still contains the comments explaining the rule (useDevTabNeedAnalysis.ts:99-104 sits inside the sliced body), so a comment can satisfy the presence probe and the absence probe can be tripped or dodged by prose instead of code.",
+   "techniques": [
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/devcases/DevTab.approve-error.test.ts:27 The haystack is not normalised to what executes: comments and strings stay in it, and nothing next to the probe says over-detection is acceptable. The body already holds a comment quoting the forbidden `if (r.ok)` shape (useDevTabNeedAnalysis.ts:101)."
+    },
+    {
+     "technique": "gate-liveness",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/DevTab.approve-error.test.ts:20 The test asserts the start of the function before slicing, so a missing approve() is red. Caveat: the end marker `return {` (line 21) is not asserted, and if it vanishes the slice silently widens."
+    },
+    {
+     "technique": "unmeasurable-criteria",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/DevEvalPanelIntegrity.tsx:14 An unverifiable integrity check is rendered as a third state (ShieldQuestion, line 116) and is never shown as compliance. Ungradable canaries are also counted separately (DevEvalPanelChecks.tsx:123)."
+    }
+   ]
+  },
+  {
+   "context": "jobseeker-feed-rules",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/jobseeker/fetch/politeFetch.ts:232 When robots.txt cannot be reached (network error or timeout), the robots gate fails open and proceeds as allowed, so a hole in the gate's own vision reads as permission. The same function treats a 5xx as an outage that refuses (lines 220-222), and RFC 9309 treats unreachable as a full disallow.",
+   "techniques": [
+    {
+     "technique": "unmeasurable-criteria",
+     "verdict": "deviation",
+     "evidence": "app/_lib/jobseeker/fetch/politeFetch.ts:232 Missing robots.txt is split correctly: 4xx, meaning no policy published (the subject's world), is allowed, and 5xx refuses. But a network failure is a gap in the instrument and is resolved as compliance. The warning is logged once and is not counted on any surface. politeFetch.test.ts:168 pins this behaviour."
+    },
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "conformant",
+     "evidence": "app/_lib/jobseeker/rules/dsl.ts:41 The capture-group count comes from the regex engine itself, not from scanning the pattern text, and a pattern that fails to compile is refused."
+    },
+    {
+     "technique": "unparseable-form-is-a-finding",
+     "verdict": "conformant",
+     "evidence": "app/_lib/jobseeker/rules/dsl.ts:64 The nested-quantifier scanner is not a parser, so it refuses the form it cannot clear. Its scope (model- or owner-authored rules) is code the system controls, which is the precondition the technique requires."
+    },
+    {
+     "technique": "refusal-names-a-reachable-remedy",
+     "verdict": "conformant",
+     "evidence": "app/_lib/jobseeker/rules/dsl.ts:123 Each refusal names the rule index, the field and the fix (flatten it, or one of the listed values)."
+    },
+    {
+     "technique": "gate-laddering",
+     "verdict": "conformant",
+     "evidence": "app/_lib/jobseeker/rules/engine.ts:196 The same check that validation runs is repeated at execution time, which catches rules stored before the gate existed."
+    },
+    {
+     "technique": "gate-liveness",
+     "verdict": "conformant",
+     "evidence": "app/_lib/jobseeker/rules/rules.test.ts:153 Six known-bad patterns are seeded and each must be refused, so the gate has been seen going red."
+    },
+    {
+     "technique": "false-positive-economics",
+     "verdict": "conformant",
+     "evidence": "app/_lib/jobseeker/rules/collapse.ts:13 The collapse gate pauses a source only when a required rule yields nothing, or when an optional rule with an established baseline (\u22655 matches) yields nothing. Rarely-matching optional fields cannot trip it."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "quality-gates",
+   "context": "jobseeker-api",
+   "reason": "evidence leans on propose/route.ts, which is not a tracked file"
+  },
+  {
+   "subject": "quality-gates",
+   "context": "pipeline-entry-types",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-04T03:28:38.505019+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "blocking-by-input-determinism",
+    "gate-liveness",
+    "match-the-resolved-artifact",
+    "prose-rule-drift",
+    "refusal-names-a-reachable-remedy",
+    "renameable-detector-keys"
+   ],
+   "deviations": 1,
+   "context": "cv-analyze-workspace",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-04T03:28:38.505019+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "gate-liveness",
+    "match-the-resolved-artifact",
+    "unmeasurable-criteria"
+   ],
+   "deviations": 1,
+   "context": "devcase-eval",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-04T03:28:38.505019+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "false-positive-economics",
+    "gate-laddering",
+    "gate-liveness",
+    "match-the-resolved-artifact",
+    "refusal-names-a-reachable-remedy",
+    "unmeasurable-criteria",
+    "unparseable-form-is-a-finding"
+   ],
+   "deviations": 1,
+   "context": "jobseeker-feed-rules",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

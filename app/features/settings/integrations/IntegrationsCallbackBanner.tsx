@@ -22,7 +22,7 @@ import {
 const TONE_CLASS: Record<CalendarCallbackTone, string> = {
   ok: "border-moss/40 bg-moss/5 text-moss",
   warn: "border-amber-300 bg-amber-50 text-amber-900",
-  error: "border-coral/40 bg-coral/5 text-coral",
+  error: "border-coral/40 bg-coral/5 text-coral-ink",
 };
 
 export function IntegrationsCallbackBanner({ code }: { code: string }) {

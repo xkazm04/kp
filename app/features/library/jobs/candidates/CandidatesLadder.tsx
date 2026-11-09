@@ -87,7 +87,7 @@ export function CandidatesLadder({ rows, notEligible, opening, onOpen }: Variant
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onOpen(r.c); }}
-                    className="focus-ring cursor-pointer rounded text-left font-medium text-ink hover:text-coral"
+                    className="focus-ring cursor-pointer rounded text-left font-medium text-ink hover:text-coral-ink"
                   >
                     {r.label}
                   </button>

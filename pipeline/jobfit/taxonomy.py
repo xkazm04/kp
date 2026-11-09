@@ -409,6 +409,28 @@ def _compact_word_grid(text_norm: str) -> tuple[dict[int, int], frozenset[int]]:
     return starts, frozenset(ends)
 
 
+# Longest tail a Czech declension / English plural adds to a skill stem ("pythonu",
+# "produktech", "products", "pythonem"). Anything longer is a different word.
+_MAX_INFLECTION_TAIL = 4
+# English derivational tails that turn the stem into a DIFFERENT concept
+# ("product" + "ion" = production, "+ivity", "+ive", "+al"). Czech declension
+# endings never start with these.
+_DERIVATION_TAIL_PREFIXES = ("ion", "iv", "ity", "al")
+# Czech adjectival / verbal-noun tails longer than the bound above ("manažerského",
+# "vývojových", "testování"): the stem's own Czech derivations, kept matching.
+_CZECH_LONG_TAILS = frozenset(
+    {"ského", "ských", "ským", "ových", "ového", "ovému", "ovými", "ování", "ovaný", "ovaná"}
+)
+
+
+def _is_inflection_tail(tail: str) -> bool:
+    """True when ``tail`` (the rest of a word after a single-token surface) reads as
+    an inflection of that surface rather than a derived, unrelated word."""
+    if tail in _CZECH_LONG_TAILS or (tail.startswith(("ář", "ař")) and len(tail) <= 7):
+        return True  # "vývoj" -> "vývojářským": the agent-noun derivation
+    return len(tail) <= _MAX_INFLECTION_TAIL and not tail.startswith(_DERIVATION_TAIL_PREFIXES)
+
+
 def _compact_fallback_hit(
     text_norm: str, compact_text: str, compact_form: str, *, allow_inflection: bool
 ) -> bool:
@@ -429,8 +451,9 @@ def _compact_fallback_hit(
     ``allow_inflection`` relaxes only the END condition, and only for a surface
     that is a single plain token (its compact form equals the surface itself, so
     the fallback buys nothing but suffix tolerance): the match may then finish
-    inside the word it started, which is the benign Czech-inflection / derivation
-    pattern the fallback also serves ("python" -> "pythonu", "audit" -> "auditor").
+    inside the word it started, but only by a bounded inflection tail
+    (:func:`_is_inflection_tail`): "python" -> "pythonu", "audit" -> "auditor", while
+    "product" -> "production" is a different word and no longer matches.
     A separator-bearing surface gets no such relaxation — ".net" ending inside
     "networking" is always an accident, never an inflection.
     """
@@ -443,7 +466,9 @@ def _compact_fallback_hit(
             end = idx + span
             if end in ends:
                 return True
-            if allow_inflection and end < word_end:
+            if allow_inflection and end < word_end and _is_inflection_tail(
+                compact_text[end:word_end]
+            ):
                 return True
         idx = compact_text.find(compact_form, idx + 1)
     return False

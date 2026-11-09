@@ -68,7 +68,7 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
         {hasProfileFacts ? (
           <div className={`${PANEL} p-5`}>
             <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-coral" aria-hidden />
+              <Sparkles className="h-5 w-5 text-coral-ink" aria-hidden />
               <h3 className="font-serif text-h3 text-ink">{t("panel.skillsProfile")}</h3>
             </div>
             {skills.length > 0 ? (
@@ -206,7 +206,7 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
 
         <div className={`${PANEL} p-5`}>
           <div className="flex items-center gap-2">
-            <BrainCircuit className="h-5 w-5 text-coral" aria-hidden />
+            <BrainCircuit className="h-5 w-5 text-coral-ink" aria-hidden />
             <h3 className="font-serif text-h3 text-ink">{t("panel.scoreBreakdown")}</h3>
           </div>
           <FactorChart score={analysis.score} />
@@ -221,7 +221,7 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
             emptyHint={t("panel.strengthsHint")}
           />
           <ListBlock
-            icon={<AlertTriangle className="h-5 w-5 text-coral" />}
+            icon={<AlertTriangle className="h-5 w-5 text-coral-ink" />}
             title={t("panel.gaps")}
             items={analysis.gaps}
             emptyHeadline={t("panel.gapsEmpty")}
@@ -234,7 +234,7 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
             lists; guarded so an empty list adds no chrome. */}
         {recommendations.length > 0 ? (
           <ListBlock
-            icon={<Lightbulb className="h-5 w-5 text-coral" />}
+            icon={<Lightbulb className="h-5 w-5 text-coral-ink" />}
             title={t("panel.recommendations")}
             items={recommendations}
           />
@@ -272,7 +272,7 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
           <h3 className="font-serif text-h3 text-ink">{t("panel.llmExplanation")}</h3>
           <p className="mt-3 text-base leading-6 text-ink">{analysis.explanation}</p>
           {unverifiedSkills ? (
-            <p className="mt-2 text-meta text-coral" role="note">
+            <p className="mt-2 text-meta text-coral-ink" role="note">
               {t("panel.llmExplanationUnverified", { skills: unverifiedSkills })}
             </p>
           ) : null}

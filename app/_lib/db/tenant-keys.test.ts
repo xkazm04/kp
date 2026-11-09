@@ -130,6 +130,7 @@ export const IDENTITY_KEYS: ReadonlyMap<string, string> = new Map([
   ["interview_events(id)", MINTED],
   ["interview_kits(id)", MINTED],
   ["interview_letters(id)", MINTED],
+  ["outreach_letters(id)", MINTED],
   ["pipeline_entry_notes(id)", "entry-notes.ts mints note-<randomUUID> for exactly one row; no caller supplies it"],
   ["interview_sessions(id)", MINTED],
   ["interview_sessions(token)", TOKEN],

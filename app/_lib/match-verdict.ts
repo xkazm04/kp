@@ -79,6 +79,14 @@ const DIMENSION_KEYS: ReadonlySet<string> = new Set(["labelCode", "percent"]);
 export const MATCH_RUN_ID_RE = /^[A-Za-z0-9-]{1,64}$/;
 const SCORER_VERSION_RE = /^[a-z0-9][a-z0-9._-]{0,39}$/;
 
+/** True when `v` is a scorer-version slug the add door will accept. The engine stamps
+ *  every result with the arithmetic that made it (`proof-weights.1-lam0.8-sd0.05`, or
+ *  `match-scorer.v1` for the historical weighting; ADR 0027), and the facts carry it
+ *  only when it is one of these. */
+export function isScorerVersion(v: unknown): v is string {
+  return typeof v === "string" && SCORER_VERSION_RE.test(v);
+}
+
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
@@ -127,7 +135,7 @@ export function coerceMatchReasonFacts(v: unknown): MatchReasonFacts | null {
       : typeof score === "number" && Number.isFinite(score) && score >= 0 && score <= 100
         ? score
         : undefined;
-  const scorerVersion = typeof v.scorerVersion === "string" && SCORER_VERSION_RE.test(v.scorerVersion) ? v.scorerVersion : undefined;
+  const scorerVersion = isScorerVersion(v.scorerVersion) ? v.scorerVersion : undefined;
   if (
     fitTier === undefined ||
     best === undefined ||

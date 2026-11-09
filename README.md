@@ -13,22 +13,42 @@ data, with whichever AI model you choose — including none at all.
 
 *The hiring overview — attention items, getting-started steps, and today's queue, all on one board.*
 
-## Two-minute local start
+## Run it on your own computer
 
-You need **Node 20+** and **Python 3.11+** on your `PATH` (Python is spawned per
-request for the analysis pipeline; override the binary with `PYTHON_CMD`).
+You do not need to be technical. You install two free programs, download the
+code, and type one line.
 
-```bash
-git clone https://github.com/xkazm04/kp.git && cd kp
-npm install
-pip install -r requirements.txt      # the Python jobfit pipeline
-npm run dev
-```
+1. **Install Node.js 24** from [nodejs.org](https://nodejs.org) (the "LTS" download).
+2. **Install Python 3.11 or newer** from
+   [python.org/downloads](https://www.python.org/downloads/). On Windows, tick
+   **"Add python.exe to PATH"** on the installer's first screen.
+3. **Get the code.** On this GitHub page click **Code → Download ZIP** and unzip it
+   (or, if you use git: `git clone https://github.com/xkazm04/kp.git`).
+4. **Open a terminal in that folder.** Windows: open the folder, click the address
+   bar, type `cmd` and press Enter. Mac: right-click the folder in Finder and choose
+   **New Terminal at Folder**.
+5. **Type this and press Enter:**
 
-Open `http://localhost:3000`. **No API key is required to start.** A fresh checkout
-creates and seeds its own SQLite workspace (`data/kp.sqlite`) with a demo corpus —
-an example JD, ~100 jobs, candidate profiles, pipeline entries — so you land on a
-populated hiring board rather than an empty shell.
+   ```bash
+   npm run up
+   ```
+
+The first run checks Node.js and Python, installs what the app needs (a few
+minutes), starts it, and opens your browser at `http://localhost:3000`. Click
+**Sign in** at the top of the page: you land in **your own empty workspace** and a
+short setup asks about your company, your team and your hiring board, each step
+with a working default you can keep. Everything is saved on
+your computer (`data/kp-owner.sqlite`) and is still there next time you run
+`npm run up`. Press `Ctrl+C` in the terminal to stop it.
+
+**No API key is needed.** Want to look around first? `npm run up -- --demo` opens a
+demo workspace with an example job description, ~100 jobs, candidate profiles and a
+populated hiring board (`data/kp.sqlite`); your own workspace is not touched.
+`npm run up -- --check` only checks that Node.js and Python are ready.
+
+*For developers:* `npm ci`, `pip install -r requirements.txt`, `npm run dev` is
+the manual path (the seeded demo on `data/kp.sqlite`); override the Python binary
+with `KP_PYTHON`.
 
 ## Set it up with your AI
 
@@ -71,9 +91,10 @@ on a missing engine, and the one feature that cannot degrade says so out loud.
 
 | Capability | What you need | Without it |
 | --- | --- | --- |
-| Workspace UI — pipeline board, jobs, JD library, profiles, matrix, simulation | Nothing beyond Node 20+ and Python 3.11+ | **Works** |
+| Workspace UI — pipeline board, jobs, JD library, profiles, matrix, simulation | Nothing beyond Node 24 and Python 3.11+ | **Works** |
+| Applicant scoring and Match (the Matrix tab) | Nothing — both run on the rule-based scorer | **Works** |
 | LLM judgment — automation tasks, dev-case design and evaluation, match reasoning, scorecards, campaign packs | A logged-in Claude Code CLI (the default engine), a local model server, or a provider key in **Settings → Models** | **Works, deterministic** — every LLM feature runs its rule-based implementation, no errors |
-| CV analysis + salary grounding (Analyze/Match tabs, CLI scripts) | `GEMINI_API_KEY` (`GOOGLE_API_KEY` is an alias) | **Off** — fails loudly rather than pretending; the one hard requirement |
+| Reading an uploaded CV file + salary grounding (Analyze tab, CLI scripts) | `GEMINI_API_KEY` (`GOOGLE_API_KEY` is an alias) | **Off** — fails loudly rather than pretending; the one feature with no keyless fallback |
 | Voice interviews (`/interview/[token]`, Interview-lab) | `ELEVENLABS_API_KEY` + `ELEVENLABS_AGENT_ID`, or `OPENAI_API_KEY` for OpenAI Realtime, or a self-hosted endpoint | **Hidden** — the feature hides itself; candidates never see a broken door |
 | Spoken output (TTS) | `KP_TTS_PROVIDER` + a local (Kokoro, Piper) or cloud engine | **Degraded** — `/api/tts` answers a typed 503; nothing else depends on it |
 | Sending candidate email | `COMMS_WEBHOOK_URL` relay (+ `COMMS_CALLBACK_SECRET` for receipts) | **Degraded, honest** — messages are recorded as `queued` and the UI says nothing is being sent |

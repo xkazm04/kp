@@ -128,6 +128,63 @@ stage-wiring increments independent of each other — and it is why the defaults
 keyless: the two-minute keyless start means the run's *sequencing* must be
 demonstrable with no provider configured.
 
+### The producer seam (`app/_lib/role-run-producers/`)
+
+`producerRunners(producers)` turns a list of `{ kind, usesLlm, run }` into the `runners`
+map, and is the one place that decides which runner a stage gets:
+
+| Situation | The stage runs |
+| --- | --- |
+| LLM producer, provider available | the producer |
+| LLM producer, no provider / `KP_OFFLINE` / `KP_ROLE_RUN_LLM=0` | the keyless default, unchanged |
+| any producer throws | the keyless default (logged by error name only - a provider message can echo a prompt) |
+| local producer (a policy engine, no model) | the producer |
+
+"Provider available" is `roleRunLlmAvailable()`: the `claude` CLI on PATH or a Gemini key,
+and not offline. The LLM layer is the existing Python provider registry (`claude_cli`
+adapter included), reached through the existing `*-run.ts` runners with
+`env: buildLlmConfigEnv()`; a producer never spawns `claude` itself. The engine opens the
+`withLlmRoleRun` scope around each runner, so a producer's metered calls are attributed to
+the run and count against its budget. Producers write no PII and resolve no gate.
+
+### The producers wired so far
+
+`liveRoleRunRunners()` (`app/_lib/role-run-live.ts`) composes them as `producerRunners([roleSpecProducer(), slateProducer(), screenProducer()])`; it is the runner set every live trigger uses (below). `advanceRoleRun` itself keeps the keyless floor as its default, so tests and direct callers are unchanged. Of the three, only S0 calls a model today.
+
+| Stage | Producer | Uses a model? | What it adds over the floor |
+| --- | --- | --- | --- |
+| S0 `role_spec` | `role-run-producers/role-spec.ts` | yes (JD builder) | When the job states **no** graded requirement but has a description, generates a rubric (`rubric_generated_from_description`). A job that already states requirements is reused as is. Nothing is written back to the job. |
+| S1 `slate` | `role-run-producers/slate.ts` | no (local ranker) | Board entries first, then the role's rediscovered silver medalists under `SLATE_CAP`, each with `origin: "rediscovery"` and a `prior:<kind>:<stage>` ref. The consent/opt-out predicate (`withheldCandidateIds`) is asked again right before a board entry is minted for a rediscovered candidate; a candidate who already has an entry for this role is never revived. |
+| S2 `screen` | `role-run-producers/screen.ts` | no (policy pass) | The automation policy pass as a **scoped dry run** (`runAutomationPass({ dryRun: true, entryIds })`): read-only, one branch. Its route, score and codes become the parked proposal; the pass's prose is never copied. It can propose `reject_proposed`, still only a proposal for the rejection gate, and the fairness backstop's downgrade-to-hold is preserved (`fairnessAlerts`). |
+
+Not wired: S3 to S6 (no producer yet), and the stale-rubric re-score on the board (it has
+no evidence source to re-run until a producer supplies rubric-versioned evaluations).
+
+## The per-run LLM budget
+
+Cost per run is unbounded by construction (S1 fan-out x S2 LLM calls), so `advanceRoleRun`
+checks a ceiling **before every stage** (`app/_lib/role-run-budget.ts`). The run's own
+spend is read from `llm_usage.role_run_id`, which the engine stamps by opening a
+`withLlmRoleRun(run.id, ...)` scope around each stage runner. On a breach the pass stops
+cleanly: the stage that was running finishes and writes its artifact, no later stage
+starts, and the result carries `budgetExceeded: { dimension, used, ceiling }`. The run is
+**parked, not cancelled** - it stays `running`, and a later pass (after the ceiling is
+raised) resumes exactly where it stood.
+
+Units are calls and tokens, because the default provider (the Claude Code CLI) is
+subscription-billed and has no dollar cost: its rows keep `cost_usd` NULL and are counted
+as `unpricedCalls`, never converted into a dollar figure. A dollar ceiling is optional and
+compares only against priced spend. Deployment defaults, overridable per call with
+`AdvanceOptions.budget`:
+
+| Env var | Default | Meaning |
+| --- | --- | --- |
+| `KP_ROLE_RUN_MAX_LLM_CALLS` | `400` | metered LLM calls per run (failed attempts count) |
+| `KP_ROLE_RUN_MAX_LLM_TOKENS` | `4000000` | input + output tokens per run |
+| `KP_ROLE_RUN_MAX_COST_USD` | unset | dollars, priced calls only |
+
+A non-numeric or non-positive value falls back to the default.
+
 ## Measuring it
 
 Per ADR-0011's consequences, do **not** report a single "time to hire" over a run.
@@ -145,6 +202,18 @@ waited), reported separately.
 - `app/_lib/db/role-runs-tenancy.test.ts` — source guard: every ledger query is workspace-scoped, and nothing updates or deletes an artifact
 - `app/_lib/role-run-engine.test.ts` — the full JD → offer-draft run against real `jobs` and `pipeline_entries` rows, resume at a ceiling, the fan-out, and that no artifact carries a name the board row does carry
 
+## Live triggers
+
+A run is started and advanced by three doors, all of which call `advanceRoleRunLive` (`app/_lib/role-run-live.ts`): producers over the keyless floor, at most 60 stages per pass, the next pass resumes from the ledger.
+
+| Door | What it does |
+| --- | --- |
+| `POST /api/role-runs` `{ jobId, cycle? }` | Operator + `pipeline:write`. Gets or creates the run for (team, job, cycle) and takes one pass. 201 on create, 200 on resume. |
+| `POST /api/role-runs/[id]/advance` | Operator + `pipeline:write`. One pass over an existing run (after a gate was resolved, or the budget raised). |
+| Clock job `role_run_advance` | Scheduler registry, every 5 minutes, **off by default**. One pass over every `running` run of every team. |
+
+Start and advance share one rate limit (30 / 10 min / IP). Every pass stops at the three human gates (the Art. 22 commit path is untouched: no trigger resolves a gate) and at the per-run LLM budget. One pass per run at a time (in-process single-flight): a second trigger answers `409 ROLE_RUN_BUSY` (the clock skips it). A run id from another team is a 404. `KP_ROLE_RUN_LLM=0` / `KP_OFFLINE` / no provider keep every stage on the keyless floor.
+
 ## Known gaps
 
 - **The table is enforced by the engine, not by the store.** `appendStageArtifact` still
@@ -154,3 +223,33 @@ waited), reported separately.
 - **A withdrawn or lapsed candidate has no ungated way to end a branch.** The status
   vocabulary cannot tell "the candidate left" from "we ended it", so the table routes
   every branch end through a gate.
+
+## A gate commit takes one pass
+
+`POST /api/role-runs/[id]/gate/commit` now continues the run: after a successful commit
+(`commitRoleRunStageGateAndContinue`, `app/_lib/role-run-commit-continue.ts`) it takes ONE live
+pass, so an approved or declined gate no longer waits for someone to re-trigger. The response adds
+`continued` (`advanced`, `busy`, `not_found` or `failed`) and `awaiting`. A refused commit still
+refuses with the same code and takes no pass; a pass that fails after a commit leaves the commit
+standing. The commit still mints nothing on the board: no invite, no offer.
+
+## A recruiter can reach the run
+
+**Reads.** `GET /api/role-runs/[id]` (operator-gated, read-only, no limiter, no pass taken) returns
+`{ run, stages, gates }`: the run's id, job, cycle and status; every stage artifact as kind, branch ref,
+`seq`, status and time; and `gates`, one **batch per gate** that has branches parked on a human
+(`gate`, `stage`, `policyVersion`, `branchRefs`). Codes and refs only: no payload, no candidate name,
+no prose (the projection is `app/api/role-runs/[id]/view.ts`). A missing run and another team's run are
+the same `404 ROLE_RUN_NOT_FOUND`. `GET /api/role-runs?jobId=` lists one role's runs (id, cycle, status)
+so the job page can find a run without starting one.
+
+**The panel.** The job modal's **Run** tab (`app/features/library/jobs/roleRun/JobsRoleRunPanel.tsx`,
+wire half in `roleRunPanelClient.ts`) starts the run (the existing `POST /api/role-runs`), shows its status
+and stage counts, and for each parked gate lets the recruiter **Review** the batch (one read-only
+`gate/preview` per branch) and then **Approve** or **Decline** it (preview then `gate/commit` per branch).
+The commit already continues the run, so the panel only re-reads afterwards: no second click. **Continue
+run** is offered only when nothing is parked (resume after the LLM budget was raised). A refusal is shown
+as its registered code through `errors.<CODE>`; without a named approver that is
+`SCREEN_WAVE_APPROVAL_UNATTRIBUTED`, the batch stops and the gate stays parked. The approval stays a human
+step: the approver is server-bound, nothing in the panel names one. Test:
+`roleRunPanelClient.test.ts` walks a run on `job-001` through all three gates against the real routes.

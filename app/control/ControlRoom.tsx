@@ -212,7 +212,7 @@ export function ControlRoom({ canGovern, canOperate }: { canGovern: boolean; can
           {disarmedNotice ? t("disarmed") : ""}
         </p>
         {actErr ? (
-          <p role="alert" className="mt-3 rounded-md border border-coral/40 bg-coral/5 px-3 py-2 text-micro font-semibold text-coral">
+          <p role="alert" className="mt-3 rounded-md border border-coral/40 bg-coral/5 px-3 py-2 text-micro font-semibold text-coral-ink">
             {actErr}
           </p>
         ) : null}

@@ -18,12 +18,17 @@ synthetic traces are ever enriched with structural signals.
 
 OBSERVED PATH (``path="observed"``): the same BEHAVIOR tags, each rendered as ONE fixed Live
 Work Surface template — an event stream, a captured chat, a submitted tree, a frozen seed with
-two planted canaries and a one-shot baseline — replicated to n. This is what in-product
-candidates are scored on (devcase-run.ts passes --events/--chat/--files/--seed/--baseline-json),
-so the fairness/discrimination gate certifies the observed chain too. The templates are
-deliberately canonical (verifiers read first, edit a test, keep DECISIONS warm, fix or flag the
-canaries; non-verifiers edit unread and ship the flaws): they pin that the observed scorer
+two planted canaries plus the supplied unreviewed AI draft (ADR 0027 S2) and a one-shot
+baseline — replicated to n. This is what in-product candidates are scored on (devcase-run.ts
+passes --events/--chat/--files/--seed/--baseline-json), so the fairness/discrimination gate
+certifies the observed chain too. The templates are deliberately canonical (verifiers read
+first, edit a test, keep DECISIONS warm, fix or flag the canaries and fix the draft's flaws;
+non-verifiers edit unread and ship the flaws, the AI-no-verify gamer submitting the draft as it
+came): they pin that the observed scorer
 separates the archetypes, not how well it reads an adversary — case-sim rounds do that.
+The observed cast also carries one MID-strength archetype (ADR 0027 S3, ``ai_spot_check``,
+``verifies="partial"``, ``expected="mid"``): one watched verification act where a verifier
+shows two or more. It has no commit trace, so the commit cast is unchanged.
 """
 
 from __future__ import annotations
@@ -32,6 +37,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ._synth import SENIORITIES, pick as _pick
+from .ai_drafts import draft_for
 from .models import RUBRIC_DIMENSIONS
 from .scenarios import DOMAINS, _DOMAIN_KEYS
 
@@ -69,8 +75,23 @@ BEHAVIORS: dict[str, dict[str, Any]] = {
         "trace": ["add the complete feature", "scaffold the whole solution with assistant"],
         "general": ["add the complete deliverable", "generate the whole thing with an assistant"],
     },
+    # ADR 0027 S3 - the MID-strength archetype, OBSERVED PATH ONLY. Without it the observed
+    # cast was strong or weak and nothing between, so no figure could show the scorer (or the
+    # evidence ladder) telling a partial verifier from either end. It uses the assistant,
+    # reads the legacy module and fixes its planted rate, but writes no test, asks for no
+    # check, ships the draft as it came and keeps a one-line log: one watched verification
+    # act, not two. `verifies` is "partial", so the fairness gate's behaviour-matched groups
+    # (verifier vs non-verifier, AI vs non-AI verifier) never see it. It carries no commit
+    # trace: the keyless commit reflect has no step between "no habit" and "a habit" (a
+    # strong verifier already sits at 50 judgment there), so a partial verifier is not
+    # representable on that path, and leaving it out keeps the commit cast byte-identical.
+    "ai_spot_check": {
+        "verifies": "partial", "usesAI": True, "expected": "mid", "observedOnly": True,
+    },
 }
 _BEHAVIOR_KEYS = list(BEHAVIORS)
+# The commit path's cast: every behaviour that has a commit trace.
+_COMMIT_BEHAVIOR_KEYS = [k for k, v in BEHAVIORS.items() if not v.get("observedOnly")]
 
 # --- the observed (Live Work Surface) family: ONE fixed template per BEHAVIOR ---------------
 _LEGACY, _CONFIG, _TEST, _DECISIONS = "src/legacy.py", "src/config.py", "tests/test_legacy.py", "DECISIONS.md"
@@ -81,22 +102,30 @@ _LEGACY_SEED = (
 )
 _CONFIG_SEED = "TIMEOUT = 30\nretries = 0\nNAME = 'exports'\n"
 _TEST_SEED = "def test_rate():\n    assert True\n"
+# S2: the case's one labelled unreviewed AI draft (the software family's, since this template
+# is software-flavoured for every row). Its flaws ride as canaries beside c1/c2.
+_DRAFT = draft_for("software_engineering")
+_DRAFT_PATH = _DRAFT["path"]
 _SEED = {
     "files": [
         {"path": _LEGACY, "contents": _LEGACY_SEED},
         {"path": _CONFIG, "contents": _CONFIG_SEED},
         {"path": _TEST, "contents": _TEST_SEED},
         {"path": _DECISIONS, "contents": "# Decisions\n"},
+        {"path": _DRAFT_PATH, "contents": _DRAFT["contents"]},
     ],
     "canaries": [
         {"id": "c1", "kind": "subtle_bug", "path": _LEGACY, "flaw": "the rate is hardcoded as 'RATE = 0.19' for every market", "reveals": "read the legacy module before generating?"},
         {"id": "c2", "kind": "subtle_bug", "path": _CONFIG, "flaw": "the client config sets 'retries = 0'", "reveals": "notice the config the change depends on?"},
+        *_DRAFT["canaries"],
     ],
 }
 # Submitted file bodies. Fixes keep the seed's structure (they descend from it, so the
 # canary verdict is gradable); the one-shot bodies append to an unread file.
 _LEGACY_FIXED = _LEGACY_SEED.replace("RATE = 0.19\n", "RATES = {'default': 0.19}\n").replace("* RATE", "* RATES['default']")
 _LEGACY_ONESHOT = _LEGACY_SEED + "\n\ndef export_rate(amount, market):\n    return rate(amount)\n"
+# The draft as a verifier leaves it: both flaws corrected to their ground truth.
+_DRAFT_FIXED = _DRAFT["contents"].replace("base * 2 * n", "base * 2 ** n").replace("delay is in milliseconds", "delay is in seconds")
 _FILES = {
     "legacy_fixed": {"path": _LEGACY, "contents": _LEGACY_FIXED},
     "legacy_oneshot": {"path": _LEGACY, "contents": _LEGACY_ONESHOT},
@@ -104,19 +133,21 @@ _FILES = {
     "config_seed": {"path": _CONFIG, "contents": _CONFIG_SEED},
     "test": {"path": _TEST, "contents": "def test_rate():\n    assert rate(100) == 19.0\n"},
     "decisions": {"path": _DECISIONS, "contents": "# Decisions\n- rates keyed per market\n"},
+    "draft_fixed": {"path": _DRAFT_PATH, "contents": _DRAFT_FIXED},
+    "draft_asis": {"path": _DRAFT_PATH, "contents": _DRAFT["contents"]},
     "decisions_flag": {"path": _DECISIONS, "contents": "# Decisions\n- rates keyed per market\n- src/config.py sets retries = 0, which looks wrong; left for the owner\n"},
 }
 _ASK = {"channel": "stakeholder", "role": "user", "text": "Which markets need their own rate first?"}
 # behavior -> (events as (kind, path), submitted files, chat)
 _OBSERVED: dict[str, tuple[list[tuple[str, str]], list[str], list[dict]]] = {
     "careful_verifier": (
-        [("open", _LEGACY), ("open", _TEST), ("open", _CONFIG), ("edit", _TEST), ("edit", _LEGACY), ("decision_log", _DECISIONS), ("decision_log", _DECISIONS)],
-        ["legacy_fixed", "config_seed", "test", "decisions_flag"],
+        [("open", _LEGACY), ("open", _TEST), ("open", _CONFIG), ("open", _DRAFT_PATH), ("edit", _TEST), ("edit", _LEGACY), ("edit", _DRAFT_PATH), ("decision_log", _DECISIONS), ("decision_log", _DECISIONS)],
+        ["legacy_fixed", "config_seed", "test", "draft_fixed", "decisions_flag"],
         [_ASK],
     ),
     "ai_then_verify": (
-        [("open", _LEGACY), ("open", _CONFIG), ("prompt", "assistant"), ("edit", _LEGACY), ("edit", _CONFIG), ("open", _TEST), ("prompt", "assistant"), ("edit", _TEST), ("decision_log", _DECISIONS), ("decision_log", _DECISIONS)],
-        ["legacy_fixed", "config_fixed", "test", "decisions"],
+        [("open", _LEGACY), ("open", _CONFIG), ("prompt", "assistant"), ("edit", _LEGACY), ("edit", _CONFIG), ("open", _DRAFT_PATH), ("edit", _DRAFT_PATH), ("open", _TEST), ("prompt", "assistant"), ("edit", _TEST), ("decision_log", _DECISIONS), ("decision_log", _DECISIONS)],
+        ["legacy_fixed", "config_fixed", "test", "draft_fixed", "decisions"],
         [
             {"channel": "assistant", "role": "user", "text": "Draft a per-market rate table for rate() and ceil_rate()"},
             {"channel": "assistant", "role": "model", "text": "Here is a draft."},
@@ -125,13 +156,13 @@ _OBSERVED: dict[str, tuple[list[tuple[str, str]], list[str], list[dict]]] = {
         ],
     ),
     "tdd": (
-        [("open", _TEST), ("edit", _TEST), ("open", _LEGACY), ("edit", _LEGACY), ("decision_log", _DECISIONS), ("decision_log", _DECISIONS)],
-        ["legacy_fixed", "config_seed", "test", "decisions"],
+        [("open", _TEST), ("edit", _TEST), ("open", _LEGACY), ("edit", _LEGACY), ("open", _DRAFT_PATH), ("edit", _DRAFT_PATH), ("decision_log", _DECISIONS), ("decision_log", _DECISIONS)],
+        ["legacy_fixed", "config_seed", "test", "draft_fixed", "decisions"],
         [],
     ),
     "exploratory_reverts": (
-        [("open", _LEGACY), ("edit", _LEGACY), ("edit", _LEGACY), ("open", _CONFIG), ("edit", _LEGACY), ("open", _TEST), ("edit", _TEST), ("decision_log", _DECISIONS), ("decision_log", _DECISIONS)],
-        ["legacy_fixed", "config_seed", "test", "decisions_flag"],
+        [("open", _LEGACY), ("edit", _LEGACY), ("edit", _LEGACY), ("open", _CONFIG), ("edit", _LEGACY), ("open", _DRAFT_PATH), ("edit", _DRAFT_PATH), ("open", _TEST), ("edit", _TEST), ("decision_log", _DECISIONS), ("decision_log", _DECISIONS)],
+        ["legacy_fixed", "config_seed", "test", "draft_fixed", "decisions_flag"],
         [_ASK],
     ),
     "big_bang_no_verify": (
@@ -141,8 +172,16 @@ _OBSERVED: dict[str, tuple[list[tuple[str, str]], list[str], list[dict]]] = {
     ),
     "ai_no_verify": (
         [("prompt", "assistant"), ("paste", _LEGACY), ("edit", _LEGACY)],
-        ["legacy_oneshot"],
+        ["legacy_oneshot", "draft_asis"],
         [{"channel": "assistant", "role": "user", "text": _BRIEF}],
+    ),
+    "ai_spot_check": (
+        [("open", _LEGACY), ("prompt", "assistant"), ("edit", _LEGACY), ("open", _DRAFT_PATH), ("decision_log", _DECISIONS)],
+        ["legacy_fixed", "config_seed", "draft_asis", "decisions"],
+        [
+            {"channel": "assistant", "role": "user", "text": "Draft a per-market rate table for rate() and ceil_rate()"},
+            {"channel": "assistant", "role": "model", "text": "Here is a draft."},
+        ],
     ),
 }
 # The frozen one-shot baseline: what a bare model ships unattended.
@@ -206,7 +245,7 @@ def generate_submissions(n: int = 60, domain: str = "it", path: str = "commit") 
         dom = _DOMAIN_KEYS[i % len(_DOMAIN_KEYS)] if domain == "mixed" else domain
         fams = DOMAINS[dom]["families"]
         fam_keys = list(fams)
-        behavior = _pick(_BEHAVIOR_KEYS, i)
+        behavior = _pick(_BEHAVIOR_KEYS if observed else _COMMIT_BEHAVIOR_KEYS, i)
         spec_b = BEHAVIORS[behavior]
         fam = _pick(fam_keys, i)
         spec = fams[fam]
@@ -220,7 +259,7 @@ def generate_submissions(n: int = 60, domain: str = "it", path: str = "commit") 
             "mustHaves": stack,
             "responsibilities": spec["resp"][: 2 + (i % 3)],
         }
-        trace = spec_b["trace"] if dom == "it" else spec_b["general"]
+        trace = (spec_b["trace"] if dom == "it" else spec_b["general"]) if not observed else []
         extra: dict[str, Any] = _observed(behavior) if observed else {}
         out.append(
             SubScenario(

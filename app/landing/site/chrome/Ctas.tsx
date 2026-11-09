@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { enterWorkspace } from "@/app/_lib/auth/session-nav";
 import { track } from "@/app/_lib/analytics/plausible";
 import { GLYPH } from "./glyphs";
+import { useOpenEntry } from "./OpenEntry";
 
 /*
  * The site's three actions, with today's real behaviour (the prototype's were
@@ -46,6 +47,7 @@ export function StartCta({
   arrow?: boolean;
 }) {
   const t = useTranslations("landing");
+  const openEntry = useOpenEntry();
   const fallback = signupOpen ? "/signup" : "/login";
   const href = plan ? `${fallback}?plan=${encodeURIComponent(plan)}` : fallback;
   // enterWorkspace always navigates away; the only way back to a live copy of this
@@ -74,7 +76,7 @@ export function StartCta({
         void enterWorkspace(plan, { fallback });
       }}
     >
-      {pending ? t("hero.ctaPending") : (children ?? t("hero.ctaPrimary"))}
+      {pending ? t("hero.ctaPending") : (children ?? t(openEntry ? "hero.ctaOpen" : "hero.ctaPrimary"))}
       {arrow ? <span aria-hidden="true">{GLYPH.next}</span> : null}
     </a>
   );
@@ -103,6 +105,7 @@ export function DemoCta({
 
 export function SignIn({ className, onDone }: { className?: string; onDone?: () => void }) {
   const t = useTranslations("landing");
+  const openEntry = useOpenEntry();
   return (
     <button
       type="button"
@@ -112,7 +115,7 @@ export function SignIn({ className, onDone }: { className?: string; onDone?: () 
         void enterWorkspace();
       }}
     >
-      {t("nav.signIn")}
+      {t(openEntry ? "nav.openWorkspace" : "nav.signIn")}
     </button>
   );
 }

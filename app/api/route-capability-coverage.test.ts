@@ -46,7 +46,10 @@ function walkRoutes(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-const MUTATING = /export\s+(?:async\s+)?function\s+(POST|PUT|PATCH|DELETE)\b/;
+// Both handler shapes: `export async function POST` and the wrapped `export const POST =
+// withWorkspace(...)` (workspace-context.ts). Matching only the first would make every
+// migrated route look read-only and this ratchet pass vacuously.
+const MUTATING = /export\s+(?:(?:async\s+)?function|const)\s+(POST|PUT|PATCH|DELETE)\b/;
 // The three request-scope gates in app/_lib/auth/current-user.ts, plus the coded
 // wrapper in api-response.ts that re-shapes their 403 into FORBIDDEN_CAPABILITY.
 // A file that calls `can("…")` is NOT counted: that returns a boolean for rendering
@@ -55,7 +58,7 @@ const GATE = /\b(requireCapabilityCoded|requireCapability|requireWorkspaceCapabi
 
 /** The mutating verbs a route file exports, in source order. */
 export function mutatingVerbs(src: string): string[] {
-  const re = /export\s+(?:async\s+)?function\s+(POST|PUT|PATCH|DELETE)\b/g;
+  const re = /export\s+(?:(?:async\s+)?function|const)\s+(POST|PUT|PATCH|DELETE)\b/g;
   const out: string[] = [];
   let m: RegExpExecArray | null;
   while ((m = re.exec(src))) out.push(m[1]);
@@ -277,4 +280,5 @@ test("the scanner is not blind: it tells a gated door from an ungated one", () =
   assert.ok(!MUTATING.test(readOnlySrc), "a read-only route is out of scope");
   assert.ok(!GATE.test(booleanOnlySrc), "`can()` computes a boolean; it does not refuse a request");
   assert.deepEqual(mutatingVerbs(`export async function POST(){}\nexport async function DELETE(){}`), ["POST", "DELETE"]);
+  assert.deepEqual(mutatingVerbs("export const POST = withWorkspace(async (ws: string) => null);\nexport const GET = withWorkspace(async () => null);"), ["POST"]);
 });

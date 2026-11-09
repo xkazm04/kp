@@ -1,0 +1,72 @@
+{
+ "schema": "conform-run/1",
+ "worker": "e0ed5df7-85e3-4c30-aa66-dc3a68f6e132",
+ "subject": "admission-queue",
+ "evaluatedAt": "2026-10-26T01:02:36.892105+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "devcase-live-work-surface",
+   "subject": "admission-queue",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/devcase/apply/[token]/liveWorkDraft.ts:22 The draft caps the parked event buffer at 2000 under a comment that says it mirrors the server route, but the server accepts at most 500 events per flush (route.ts:88 MAX_EVENTS = 500) and slices off the rest without saying so. A restored or backed-up buffer of more than 500 events goes out as one batch, the server keeps the first 500, the client treats the flush as landed and clears the batch, and the remaining events are lost without anyone being told.",
+   "techniques": [
+    {
+     "technique": "depth-bounds-and-shed",
+     "verdict": "deviation",
+     "evidence": "app/devcase/apply/[token]/liveWorkDraft.ts:16 The draft's bound (2000) is not the bound the gate enforces (500 per flush). The test at liveWorkDraft.test.ts:139 pins 2000 under a title saying it mirrors the server. Events past the server cap are shed without the shed party being told (failure-not-empty-success)."
+    },
+    {
+     "technique": "self-paced-intake",
+     "verdict": "deviation",
+     "evidence": "app/devcase/apply/[token]/LiveWorkSurface.tsx:214 The interval half is right: events are buffered and flushed on the consumer's own 8s clock, and edits are debounced at 600ms. The per-drain cap is missing: each flush sends the whole pending buffer (liveWorkSync.ts:257), so the interval bounds the step rate but not the step cost, and nothing chunks a backlog down to the server's 500-event batch size."
+    },
+    {
+     "technique": "drain-and-shutdown",
+     "verdict": "conformant",
+     "evidence": "app/devcase/apply/[token]/LiveWorkSurface.tsx:164 Pending work is written durably to localStorage on every change (line 65 setItem), and the next mount re-admits it through sync.hydrate. That is the park disposition, with recovery on restart, for the tab's unplanned death."
+    },
+    {
+     "technique": "admission-vocabulary",
+     "verdict": "conformant",
+     "evidence": "app/devcase/apply/[token]/LiveWorkSurface.tsx:279 Caller side of the contract only. A budget refusal becomes the distinct terminal state 'limited' (not 'error'), the optimistic bubble is withdrawn and the text handed back. Other refusals resolve their code through useErrorMessage. The gate itself is server-side and outside this context."
+    },
+    {
+     "technique": "admit-on-the-expanded-cost",
+     "verdict": "not-applicable",
+     "evidence": "app/devcase/apply/[token]/liveWorkDraft.ts:54 The draft is plain JSON with no compressed or nested encoding that something downstream expands, so transfer size and cost size are the same unit."
+    },
+    {
+     "technique": "resource-denominated-bounds",
+     "verdict": "not-applicable",
+     "evidence": "app/devcase/apply/[token]/liveWorkDraft.ts:21 These are per-item clamps applied when the candidate-writable blob is decoded, not an admission door. The byte-denominated door is the server's MAX_FLUSH_BODY_BYTES, outside this context."
+    }
+   ],
+   "registryProposal": "self-paced-intake and depth-bounds-and-shed both assume the drain cap and the buffer bound are set by the same owner. A common real shape is a client buffer whose drain target (a server route) enforces its own per-batch cap by silently truncating. The standard could name this explicitly: the drain cap must be derived from the downstream per-batch bound, and a downstream that truncates must report how many items it accepted, so the producer can re-buffer the remainder."
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-26T01:02:36.892105+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "admission-queue"
+   ],
+   "techniques": [
+    "admission-vocabulary",
+    "admit-on-the-expanded-cost",
+    "depth-bounds-and-shed",
+    "drain-and-shutdown",
+    "resource-denominated-bounds",
+    "self-paced-intake"
+   ],
+   "deviations": 1,
+   "context": "devcase-live-work-surface",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

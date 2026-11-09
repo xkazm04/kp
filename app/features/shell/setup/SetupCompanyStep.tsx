@@ -8,7 +8,9 @@ import { ExternalLogoImage } from "@/app/_components/ExternalLogoImage";
 import { FIELD, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { accentIsLegible, deriveDarkAccent, normalizeHex6, sanitizeLogoUrl, shouldRenderLogo } from "@/app/_lib/brand-config";
 import { CORAL, INK, MOSS, STEEL } from "@/app/_lib/brand";
-import { DEFAULT_ORG_NAME, readClientOrgName } from "@/app/_lib/org-settings";
+import { getOrgName } from "@/app/_lib/org-actions";
+import { DEFAULT_ORG_NAME } from "@/app/_lib/org-settings";
+import { LogoUpload } from "@/app/features/settings/branding/LogoUpload";
 import { SETUP_PROSE } from "./setupProse";
 import { SetupCurrencyField } from "./SetupCurrencyField";
 import type { OnboardingCtrl } from "./setupSteps";
@@ -36,6 +38,7 @@ const NAME_HINT_ID = "setup-org-name-hint";
 
 export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
   const t = useTranslations("setup.company");
+  const tUp = useTranslations("logoUpload");
   const { update } = ctrl;
   const typedName = ctrl.state.orgName;
   // WHICH theme the picked color fails in, or null. The wizard used to ask
@@ -49,26 +52,37 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
   // empty field — so it can never overwrite what the operator typed, and never
   // fights them if they clear it.
   //
-  // The only honest source this client has for the workspace's own identity is
-  // the org-name cookie (`kp_org_name`, org-settings.ts) — the value the
-  // Organization tab wrote, i.e. a name a human on this deployment actually
-  // chose. The seed corpus's DEFAULT_ORG_NAME is explicitly NOT that: it is what
-  // `resolveOrgName` falls back to when nothing was ever set, and prefilling it
-  // would put a stranger's company on every generated JD, offer and candidate
-  // mail — worse than the empty required field it replaced. So an unset
-  // deployment still opens blank, deliberately.
+  // The only honest source for the workspace's own identity is the organization
+  // row (organizations.name, read through the `getOrgName` action, which also adopts
+  // a legacy `kp_org_name` cookie) — a name a human on this deployment actually
+  // chose. The seed corpus's DEFAULT_ORG_NAME is explicitly NOT that: it is the
+  // demo's fallback (org-settings.ts `orgNameFallback`), and prefilling it would
+  // put a stranger's company on every role the JD builder prefills — worse than
+  // the empty required field it replaced. So this read passes NO fallback, and a
+  // row that literally holds the demo name is skipped too: an unset deployment
+  // opens blank, deliberately.
   //
   // A resumed draft is not at risk: restore() lands the drafted name and the
   // drafted step index in ONE commit (OnboardingExperience), so by the time this
   // step mounts the field already holds it and the seed is skipped.
   const seeded = useRef(false);
+  const latestTyped = useRef(typedName);
+  useEffect(() => {
+    latestTyped.current = typedName;
+  }, [typedName]);
   useEffect(() => {
     if (seeded.current) return;
     seeded.current = true;
     if (typedName.trim() !== "") return;
-    const stored = readClientOrgName();
-    if (stored === DEFAULT_ORG_NAME) return;
-    update({ orgName: stored });
+    void getOrgName()
+      .then((stored) => {
+        // The answer is async: whatever the operator typed meanwhile wins.
+        if (!stored || stored === DEFAULT_ORG_NAME || latestTyped.current.trim() !== "") return;
+        update({ orgName: stored });
+      })
+      .catch((error: unknown) => {
+        console.error("org name read failed", error);
+      });
   }, [typedName, update]);
 
   const logo = ctrl.state.logoUrl.trim();
@@ -84,7 +98,7 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
         <div className="max-w-md">
           <label htmlFor="setup-org-name" className={`${META_LABEL} block`}>
             {t("nameLabel")}
-            <span aria-hidden className="text-coral">
+            <span aria-hidden className="text-coral-ink">
               {" *"}
             </span>
           </label>
@@ -174,14 +188,16 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
           </label>
         </div>
         {customWarn ? (
-          <p role="alert" className="mt-1.5 text-sm text-coral">
+          <p role="alert" className="mt-1.5 text-sm text-coral-ink">
             {customWarn === "dark" ? t("accent.illegibleDark") : t("accent.illegible")}
           </p>
         ) : null}
 
         <div className="mt-3 max-w-md">
-          <label htmlFor="setup-logo-url" className={`${META_LABEL} block`}>
-            {t("logoLabel")}
+          <p className={`${META_LABEL} block`}>{t("logoLabel")}</p>
+          <LogoUpload showPreview={false} logoUrl={ctrl.state.logoUrl} onChange={(url) => ctrl.update({ logoUrl: url })} />
+          <label htmlFor="setup-logo-url" className={`${META_LABEL} mt-3 block`}>
+            {tUp("orUrl")}
           </label>
           <TextInput
             id="setup-logo-url"
@@ -191,7 +207,7 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
             sizeVariant="sm"
             className="mt-1 w-full"
           />
-          {logoInvalid ? <p className="mt-1 text-sm text-coral">{t("logoInvalid")}</p> : null}
+          {logoInvalid ? <p className="mt-1 text-sm text-coral-ink">{t("logoInvalid")}</p> : null}
           {previewLogo ? (
             <div className={`${PANEL} mt-2 inline-flex h-16 w-16 items-center justify-center p-2`}>
               <ExternalLogoImage src={logo} alt={t("logoLabel")} onError={() => setFailedLogo(logo)} className="max-h-full max-w-full object-contain" />

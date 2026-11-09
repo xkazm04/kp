@@ -39,11 +39,11 @@ const ADD_DOOR = "app/api/pipeline/route.ts";
 const MIGRATION_ROUTE = "app/api/pipeline/stage-migration/route.ts";
 
 const G_STORE_MIGRATE: Guard = { file: STORE, line: 1229, needle: 'stageHasRole(leg.toStage, "terminal", toAxis)' };
-const G_STORE_ACT: Guard = { file: STORE, line: 3595, needle: 'opts?.outcome === "offer_accepted"' };
-const G_SET_STAGE: Guard = { file: ENTRY_ACTION, line: 408, needle: 'if (stageHasRole(to, "terminal", axis))' };
-const G_ACCEPT: Guard = { file: ENTRY_ACTION, line: 467, needle: "acceptWouldReachTerminal(current.stage, axis)" };
-const G_ADD: Guard = { file: ADD_DOOR, line: 175, needle: 'stageHasRole(body.stage, "terminal", axis.stages)' };
-const G_MIGRATION_ROUTE: Guard = { file: MIGRATION_ROUTE, line: 110, needle: 'stageHasRole(toStage, "terminal", next.stages)' };
+const G_STORE_ACT: Guard = { file: STORE, line: 3684, needle: 'opts?.outcome === "offer_accepted"' };
+const G_SET_STAGE: Guard = { file: ENTRY_ACTION, line: 443, needle: 'if (stageHasRole(to, "terminal", axis))' };
+const G_ACCEPT: Guard = { file: ENTRY_ACTION, line: 546, needle: "acceptWouldReachTerminal(current.stage, axis)" };
+const G_ADD: Guard = { file: ADD_DOOR, line: 174, needle: 'stageHasRole(body.stage, "terminal", axis.stages)' };
+const G_MIGRATION_ROUTE: Guard = { file: MIGRATION_ROUTE, line: 109, needle: 'stageHasRole(toStage, "terminal", next.stages)' };
 
 // ---- 1. SQL writers: `file#function` -> statements that write the stage column ----
 const SQL_WRITERS: Record<string, Row> = {
@@ -138,16 +138,10 @@ const CALLERS: Record<string, Row> = {
     count: 1,
     why: "reject: closes the entry by status, writes no stage",
   },
-  "app/_lib/automation-pass.ts -> actOnPipelineEntry": {
-    cls: "refuses-terminal",
-    count: 1,
-    why: "STORE GUARD: policy advance goes entry/screening -> next column by role; on an axis with no interview/offer column that next column is the terminal one; the store refuses the landing (accept / ratify) or keeps the stage (approve_event)",
-    guard: G_STORE_ACT,
-  },
   "app/_lib/automation-run.ts -> actOnPipelineEntry": {
     cls: "refuses-terminal",
-    count: 2,
-    why: "STORE GUARD: screening advance / plan-gate ratify: same reach as the policy advance on a degenerate axis; the store refuses the landing (accept / ratify) or keeps the stage (approve_event)",
+    count: 1,
+    why: "STORE GUARD: screening advance (the plan-gate ratify call is gone, Q3 2026-11-09): same reach as the policy advance on a degenerate axis; the store refuses the landing (accept) or keeps the stage (approve_event)",
     guard: G_STORE_ACT,
   },
   "app/api/schedule/route.ts -> actOnPipelineEntry": {
@@ -189,6 +183,11 @@ const CALLERS: Record<string, Row> = {
     cls: "not-a-move",
     count: 1,
     why: "files at the entry stage of the workspace axis (simulation)",
+  },
+  "app/_lib/role-run-producers/slate.ts -> createPipelineEntry": {
+    cls: "not-a-move",
+    count: 1,
+    why: "files a rediscovered candidate at the workspace's screened landing (no stage named), and only when the candidate has NO entry for this role, so it can never hit the re-add transition that revives a closed one",
   },
   "app/_lib/agent-hire/lifecycle.ts -> createPipelineEntry": {
     cls: "not-a-move",

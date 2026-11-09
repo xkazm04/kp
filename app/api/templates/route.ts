@@ -1,24 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createTemplate, listTemplates } from "@/app/_lib/templates-store";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { validateTemplateFields } from "@/app/features/shared/renderTemplate";
 
 
-export async function GET() {
+export const GET = withWorkspace(async (ws: string) => {
   try {
     // The team's view: the org-shared library + this team's own private templates.
     // Bounded (templates-store) — `truncated` rides along so the manager can SAY the
     // list is partial instead of quietly under-reporting the library.
-    const { templates, truncated } = listTemplates(await currentWorkspace());
+    const { templates, truncated } = listTemplates(ws);
     return NextResponse.json({ templates, truncated });
   } catch (error) {
     return safeJsonError(error, "api:templates", "TEMPLATE_LIST_FAILED");
   }
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   // Creating a template is a recruiter write — and a scope:'org' create PUBLISHES to
   // the shared company library visible to every team, so this must be operator-gated
   // (GET above stays open for reads). Open mode is a no-op.
@@ -42,9 +42,9 @@ export async function POST(request: NextRequest) {
     // future work once per-role RBAC lands (KP_MULTI_WORKSPACE).
     const scope = body.scope === "org" ? "org" : "team";
     return NextResponse.json({
-      template: createTemplate({ name: fields.name, body: fields.body, scope }, await currentWorkspace()),
+      template: createTemplate({ name: fields.name, body: fields.body, scope }, ws),
     });
   } catch (error) {
     return safeJsonError(error, "api:templates", "TEMPLATE_CREATE_FAILED");
   }
-}
+});

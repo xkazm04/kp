@@ -136,6 +136,11 @@ export type AutomationKeyInput = {
    *  tasks so JD edits re-draft instead of serving stale 168h-cached drafts. Ignored
    *  for rematch (its corpusFingerprint already covers the corpus). */
   jobJson?: string;
+  /** S1 — only folded into the key for the `scorecard` task, and only when TRUE: a
+   *  case-bearing entry's rubric gains the "Working with AI tools" axis, so it must
+   *  never share a cached scorecard with the same entry without one. False/absent adds
+   *  NO segment, so every pre-S1 key (and its cached scorecard) stays valid. */
+  devCase?: boolean;
 };
 
 // Stable fingerprint of the live job corpus for the rematch cache key: the SORTED
@@ -186,6 +191,7 @@ export function computeAutomationCacheKey(input: AutomationKeyInput): string {
       input.task === "screen" ? screenVolumeTier(input.pipelineSize) : "",
       // Degraded (template) vs LLM output never share a key — see `degraded` above.
       input.degraded ? "no-llm" : "llm",
+      ...(input.task === "scorecard" && input.devCase ? ["dev-case"] : []),
     ].join("|")
   );
 }

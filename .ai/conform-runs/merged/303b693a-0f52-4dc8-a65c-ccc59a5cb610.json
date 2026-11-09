@@ -1,0 +1,186 @@
+{
+ "schema": "conform-run/1",
+ "worker": "303b693a-0f52-4dc8-a65c-ccc59a5cb610",
+ "subject": "talking-avatar",
+ "evaluatedAt": "2026-10-24T05:57:05.738985+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "voice-interview-components",
+   "subject": "talking-avatar",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_components/voice/InterviewPresence.tsx:11 The live call's only visual presence is a ring that follows the audio level, plus a phase label. motion-route-selection's 'When not to use this' covers exactly this case ('a still frame plus a reactive layer \u2014 a glow that follows the voice level \u2014 there is no route to select'). A case-insensitive search of app/_components/voice for viseme, lipsync, saccade, blendshape, talking-head and avatar found nothing.",
+   "techniques": [
+    {
+     "technique": "motion-route-selection",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/voice/VoiceInterview.tsx:1368 The call shell renders only the level ring (InterviewPresence fed by levelsRef). The technique's own exclusion for a level-following reactive layer applies, and that state belongs to conversation-orchestration's layered state machine."
+    },
+    {
+     "technique": "viseme-drive",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/voice/InterviewPresence.tsx:11 No speaking element is driven by a speech timeline. The ring shows whose voice is active and how loud, and it does not claim to be speech articulation."
+    }
+   ],
+   "absenceTerms": [
+    "viseme",
+    "lipsync",
+    "saccade",
+    "blendshape",
+    "talking-head"
+   ]
+  },
+  {
+   "context": "shell-companion-voice",
+   "subject": "talking-avatar",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/shell/companion/voice/CompanionVoiceMode.tsx:19 Companion voice mode is a text strip of spoken answers with play/stop and a history ticker, and it draws no face. A search of app/features/shell/companion/voice for viseme, lipsync, saccade, blendshape, talking-head and avatar found nothing, and a search for level, analyser and rms found no level-driven visual either.",
+   "techniques": [
+    {
+     "technique": "face-signal-across-surfaces",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shell/companion/voice/CompanionVoiceMode.tsx:19 The companion has no face on any surface, so there is no face signal to produce or mirror."
+    }
+   ],
+   "absenceTerms": [
+    "viseme",
+    "lipsync",
+    "saccade",
+    "blendshape",
+    "talking-head"
+   ]
+  },
+  {
+   "context": "voice-tts-package",
+   "subject": "talking-avatar",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "packages/voice-tts/README.md:4 The package synthesizes and plays audio through a headless hook and draws nothing, so no avatar consumes its output. A search of packages/voice-tts for viseme, lipsync, saccade, blendshape, talking-head and avatar found nothing. Any per-sound timeline would be a voice-io concern, not this subject's.",
+   "techniques": [
+    {
+     "technique": "per-sentence-face-sidecar",
+     "verdict": "not-applicable",
+     "evidence": "packages/voice-tts/README.md:4 No face is attached to this voice pipeline, so there is no sidecar boundary to judge."
+    }
+   ],
+   "absenceTerms": [
+    "viseme",
+    "lipsync",
+    "saccade",
+    "blendshape",
+    "talking-head"
+   ]
+  },
+  {
+   "context": "glyph-system",
+   "subject": "talking-avatar",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_components/glyph/MotionizedGlyph.tsx:4 The glyphs are traced SVG navigation icons with entrance and ambient motion presets. Nothing in them speaks or follows a voice. A search of app/_components/glyph for viseme, lipsync, saccade, blendshape, talking-head and avatar found nothing.",
+   "techniques": [
+    {
+     "technique": "procedural-presence-motion",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/glyph/MotionizedGlyph.tsx:4 The ambient loops are icon accents, not the idle presence of a character between utterances."
+    }
+   ],
+   "absenceTerms": [
+    "viseme",
+    "lipsync",
+    "saccade",
+    "blendshape",
+    "talking-head"
+   ]
+  },
+  {
+   "context": "voice-stt-package",
+   "subject": "talking-avatar",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "packages/voice-stt/README.md:3 The package turns captured audio into a transcript (the input direction) and renders no presence at all. A search of packages/voice-stt for viseme, lipsync, saccade, blendshape, talking-head and avatar found nothing. The word 'mouth' does appear once, in whisper-cpp.ts:222, where a comment explains why the adapter refuses to invent a speaker label.",
+   "techniques": [],
+   "absenceTerms": [
+    "viseme",
+    "lipsync",
+    "saccade",
+    "blendshape",
+    "talking-head"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-24T05:57:05.738985+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "talking-avatar"
+   ],
+   "techniques": [
+    "motion-route-selection",
+    "viseme-drive"
+   ],
+   "deviations": 0,
+   "context": "voice-interview-components",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T05:57:05.738985+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "talking-avatar"
+   ],
+   "techniques": [
+    "face-signal-across-surfaces"
+   ],
+   "deviations": 0,
+   "context": "shell-companion-voice",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T05:57:05.738985+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "talking-avatar"
+   ],
+   "techniques": [
+    "per-sentence-face-sidecar"
+   ],
+   "deviations": 0,
+   "context": "voice-tts-package",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T05:57:05.738985+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "talking-avatar"
+   ],
+   "techniques": [
+    "procedural-presence-motion"
+   ],
+   "deviations": 0,
+   "context": "glyph-system",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T05:57:05.738985+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "talking-avatar"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "voice-stt-package",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

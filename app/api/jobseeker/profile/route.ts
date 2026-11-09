@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { currentSession } from "@/app/_lib/auth/current-user";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { currentUserId } from "@/app/_lib/auth/session";
@@ -11,6 +10,7 @@ import { mergePreferencePatch, parsePreferencesPatch } from "@/app/_lib/jobseeke
 import { EMPTY_PREFERENCES } from "@/app/_lib/jobseeker/types";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import type { ProfilePayload } from "@/app/features/shared/profileTypes";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 
 // The seeker's OWN profile (docs/features/jobseeker/README.md, "Profile and CV
 // studio"). One row per (workspace, user): the CandidateProfileV2 the pipeline
@@ -24,23 +24,23 @@ import type { ProfilePayload } from "@/app/features/shared/profileTypes";
 const PROFILE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 const MAX_CV_SOURCE_CHARS = 200_000;
 
-async function principal(): Promise<{ userId: string | null; ws: string }> {
-  const [session, ws] = await Promise.all([currentSession(), currentWorkspace()]);
+async function principal(ws: string): Promise<{ userId: string | null; ws: string }> {
+  const session = await currentSession();
   return { userId: currentUserId(session), ws };
 }
 
-export async function GET(): Promise<NextResponse> {
+export const GET = withWorkspace(async (chainWs: string): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
-    const { userId, ws } = await principal();
+    const { userId, ws } = await principal(chainWs);
     const profile = getJobseekerProfile(userId, ws);
     if (!profile) return jsonRefusal("JOBSEEKER_PROFILE_MISSING", 404);
     return NextResponse.json(profile);
   } catch (err) {
     return safeJsonError(err, "api:jobseeker/profile", "JOBSEEKER_STORE_FAILED");
   }
-}
+});
 
 // PUT — create or replace. `profile` is the profile_draft output (the recruiter-side
 // shape, reused verbatim); `preferences` is a PARTIAL merged over what is stored;
@@ -55,7 +55,7 @@ export async function GET(): Promise<NextResponse> {
 // THROTTLE (rate-limit-contract.test.ts): the route is a store write behind the
 // operator gate, but in open mode the gate is a no-op, so it self-limits per IP at a
 // budget no human meets (60/10min — the import flow writes once per CV).
-export async function PUT(request: Request): Promise<NextResponse> {
+export const PUT = withWorkspace(async (chainWs: string, request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   // The seeker's own data, but still a WRITE behind a seat: a viewer seat may read the
@@ -72,7 +72,7 @@ export async function PUT(request: Request): Promise<NextResponse> {
       preferencesReplace?: unknown;
       cvSourceText?: unknown;
     };
-    const { userId, ws } = await principal();
+    const { userId, ws } = await principal(chainWs);
     const existing = getJobseekerProfile(userId, ws);
     const profile: ProfilePayload =
       body.profile && typeof body.profile === "object" ? (body.profile as ProfilePayload) : existing?.profile ?? ({} as ProfilePayload);
@@ -89,7 +89,7 @@ export async function PUT(request: Request): Promise<NextResponse> {
   } catch (err) {
     return safeJsonError(err, "api:jobseeker/profile", "JOBSEEKER_STORE_FAILED");
   }
-}
+});
 
 // DELETE — the seeker's "delete everything about me" door (GDPR Art. 17 onto their OWN
 // record; docs/features/jobseeker/README.md). eraseJobseekerData removes the profile,
@@ -109,7 +109,7 @@ export async function PUT(request: Request): Promise<NextResponse> {
 // scan read BEFORE the erasure and writes after it — a known limit of this door.
 const ERASE_RATE_LIMIT = { limit: 5, windowMs: 10 * 60_000 };
 
-export async function DELETE(request: Request): Promise<NextResponse> {
+export const DELETE = withWorkspace(async (chainWs: string, request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -122,10 +122,10 @@ export async function DELETE(request: Request): Promise<NextResponse> {
     return jsonRefusal("JOBSEEKER_REQUEST_INVALID", 400);
   }
   try {
-    const { userId, ws } = await principal();
+    const { userId, ws } = await principal(chainWs);
     const erased = eraseJobseekerData(userId, ws);
     return NextResponse.json({ erased });
   } catch (err) {
     return safeJsonError(err, "api:jobseeker/profile", "JOBSEEKER_STORE_FAILED");
   }
-}
+});

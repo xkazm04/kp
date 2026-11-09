@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { getGig } from "@/app/_lib/db/gigs";
@@ -36,12 +36,11 @@ import { startTask } from "@/app/_lib/tasks";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(request: Request, { params }: Params): Promise<Response> {
+export const GET = withWorkspace(async (ws: string, request: Request, { params }: Params): Promise<Response> => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { id } = await params;
-    const ws = await currentWorkspace();
     const gig = getGig(ws, id);
     if (!gig) return jsonRefusal("GIG_NOT_FOUND", 404);
     const html = gig.proposal ? readGigReportFile(servedProposalsRoot(), gig.proposal.path) : null;
@@ -61,9 +60,9 @@ export async function GET(request: Request, { params }: Params): Promise<Respons
   } catch (error) {
     return safeJsonError(error, "api:gigs/[id]/proposal", "GIG_STORE_FAILED");
   }
-}
+});
 
-export async function POST(request: Request, { params }: Params): Promise<NextResponse> {
+export const POST = withWorkspace(async (ws: string, request: Request, { params }: Params): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -73,7 +72,6 @@ export async function POST(request: Request, { params }: Params): Promise<NextRe
   }
   try {
     const { id } = await params;
-    const ws = await currentWorkspace();
     const gig = getGig(ws, id);
     if (!gig) return jsonRefusal("GIG_NOT_FOUND", 404);
     if (gigTrackOf(gig.arena) !== "proposal") return jsonRefusal("GIG_ACTION_NOT_ALLOWED", 409, { reason: "build_track" });
@@ -84,4 +82,4 @@ export async function POST(request: Request, { params }: Params): Promise<NextRe
   } catch (error) {
     return safeJsonError(error, "api:gigs/[id]/proposal", "GIG_STORE_FAILED");
   }
-}
+});

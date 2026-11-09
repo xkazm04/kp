@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { getRepoScan } from "@/app/_lib/repo-scan";
@@ -17,12 +17,12 @@ import { getRepoScan } from "@/app/_lib/repo-scan";
 // is a projection choice rather than a redaction claim: the response tells the
 // caller a local path was scanned without echoing the server's resolution of it.
 
-export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const GET = withWorkspace(async (ws: string, _request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { id } = await context.params;
-    const scan = getRepoScan(id, await currentWorkspace());
+    const scan = getRepoScan(id, ws);
     // A scan in another tenant is indistinguishable from one that never existed.
     if (!scan) return NextResponse.json({ error: "Repo scan not found." }, { status: 404 });
     // An explicit ALLOW-LIST, never a spread of the row. A spread is an allow-list
@@ -61,4 +61,4 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
   } catch (error) {
     return safeJsonError(error, "api:repo-scan/[id]", "REPO_SCAN_READ_FAILED");
   }
-}
+});

@@ -73,7 +73,7 @@ export function CohortAddMember({ tray, onAdd }: { tray: Tray; onAdd: (member: T
           </label>
           {population.rows === null && !population.failed ? <LoadingGap className="min-h-[6rem]" label={t("loading")} /> : null}
           {population.failed ? (
-            <p role="alert" className="flex flex-wrap items-center gap-2 text-body text-coral">
+            <p role="alert" className="flex flex-wrap items-center gap-2 text-body text-coral-ink">
               {t("failed")}
               <button type="button" onClick={population.reload} className={`${BTN_GHOST} h-9 px-3 text-body`}>
                 {t("retry")}

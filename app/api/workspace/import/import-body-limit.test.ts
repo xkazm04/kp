@@ -31,7 +31,7 @@ const read = (rel: string) => readFileSync(path.join(appRoot, rel), "utf-8");
 
 const importSrc = read("app/api/workspace/import/route.ts");
 const exportSrc = read("app/api/workspace/export/route.ts");
-const apiResponseSrc = read("app/_lib/api-response.ts");
+const apiResponseSrc = read("app/_lib/api-response.ts") + read("app/_lib/api-errors/store-errors.ts") + read("app/_lib/api-errors/refusal-errors.ts");
 const portabilitySrc = read("app/_lib/db-portability.ts");
 
 test("the restore door reads a BOUNDED body, never request.json()", () => {

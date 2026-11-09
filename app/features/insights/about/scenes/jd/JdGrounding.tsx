@@ -133,7 +133,7 @@ export function JdGrounding() {
                   reduced={reduced}
                   className={`shrink-0 rounded-full px-2 py-0.5 text-meta ${
                     orphan
-                      ? "bg-coral/10 text-coral"
+                      ? "bg-coral/10 text-coral-ink"
                       : req.kind === "must"
                         ? "bg-stone-100 text-steel"
                         : "bg-stone-50 text-stone-500"
@@ -152,7 +152,7 @@ export function JdGrounding() {
         {/* ── What happened to the orphan ───────────────────────────────── */}
         <div className="absolute left-[46%] top-[92%] w-[54%]">
           <Part show={s.gap} reduced={reduced} className="block text-base text-ink">
-            {t.rich("gap", { k: (chunks) => <span className="font-medium text-coral">{chunks}</span> })}
+            {t.rich("gap", { k: (chunks) => <span className="font-medium text-coral-ink">{chunks}</span> })}
           </Part>
           <Part show={s.gapNote} i={1} reduced={reduced} className="mt-1 block text-meta text-steel">
             {t("gapNote")}

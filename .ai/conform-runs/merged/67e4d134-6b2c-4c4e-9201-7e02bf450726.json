@@ -1,0 +1,37 @@
+{
+  "schema": "conform-run/1",
+  "worker": "67e4d134-6b2c-4c4e-9201-7e02bf450726",
+  "subject": "adaptive-fidelity-tiers",
+  "evaluatedAt": "2026-10-19T12:18:19.649921+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "adaptive-fidelity-tiers",
+      "context": "match-presentation-components",
+      "reason": "withdrawn after review: reviewer (sonnet): The primary anchor (MatchReasoningPanel.tsx:115) is only the ReasoningSkeleton div, so it does not show that fidelity tiers or a capability sampler are absent. The claim of 'no visual complexity knob' is also weakened by the reduced-motion branching in the same file (lines 24-65), which scales durat"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-19T12:18:19.649921+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "adaptive-fidelity-tiers"
+      ],
+      "techniques": [
+        "asymmetric-tier-transitions",
+        "measured-not-declared-capability",
+        "measurement-settle-budget",
+        "per-tier-budget-tables",
+        "preference-short-circuits-measurement",
+        "probe-deferral-to-idle"
+      ],
+      "deviations": 0,
+      "context": "match-presentation-components",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}

@@ -69,7 +69,7 @@ export function JobsTabResults({
           <button
             type="button"
             onClick={clearAll}
-            className="focus-ring inline-flex items-center gap-1 rounded-full border border-coral/40 bg-coral/5 px-2.5 py-0.5 text-sm font-semibold text-coral hover:bg-coral/10"
+            className="focus-ring inline-flex items-center gap-1 rounded-full border border-coral/40 bg-coral/5 px-2.5 py-0.5 text-sm font-semibold text-coral-ink hover:bg-coral/10"
           >
             <X size={12} aria-hidden /> {t("clearAll")}
           </button>

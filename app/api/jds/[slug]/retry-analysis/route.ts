@@ -3,8 +3,10 @@ import { loadJd } from "@/app/_lib/db/jobs";
 import { getTask } from "@/app/_lib/db/tasks";
 import { getTemplate } from "@/app/_lib/templates-store";
 import { replayParamsFromIntent, restartJdBuild } from "@/app/_lib/jd-build-start";
+import { effectiveOrgName } from "@/app/_lib/org-name-server";
+import { companyOrDefault } from "@/app/_lib/org-settings";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
@@ -22,7 +24,7 @@ const RETRY_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 // took) FIRST; if that task row was pruned, the JD row's persisted build intent as
 // a fallback. Only a legacy row with NEITHER a live task nor stored intent still
 // dead-ends at the 400.
-export async function POST(request: Request, context: { params: Promise<{ slug: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: Request, context: { params: Promise<{ slug: string }> }) => {
   // A retry REPLAYS the paid 1–2 minute AI build, so it carries the same
   // token-spend exposure as generate — gate before params or any DB read. Open
   // mode is a no-op.
@@ -30,7 +32,6 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   if (denied) return denied;
   const { slug } = await context.params;
   try {
-    const ws = await currentWorkspace();
     const jd = loadJd(slug, ws);
     if (!jd) return jsonRefusal("JD_NOT_FOUND", 404);
     if (jd.analysis_status !== "failed") {
@@ -55,9 +56,12 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     // legacy params so the replay re-fills THIS row; the old task is terminal, so
     // its (now slug-keyed) dedupe entry won't merge this run. Same tenant the JD row
     // lives in (proven by the scoped loadJd above).
-    const { taskId } = restartJdBuild(slug, replayParams, ws);
+    // A build first run before its company was named (or a legacy intent) replays with
+    // the owner's org name, resolved here since the replay runs detached. A stored one wins.
+    const company = companyOrDefault(replayParams.company, await effectiveOrgName());
+    const { taskId } = restartJdBuild(slug, { ...replayParams, company }, ws);
     return NextResponse.json({ taskId });
   } catch (error) {
     return safeJsonError(error, "api:jds/retry-analysis", "JD_GENERATE_FAILED");
   }
-}
+});

@@ -3,6 +3,7 @@
 // replaced the candidate drawer; this is the one piece of state PipelineTab holds
 // for it. Pure, so the "a refresh keeps your place" rules are unit-tested.
 
+import { stageHasRole, type StageDef } from "@/app/_lib/pipeline-stages";
 import type { SchedEntry } from "@/app/features/hiring/schedule/ScheduleTypes";
 import type { Entry } from "@/app/features/shared/pipelineTypes";
 
@@ -42,6 +43,23 @@ export function nextCandidateView(
     cohort: opts.cohort !== undefined ? opts.cohort : (prev?.cohort ?? null),
     tab: opts.tab ?? prev?.tab ?? "overview",
   };
+}
+
+/** Does this candidate's action bar offer the human interview scorecard?
+ *
+ *  The form lives in the prep modal, and the Schedule tab opens that modal only from
+ *  its human-round branch. The shipped plan runs an AI round alone, so a recruiter
+ *  with no LLM key, whose candidates can never finish a voice interview, had no way
+ *  to record the rating the offer rests on. Read by column ROLE, the same predicate
+ *  the scorecard POST gates on, so a renamed interview column keeps its door. */
+export function offersHumanScorecard(entry: Pick<Entry, "stage" | "status">, axis: readonly StageDef[]): boolean {
+  return entry.status === "active" && stageHasRole(entry.stage, "interview", axis);
+}
+
+/** May a recruiter draft this offer by hand? The AI action needs an analyzed profile and
+ *  this does not. Same conditions the server's draft_offer action refuses on. */
+export function offersManualOfferDraft(entry: Pick<Entry, "stage" | "status" | "approvalKind">, axis: readonly StageDef[]): boolean {
+  return entry.status === "active" && entry.approvalKind == null && stageHasRole(entry.stage, "offer", axis);
 }
 
 /** The transcript modal's SchedEntry, adapted from the board record. It reads only

@@ -1,5 +1,13 @@
-import { dispatchInterviewReminder } from "./comms-dispatch";
-import { claimReminderAttempt, dueReminders, markReminderSent } from "./schedule-store";
+import { dispatchInterviewReminder, dispatchScheduleNudge } from "./comms-dispatch";
+import {
+  claimNudgeAttempt,
+  claimReminderAttempt,
+  dueReminders,
+  dueScheduleNudges,
+  markNudgeSent,
+  markReminderSent,
+} from "./schedule-store";
+import { publicBaseUrl } from "./public-base-url";
 import { REMINDER_LEAD_MS, REMINDER_MAX_ATTEMPTS, reminderRetryDelayMs } from "./interview-reminder-policy";
 
 // Time-based interview reminders. Run on the instrumentation heartbeat (every
@@ -92,6 +100,45 @@ export async function sendDueInterviewReminders(
       console.error(
         `[reminder] delivered invite ${inv.id} but failed to mark it sent: ${e instanceof Error ? e.message : String(e)}`
       );
+    }
+    sent += 1;
+  }
+  return sent;
+}
+
+/** Delivery half of the nudge sweep, injectable like ReminderDispatch. */
+export type NudgeDispatch = typeof dispatchScheduleNudge;
+
+/** The "book your interview" nudge: one message to each candidate whose
+ *  self-scheduling link has sat un-booked for SCHEDULE_NUDGE_AFTER_MS and is not yet
+ *  expired. Same bounded-retry bookkeeping as the reminder sweep (claim a counted
+ *  attempt, backoff, REMINDER_MAX_ATTEMPTS cap, never re-armed after a delivery that
+ *  threw in post-send bookkeeping), on the invite's own nudge_* columns. Returns the
+ *  number delivered. */
+export async function sendDueScheduleNudges(dispatch: NudgeDispatch = dispatchScheduleNudge): Promise<number> {
+  const due = dueScheduleNudges();
+  const nowMs = Date.now();
+  let sent = 0;
+  for (const { invite: inv, attempts } of due) {
+    const cutoffIso = new Date(nowMs - reminderRetryDelayMs(attempts)).toISOString();
+    if (!claimNudgeAttempt(inv.id, attempts, cutoffIso, REMINDER_MAX_ATTEMPTS)) continue;
+    const attemptNo = attempts + 1;
+    try {
+      await dispatch(
+        { id: inv.entryId, candidateLabel: inv.candidateLabel, jobTitle: inv.jobTitle, locale: inv.locale },
+        `${publicBaseUrl()}/schedule/${inv.token}`,
+        { workspaceId: inv.workspaceId }
+      );
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      const level = attemptNo >= REMINDER_MAX_ATTEMPTS ? "error" : "warn";
+      console[level](`[schedule-nudge] attempt ${attemptNo}/${REMINDER_MAX_ATTEMPTS} for invite ${inv.id} failed: ${reason}`);
+      continue; // left to age past its backoff, never released for an immediate re-send
+    }
+    try {
+      markNudgeSent(inv.id);
+    } catch (e) {
+      console.error(`[schedule-nudge] delivered invite ${inv.id} but failed to mark it sent: ${e instanceof Error ? e.message : String(e)}`);
     }
     sent += 1;
   }

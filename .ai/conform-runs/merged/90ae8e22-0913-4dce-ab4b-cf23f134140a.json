@@ -1,0 +1,66 @@
+{
+ "schema": "conform-run/1",
+ "worker": "90ae8e22-0913-4dce-ab4b-cf23f134140a",
+ "subject": "people-analytics-ethics",
+ "evaluatedAt": "2026-10-26T00:16:51.493336+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "analytics-dashboard",
+   "subject": "people-analytics-ethics",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/insights/analytics/AnalyticsTypes.ts:69 The Analytics payload breaks hiring outcomes down by requisition, archetype, source, channel and variant. It has no per-recruiter or per-employee dimension, and a case-insensitive search of app/features/insights/analytics, app/api/analytics, app/_lib/db/analytics.ts and app/_lib/decision-attribution.ts found no leaderboard, byRecruiter, perPerson or byActor construct. The only named humans are candidates, who are hiring subjects governed by the recruiting bundle, and decision actors in an audit trail, which is retained provenance that every technique in this subject explicitly excludes.",
+   "techniques": [
+    {
+     "technique": "aggregate-vs-individual-split",
+     "verdict": "not-applicable",
+     "evidence": "app/features/insights/analytics/AnalyticsTypes.ts:72 The organisation side is aggregate-only, keyed by artifact dimensions such as archetype, role and source. There is no personal workforce view, so there is nothing to split."
+    },
+    {
+     "technique": "risk-framing-anonymization",
+     "verdict": "not-applicable",
+     "evidence": "app/features/insights/analytics/AnalyticsDecisionLog.tsx:9 Actor names show up only in the decision log and the sealed decision records. That is provenance of actions taken, which the technique's 'when not to use' section names as out of scope."
+    },
+    {
+     "technique": "producer-enforced-suppression",
+     "verdict": "not-applicable",
+     "evidence": "app/features/insights/analytics/AnalyticsOrgBenchmarkPanel.tsx:12 The only floor here protects TEAMS (workspaces) in the peer benchmark, and the producer enforces it (org-benchmarks.ts BENCHMARK_MIN_TEAMS, with a typed available:false). It is not a person-level floor, so peer-benchmarking governs it rather than this subject."
+    },
+    {
+     "technique": "contribution-eligibility-floors",
+     "verdict": "not-applicable",
+     "evidence": "app/features/insights/analytics/sections/DecisionRecordsTable.tsx:265 Named actors appear only in the sealed, hash-chained decision record. That is a completeness-critical record, which the technique excludes, and no per-person distribution or ranking is built from it."
+    }
+   ],
+   "absenceTerms": [
+    "leaderboard",
+    "byRecruiter",
+    "perPerson",
+    "byActor"
+   ],
+   "registryProposal": "Provenance is carved out in risk-framing-anonymization, producer-enforced-suppression and contribution-eligibility-floors, but nothing addresses an audit trail that gains a sortable, filterable actor column. DecisionRecordsTable filters and sorts by actor (e.g. 'human:Petra Nov\u00e1kov\u00e1'), and that turns an evidentiary record into a de facto per-person activity view of one recruiter. The standard should state when an audit surface's affordances (filter by actor, count by actor, export by actor) move it from provenance into people analytics."
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-26T00:16:51.493336+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "people-analytics-ethics"
+   ],
+   "techniques": [
+    "aggregate-vs-individual-split",
+    "contribution-eligibility-floors",
+    "producer-enforced-suppression",
+    "risk-framing-anonymization"
+   ],
+   "deviations": 0,
+   "context": "analytics-dashboard",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

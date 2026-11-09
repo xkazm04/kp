@@ -1,0 +1,99 @@
+{
+ "schema": "conform-run/1",
+ "worker": "1f61465a-aa6e-4d56-90ec-d7ad5e72c3bf",
+ "subject": "settings",
+ "evaluatedAt": "2026-11-06T03:45:30.018802+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "workspace-config-api",
+   "subject": "settings",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/brand/route.ts:87 PUT /api/brand overwrites an org-wide setting that re-skins every workspace and candidate-facing page, and the write records no old value, new value, origin or actor, only the row's updated_at. So 'who changed the brand, and from what' has no answer, and nothing can revert it.",
+   "techniques": [
+    {
+     "technique": "settings-audit-and-history",
+     "verdict": "deviation",
+     "evidence": "app/api/brand/route.ts:87 saveBrand (app/_lib/brand-store.ts) upserts in place with only updated_at. A grep found no audit call for brand writes anywhere under app/_lib."
+    },
+    {
+     "technique": "applied-defaults-ledger",
+     "verdict": "deviation",
+     "evidence": "app/_lib/templates-store.ts:56 The store behind /api/templates seeds the shipped 'Company standard' template into a user-editable collection behind a COUNT(*) gate instead of a ledger of applied defaults. A newly shipped default would never reach an install whose org tier already holds rows. The repo's own seed_marks rule forbids this gate too."
+    },
+    {
+     "technique": "typed-accessors",
+     "verdict": "conformant",
+     "evidence": "app/api/compliance/route.ts:55 The stored regime is normalized at the read boundary, so a stale or hand-edited row falls back to the declared EU default instead of an empty jurisdiction. The brand read also re-runs sanitizeBrand on every read."
+    },
+    {
+     "technique": "save-experience",
+     "verdict": "conformant",
+     "evidence": "app/api/brand/route.ts:79 An invalid accent is refused with a reason code. Before, the write answered 200 and silently replaced the color with null, so the editor could not tell the save had failed."
+    }
+   ]
+  },
+  {
+   "context": "cv-analyze-workspace",
+   "subject": "settings",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/tools/analyze/AnalyzeFormFooter.tsx:58 The only configuration in this context is per-run form input (report language, blind screening), mirrored into a sessionStorage draft. That is client state under the subject's own boundary, not a durable settings store. Searching app/features/tools/analyze (including subdirectories) for 'settings', 'getSetting' and 'setSetting' found no hits.",
+   "techniques": [],
+   "absenceTerms": [
+    "getSetting",
+    "setSetting"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "settings",
+   "context": "workspace-member-admin",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "settings",
+   "context": "analytics-dashboard",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "settings",
+   "context": "billing-plan-and-spend",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-06T03:45:30.018802+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "settings"
+   ],
+   "techniques": [
+    "applied-defaults-ledger",
+    "save-experience",
+    "settings-audit-and-history",
+    "typed-accessors"
+   ],
+   "deviations": 1,
+   "context": "workspace-config-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T03:45:30.018802+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "settings"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "cv-analyze-workspace",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

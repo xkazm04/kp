@@ -64,7 +64,7 @@ export function InterviewStartPanel({
           as a 402 on a real candidate screen later. Same number as the gate,
           pinned by simBilling.test.ts. */}
       <p className="mt-3 text-sm text-steel">{t("billableNote", { min: simBillableCeilingMin(mode) })}</p>
-      {error ? <p className="mt-3 text-sm text-coral">{error}</p> : null}
+      {error ? <p className="mt-3 text-sm text-coral-ink">{error}</p> : null}
       <button
         type="button"
         onClick={onStart}

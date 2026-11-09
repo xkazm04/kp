@@ -74,7 +74,7 @@ export function DecisionsGroupEvalRejectModal({
             disabled={!ready}
             className={
               action === "reject"
-                ? "focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
+                ? "focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral-solid px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
                 : `${BTN_AFFIRM} h-9 px-4 text-sm`
             }
           >
@@ -84,7 +84,7 @@ export function DecisionsGroupEvalRejectModal({
       }
     >
       <p className="flex items-start gap-2 text-sm text-ink">
-        <BodyIcon size={16} className={`mt-0.5 shrink-0 ${action === "reject" ? "text-coral" : "text-moss"}`} aria-hidden />
+        <BodyIcon size={16} className={`mt-0.5 shrink-0 ${action === "reject" ? "text-coral-ink" : "text-moss"}`} aria-hidden />
         <span>{t("body")}</span>
       </p>
 
@@ -104,7 +104,7 @@ export function DecisionsGroupEvalRejectModal({
 
       <div className="mt-4">
         <label htmlFor={reasonId} className="text-meta uppercase tracking-wide text-steel">
-          {t("reasonLabel")} <span className="font-normal normal-case text-coral">{t("reasonRequired")}</span>
+          {t("reasonLabel")} <span className="font-normal normal-case text-coral-ink">{t("reasonRequired")}</span>
         </label>
         <TextArea
           id={reasonId}

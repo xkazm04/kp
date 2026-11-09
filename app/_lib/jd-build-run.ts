@@ -10,7 +10,7 @@ import { parseRoleSpec, type RoleBrief, type RoleSpec } from "./rolespec";
 import { buildRoleTrace, droppedLanguages, statedLanguages, type AuthorInput } from "./jd-role-trace";
 import { briefMustSkills, briefStatedRequirements, needTextFromBrief } from "./intake-brief";
 import { failJdAnalysis, finishJdAnalysis } from "./db/jobs";
-import { ingestStructuredJob } from "@/app/api/jds/save/ingest-job";
+import { ingestStructuredJob } from "@/app/_lib/jd-ingest";
 import { renderTemplate, type TemplateTokens } from "@/app/features/shared/renderTemplate";
 import { jdTemplateTokens } from "./jd-template-tokens";
 
@@ -190,7 +190,7 @@ export async function runMarketSalary(input: {
   }
 }
 
-// The structured role this builder produces and ingest-job.ts consumes — now
+// The structured role this builder produces and jd-ingest.ts consumes — now
 // single-sourced from the generated schema (app/_lib/rolespec.ts ← codegen ←
 // pipeline/jobfit/devcase/models.py), so the Python producer and every TS
 // consumer share one declaration (idea-dcf2460d). Re-exported for the existing

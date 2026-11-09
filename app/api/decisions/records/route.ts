@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { listDecisionRecords, verifyDecisionChain } from "@/app/_lib/decision-record-store";
 import { listPipeline } from "@/app/_lib/db/pipeline";
 import { safeJsonError } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { createTtlCache, decisionRecordsCacheKey } from "@/app/_lib/analytics-cache";
 
@@ -34,11 +34,10 @@ const recordsCache = createTtlCache<Record<string, unknown>>();
 // demo-workspace session the proxy would wave through. Candidates never call
 // this route: their flows run on their own public token surfaces
 // (/api/status/[token], /api/data/[token], /api/offer/[token]).
-export async function GET(request: Request) {
+export const GET = withWorkspace(async (ws: string, request: Request) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
-    const ws = await currentWorkspace();
     const candidate = new URL(request.url).searchParams.get("candidate");
     const payload = recordsCache.get(decisionRecordsCacheKey(ws, candidate), () => {
       const records = listDecisionRecords(candidate ? { candidateRef: candidate, workspaceId: ws } : { workspaceId: ws });
@@ -65,4 +64,4 @@ export async function GET(request: Request) {
     // not forward that onto an operator JSON body.
     return safeJsonError(error, "api:decisions/records", "DECISION_RECORDS_READ_FAILED");
   }
-}
+});

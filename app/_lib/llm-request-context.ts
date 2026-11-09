@@ -56,6 +56,26 @@ export function withLlmRequestIdIfUnset<T>(requestId: string, fn: () => T): T {
   return open ? fn() : storage.run(requestId, fn);
 }
 
+// ---- The role run (llm_usage.role_run_id) -----------------------------------------
+// A THIRD ambient, for the same reason as the request id: the stage runners of a role
+// run call jd-build-run / automation-run / rediscover many frames above spawnPython, and
+// threading a run id through every helper would be a wide diff that any forgotten call
+// site silently undoes. The role-run engine opens ONE scope around a stage runner;
+// spawnPython reads it (synchronously, at spawn) and the ledger fold stamps it onto each
+// row. Outside a scope the column stays NULL: "not part of a role run", never an error.
+const roleRunStorage = new AsyncLocalStorage<string>();
+
+/** Run `fn` with `roleRunId` as the ambient role run: every metered LLM call made inside
+ *  it, at any async depth, is attributed to that run in llm_usage.role_run_id. */
+export function withLlmRoleRun<T>(roleRunId: string, fn: () => T): T {
+  return roleRunStorage.run(roleRunId, fn);
+}
+
+/** The ambient role run id, or null outside any role-run scope. */
+export function currentLlmRoleRunId(): string | null {
+  return roleRunStorage.getStore() ?? null;
+}
+
 // ---- The admission lane (python-runner.ts, "Admission lanes") ---------------------
 // A SECOND store: withLlmRequestIdIfUnset lets code a human waits on open request-id
 // scopes (recruiter-run.ts:46, profile-draft-run.ts:56, companion-run.ts:272), so "has a

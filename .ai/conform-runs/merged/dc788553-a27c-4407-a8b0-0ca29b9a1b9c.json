@@ -1,0 +1,46 @@
+{
+  "schema": "conform-run/1",
+  "worker": "dc788553-a27c-4407-a8b0-0ca29b9a1b9c",
+  "subject": "pipeline-aging-and-attention-triage",
+  "evaluatedAt": "2026-10-25T02:47:12.121881+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "pipeline-aging-and-attention-triage",
+      "context": "analytics-api",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "pipeline-aging-and-attention-triage",
+      "context": "workspace-shell-core",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "pipeline-aging-and-attention-triage",
+      "context": "pipeline-actions-commands",
+      "reason": "withdrawn after review: reviewer (sonnet): The verdict is about attention.ts and aging-policy.ts, which are not among this context's files, and none of the context's non-test files (pipeline-axis, pipeline-axis-server, pipeline-command, pipeline-entry-action, pipeline-events-public) import or call either one."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-25T02:47:12.121881+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "pipeline-aging-and-attention-triage"
+      ],
+      "techniques": [
+        "attention-queue-ordering-and-rationale",
+        "badges-degrade-rather-than-error",
+        "overridable-defaults-with-a-server-side-approximation",
+        "per-stage-aging-thresholds-not-one-global-cut",
+        "terminal-stages-never-age"
+      ],
+      "deviations": 1,
+      "context": "pipeline-actions-commands",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

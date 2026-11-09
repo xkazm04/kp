@@ -3,7 +3,7 @@ import { getIntake, updateIntakeDialog } from "@/app/_lib/db/intakes";
 import { IntakeTimeoutError, runIntakeVoiceTurn } from "@/app/_lib/intake-run";
 import { intakeLang } from "@/app/_lib/intake-lang";
 import { stripEndSentinel } from "../../reply-sentinel";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
@@ -18,12 +18,11 @@ const MAX_UTTERANCE_CHARS = 4_000;
 // back for the transport to speak. Brief extraction does NOT run here — the
 // periodic extraction thread (voice-complete without turns) owns it — except
 // on the deterministic path, whose scripted engine extracts inline for free.
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { id } = await params;
-    const ws = await currentWorkspace();
     const intake = getIntake(id, ws);
     if (!intake) return jsonRefusal("INTAKE_NOT_FOUND", 404);
     if (intake.status !== "open") return jsonRefusal("INTAKE_CLOSED", 409);
@@ -103,4 +102,4 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (error instanceof IntakeTimeoutError) return jsonRefusal("INTAKE_TURN_TIMEOUT", 504);
     return safeJsonError(error, "api:intake/voice-turn", "INTAKE_VOICE_TURN_FAILED");
   }
-}
+});

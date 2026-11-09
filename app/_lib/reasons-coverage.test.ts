@@ -340,3 +340,49 @@ test("completed sessions with no scorecard are their own bucket: not a hit, not 
   assert.deepEqual(after.misses, before.misses, "and none is reported as a reasonless scorecard");
   assert.deepEqual(after.total, before.total);
 });
+
+// ---- the role-run arm ---------------------------------------------------------------
+// Every code the S2 stage can write must read as words in every locale. The keyless floor's
+// codes are enumerated from the engine's own branches, the policy producer's from the
+// action vocabulary it falls back on, plus the two preview wrappers the dry run can set.
+
+const ROLE_RUN_SCREEN_CODES = [
+  "score_above_floor",
+  "score_below_floor",
+  "not_active",
+  ...(["advance", "reject", "hold", "none"] as const).map((a) => `policy_${a}`),
+  "wouldBeQueuedForApproval",
+  "fairnessWouldRefuse",
+];
+
+test("every role-run S2 reason code resolves to text in all four locales", () => {
+  for (const loc of ["en", "cs", "de", "fr"]) {
+    const messages = JSON.parse(readFileSync(path.join(REPO_ROOT, "messages", `${loc}.json`), "utf8"));
+    const reasons = messages.decisions.wave.reasons as Record<string, string>;
+    for (const code of ROLE_RUN_SCREEN_CODES) {
+      assert.ok(typeof reasons[code] === "string" && reasons[code].trim().length > 0, `${loc}: decisions.wave.reasons.${code}`);
+      assert.ok(!/[—–]/.test(reasons[code]), `${loc}: ${code} must not use a dash as punctuation`);
+    }
+  }
+});
+
+test("the engine's S2 branches only emit codes this arm enumerates", () => {
+  const src = readFileSync(path.join(REPO_ROOT, "app", "_lib", "role-run-engine.ts"), "utf8");
+  const emitted = [...src.matchAll(/"(not_active|score_above_floor|score_below_floor)"/g)].map((m) => m[1]);
+  assert.deepEqual([...new Set(emitted)].sort(), ["not_active", "score_above_floor", "score_below_floor"]);
+});
+
+test("the role-run arm counts resolved screen proposals and reports an unmeasured arm as null", () => {
+  const params = { floor: 60, score: 72 };
+  const ok = ROLE_RUN_SCREEN_CODES.map((reasonCode, i) => ({ entryId: `e${i}`, reasonCode, reasonParams: params }));
+  const all = countReasonsCoverage([], CATALOG, undefined, 0, ok);
+  assert.equal(all.roleRun.checked, ok.length);
+  assert.equal(all.roleRun.withReasons, ok.length);
+  const withMiss = countReasonsCoverage([], CATALOG, undefined, 0, [...ok, { entryId: "bad", reasonCode: "no_such_code", reasonParams: {} }]);
+  assert.equal(withMiss.roleRun.withReasons, ok.length, "an unmapped code is a miss");
+  assert.ok(withMiss.misses.some((m) => m.id === "bad"));
+  const none = countReasonsCoverage([], CATALOG);
+  assert.equal(none.roleRun.ratio, null);
+  assert.equal(none.roleRun.measured, false);
+  assert.equal(none.total.checked, 0, "the arm stays outside the headline");
+});

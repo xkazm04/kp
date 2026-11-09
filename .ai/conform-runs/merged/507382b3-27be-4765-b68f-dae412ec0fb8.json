@@ -1,0 +1,59 @@
+{
+ "schema": "conform-run/1",
+ "worker": "507382b3-27be-4765-b68f-dae412ec0fb8",
+ "subject": "assessment-instrument-validation",
+ "evaluatedAt": "2026-10-26T22:23:03.818804+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "devcase-evaluation",
+   "subject": "assessment-instrument-validation",
+   "bundle": "recruiting",
+   "state": "conformant",
+   "evidence": "app/_lib/devcase-judge-independence.ts:57 The context's own job here is to consume what the validation harness stamps on each evaluation. It renders the generator-vs-judge seat comparison as a per-bundle state and computes cohort probe rates over the evaluated subset only, with null instead of 0 when there is no data. The harness techniques (synthetic cast, margin gate, red-teaming) are not implemented in these TS files, so they do not apply to this context.",
+   "techniques": [
+    {
+     "technique": "judge-independent-of-generator",
+     "verdict": "conformant",
+     "evidence": "app/_lib/devcase-judge-independence.ts:57 Reads the per-run generator/judge identities that Python stamps on the bundle (not config intent) and shows self_grading when they match. A malformed or missing blob reads as absent, never as a pass. The rule is pinned by a contract test (devcase-judge-independence.test.ts:22: assert.equal(judgeSeatState(SELF_GRADING), \"self_grading\")). Caveat: absent and independent both render as silence."
+    },
+    {
+     "technique": "minimum-cohort-and-inconclusive-verdicts",
+     "verdict": "conformant",
+     "evidence": "app/_lib/devcase-cohort.ts:106 Rates use the evaluated subset, never the roster, and the evaluated count sits beside each rate. No data gives null, not 0%. Deterministic-fallback tooling rows are dropped from both numerator and denominator (line 74), so an empty cell never becomes an adverse finding. There is no explicit floor or inconclusive state in this module: the >1 blind-spot floor lives in the off-context DevCohortProbePanel.tsx."
+    },
+    {
+     "technique": "synthetic-candidate-behaviour-landscape",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/devcase-probe-audit.ts:12 This context's probe audit is structural only, and the comment states that the synthetic run is not here. The repo's synthetic behaviour landscape lives off-context in pipeline/jobfit/devcase/submission_eval.py and submission_scenarios.py."
+    },
+    {
+     "technique": "discrimination-margin-gate",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/devcase-compare.ts:130 leaderByAxis is a recruiter-facing display over real submissions, not the pass condition of a validation run. The margin gate (MIN_DISCRIMINATION_MARGIN, MIN_GROUP_N) lives off-context in submission_eval.py. The leader is still crowned on any positive gap."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-26T22:23:03.818804+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "assessment-instrument-validation"
+   ],
+   "techniques": [
+    "discrimination-margin-gate",
+    "judge-independent-of-generator",
+    "minimum-cohort-and-inconclusive-verdicts",
+    "synthetic-candidate-behaviour-landscape"
+   ],
+   "deviations": 0,
+   "context": "devcase-evaluation",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

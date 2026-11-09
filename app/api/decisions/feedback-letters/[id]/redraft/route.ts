@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonOk, jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
@@ -31,14 +31,13 @@ import { startTask } from "@/app/_lib/tasks";
 // budget class and its dedupe on the letter id sit behind it.
 const REDRAFT_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 
-export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (under) return under;
   try {
     const { id } = await context.params;
-    const ws = await currentWorkspace();
 
     const letter = interviewLetterById(id, ws);
     if (!letter) return jsonRefusal("FEEDBACK_LETTER_NOT_FOUND", 404);
@@ -64,4 +63,4 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   } catch (error) {
     return safeJsonError(error, "api:decisions/feedback-letters/redraft", "FEEDBACK_LETTER_REDRAFT_FAILED");
   }
-}
+});

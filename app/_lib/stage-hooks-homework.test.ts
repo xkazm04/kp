@@ -14,6 +14,7 @@ import {
   getLifecycle,
   getOpenPosting,
   getSubmission,
+  listDevCasesForJob,
   listLifecycles,
   listOutboxFiltered,
   saveDevCase,
@@ -26,7 +27,7 @@ import { jdJobId } from "./jd-limits.ts";
 import { setDecisionConfig } from "./decision-config-store.ts";
 import { promoteSubmission } from "./devcase-run.ts";
 import { runStageEnteredHook } from "./stage-hooks.ts";
-import { runHomeworkArrival } from "./stage-hooks-homework.ts";
+import { runHomeworkArrival, sendWorkSample } from "./stage-hooks-homework.ts";
 import { lifecycleOwnsIntake } from "../features/tools/devcases/DevCaseDetail.publish.ts";
 import type { JobRecord } from "./db/core.ts";
 
@@ -225,6 +226,61 @@ test("auto gate + no case: the hook designs one and RE-RUNS to send it", async (
   assert.equal(lc!.auto, true);
 });
 
+test("a seeded non-software job with NO JD designs a case tied to the job, once", async () => {
+  seq += 1;
+  const jobId = `seeded-nojd-${seq}`;
+  const title = `Seeded Accountant ${seq}`;
+  insertJob({ id: jobId, title, roleFamily: "finance" } as JobRecord, undefined, "published", WS_AUTO);
+  const entry = entryAt(WS_AUTO, jobId, title, "hw-nojd@example.com");
+
+  let designs = 0;
+  const runDesign = async (lifecycleId: string) => {
+    designs += 1;
+    const lc = getLifecycle(lifecycleId)!;
+    approveLifecycleCase(
+      lifecycleId,
+      { need: lc.need, analysis: {}, role: { title }, case: { title: `${title} case` } },
+      "clean (auto-approved)"
+    );
+  };
+
+  const res = await runHomeworkArrival(entry, "Homework", WS_AUTO, { runDesign });
+  assert.equal(res.outcome, "invited");
+  assert.equal(designs, 1);
+
+  const lcs = listLifecycles(50, WS_AUTO).filter((l) => (l.need as { jobId?: string } | undefined)?.jobId === jobId);
+  assert.equal(lcs.length, 1, "one lifecycle carries this job's id");
+  assert.equal(lcs[0].need?.roleFamily, "finance", "the job row's family, not the software default");
+  assert.equal(lcs[0].need?.jdSlug, undefined, "there is no JD to name");
+
+  const tied = listDevCasesForJob(jobId, WS_AUTO);
+  assert.equal(tied.length, 1, "the designed case is found through the job");
+
+  // A second arrival of the same entry finds that case: no second design, no second lifecycle.
+  const again = await runHomeworkArrival(entry, "Homework", WS_AUTO, { runDesign });
+  assert.equal(again.outcome, "already_invited");
+  assert.equal(designs, 1, "the design (and its meter) is not run again");
+  assert.equal(listLifecycles(50, WS_AUTO).filter((l) => (l.need as { jobId?: string } | undefined)?.jobId === jobId).length, 1);
+  assert.equal(listDevCasesForJob(jobId, WS_AUTO).length, 1);
+});
+
+test("a job id with neither a JD nor a job row is skipped with a reason and creates nothing", async () => {
+  const entry = entryAt(WS_AUTO, "ghost-job-without-row", "Ghost", "hw-ghost@example.com");
+  let designs = 0;
+  const before = listLifecycles(200, WS_AUTO).length;
+
+  const res = await runHomeworkArrival(entry, "Homework", WS_AUTO, {
+    runDesign: async () => {
+      designs += 1;
+    },
+  });
+
+  assert.deepEqual(res, { outcome: "skipped", reason: "no_jd" });
+  assert.equal(designs, 0);
+  assert.equal(listLifecycles(200, WS_AUTO).length, before, "no lifecycle was created");
+  assert.equal(listDevCasesForJob("ghost-job-without-row", WS_AUTO).length, 0);
+});
+
 test("a submission from an INVITED candidate binds to their existing entry", async () => {
   const job = jobWithJd(WS_AUTO);
   const caseId = approvedCaseFor(job.slug, job.title, WS_AUTO);
@@ -300,4 +356,53 @@ test("a STOPPED intake is not reopened by a homework arrival: the candidate wait
   assert.equal(invites(late.id, WS_AUTO).length, 0, "nothing claims an assignment went out");
   // Parked, not skipped: the committed move stands and the candidate waits in the column.
   assert.equal(getPipelineEntry(late.id, WS_AUTO)?.stage, "Homework");
+});
+
+// ── "Send work sample" from the candidate drawer (CX S43) ────────────────────────────
+// The same send, for a board with no homework column: the click is the human gate, so a
+// HUMAN-gated workspace sends too — but it never designs a case, and every other rule
+// (idempotence, the truthful claim, a stopped intake) is the arrival's own.
+
+test("send work sample: mails the approved case once, queued keyless, and hands back the link", async () => {
+  const job = jobWithJd(WS_HUMAN);
+  const caseId = approvedCaseFor(job.slug, job.title, WS_HUMAN);
+  const entry = entryAt(WS_HUMAN, job.jobId, job.title, "ws-send@example.com");
+
+  const res = await sendWorkSample(entry, WS_HUMAN);
+  assert.equal(res.outcome, "invited");
+  assert.equal(res.outcome === "invited" && res.delivery, "queued", "no relay: recorded, never claimed sent");
+  const token = getOpenPosting(caseId, "local", WS_HUMAN)?.token;
+  assert.ok(token);
+  assert.equal(res.outcome === "invited" && res.url, `/devcase/apply/${token}`);
+
+  const again = await sendWorkSample(entry, WS_HUMAN);
+  assert.deepEqual(again, { outcome: "already_invited", url: `/devcase/apply/${token}` });
+  // …and the column, arriving later, sees the same letter.
+  assert.equal((await runHomeworkArrival(entry, "Homework", WS_HUMAN)).outcome, "already_invited");
+  assert.equal(invites(entry.id, WS_HUMAN).length, 1, "one letter, whichever door sent it");
+});
+
+test("send work sample: no approved case answers no_case and designs nothing", async () => {
+  const job = jobWithJd(WS_AUTO);
+  const entry = entryAt(WS_AUTO, job.jobId, job.title, "ws-nocase@example.com");
+  const before = listLifecycles(50, WS_AUTO).length;
+
+  assert.deepEqual(await sendWorkSample(entry, WS_AUTO), { outcome: "no_case" });
+  assert.equal(listLifecycles(50, WS_AUTO).length, before, "a click never starts a design run");
+  assert.equal(invites(entry.id, WS_AUTO).length, 0);
+});
+
+test("send work sample: unaddressable and stopped-intake refusals send nothing", async () => {
+  const job = jobWithJd(WS_AUTO);
+  const caseId = approvedCaseFor(job.slug, job.title, WS_AUTO);
+  const nobody = entryAt(WS_AUTO, job.jobId, job.title, null);
+  assert.deepEqual(await sendWorkSample(nobody, WS_AUTO), { outcome: "failed", reason: "unaddressable" });
+  assert.equal(getOpenPosting(caseId, "local", WS_AUTO), null, "no token minted for a letter with nowhere to go");
+
+  const first = entryAt(WS_AUTO, job.jobId, job.title, "ws-first@example.com");
+  assert.equal((await sendWorkSample(first, WS_AUTO)).outcome, "invited");
+  closeCaseIntake(caseId, WS_AUTO, lifecycleOwnsIntake);
+  const late = entryAt(WS_AUTO, job.jobId, job.title, "ws-late@example.com");
+  assert.deepEqual(await sendWorkSample(late, WS_AUTO), { outcome: "failed", reason: "intake_stopped" });
+  assert.equal(invites(late.id, WS_AUTO).length, 0);
 });

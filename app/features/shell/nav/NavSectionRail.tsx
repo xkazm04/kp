@@ -221,7 +221,7 @@ export function NavSectionRail({
         {panelHeader}
         {/* A real heading (not a styled <p>) so the panel's group name lands in the
             AT heading map; the <nav> below is labelled by the same text. */}
-        <h2 className="px-3 pb-1.5 pt-3 text-sm font-semibold uppercase tracking-[0.12em] text-steel/70">
+        <h2 className="px-3 pb-1.5 pt-3 text-sm font-semibold uppercase tracking-[0.12em] text-steel">
           {shownGroup ? groupLabel(shownGroup) : null}
         </h2>
         <nav

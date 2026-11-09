@@ -1,0 +1,263 @@
+{
+ "schema": "conform-run/1",
+ "worker": "4af4b211-1f87-494e-952f-44f08e687321",
+ "subject": "test-harness",
+ "evaluatedAt": "2026-11-09T00:53:43.718653+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "apply-surface-tests",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/apply/[id]/quick/quick-apply-status-link.test.ts:68 The pin claims the status page renders the switcher, but a bare identifier is already satisfied by the import on StatusClient.tsx line 8, so deleting the `<LanguageSwitcher />` at line 224 leaves this test green.",
+   "techniques": [
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/quick/quick-apply-status-link.test.ts:68 Needle is a bare name that the import line satisfies. Same class: candidate-door-conversion.test.ts:188-189 (`company_url` is also in comments; `aria-hidden=\"true\"` is not bound to the honeypot element). closedRoleBlock at candidate-door-conversion.test.ts:63 matches a literal \"\\n }\\n\" with no CRLF handling, while lines 162 and 168 of the same file use \\r?\\n."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/apply-draft-fingerprint.test.ts:122 The 'non-vacuity' step edits a string in test memory and then asserts the removed literal is gone, which only exercises String.replace. The technique requires the edit in the production path. Same shape at candidate-door-conversion.test.ts:128."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/apply-draft-fingerprint.test.ts:91 The resume decision is lifted into resumableAnsweredIds and driven directly at line 77, and this line pins its adoption at the mount-effect site. Lines 8-12 state that the source pin is the interim for wiring a unit call cannot reach."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:177 The structural walk over <main> blocks declares a floor before looping, so an empty match set cannot pass. Lines 45 and 102 do the same."
+    }
+   ],
+   "registryProposal": "negative-control-tests could name the in-test text mutation directly: replacing the needle in a string read from disk and asserting the needle is gone is labelled non-vacuity but cannot distinguish a live pin from a dead one."
+  },
+  {
+   "context": "interview-simulator",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/interview-sim/providers.test.ts:18 The test name claims what reaches the child process, but it only drives the pure claudeChildEnv helper, so removing `env: claudeChildEnv()` from either spawn at providers.ts:141-142 stays green, and the argv built at providers.ts:209-221 has no test at all.",
+   "techniques": [
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "deviation",
+     "evidence": "app/_lib/interview-sim/providers.test.ts:18 Adoption of the lifted helper at the spawn is unpinned. A search of test files for --system-prompt-file, setting-sources, no-session-persistence, quoteForCmd and neutralCwd found nothing, although the argument list could be lifted into a pure builder. The per-call KP_OFFLINE refusal at providers.ts:208 is also unreached; the test covers construction only."
+    },
+    {
+     "technique": "a-test-helper-is-a-fork-of-the-driver",
+     "verdict": "conformant",
+     "evidence": "app/_lib/interview-sim/director-loop.ts:90 The simulator calls the same exchange kernel as the live route and swaps only the store. Lines 12-14 name what is not carried over, and fakeJudge has no passing default (fake.ts:247 answers null unless scripted)."
+    },
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "conformant",
+     "evidence": "app/_lib/interview-sim/clock.test.ts:69 Time claims are read from recorded spans on the simulated clock, never from wall time, so load cannot change the verdict."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "app/_lib/interview-sim/engine.test.ts:129 The lane asserts its own precondition: the suite must be on the throwaway database, and lines 131-135 prove the guard refuses the operator's database and other wrong paths."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "conformant",
+     "evidence": "scripts/interview-sim.ts:94 The driver returns exit 2 when the filters select nothing, so an empty selection is not a green run."
+    },
+    {
+     "technique": "fixture-economics",
+     "verdict": "conformant",
+     "evidence": "app/_lib/interview-sim/clock.test.ts:31 The expensive instrument is built once per file. In run output, staleness is keyed on the brief digest (runner.ts:190), so an old dump is not reused against a changed instrument."
+    }
+   ]
+  },
+  {
+   "context": "analyze-engine",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/tools/analyze/analyzeGithubRunPolicy.test.ts:25 The test drives only the lifted predicate, and no test pins its call sites at useAnalyzeForm.ts:595 and 681, so reverting the launch to a bare `hasGithub` check leaves the blind-mode identity rule green.",
+   "techniques": [
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/analyze/analyzeGithubRunPolicy.test.ts:25 The lift created the adoption gap the technique names. A repo search finds shouldRunGithubDeepDive only in the policy module, this test and useAnalyzeForm.ts; the same file does pin adoption for the cancel path, but not for this rule."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/analyze/analyzeGithubRunPolicy.test.ts:33 The 'non-vacuity' proof asserts a function defined in the test file against itself (line 20), so it cannot fail and does not exercise production code. naiveCancelStatus repeats the shape."
+    },
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/analyze/analyzeDragCounter.test.ts:84 A bare name on the unstripped source is satisfied by the import at useAnalyzeDropZoneHighlight.ts line 4, so the claim of consumption is not pinned. The same test does strip comments for its setIsOver check."
+    },
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/analyze/analyzeRunDelivery.test.ts:24 Delivery and abort are asserted through an injected timer surface and pending counts, with no real 320 ms wait."
+    }
+   ],
+   "registryProposal": "negative-control-tests could list a frozen copy of the pre-fix logic asserted against itself as a control that proves nothing, since this shape reads as rigorous in review."
+  },
+  {
+   "context": "shared-api-utilities",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/sanity-checks.test.ts:15 The comment says a renamed engine warning will show up here, but the list is a hand-copied TS array and the file never reads pipeline.py, so renaming an emitter leaves this suite green.",
+   "techniques": [
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "deviation",
+     "evidence": "app/_lib/sanity-checks.test.ts:15 The stated lockstep is never reached. A search of the file finds no readFileSync and only this comment names pipeline.py, so the reach probe of mutating the named emitter would stay green."
+    },
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "app/_lib/app-currency-literal.test.ts:66 The walk declares no floor on files read, so a filter that stopped selecting files would report a clean tree. The rest of the instrument is good: needles require a currency position, line endings are normalised, and the allowlist is checked in both directions at lines 91-101."
+    },
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "conformant",
+     "evidence": "app/_lib/rate-limit.test.ts:27 The window reset is proven by passing an explicit instant to the limiter, with no real waiting."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "app/_lib/catalog-translator.test.ts:11 The asserting file records the production mutation that makes the named test fail, as step 4 of the technique asks. The run itself was not repeated here."
+    }
+   ]
+  },
+  {
+   "context": "review-gates",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "scripts/review/agent-review.mjs:302 The fixture header names 'null is read as no findings' as the failure to prevent, but this guard sits in an unexported main() that no fixture calls or spawns, so deleting it leaves test:review green.",
+   "techniques": [
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "deviation",
+     "evidence": "scripts/review/agent-review.mjs:302 The fixtures pin extractJson returning null and verdictFor in isolation. A search of scripts/review/__tests__ for spawn, execFile, execSync and main( found nothing, so neither this consuming decision nor the adoption at line 321 is reached."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "deviation",
+     "evidence": "scripts/review/agent-review.mjs:255 Reviewing nothing exits 0 with a quiet line on the next statement, unlike the loud keyless path. The sibling lens fixed exactly this case with exit 2 (constitution-check.mjs:700 and 718)."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "scripts/review/__tests__/constitution-check.test.mjs:90 Rules are proved in fire and no-fire pairs on real diff fragments, for example lines 90 and 95, so a rule that never fires goes red."
+    },
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "conformant",
+     "evidence": "scripts/review/constitution-check.mjs:232 The needle requires a call parenthesis and runs on comment-masked text. The seeded pair at constitution-check.test.mjs:187 and 202 separates a comment from the real construct, and workflow-yaml.test.mjs:261 declares a floor on the real tree."
+    },
+    {
+     "technique": "proved-off-the-path",
+     "verdict": "conformant",
+     "evidence": "scripts/review/__tests__/gate-check.test.mjs:274 The committed ruleset and workflows go through the same two calls that gate-check's main() composes, not a test-only arrangement."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-09T00:53:43.718653+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "derived-selection-must-be-measured",
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "apply-surface-tests",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T00:53:43.718653+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "a-test-helper-is-a-fork-of-the-driver",
+    "assert-the-schedule-not-the-stopwatch",
+    "derived-selection-must-be-measured",
+    "fixture-economics",
+    "isolation-lanes",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "interview-simulator",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T00:53:43.718653+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "assert-the-schedule-not-the-stopwatch",
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "analyze-engine",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T00:53:43.718653+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "assert-the-schedule-not-the-stopwatch",
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "shared-api-utilities",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T00:53:43.718653+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "derived-selection-must-be-measured",
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "proved-off-the-path",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "review-gates",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

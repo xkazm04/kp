@@ -12,12 +12,13 @@ import logging
 from typing import Any
 
 from ..i18n import language_directive, normalize_lang
-from .models import RUBRIC_DIMENSIONS, rubric_composite
+from .ai_drafts import resolve_family as resolve_draft_family
+from .models import CASE_DRAFT_CANARY_PREFIX, RUBRIC_DIMENSIONS, rubric_composite
 from .provenance import fenced_untrusted, generate_with_fallback, str_list as _str_list
 
 CASE_EVAL_PROMPT_VERSION = "case-eval-v2"  # v2: the evaluation context is character-budgeted (the prompt text can change — bump so any version-keyed cache regenerates)
 TRANSFER_PROMPT_VERSION = "transfer-v2"  # v2: the transfer context moved INSIDE the untrusted-data fence + a character budget (the prompt text changed)
-FOLLOWUPS_PROMPT_VERSION = "followups-v3"  # v3: the followup context is character-budgeted. v2: the followup context is now inside the untrusted-data fence (the prompt text changed — bump so any version-keyed cache regenerates)
+FOLLOWUPS_PROMPT_VERSION = "followups-v4"  # v4: the candidate's parsed decision log rides in the fenced context and anchors questions to their own rationale. v3: the followup context is character-budgeted. v2: the followup context is now inside the untrusted-data fence (the prompt text changed — bump so any version-keyed cache regenerates)
 
 _LOG = logging.getLogger(__name__)
 
@@ -47,6 +48,53 @@ MISSING_DIMENSION_SCORE = 50
 _CANARY_GRADED = frozenset({"addressed", "flagged", "propagated"})
 _CANARY_CAUGHT = frozenset({"addressed", "flagged"})
 CANARY_VERIFY_WEIGHT = 0.5
+
+# The AI-collaboration reading of a keyless family case (council-lite T13 r2: tooling sat at
+# 50 for every candidate, the one who corrected the AI's draft included). The case ships its
+# own AI draft (models.CASE_DRAFT_CANARY_PREFIX), and its verdict says how the candidate
+# worked WITH the assistant's output: corrected (caught) moves tooling up by this much,
+# pasted with its slip (propagated) moves it down by the same, and a draft the candidate
+# never used (unverifiable) leaves it where the trace put it. Using the draft is never
+# scored by itself — only whether its claim was checked.
+AI_DRAFT_TOOLING_SWING = 0.25
+
+# Role families whose starting materials are code; every other family reads "starting
+# materials" in the canary bullets, never "starter code" (lite r2: a ticket queue was called
+# starter code). A role with no family keeps the original wording.
+_CODE_FAMILIES = frozenset({"software_engineering", "data_ai"})
+
+# Observed verification, channel-neutral (tiger C1, 2026-10-17). One verification act earns
+# the same credit whichever channel carried it; OBSERVED_VERIFY_ACTS_FOR_FULL acts earn the
+# whole term. Until then the term was 0.5 editedTest + 0.2 assistant verify ask, so the
+# assistant channel was the only one a check could arrive on for credit: a candidate who
+# flagged a defect in DECISIONS.md or to the stakeholder earned nothing for it, and the
+# observed fairness landscape read AI verifiers +20 judgment over behaviour-matched peers.
+OBSERVED_VERIFY_ACTS_FOR_FULL = 2
+OBSERVED_VERIFY_ACT_WEIGHT = 0.7   # the share of the observed term that verification acts carry
+OBSERVED_LOG_WARM_WEIGHT = 0.3     # unchanged: a decision log kept with >= 2 entries
+
+
+def verification_acts(signals: dict | None, prompt_signals: dict | None, canary_outcomes: list | None) -> int:
+    """Count observed verification acts across every channel a candidate can verify through.
+
+      * a test written or edited                         (process events)
+      * a verify/check ask to the assistant              (promptSignals.verificationAsks)
+      * a verify/check ask or defect raised to the stakeholder
+                                                         (promptSignals.stakeholderVerificationAsks)
+      * a planted defect caught: fixed in the code, or flagged in the decision log or
+        dialogue                                         (canaryOutcomes addressed/flagged)
+
+    Planted defects count as ONE act however many were caught: canaries are not durable
+    against a model swept for traps (case-sim round 3), so they may lift like one watched
+    habit and never carry the term alone. No channel is weighted above another."""
+    sig = signals or {}
+    psig = prompt_signals or {}
+    acts = 1 if sig.get("editedTest") else 0
+    acts += int(_num(psig.get("verificationAsks"), 0))
+    acts += int(_num(psig.get("stakeholderVerificationAsks"), 0))
+    if any(isinstance(c, dict) and c.get("status") in _CANARY_CAUGHT for c in (canary_outcomes or [])):
+        acts += 1
+    return acts
 
 
 def _generate(provider: Any | None, prompt: str, deterministic, coerce, expected_keys=None) -> tuple[dict, str]:
@@ -140,6 +188,30 @@ _DET: dict[str, dict[str, str]] = {
         "de": "{missed} von {total} bekannten Fehlern im Ausgangscode wurden ungeprüft übernommen",
         "fr": "{missed} des {total} défauts connus du code de départ ont été livrés sans examen",
     },
+    "canaries_caught_materials": {
+        "en": "Fixed or flagged {caught} of {total} known defects in the starting materials",
+        "cs": "Opravil(a) nebo označil(a) {caught} z {total} známých chyb ve výchozích materiálech",
+        "de": "Hat {caught} von {total} bekannten Fehlern in den Ausgangsmaterialien behoben oder benannt",
+        "fr": "A corrigé ou signalé {caught} des {total} défauts connus des documents de départ",
+    },
+    "canaries_missed_materials": {
+        "en": "{missed} of {total} known defects in the starting materials shipped unexamined",
+        "cs": "{missed} z {total} známých chyb ve výchozích materiálech zůstalo v odevzdané práci bez povšimnutí",
+        "de": "{missed} von {total} bekannten Fehlern in den Ausgangsmaterialien wurden ungeprüft übernommen",
+        "fr": "{missed} des {total} défauts connus des documents de départ ont été livrés sans examen",
+    },
+    "ai_draft_corrected": {
+        "en": "Checked the supplied AI draft and corrected its error before using it",
+        "cs": "Dodaný návrh od AI ověřil(a) a před použitím opravil(a) jeho chybu",
+        "de": "Hat den gelieferten KI-Entwurf geprüft und seinen Fehler vor der Verwendung korrigiert",
+        "fr": "A vérifié le brouillon IA fourni et corrigé son erreur avant de l'utiliser",
+    },
+    "ai_draft_pasted": {
+        "en": "Carried the supplied AI draft's error into the work unchecked",
+        "cs": "Chybu z dodaného návrhu od AI převzal(a) do práce bez ověření",
+        "de": "Hat den Fehler des gelieferten KI-Entwurfs ungeprüft in die Arbeit übernommen",
+        "fr": "A repris sans vérification l'erreur du brouillon IA fourni",
+    },
     "eval_summary": {
         "en": "Deterministic estimate from the trace: tooling {tooling}, judgment {judgment}, framing {framing}.",
         "cs": "Deterministický odhad ze stopy práce: tooling {tooling}, judgment {judgment}, framing {framing}.",
@@ -187,6 +259,54 @@ _DET: dict[str, dict[str, str]] = {
         "cs": "Odevzdal(a) nezdokumentované či nejasné rozhodnutí v {where}",
         "de": "Hat eine undokumentierte/unklare Entscheidung in {where} abgeliefert",
         "fr": "A livré une décision non documentée ou floue dans {where}",
+    },
+    "followup_logged_rejected": {
+        "en": "Your log says you rejected “{rejected}” for “{decision}”. Walk me through why that option lost, and what would have to change for it to win.",
+        "cs": "V záznamu uvádíte, že jste u „{decision}“ zavrhl(a) „{rejected}“. Proveďte mě tím, proč ta možnost prohrála a co by se muselo změnit, aby vyhrála.",
+        "de": "In Ihrem Protokoll steht, dass Sie bei „{decision}“ „{rejected}“ verworfen haben. Erklären Sie mir, warum diese Option verlor und was sich ändern müsste, damit sie gewinnt.",
+        "fr": "Votre journal indique que, pour « {decision} », vous avez écarté « {rejected} ». Expliquez-moi pourquoi cette option a perdu et ce qui devrait changer pour qu'elle l'emporte.",
+    },
+    "followup_logged_why": {
+        "en": "Your log gives this reason for “{decision}”: “{why}”. What did you actually see that made that the deciding factor?",
+        "cs": "V záznamu uvádíte u „{decision}“ tento důvod: „{why}“. Co konkrétně jste viděl(a), že se stal rozhodujícím?",
+        "de": "Ihr Protokoll nennt für „{decision}“ diesen Grund: „{why}“. Was haben Sie konkret gesehen, das ihn ausschlaggebend machte?",
+        "fr": "Votre journal donne cette raison pour « {decision} » : « {why} ». Qu'avez-vous concrètement observé qui l'a rendue décisive ?",
+    },
+    "followup_logged_counterfactual": {
+        "en": "Your log says: “{counterfactual}” (on “{decision}”). What exactly would you need to see to make that call?",
+        "cs": "V záznamu uvádíte: „{counterfactual}“ (u „{decision}“). Co přesně byste potřeboval(a) vidět, abyste to rozhodnutí udělal(a)?",
+        "de": "Ihr Protokoll sagt: „{counterfactual}“ (zu „{decision}“). Was genau müssten Sie sehen, um diese Entscheidung zu treffen?",
+        "fr": "Votre journal dit : « {counterfactual} » (à propos de « {decision} »). Que faudrait-il voir exactement pour prendre cette décision ?",
+    },
+    "decision_logged": {
+        "en": "Logged decision: {decision}",
+        "cs": "Zapsané rozhodnutí: {decision}",
+        "de": "Protokollierte Entscheidung: {decision}",
+        "fr": "Décision consignée : {decision}",
+    },
+    "followup_no_log": {
+        "en": "Your decision log has no entries. Pick the most consequential call you made and walk me through what you chose, the alternative you rejected, and why.",
+        "cs": "Váš záznam rozhodnutí je prázdný. Vyberte nejdůležitější rozhodnutí, které jste udělal(a), a proveďte mě tím, co jste zvolil(a), jakou možnost jste zavrhl(a) a proč.",
+        "de": "Ihr Entscheidungsprotokoll enthält keine Einträge. Wählen Sie die folgenreichste Entscheidung und erklären Sie mir, wofür Sie sich entschieden, welche Alternative Sie verworfen haben und warum.",
+        "fr": "Votre journal de décisions est vide. Choisissez la décision la plus lourde de conséquences et expliquez-moi ce que vous avez choisi, l'option écartée et pourquoi.",
+    },
+    "decision_no_log": {
+        "en": "No logged decision",
+        "cs": "Žádné zapsané rozhodnutí",
+        "de": "Keine protokollierte Entscheidung",
+        "fr": "Aucune décision consignée",
+    },
+    "listen_logged": {
+        "en": "Specifics beyond what the log already says: what they tried, what broke, what they weighed.",
+        "cs": "Konkrétní detaily nad rámec záznamu: co zkusili, co se rozbilo, co zvažovali.",
+        "de": "Konkretes über das Protokoll hinaus: was sie versucht haben, was brach, was sie abgewogen haben.",
+        "fr": "Des précisions au-delà du journal : ce qu'ils ont essayé, ce qui a cassé, ce qu'ils ont pesé.",
+    },
+    "redflag_logged": {
+        "en": "Repeats the log entry word for word but cannot say what they would do differently.",
+        "cs": "Opakuje zápis slovo od slova, ale neumí říct, co by udělali jinak.",
+        "de": "Wiederholt den Protokolleintrag wörtlich, kann aber nicht sagen, was sie anders machen würden.",
+        "fr": "Répète l'entrée du journal mot pour mot sans pouvoir dire ce qu'ils feraient autrement.",
     },
     "listen_default": {
         "en": "Concrete reasoning anchored in what they actually hit.",
@@ -419,15 +539,21 @@ def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict,
         # habits are COMMIT-derived, so a live session (no git by design) scored
         # judgment 0 for every candidate — no discrimination at all. When the tooling
         # signal carries observed process signals, derive verification from what was
-        # actually WATCHED: edited a test, kept the decision log warm, asked the model
-        # to verify its output. MAX with the commit-derived value, never instead of it.
+        # actually WATCHED: the verification acts on ANY channel (verification_acts —
+        # a test, an assistant ask, a stakeholder flag, a caught planted defect all
+        # weigh the same), plus a decision log kept warm. MAX with the commit-derived
+        # value, never instead of it.
         sig = tooling.get("signals") if isinstance(tooling.get("signals"), dict) else None
+        # The case's own AI draft is a tooling signal only (AI_DRAFT_TOOLING_SWING): its
+        # canaries stay out of every verification term, so correcting the draft cannot
+        # lift judgment and transfer and outscore catching the planted flaw.
+        all_outcomes = [c for c in ((extras or {}).get("canaryOutcomes") or []) if isinstance(c, dict)]
+        planted_outcomes = [c for c in all_outcomes if not str(c.get("id") or "").startswith(CASE_DRAFT_CANARY_PREFIX)]
         if sig:
-            asked_verify = bool((((extras or {}).get("promptSignals")) or {}).get("verificationAsks"))
+            acts = verification_acts(sig, (extras or {}).get("promptSignals"), planted_outcomes)
             obs_verif = (
-                (0.5 if sig.get("editedTest") else 0.0)
-                + (0.3 if (sig.get("decisionLogEntries") or 0) >= 2 else 0.0)
-                + (0.2 if asked_verify else 0.0)
+                OBSERVED_VERIFY_ACT_WEIGHT * min(1.0, acts / OBSERVED_VERIFY_ACTS_FOR_FULL)
+                + (OBSERVED_LOG_WARM_WEIGHT if (sig.get("decisionLogEntries") or 0) >= 2 else 0.0)
             )
             # For observed sessions the observed read-before-write is also the honest
             # framing input (the reflection's commit-derived rbw is a default here).
@@ -441,10 +567,12 @@ def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict,
         # verification above, never instead of it, and capped at CANARY_VERIFY_WEIGHT:
         # case-sim round 3 showed canaries are not durable against a candidate who asks a
         # model to sweep for traps, so they lift like one watched habit, never decide alone.
-        graded = [c for c in ((extras or {}).get("canaryOutcomes") or []) if isinstance(c, dict) and c.get("status") in _CANARY_GRADED]
+        graded = [c for c in all_outcomes if c.get("status") in _CANARY_GRADED]
         caught = sum(1 for c in graded if c.get("status") in _CANARY_CAUGHT)
-        if graded:
-            verif = max(verif, CANARY_VERIFY_WEIGHT * caught / len(graded))
+        planted_graded = [c for c in planted_outcomes if c.get("status") in _CANARY_GRADED]
+        if planted_graded:
+            planted_caught = sum(1 for c in planted_graded if c.get("status") in _CANARY_CAUGHT)
+            verif = max(verif, CANARY_VERIFY_WEIGHT * planted_caught / len(planted_graded))
         # Filter to dict outcomes (a stored / hand-built ToolingSignal may carry
         # strings or None) so `.get` can't raise — mirrors mint_followups and
         # assess_tooling, the sibling consumers that already guard.
@@ -457,9 +585,14 @@ def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict,
         assessed = [o for o in outcomes if isinstance(o.get("handledWell"), bool)]
         detected_any = any(o.get("detected") for o in outcomes)
         handled = (sum(1 for o in assessed if o.get("handledWell")) / len(assessed)) if assessed else 0.0
+        # The case's own AI draft, corrected or pasted (AI_DRAFT_TOOLING_SWING). Unverifiable
+        # is no signal, so a candidate who never touched the draft reads as before.
+        drafts = [c for c in graded if str(c.get("id") or "").startswith(CASE_DRAFT_CANARY_PREFIX)]
+        draft_share = (sum(1 for c in drafts if c.get("status") in _CANARY_CAUGHT) / len(drafts)) if drafts else None
+        tool = fluency if draft_share is None else min(1.0, max(0.0, fluency + AI_DRAFT_TOOLING_SWING * (2 * draft_share - 1)))
         dims = {
             "framing": _pct(0.55 * rbw + 0.45 * 0.5),
-            "tooling": _pct(fluency),
+            "tooling": _pct(tool),
             # Judgment rests on the probe-handling mean ONLY when handling was actually
             # graded; with no graded probes (observed path, or none at all) it rests on
             # verification alone rather than a structurally-suppressed 0.5*handled for an
@@ -483,10 +616,16 @@ def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict,
         # not flagged as a negative.
         if not outcomes or (assessed and handled <= 0.5):
             concerns.append(_t("probe_handling_unclear", lang))
+        family = str(role.get("roleFamily") or "")
+        where = "" if not family or resolve_draft_family(family) in _CODE_FAMILIES else "_materials"
         if caught:
-            strengths.append(_t("canaries_caught", lang, caught=caught, total=len(graded)))
+            strengths.append(_t(f"canaries_caught{where}", lang, caught=caught, total=len(graded)))
         if len(graded) > caught:
-            concerns.append(_t("canaries_missed", lang, missed=len(graded) - caught, total=len(graded)))
+            concerns.append(_t(f"canaries_missed{where}", lang, missed=len(graded) - caught, total=len(graded)))
+        if draft_share is not None:
+            (strengths if draft_share > 0.5 else concerns).append(
+                _t("ai_draft_corrected" if draft_share > 0.5 else "ai_draft_pasted", lang)
+            )
         # Empty findings stay empty (no '—' sentinel) — `hasFindings` lets the UI render a
         # deliberate empty state instead of a bare em-dash bullet that reads as a render bug.
         return {
@@ -633,7 +772,53 @@ def score_transfer(evaluation: dict, role: dict, *, provider: Any | None = None,
 MAX_FOLLOWUPS = 6
 
 
-def mint_followups(reflection: dict, tooling: dict, evaluation: dict, case: dict, role: dict, *, extras: dict | None = None, provider: Any | None = None, lang: str = "en") -> tuple[dict, str]:
+# How many follow-ups the logged rationale may take: it anchors the debrief, it must not crowd out
+# the probe-keyed questions (and a longer log never earns more of the budget).
+MAX_LOGGED_FOLLOWUPS = 2
+
+
+def _logged_followups(entries: list[dict] | None, lang: str) -> list[dict]:
+    """Deterministic follow-ups quoting the candidate's own logged rationale (debrief evidence only)."""
+    if entries is None:
+        return []
+    if not entries:
+        return [
+            {
+                "id": "f1",
+                "probeId": "",
+                "decision": _t("decision_no_log", lang),
+                "question": _t("followup_no_log", lang),
+                "listenFor": _t("listen_default", lang),
+                "redFlag": _t("redflag_logged", lang),
+            }
+        ]
+    qs: list[dict] = []
+    for e in entries:
+        if len(qs) >= MAX_LOGGED_FOLLOWUPS:
+            break
+        what = e.get("decision") or e.get("task") or ""
+        if e.get("rejected"):
+            question = _t("followup_logged_rejected", lang, decision=what, rejected=e["rejected"])
+        elif e.get("why"):
+            question = _t("followup_logged_why", lang, decision=what, why=e["why"])
+        elif e.get("counterfactual"):
+            question = _t("followup_logged_counterfactual", lang, decision=what, counterfactual=e["counterfactual"])
+        else:
+            continue
+        qs.append(
+            {
+                "id": f"f{len(qs) + 1}",
+                "probeId": "",
+                "decision": _t("decision_logged", lang, decision=what),
+                "question": question,
+                "listenFor": _t("listen_logged", lang),
+                "redFlag": _t("redflag_logged", lang),
+            }
+        )
+    return qs
+
+
+def mint_followups(reflection: dict, tooling: dict, evaluation: dict, case: dict, role: dict, *, extras: dict | None = None, decision_log: list[dict] | None = None, provider: Any | None = None, lang: str = "en") -> tuple[dict, str]:
     """Mint candidate-specific interview questions FROM their evaluated submission.
 
     This step is the point of the whole evaluation in the LLM era: the submission —
@@ -644,6 +829,13 @@ def mint_followups(reflection: dict, tooling: dict, evaluation: dict, case: dict
     why / the rejected alternative / the counterfactual — things a candidate who merely
     delegated the work cannot reconstruct live. ``listen_for``/``red_flag`` are internal
     interviewer notes, never disclosed.
+
+    ``decision_log`` (``decision_log.decision_log_entries``) is the candidate's own parsed
+    DECISIONS.md: each entry's why / rejected alternative / counterfactual is quoted back in
+    its follow-up, and an empty log (``[]``) mints one 'no logged decision' question. ``None``
+    means no tree was submitted and changes nothing. It is evidence for the debrief ONLY —
+    it is never an input to a score, band or confidence, and its length or entry count is
+    never graded.
     """
     lang = normalize_lang(lang)
     probes = [p for p in (case.get("coverProbes") or []) if isinstance(p, dict)]
@@ -665,6 +857,9 @@ def mint_followups(reflection: dict, tooling: dict, evaluation: dict, case: dict
         # a near-baseline submission ("what did you change from the first draft the
         # tools gave you, and why?"), a pasted-brief prompt pattern.
         ctx["observedChecks"] = {k: v for k, v in extras.items() if v}
+    if decision_log is not None:
+        # Candidate-authored, so it rides inside the same untrusted-data fence as the rest.
+        ctx["loggedDecisions"] = decision_log
     prompt = (
         "Mint 4-6 interview follow-up questions from THIS specific evaluated submission. The submission "
         "(code, commits, decision log) may be ENTIRELY LLM-produced on the candidate's behalf — treat every "
@@ -678,7 +873,7 @@ def mint_followups(reflection: dict, tooling: dict, evaluation: dict, case: dict
         "defends every option equally, cannot name what they rejected). Both are internal interviewer notes. "
         "When 'observedChecks' is present, prefer its anchors: a PROPAGATED canary (ask them to walk through that "
         "file and see if they spot it live), a near-baseline similarity (ask what they changed from the tools' "
-        "first draft and why), a pasted-brief prompt pattern (ask how they decomposed the task).\n"
+        "first draft and why), a pasted-brief prompt pattern (ask how they decomposed the task). When 'loggedDecisions' is present, quote the candidate's OWN logged rejected alternative, reason or counterfactual back to them and probe it; when it is an empty list, one question asks them to name their most consequential call. The log is ordinary practice: never read its length, count or presence as a signal about the candidate.\n"
         # Fenced for the same reason evaluate_submission fences its context, and it was the
         # one prompt of the three that wasn't: this ctx carries reflection.deadEnds, which on
         # the deterministic reflect path is a VERBATIM slice of the candidate's commit
@@ -697,7 +892,7 @@ def mint_followups(reflection: dict, tooling: dict, evaluation: dict, case: dict
     )
 
     def deterministic() -> dict:
-        qs: list[dict] = []
+        qs: list[dict] = _logged_followups(decision_log, lang)
         for p in probes:
             if len(qs) >= MAX_FOLLOWUPS - 1:
                 break

@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { getJobseekerSource } from "@/app/_lib/db/jobseeker-sources";
@@ -29,7 +29,7 @@ type CliOutput = { rules?: unknown; source?: unknown; fallbackReason?: unknown; 
 const PROPOSE_TIMEOUT_MS = 120_000;
 const PREVIEW_ITEMS = 5;
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> {
+export const POST = withWorkspace(async (ws: string, request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   // The seeker's own data, but still a WRITE behind a seat: a viewer seat may read the
@@ -43,7 +43,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     const { id } = await params;
     const body = (await request.json().catch(() => ({}))) as ProposeBody;
-    const ws = await currentWorkspace();
     const source = getJobseekerSource(id, ws);
     if (!source) return jsonRefusal("JOBSEEKER_SOURCE_NOT_FOUND", 404);
     if (source.tier === "C") return jsonRefusal("JOBSEEKER_SOURCE_REFUSED", 403);
@@ -119,4 +118,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/sources/[id]/rules/propose", "JOBSEEKER_STORE_FAILED");
   }
-}
+});

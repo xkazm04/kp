@@ -9,7 +9,7 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { JdRow } from "./jdsLibrary";
 
 const ICON_BTN =
-  "focus-ring inline-grid h-8 w-8 place-items-center rounded-md text-steel transition-colors hover:bg-paper hover:text-coral disabled:opacity-40";
+  "focus-ring inline-grid h-8 w-8 place-items-center rounded-md text-steel transition-colors hover:bg-paper hover:text-coral-ink disabled:opacity-40";
 
 // The per-row delete action for a JD that is NOT live, shown only to the person
 // who created the description or to an admin — `row.canDelete` is the SERVER's
@@ -68,7 +68,7 @@ export function RowDelete({ row, reload }: { row: JdRow; reload: () => void }) {
         type="button"
         onClick={() => setConfirming(true)}
         disabled={busy}
-        className={`${ICON_BTN} ${reason ? "text-coral" : ""}`}
+        className={`${ICON_BTN} ${reason ? "text-coral-ink" : ""}`}
         title={reason ?? t("deleteJd")}
         aria-label={t("deleteJdAria", { title: row.title })}
       >

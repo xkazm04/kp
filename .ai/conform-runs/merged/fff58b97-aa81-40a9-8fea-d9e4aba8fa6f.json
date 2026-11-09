@@ -1,0 +1,43 @@
+{
+  "schema": "conform-run/1",
+  "worker": "fff58b97-aa81-40a9-8fea-d9e4aba8fa6f",
+  "subject": "build-economics",
+  "evaluatedAt": "2026-10-18T21:51:59.982955+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "build-economics",
+      "context": "jd-build-templates",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "build-economics",
+      "context": "devcase-workspace",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "build-economics",
+      "context": "dev-toolchain",
+      "reason": "withdrawn after review: reviewer (sonnet): The cited code is real: line 154 turns fetch failures into empty buffers, line 198 uses them for asset sizes, and the validity check at line 210 only tests the page status. But scripts/perf/devbench.mjs is not one of the dev-toolchain context's files, and none of those files call it. Also, line 162 "
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-18T21:51:59.982955+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "build-economics"
+      ],
+      "techniques": [
+        "build-measurement",
+        "cache-budgeting"
+      ],
+      "deviations": 1,
+      "context": "dev-toolchain",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}

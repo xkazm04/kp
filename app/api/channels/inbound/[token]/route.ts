@@ -14,6 +14,7 @@ import { readTextWithLimit } from "@/app/_lib/request-body";
 import { claimWebhookIdempotency, releaseWebhookIdempotency, settleWebhookIdempotency, webhookIdempotencyKey } from "@/app/_lib/webhook-idempotency";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
 import { extractUploadedText, ingestCvApplication } from "@/app/_lib/cv-intake";
+import { startTask } from "@/app/_lib/tasks";
 
 // A CV extraction spawns a Python subprocess; give the file branch room inside the
 // platform's function budget (the JSON branch returns well under this).
@@ -166,6 +167,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
         // The lead is filed into the TEAM that minted this webhook (not the job's owner,
         // which is usually the same but authoritative here for a corpus-bound hook).
         workspaceId: webhook.workspaceId,
+        // The new candidate's role-fit score, after this response — scoring only.
+        deferScore: (filedEntry) => {
+          startTask("score_entry", { entryId: filedEntry.id, entryLabel: filedEntry.candidateLabel }, filedEntry.workspaceId);
+        },
       });
       // Stamp an ACCEPTED lead only for a genuinely new candidate (created), never a
       // duplicate re-send — so the Channels "leads" metric counts real candidates.

@@ -109,7 +109,7 @@ export function IntegrationsAtsForm({
           {saving ? t("saving") : existingHasToken ? t("update") : t("save")}
         </button>
         {note ? (
-          <span role={note.ok ? "status" : "alert"} className={`text-sm font-medium ${note.ok ? "text-moss" : "text-coral"}`}>
+          <span role={note.ok ? "status" : "alert"} className={`text-sm font-medium ${note.ok ? "text-moss" : "text-coral-ink"}`}>
             {note.text}
           </span>
         ) : null}

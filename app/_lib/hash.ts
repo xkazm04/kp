@@ -2,7 +2,7 @@
 //
 // Two independent FNV-1a implementations lived inside the SAME feature — one in
 // app/_lib/group-eval-dedupe.ts (the background-task dedupe key) and one in
-// app/features/hiring/decisions/groupEval/cache-key.ts (the selection cache key,
+// app/_lib/group-eval-cache-key.ts (the selection cache key,
 // computed on BOTH the client and the server so the two must agree byte for byte).
 // They were written months apart and differed in the loop body (`Math.imul(...)`
 // vs `Math.imul(...) >>> 0`), which happens to be digest-identical — XOR and

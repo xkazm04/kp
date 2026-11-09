@@ -75,7 +75,7 @@ export function StatusPill({
     connecting: { label: t("status.connecting"), cls: "bg-dial-amber/20 text-ink", dot: "bg-dial-amber" },
     ending: { label: t("status.ending"), cls: "bg-dial-amber/20 text-ink", dot: "bg-dial-amber" },
     ended: { label: t("status.ended"), cls: "bg-stone-100 text-steel" },
-    error: { label: t("status.error"), cls: "bg-coral/10 text-coral" },
+    error: { label: t("status.error"), cls: "bg-coral/10 text-coral-ink" },
   };
   const s = map[phase];
   return (

@@ -131,6 +131,12 @@ export const PUBLIC_API_EXACT: ReadonlySet<string> = new Set([
   // `x-comms-timestamp`, and a nonce replay guard. The rest of /api/comms (the recruiter
   // read + resend) stays gated.
   "/api/comms/callback",
+  // The uploaded company logo. Candidate pages (offer/apply/schedule) have no session
+  // and render it as an <img>, so GET must be anonymous: it is read-only, carries no
+  // secret and serves bytes the upload door already validated. EXACT, deliberately —
+  // nothing else under /api/brand becomes public — and because POST/DELETE share this
+  // path, those handlers re-verify the session and org:manage themselves.
+  "/api/brand/logo",
 ]);
 
 // Candidate schedule links are `/api/schedule/<token>` — exactly ONE segment below the

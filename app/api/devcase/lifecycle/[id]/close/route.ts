@@ -3,13 +3,13 @@ import { requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { claimLifecycleClose, listPostings, listSubmissions, setPostingStatus, updateLifecycle } from "@/app/_lib/db/devcase";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 // The shared by-id owner guard (sibling module - a route file may export only handlers).
 import { ownedLifecycle } from "../../../devcase-owned-lifecycle";
 import { sendComm } from "@/app/_lib/comms";
 import { findEntryByDevSubmission } from "@/app/_lib/db/pipeline";
 import { recordAudit } from "@/app/_lib/dev-control";
 import { wrapUpRecipients } from "@/app/_lib/devcase-lifecycle-fence";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 
 // W5-3 (DEVO3) — human-gated case close-out. "closed" sat in the lifecycle
 // STAGES (and the control room's TERMINAL set) with no writer: a lifecycle
@@ -18,7 +18,7 @@ import { wrapUpRecipients } from "@/app/_lib/devcase-lifecycle-fence";
 // collecting applications nobody would process. Closing is an adverse-adjacent
 // action, so it is HUMAN-triggered (this route has no automated caller),
 // mirroring the orchestrator's adverse-action policy.
-export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, _request: Request, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const forbidden = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -30,7 +30,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     // this door. A cross-tenant id now answers the same 404 a nonexistent one does. The
     // row's own workspace still drives the enumeration and the outbox filing below - that
     // is the tenant of the WORK; this is the tenant of the CALLER.
-    const lc = ownedLifecycle(id, await currentWorkspace());
+    const lc = ownedLifecycle(id, ws);
     if (!lc) return NextResponse.json({ error: "lifecycle not found" }, { status: 404 });
 
     // ATOMIC CLAIM (bug-ui-scan-2026-07-09 #1). The old guard read `lc.stage`, then
@@ -149,4 +149,4 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     // the thrown message can carry SQLITE_* detail or an upstream provider body.
     return safeJsonError(error, "api:devcase/lifecycle/close", "DEVCASE_CLOSE_FAILED");
   }
-}
+});

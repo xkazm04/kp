@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Copy, ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { LinkReachNotice } from "@/app/_components/LinkReachNotice";
 import { Modal } from "@/app/_components/Modal";
 import { BTN_GHOST, BTN_PRIMARY } from "@/app/_components/ui/recipes";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
@@ -71,7 +72,7 @@ export function useTokenLink(endpoint: string) {
 // The shared link-display row: a readonly absolute-URL field, a copy button that flips
 // to a check once clicked, and an open-as-candidate external link. Renders nothing until
 // a link has been minted, so callers can drop it in unconditionally.
-export function TokenLinkPanel({ link }: { link: ReturnType<typeof useTokenLink> }) {
+export function TokenLinkPanel({ link }: { link: Pick<ReturnType<typeof useTokenLink>, "data" | "fullUrl" | "copy" | "copied"> }) {
   const t = useTranslations("pipeline");
   // "Open as candidate" walked straight into the LIVE capability link — the same
   // one-way door the candidate has. Several of these surfaces stamp an opened-at /
@@ -84,7 +85,7 @@ export function TokenLinkPanel({ link }: { link: ReturnType<typeof useTokenLink>
   if (!link.data) return null;
   const url = link.data.url;
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5">
       <input
         readOnly
         value={link.fullUrl}
@@ -95,14 +96,14 @@ export function TokenLinkPanel({ link }: { link: ReturnType<typeof useTokenLink>
         type="button"
         title={t("tokenLink.copy")}
         onClick={() => void link.copy()}
-        className="focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:text-coral"
+        className="focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:text-coral-ink"
       >
         {link.copied ? <Check size={14} /> : <Copy size={14} />}
       </button>
       <button
         type="button"
         onClick={() => setConfirmOpen(true)}
-        className="focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:text-coral"
+        className="focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:text-coral-ink"
         title={t("tokenLink.openAsCandidate")}
       >
         <ExternalLink size={14} />
@@ -134,6 +135,8 @@ export function TokenLinkPanel({ link }: { link: ReturnType<typeof useTokenLink>
           <p className="text-base text-steel">{t("tokenLink.openConfirmBody")}</p>
         </Modal>
       ) : null}
+      {/* Who can open the link above (built on the same publicBaseUrl base). */}
+      <LinkReachNotice className="basis-full" />
     </div>
   );
 }

@@ -59,7 +59,7 @@ export function AutomationPanel({
               <Link
                 href={decisionsHref}
                 title={t("reviewHolds")}
-                className="focus-ring rounded font-medium text-ink underline-offset-2 hover:text-coral hover:underline"
+                className="focus-ring rounded font-medium text-ink underline-offset-2 hover:text-coral-ink hover:underline"
               >
                 {t("holdsValue", { raised: impact.holdsRaised, resolved: impact.holdsResolved })}
               </Link>

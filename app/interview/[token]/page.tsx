@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { voiceInterviewEnabled } from "@/app/_lib/voice/enabled";
 import Link from "next/link";
 import { ArrowRight, Clock, ShieldCheck, Sparkles } from "lucide-react";
 import { getTranslations } from "next-intl/server";
@@ -21,6 +22,9 @@ export const instant = false;
 
 export default async function InterviewPortalPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+  // Voice interview switched off (KP_VOICE_INTERVIEW, voice/enabled.ts): proxy.ts already
+  // answers this path as unknown; this is the defence in depth underneath it.
+  if (!voiceInterviewEnabled()) notFound();
   const session = getInterviewSessionByToken(token);
   if (!session) notFound();
 
@@ -55,7 +59,7 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
         {statusHref ? (
           <Link
             href={statusHref}
-            className="focus-ring mt-4 inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline"
+            className="focus-ring mt-4 inline-flex items-center gap-1 text-sm font-semibold text-coral-ink hover:underline"
           >
             {t("completedStatusCta")} <ArrowRight size={13} aria-hidden />
           </Link>
@@ -117,7 +121,7 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
         </div>
       ) : null}
       <header className="max-w-3xl">
-        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+        <p className="text-meta uppercase text-coral-ink">{t("eyebrow")}</p>
         <h1 className="mt-1 font-serif text-display text-ink">
           {session.jobTitle ? t("titleRole", { role: session.jobTitle }) : t("titleGeneric")}
         </h1>

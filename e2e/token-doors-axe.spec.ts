@@ -262,7 +262,7 @@ test("/invite/[token] passes axe on the set-your-password form", async ({ browse
   try {
     // The form appears only after the preview GET resolves; before that the page
     // is one line of loading copy, which is not the state worth gating.
-    await expect(colleague.locator('input[type="password"]')).toBeVisible({ timeout: 30_000 });
+    await expect(colleague.locator('input[type="password"]').first()).toBeVisible({ timeout: 30_000 });
     await expectNoSeriousA11yViolations(colleague);
   } finally {
     await close();
@@ -288,7 +288,12 @@ test("/status/[token] passes axe on a dead link", async ({ browser }) => {
   // with its own copy — worth gating precisely because nothing else exercises it.
   const [stranger, close] = await openAsStranger(browser, "/status/not-a-real-token");
   try {
-    await expect(stranger.locator('[role="alert"]')).toBeVisible({ timeout: 30_000 });
+    // Not a bare [role="alert"]: Next's route announcer (#__next-route-announcer__)
+    // carries that role too on a production build, so the bare locator resolves to
+    // two elements. The copy is locale-dependent, so exclude the announcer by id.
+    await expect(stranger.locator('[role="alert"]:not(#__next-route-announcer__)')).toBeVisible({
+      timeout: 30_000,
+    });
     await expectNoSeriousA11yViolations(stranger);
   } finally {
     await close();

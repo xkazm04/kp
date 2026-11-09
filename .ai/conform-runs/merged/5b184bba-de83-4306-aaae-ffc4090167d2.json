@@ -1,0 +1,268 @@
+{
+ "schema": "conform-run/1",
+ "worker": "5b184bba-de83-4306-aaae-ffc4090167d2",
+ "subject": "candidate-self-scheduling",
+ "evaluatedAt": "2026-11-06T05:26:34.855160+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "schedule-calendar-invites",
+   "subject": "candidate-self-scheduling",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/hiring/schedule/ScheduleInviteHistorySection.tsx:39 The recruiter's 'Cancel booking' and the candidate's 'I can't make it' RSVP both run the same cancelAttendance write, so the awaiting list shows the same actor-less 'cancelled' chip for a company cancellation and a candidate decline.",
+   "techniques": [
+    {
+     "technique": "withdraw-is-not-cancel",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/schedule/ScheduleInviteHistorySection.tsx:39 Recruiter cancel and candidate RSVP-cancel render the same chip with no actor. The closed section does keep candidate 'declined' apart from 'no_show' (line 105)."
+    },
+    {
+     "technique": "propose-your-own-times-escalation",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/schedule/ScheduleInviteAttentionSection.tsx:72 The recruiter can accept one proposed time as it stands or 'Decline all'. A decline names no alternative (the candidate is told 'they'll reach out'), and the page offers no counter-offer route."
+    },
+    {
+     "technique": "server-authored-slot-labels",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/schedule/ScheduleInviteAttentionSection.tsx:57 The proposal label is derived from the instant in the reader's locale. The stored label is only a fallback."
+    },
+    {
+     "technique": "interviewer-timezone-anchoring",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/schedule/ScheduleInviteAgendaRow.tsx:51 The agenda shows the candidate's zone name but not their local hour next to the recruiter's, so a slot at the candidate's 06:00 is not visible as such. The week grid does declare the anchor zone (ScheduleCalendar.tsx:91-95)."
+    }
+   ]
+  },
+  {
+   "context": "calendar-scheduling",
+   "subject": "candidate-self-scheduling",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/schedule-slots.ts:310 Candidate-proposed times are refused outside weekday 08:00-18:00 in the interview zone and beyond the 21-day horizon, so the escape hatch re-imposes the business-hours constraint the candidate has already said they cannot meet.",
+   "techniques": [
+    {
+     "technique": "propose-your-own-times-escalation",
+     "verdict": "deviation",
+     "evidence": "app/_lib/schedule-slots.ts:310 Wider than the two fixed offered times, but evenings, weekends and weeks past the window are refused by a rule rather than sent to a human. There is no free-text constraint."
+    },
+    {
+     "technique": "server-authored-slot-labels",
+     "verdict": "conformant",
+     "evidence": "app/_lib/schedule-slots.ts:266 The label is minted server-side from the validated instant. The client's label is never read."
+    },
+    {
+     "technique": "structural-slot-validation-on-submit",
+     "verdict": "conformant",
+     "evidence": "app/_lib/schedule-slots.ts:265 Checks the golden path's conjunction: future, within the window, weekday in the anchor zone, one of the offered TIMES, exact canonical instant. It is a predicate rather than membership in a regenerated grid; see the registry proposal."
+    },
+    {
+     "technique": "interviewer-timezone-anchoring",
+     "verdict": "deviation",
+     "evidence": "app/_lib/schedule-slots.ts:130 Generation and validation do run in a named IANA zone, not the server's (line 255). But the zone is one deployment-wide env value that is never stored on the invitation, and the stored label holds the wall clock with no zone name (line 199)."
+    },
+    {
+     "technique": "reschedule-cap-with-a-recruiter-bypass",
+     "verdict": "deviation",
+     "evidence": "app/_lib/schedule-store.ts:597 The core holds: the cap applies only on the candidate path (631), re-picking the same time is free (634), and a recruiter move does not debit (641). But the cap is a global constant, not stored per invitation, and no actor or previous-slot record is kept per reschedule."
+    },
+    {
+     "technique": "withdraw-is-not-cancel",
+     "verdict": "deviation",
+     "evidence": "app/_lib/schedule-store.ts:693 cancelAttendance serves both the candidate RSVP and the recruiter cancel with no actor column. The 'declined' withdrawal (717) is terminal and cannot be undone."
+    }
+   ]
+  },
+  {
+   "context": "pipeline-scheduler-sla",
+   "subject": "candidate-self-scheduling",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/hiring/pipeline/PipelineTimelineItemRow.tsx:32 The recruiter timeline puts the stored slot column (a hardcoded English, interviewer-zone label with no zone marker) inside a localized sentence, instead of deriving the label from slot_at in the reader's language.",
+   "techniques": [
+    {
+     "technique": "server-authored-slot-labels",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/pipeline/PipelineTimelineItemRow.tsx:32 The consumer reads the cached column, not the derivation (candidate-timeline.ts:299 passes invite.slot through), which breaks the localization rule."
+    },
+    {
+     "technique": "withdraw-is-not-cancel",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/PipelineTimelineItemRow.tsx:36 The en copy reads 'Interview declined by the candidate', kept apart from no_show and expired."
+    }
+   ]
+  },
+  {
+   "context": "candidate-self-scheduling-page",
+   "subject": "candidate-self-scheduling",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/schedule/[token]/SlotPicker.tsx:101 The propose-your-own-times form appears only when the whole horizon is booked (or the cap is spent). A candidate looking at offered times that do not suit them gets no 'none of these work' option on the picker.",
+   "techniques": [
+    {
+     "technique": "propose-your-own-times-escalation",
+     "verdict": "deviation",
+     "evidence": "app/schedule/[token]/SlotPicker.tsx:101 Not rendered on the picker itself. ProposeSection offers only three DateTimeInputs, with no free-text constraint, and its copy limits proposals to weekday working hours."
+    },
+    {
+     "technique": "adjustments-asked-at-the-booking-step",
+     "verdict": "deviation",
+     "evidence": "app/schedule/[token]/page.tsx:40 The page says the role and its length (SlotPicker.tsx:82) but never asks about adjustments. No 'adjust' or 'accommodat' ask exists in the page or the schedule catalog."
+    },
+    {
+     "technique": "interviewer-timezone-anchoring",
+     "verdict": "deviation",
+     "evidence": "app/schedule/[token]/SlotPicker.tsx:106 Slots render in the candidate's zone with that zone named, but the anchor (interviewer) zone is not shown alongside. Only the propose form names it."
+    },
+    {
+     "technique": "server-authored-slot-labels",
+     "verdict": "conformant",
+     "evidence": "app/schedule/[token]/SlotPicker.tsx:123 The chip label is derived from the ISO instant in the candidate's locale. The server label is only a fallback."
+    },
+    {
+     "technique": "reschedule-cap-with-a-recruiter-bypass",
+     "verdict": "conformant",
+     "evidence": "app/schedule/[token]/BookedCard.tsx:177 The remaining balance is always stated (line 132), and at zero the proposal route opens in the page. Small nit: the '0 changes left' counter stays beside it."
+    },
+    {
+     "technique": "withdraw-is-not-cancel",
+     "verdict": "deviation",
+     "evidence": "app/schedule/[token]/BookedCard.tsx:168 Withdraw is a separate verb from 'I can't make it', and the dead-link-beats-booking ordering holds (SchedulePicker.tsx:86). But it is one-way (DeadLinkCard offers no undo), asks no reason, and the escape hatch is not shown before it unless the cap is reached."
+    }
+   ]
+  },
+  {
+   "context": "interview-scheduling-api",
+   "subject": "candidate-self-scheduling",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/api/schedule/[token]/route.ts:283 The public route refuses a candidate's proposal whenever any offered slot remains, and validateProposedSlots refuses off-hours or off-horizon times, so the escape hatch cannot be used by a candidate the offered grid already fails.",
+   "techniques": [
+    {
+     "technique": "propose-your-own-times-escalation",
+     "verdict": "deviation",
+     "evidence": "app/api/schedule/[token]/route.ts:283 Only reachable when stuck. No free-text field in the body (lines 200-212). The proposal does correctly restart the TTL and writes no booking."
+    },
+    {
+     "technique": "structural-slot-validation-on-submit",
+     "verdict": "conformant",
+     "evidence": "app/api/schedule/[token]/route.ts:350 The link's state (expired/terminal, line 227) is checked before the payload. Structural check, then the calendar is re-checked (367), then the matched slot is persisted."
+    },
+    {
+     "technique": "server-authored-slot-labels",
+     "verdict": "conformant",
+     "evidence": "app/api/schedule/[token]/route.ts:354 body.slot is ignored. Confirm and reschedule both use the server-minted label, and outbound letters format from slotAt."
+    },
+    {
+     "technique": "interviewer-timezone-anchoring",
+     "verdict": "conformant",
+     "evidence": "app/api/schedule/[token]/route.ts:182 The anchor zone is declared to the page, and the candidate's IANA zone is validated and captured (line 218)."
+    },
+    {
+     "technique": "reschedule-cap-with-a-recruiter-bypass",
+     "verdict": "deviation",
+     "evidence": "app/api/schedule/route.ts:366 The bypass is on an authenticated, capability-checked path and does not debit the candidate. Unlike cancel and no_show it seals no record (no actor or previous slot), and it is limited to offeredSlotFor."
+    },
+    {
+     "technique": "withdraw-is-not-cancel",
+     "verdict": "deviation",
+     "evidence": "app/api/schedule/route.ts:307 The recruiter cancel reuses the candidate's RSVP primitive, so the invite row cannot tell who cancelled (only the recruiter side seals a decision). The token route's withdraw goes to terminal 'declined' and there is no undo verb."
+    }
+   ],
+   "registryProposal": "structural-slot-validation-on-submit requires membership in a regenerated grid and calls a describing predicate a drift risk, while the golden path names the five-clause structural conjunction as the check. This repo deliberately validates by predicate, sharing TIMES and zonedInstant with the generator, so that a slot loaded just before midnight survives the rollover of the proposal window. The technique could say whether a predicate built from the generator's own constants and rules, with a stated rollover slack, counts as membership."
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-06T05:26:34.855160+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-self-scheduling"
+   ],
+   "techniques": [
+    "interviewer-timezone-anchoring",
+    "propose-your-own-times-escalation",
+    "server-authored-slot-labels",
+    "withdraw-is-not-cancel"
+   ],
+   "deviations": 1,
+   "context": "schedule-calendar-invites",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T05:26:34.855160+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-self-scheduling"
+   ],
+   "techniques": [
+    "interviewer-timezone-anchoring",
+    "propose-your-own-times-escalation",
+    "reschedule-cap-with-a-recruiter-bypass",
+    "server-authored-slot-labels",
+    "structural-slot-validation-on-submit",
+    "withdraw-is-not-cancel"
+   ],
+   "deviations": 1,
+   "context": "calendar-scheduling",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T05:26:34.855160+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-self-scheduling"
+   ],
+   "techniques": [
+    "server-authored-slot-labels",
+    "withdraw-is-not-cancel"
+   ],
+   "deviations": 1,
+   "context": "pipeline-scheduler-sla",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T05:26:34.855160+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-self-scheduling"
+   ],
+   "techniques": [
+    "adjustments-asked-at-the-booking-step",
+    "interviewer-timezone-anchoring",
+    "propose-your-own-times-escalation",
+    "reschedule-cap-with-a-recruiter-bypass",
+    "server-authored-slot-labels",
+    "withdraw-is-not-cancel"
+   ],
+   "deviations": 1,
+   "context": "candidate-self-scheduling-page",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T05:26:34.855160+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-self-scheduling"
+   ],
+   "techniques": [
+    "interviewer-timezone-anchoring",
+    "propose-your-own-times-escalation",
+    "reschedule-cap-with-a-recruiter-bypass",
+    "server-authored-slot-labels",
+    "structural-slot-validation-on-submit",
+    "withdraw-is-not-cancel"
+   ],
+   "deviations": 1,
+   "context": "interview-scheduling-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

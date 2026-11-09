@@ -87,7 +87,7 @@ export function JdsLedgerDetailRail({
             onClick={toggleEdit}
             aria-pressed={inEdit}
             aria-label={t("editJdAria")}
-            className={`${BTN_SECONDARY} w-full gap-2 px-3 py-2 text-sm font-semibold ${inEdit ? "border-coral/40 bg-coral/5 text-coral" : ""}`}
+            className={`${BTN_SECONDARY} w-full gap-2 px-3 py-2 text-sm font-semibold ${inEdit ? "border-coral/40 bg-coral/5 text-coral-ink" : ""}`}
           >
             <Pencil size={15} aria-hidden /> {inEdit ? t("editCancel") : t("editJd")}
           </button>
@@ -115,7 +115,7 @@ export function JdsLedgerDetailRail({
             type="button"
             onClick={ing.run}
             disabled={ing.state === "busy"}
-            className={`${BTN_SECONDARY} w-full gap-2 px-3 py-2 text-sm font-semibold text-coral hover:bg-coral/5`}
+            className={`${BTN_SECONDARY} w-full gap-2 px-3 py-2 text-sm font-semibold text-coral-ink hover:bg-coral/5`}
           >
             {ing.state === "busy" ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Briefcase size={15} aria-hidden />}
             {ing.state === "error" ? t("ingestRetry") : t("ingestAsJob")}

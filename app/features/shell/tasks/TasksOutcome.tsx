@@ -39,7 +39,7 @@ function FanoutLedger({ task }: { task: Task }) {
     <div className="space-y-1.5 border-t border-stone-200 pt-1.5">
       {codes.length > 0 ? (
         <p className="text-sm text-ink">
-          <span className="font-semibold text-coral">{t("failedBy")}</span>{" "}
+          <span className="font-semibold text-coral-ink">{t("failedBy")}</span>{" "}
           {codes.map((c) => t("codeCount", { label: t(`code.${c}`), count: out.byCode[c] ?? 0 })).join(" · ")}
         </p>
       ) : null}
@@ -99,7 +99,7 @@ export function TaskOutcome({ task }: { task: Task }) {
           {" · "}
           <span className="text-steel">{t("outcome.advisory", { count: Number(result["advisory"] ?? 0) })}</span>
           {Number(result["errors"] ?? 0) > 0 ? (
-            <span className="font-semibold text-coral"> · {t("outcome.errors", { count: Number(result["errors"]) })}</span>
+            <span className="font-semibold text-coral-ink"> · {t("outcome.errors", { count: Number(result["errors"]) })}</span>
           ) : null}
           <span className="text-steel"> · {t("outcome.ofTotal", { count: Number(result["total"] ?? 0) })}</span>
         </p>
@@ -119,7 +119,7 @@ export function TaskOutcome({ task }: { task: Task }) {
       )}
       <FanoutLedger task={task} />
       {link ? (
-        <Link href={link.href} className="focus-ring inline-block rounded text-sm font-semibold text-coral underline-offset-2 hover:underline">
+        <Link href={link.href} className="focus-ring inline-block rounded text-sm font-semibold text-coral-ink underline-offset-2 hover:underline">
           {t(`outcome.${link.key}`)} →
         </Link>
       ) : null}

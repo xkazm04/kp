@@ -37,6 +37,17 @@ test("case 1: a canceled outreach run splits into delivered / suppressed / faile
   });
 });
 
+test("a halted-sequence refusal counts as suppressed, whichever halt it was", () => {
+  const out = fanoutOutcome(
+    "batch_outreach",
+    null,
+    { results: ["replied", "manual", "candidate"].map((r) => ({ id: r, ok: true, applied: `suppressed_${r}` })) },
+    "succeeded"
+  );
+  assert.deepEqual(out?.suppressedIds, ["replied", "manual", "candidate"]);
+  assert.deepEqual(out?.deliveredIds, []);
+});
+
 test("case 2: a legacy raw `reason` is read as engine_failed and never reaches the outcome", () => {
   const out = fanoutOutcome(
     "batch_outreach",

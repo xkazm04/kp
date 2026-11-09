@@ -115,7 +115,7 @@ function TaskHistoryList({ kind, status, text }: { kind: string; status: TaskSta
 
       {phase === "error" ? (
         <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-coral/40 bg-coral/5 px-3 py-2">
-          <p className="text-base text-coral">{error ?? t("history.loadFailed")}</p>
+          <p className="text-base text-coral-ink">{error ?? t("history.loadFailed")}</p>
           <button
             type="button"
             onClick={() => void loadMore()}

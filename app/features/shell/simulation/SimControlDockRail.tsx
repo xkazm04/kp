@@ -65,7 +65,7 @@ export function DockGuide({ open, onClick }: { open: boolean; onClick: () => voi
         aria-controls={open ? DOCK_PANEL_DOM_ID : undefined}
         className="focus-ring group inline-flex h-11 items-center gap-2.5 rounded-xl border-2 border-ink bg-paper px-3.5 text-sm font-semibold text-ink shadow-sticker-sm transition-all hover:-translate-y-0.5 hover:shadow-pop max-md:px-2.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:-rotate-1 dark:hover:rotate-0"
       >
-        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-coral text-white shadow-sticker-xs transition-transform group-hover:scale-105 motion-reduce:transition-none">
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-coral-solid text-white shadow-sticker-xs transition-transform group-hover:scale-105 motion-reduce:transition-none">
           <Play size={13} aria-hidden className="translate-x-px" />
         </span>
         {/* Label-less below `md`; the accessible name survives in `title` + the

@@ -219,6 +219,8 @@ export const DEDUPE_BUILDERS: Record<TaskKind, DedupeBuilder | null> = {
   // ONE run per cohort row: the route mints a fresh cohort per POST, so a double-click is
   // two cohorts, and a retry of the same cohort folds onto the run in flight.
   analyze_cohort: (p) => stableKey("analyze_cohort", p.cohortId),
+  // One score per entry: a repeat enqueue for the same filing joins the in-flight one.
+  score_entry: (p) => stableKey("score_entry", p.entryId),
 };
 
 /** A set of gig ids as one identity part: the string ids, de-duplicated and sorted, so the

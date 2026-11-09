@@ -400,7 +400,7 @@ export function JdsIntakeVoice({
         <span className="self-center text-meta text-steel">{t("processing")}</span>
       ) : (
         <button type="button" className={`${BTN_SECONDARY} h-10 px-3 text-sm`} onClick={() => void finish()}>
-          <span className={speaking ? "text-coral" : undefined}>{t("stop")}</span>
+          <span className={speaking ? "text-coral-ink" : undefined}>{t("stop")}</span>
         </button>
       )}
       {ui.audioBlocked ? (

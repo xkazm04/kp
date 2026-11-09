@@ -8,6 +8,12 @@ import {
   type RoleRunStageKind,
   type RoleRunStageStatus,
 } from "../role-run-stages.ts";
+import {
+  RoleRunGateMissingError,
+  isGateReceipt,
+  isGateResolution,
+  type RoleRunGateReceipt,
+} from "../role-run-gate-receipt.ts";
 
 // The role-run ledger (ADR-0011). A run is STATE, not a call stack: `role_runs` is one
 // row per (job, cycle), and `role_run_stages` is the append-only log of typed stage
@@ -79,53 +85,9 @@ type StageRow = {
 };
 
 function db() {
-  const d = ensureDb();
-  const marked = d as unknown as { __kpRoleRuns?: boolean };
-  if (!marked.__kpRoleRuns) {
-    d.exec(`
-      -- One run per (job, cycle). The cycle is a free string rather than an integer so
-      -- a caller can key a run on something meaningful ("2026-q4-backfill") without a
-      -- schema change; the default "1" covers the single-run-per-job case.
-      CREATE TABLE IF NOT EXISTS role_runs (
-        id TEXT PRIMARY KEY,
-        workspace_id TEXT NOT NULL DEFAULT 'workspace',
-        job_id TEXT NOT NULL,
-        cycle TEXT NOT NULL DEFAULT '1',
-        status TEXT NOT NULL DEFAULT 'running',
-        created_at TEXT NOT NULL,
-        updated_at TEXT
-      );
-
-      -- UNIQUE, not an index for speed: "re-running a role forks a second ledger for it"
-      -- is the defect this prevents. getOrCreateRoleRun reads through it.
-      CREATE UNIQUE INDEX IF NOT EXISTS idx_role_runs_job_cycle
-        ON role_runs (workspace_id, job_id, cycle);
-
-      -- APPEND-ONLY. There is no UPDATE anywhere in this module for this table, and no
-      -- DELETE: an artifact is the record of what the run did at a moment, and a run
-      -- whose history can be edited cannot be the evidence behind a sealed decision.
-      -- Correcting a stage means appending a newer artifact for the same (kind, branch)
-      -- and letting seq order them.
-      CREATE TABLE IF NOT EXISTS role_run_stages (
-        id TEXT PRIMARY KEY,
-        run_id TEXT NOT NULL,
-        workspace_id TEXT NOT NULL DEFAULT 'workspace',
-        kind TEXT NOT NULL,
-        branch_ref TEXT,
-        seq INTEGER NOT NULL,
-        status TEXT NOT NULL,
-        payload_json TEXT NOT NULL,
-        produced_at TEXT NOT NULL
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_role_run_stages_run
-        ON role_run_stages (workspace_id, run_id, seq);
-      CREATE INDEX IF NOT EXISTS idx_role_run_stages_branch
-        ON role_run_stages (workspace_id, run_id, branch_ref, seq);
-    `);
-    marked.__kpRoleRuns = true;
-  }
-  return d;
+  // The role_runs / role_run_stages DDL lives in ensureDb() (db/core.ts) so the tables are in
+  // the boot schema and covered by the core-* schema gates.
+  return ensureDb();
 }
 
 function runFromRow(row: RunRow): RoleRun {
@@ -238,7 +200,27 @@ export type AppendStageInput = {
   branchRef?: string | null;
   status: RoleRunStageStatus;
   payload: unknown;
+  /** Required for a gated stage's resolution (`complete`/`terminal` after the human
+   *  gate). Minted only by commitRoleRunGate once the approval is verified and spent. */
+  gateReceipt?: RoleRunGateReceipt;
 };
+
+/** The gate is enforced at the write door, not only in the engine: a gated resolution
+ *  row without a committed-approval receipt (for THIS run and THIS kind) and a named
+ *  approver in its payload is refused before anything is written. */
+function assertGateEvidence(input: AppendStageInput): void {
+  if (!isGateResolution(input.kind, input.status)) return;
+  const receipt = input.gateReceipt;
+  if (!isGateReceipt(receipt)) throw new RoleRunGateMissingError(input.kind, "no gate receipt");
+  if (receipt.runId !== input.runId || receipt.kind !== input.kind) {
+    throw new RoleRunGateMissingError(input.kind, "the receipt is for a different run or gate");
+  }
+  const p = input.payload as { gate?: unknown; decision?: unknown; approverRef?: unknown } | null | undefined;
+  const approver = typeof p?.approverRef === "string" ? p.approverRef.trim() : "";
+  if (!approver || typeof p?.gate !== "string" || typeof p?.decision !== "string") {
+    throw new RoleRunGateMissingError(input.kind, "gate, decision and approverRef are required in the payload");
+  }
+}
 
 /** Append one artifact. Throws RoleRunPiiError when the payload breaks ADR-0011 §5, and
  *  throws when the run id is not this tenant's — both BEFORE the insert, so a rejected
@@ -251,6 +233,7 @@ export function appendStageArtifact(
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): RoleRunStageArtifact {
   assertStagePayloadPiiFree(input.payload);
+  assertGateEvidence(input);
   const d = db();
   const branchRef = input.branchRef?.trim() ? input.branchRef.trim() : null;
   const payloadJson = JSON.stringify(input.payload ?? {});

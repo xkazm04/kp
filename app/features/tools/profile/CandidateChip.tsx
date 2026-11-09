@@ -87,7 +87,7 @@ export function CandidateChip({
         type="button"
         onClick={() => onOpen(cand)}
         title={t("openDetailTitle", { name: cand.name })}
-        className="focus-ring min-w-0 flex-1 truncate py-1.5 text-left text-sm font-semibold text-ink group-hover:text-coral"
+        className="focus-ring min-w-0 flex-1 truncate py-1.5 text-left text-sm font-semibold text-ink group-hover:text-coral-ink"
       >
         {cand.name}
       </button>
@@ -100,7 +100,7 @@ export function CandidateChip({
         onClick={() => onSave(cand)}
         aria-label={saveLabel}
         title={saveLabel}
-        className="focus-ring inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-steel transition-colors hover:bg-stone-100 hover:text-coral"
+        className="focus-ring inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-steel transition-colors hover:bg-stone-100 hover:text-coral-ink"
       >
         <SaveIcon size={13} aria-hidden />
       </button>

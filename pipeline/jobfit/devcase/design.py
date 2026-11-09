@@ -15,12 +15,14 @@ import math
 import threading
 from typing import Any
 
+from ..i18n import normalize_lang
 from .models import (
     RUBRIC_DIMENSIONS,
     DevNeed,
     NeedAnalysis,
     clamp_timebox_hours,
 )
+from .family_cases import family_case_for, posting_lang
 from .provenance import generate_with_fallback, str_list as _str_list
 
 _LOG = logging.getLogger(__name__)
@@ -390,7 +392,7 @@ def design_case(
 
     prompt = f"{prompt}\n\n{language_directive(lang)}"
 
-    def deterministic() -> dict:
+    def deterministic(generic_only: bool = False) -> dict:
         # Domain-NEUTRAL last-resort template — fires ONLY when the LLM call is
         # unavailable or RAISES (e.g. a generation timeout on a complex case). It must
         # never betray the role's domain: an HR / finance / sales role whose LLM call
@@ -438,6 +440,27 @@ def design_case(
                     "decisionSpace": [],
                 }
             )
+        if not generic_only:
+            # The family case is delivered in Czech when asked for, or when the posting itself
+            # is written in Czech (the seeded ČS roles reach here with lang "en" and a Czech
+            # JD; their candidate reads Czech — council-lite T13 r2, goal 4).
+            case_lang = "cs" if normalize_lang(lang) == "cs" or posting_lang(need.title, need.jd_text) == "cs" else "en"
+            fc = family_case_for(role_family, role.get("title"), lang=case_lang)
+            if fc is not None:
+                # Keyless non-software family (T13): a concrete case over starting files that
+                # seed_materializer ships, not the generic template below. `familyCase` is the
+                # marker the seed matches on, so the files never ride beside a model's tasks.
+                return {
+                    "title": fc["title"],
+                    "brief": fc["brief"].format(timebox=timebox),
+                    "repoSeed": fc["repoSeed"],
+                    "tasks": fc["tasks"],
+                    "coverProbes": fc["coverProbes"] + det_probes[3:],
+                    "timeboxHours": timebox,
+                    "midFlightUpdate": fc["midFlightUpdate"],
+                    "rubricDimensions": fc["rubricDimensions"],
+                    "familyCase": fc["family"],
+                }
         return {
             "title": f"{title}: a representative work-sample",
             "brief": (
@@ -469,9 +492,11 @@ def design_case(
         }
 
     def coerce(payload: Any) -> dict:
-        det = deterministic()
+        # The fallback for a field the model omitted is the GENERIC template, never a family
+        # case: a family title or task list over a model-written case named files it never got.
         if not isinstance(payload, dict):
-            return det
+            return deterministic()  # no model case at all: the whole deterministic case stands
+        det = deterministic(generic_only=True)
         probes = []
         for p in payload.get("coverProbes") or []:
             if not isinstance(p, dict) or not p.get("kind"):
@@ -543,6 +568,6 @@ def design_case(
         }
 
     result, source = _generate(provider, prompt, deterministic, coerce, expected_keys=_CASE_KEYS)
-    result["rubricDimensions"] = _RUBRIC
+    result["rubricDimensions"] = result.get("rubricDimensions") or _RUBRIC
     result["promptVersion"] = CASE_DESIGN_PROMPT_VERSION
     return result, source

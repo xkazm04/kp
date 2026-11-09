@@ -75,7 +75,7 @@ export function PreviewAbout({ href }: { href: string }) {
         {CHAPTERS.map((chapter) => (
           <li key={chapter.id}>
             <a href={`${href}#${chapter.id}`} className="focus-ring flex items-baseline gap-2 rounded-md px-2 py-1 text-sm text-ink hover:bg-stone-100">
-              <span className="nums text-coral">{String(chapter.n).padStart(2, "0")}</span>
+              <span className="nums text-coral-ink">{String(chapter.n).padStart(2, "0")}</span>
               <span>{about(`chapters.${chapter.key}.title`)}</span>
             </a>
           </li>
@@ -97,7 +97,7 @@ export function PreviewOrganization({ p }: { p: V<"organization"> }) {
           // eslint-disable-next-line @next/next/no-img-element -- customer logo URL, not a bundled asset
           <img src={p.logoUrl} alt="" className="h-10 w-10 shrink-0 rounded-lg border border-stone-200 bg-white-fixed object-contain" />
         ) : (
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-coral/10 font-serif text-h3 text-coral dark:-rotate-2" aria-hidden>
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-coral/10 font-serif text-h3 text-coral-ink dark:-rotate-2" aria-hidden>
             {p.name.trim().charAt(0).toUpperCase() || "?"}
           </span>
         )}

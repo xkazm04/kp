@@ -89,7 +89,7 @@ export function ScheduleTabInterviewedList({
             </div>
             {prepared[e.id]?.interviewer ? (
               <p className="mt-1.5 flex items-center gap-1 truncate text-meta text-steel" title={t("interviewerTitle", { name: prepared[e.id]!.interviewer! })}>
-                <UserRound size={11} className="shrink-0 text-coral" /> {prepared[e.id]!.interviewer}
+                <UserRound size={11} className="shrink-0 text-coral-ink" /> {prepared[e.id]!.interviewer}
               </p>
             ) : null}
             {humanLed ? null : (
@@ -109,7 +109,7 @@ export function ScheduleTabInterviewedList({
               onClick={() => onPrep(e)}
               className={`focus-ring ${humanLed ? "mt-2" : "mt-1.5"} inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-stone-200 text-sm font-semibold text-ink hover:border-coral/40`}
             >
-              <ClipboardList size={14} className="text-coral" /> {t("prepScorecard")}
+              <ClipboardList size={14} className="text-coral-ink" /> {t("prepScorecard")}
             </button>
             {/* Reverse handoff (Schedule → Decisions): the finished
                 interview's scorecard_review gate lives on Decisions —
@@ -139,7 +139,7 @@ export function ScheduleTabInterviewedList({
               </button>
             )}
             {scoringState === "unscored" && rescoreError && rescoreError.sessionId === interviews[e.id]?.sessionId ? (
-              <p role="alert" className="mt-1.5 text-meta text-coral">{rescoreError.message}</p>
+              <p role="alert" className="mt-1.5 text-meta text-coral-ink">{rescoreError.message}</p>
             ) : null}
           </div>
         );

@@ -113,7 +113,7 @@ export function DevEvalPanelProcessTrace({ ev }: { ev: EvalBundle }) {
         <div className="mt-1.5 text-micro">
           <span
             className={`rounded px-1.5 py-0.5 font-semibold uppercase ${
-              ev.seedDiff.touched === 0 ? "bg-coral/15 text-coral" : "bg-paper text-steel"
+              ev.seedDiff.touched === 0 ? "bg-coral/15 text-coral-ink" : "bg-paper text-steel"
             }`}
             title={t("seedEngagementTitle")}
           >

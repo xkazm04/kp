@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listOutboxFiltered } from "@/app/_lib/db/devcase";
 import { getPipelineEntry } from "@/app/_lib/db/pipeline";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { coerceOutboxStatus } from "@/app/_lib/comms-status";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { deriveCommsView, pageCommsFeed } from "@/app/_lib/comms-view";
 import { safeJsonError } from "@/app/_lib/api-response";
+import { can } from "@/app/_lib/auth/current-user";
+import { withLinksRedactedUnless } from "@/app/_lib/comms-link-redaction";
 
 
 // W6-2 (SIM1) — the recruiter comms read. Every candidate-facing message (8
@@ -21,7 +23,7 @@ const DERIVE_WINDOW = 500;
 /** Rows returned when the caller names no `?limit=`. */
 const DEFAULT_PAGE_SIZE = 100;
 
-export async function GET(request: NextRequest) {
+export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
   try {
     const entry = request.nextUrl.searchParams.get("entry")?.trim() || undefined;
     const statusRaw = request.nextUrl.searchParams.get("status")?.trim();
@@ -39,7 +41,6 @@ export async function GET(request: NextRequest) {
     // and async bounce reporting are append-only by design (the original row stays
     // as audit); `recovered`/`bounced`/`deliverable` are the derived bits the Comms
     // Center needs. Bounce receipt rows are folded onto their sent row in there.
-    const ws = await currentWorkspace();
     const base = listOutboxFiltered({ ref: entry, limit: DERIVE_WINDOW }, ws);
     // TRUNCATED means "there are older rows this read did not see". It is handed to
     // the derivation because `orphaned` is an ACCUSATION — "the relay reported a
@@ -49,7 +50,10 @@ export async function GET(request: NextRequest) {
     const truncated = base.length >= DERIVE_WINDOW;
     const view = deriveCommsView(base, { windowTruncated: truncated });
     const filtered = status ? view.filter((m) => m.status === status) : view;
-    const { messages, hasMore, nextCursor, cursorExpired } = pageCommsFeed(filtered, { limit, cursor });
+    const page = pageCommsFeed(filtered, { limit, cursor });
+    const { hasMore, nextCursor, cursorExpired } = page;
+    // A read-only seat gets the letter without the candidate's capability links.
+    const messages = withLinksRedactedUnless(await can("pipeline:write"), page.messages);
 
     // Resolve each distinct ref to the candidate it names, so the center can
     // group/label rows without N client round-trips. Refs that aren't pipeline
@@ -80,4 +84,4 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:comms", "OUTREACH_FAILED");
   }
-}
+});

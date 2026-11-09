@@ -576,6 +576,29 @@ test("--redact removes every credential and the dump still restores", () => {
   }
 });
 
+test("--redact omits a stored comms_smtp_config row (host, address, password)", () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "kp-dump-smtp-"));
+  try {
+    const dbPath = path.join(dir, "kp.sqlite");
+    const dumpPath = path.join(dir, "redacted.json");
+    const db = new Database(dbPath);
+    db.exec(
+      "CREATE TABLE comms_smtp_config (id INTEGER PRIMARY KEY CHECK (id = 1), host TEXT, address TEXT, password TEXT);" +
+        "INSERT INTO comms_smtp_config VALUES (1,'smtp.secret-host.example','ops@secret-host.example','enc:smtp-pass-material');"
+    );
+    db.close();
+    const dumped = runScript(DUMP_SCRIPT, ["--db", dbPath, "--out", dumpPath, "--redact"]);
+    assert.equal(dumped.status, 0, dumped.out);
+    const raw = readFileSync(dumpPath, "utf-8");
+    for (const secret of ["smtp.secret-host.example", "ops@secret-host.example", "enc:smtp-pass-material"]) {
+      assert.equal(raw.includes(secret), false, `--redact leaked ${secret}`);
+    }
+    assert.ok(raw.includes("[redacted:comms_smtp_config.host#0]"), "the row should be present as markers");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // 4. THE REHEARSAL. The restore command is executed once, under pressure, against
 //    a workspace that is already wrong. --dry-run is how an operator finds out

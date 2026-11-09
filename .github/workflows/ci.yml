@@ -40,7 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
           cache: pip
@@ -381,7 +381,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
           cache: pip
@@ -509,7 +509,7 @@ jobs:
 
       # Python is needed twice: `npm run build` runs schemas:gen (pipeline
       # codegen), and the running server SPAWNS `python -m pipeline.jobfit.*`.
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
           cache: pip
@@ -554,9 +554,14 @@ jobs:
       # degraded-gracefully product property. Open dev mode (no
       # KP_OPERATOR_PASSWORD) + boot-time fixture seeding give the specs a
       # deterministic seeded tenant on a fresh DB.
+      # KP_SEED_DEMO=1 is REQUIRED here: fixture seeding is off by default since
+      # 2026-10-22 (app/_lib/db/seed-gate.ts), and the specs read the seeded corpus.
       # KP_ALLOW_OPEN=1 is REQUIRED here: a production build FAILS CLOSED
       # without KP_OPERATOR_PASSWORD (proxy.ts), and the boot curl below
       # would read the refusal redirect as ready.
+      # KP_VOICE_INTERVIEW=1 is REQUIRED here: the voice interview ships off
+      # (app/_lib/voice/enabled.ts) and journey-one-thread mints a session through
+      # POST /api/interview/create.
       #
       # KEEP_ALIVE_TIMEOUT (ms, read by .next/standalone/server.js) is set because
       # the server otherwise closes idle sockets after Node's 5 s, and a spec's
@@ -566,7 +571,9 @@ jobs:
       # A socket idle past 130 s can still race.
       - name: Start production server (port 3101)
         run: |
-          (PORT=3101 HOSTNAME=127.0.0.1 KP_ALLOW_OPEN=1 NEXT_TELEMETRY_DISABLED=1 KEEP_ALIVE_TIMEOUT=130000 node .next/standalone/server.js > server.log 2>&1 &)
+          # 0.0.0.0, not 127.0.0.1: e2e/landing.spec.ts reaches this server on the
+          # runner's LAN address to exercise the non-loopback Host state.
+          (PORT=3101 HOSTNAME=0.0.0.0 KP_ALLOW_OPEN=1 KP_VOICE_INTERVIEW=1 KP_SEED_DEMO=1 NEXT_TELEMETRY_DISABLED=1 KEEP_ALIVE_TIMEOUT=130000 node .next/standalone/server.js > server.log 2>&1 &)
           for i in $(seq 1 45); do
             curl -sf http://localhost:3101/ > /dev/null && exit 0
             sleep 2
@@ -612,6 +619,9 @@ jobs:
           shell-tab-state
           locale-smoke
           journey-board
+          journey-job-to-accept
+          same-origin-write-door
+          token-doors-axe
           --project=chromium
         env:
           KP_E2E_BASE_URL: http://localhost:3101

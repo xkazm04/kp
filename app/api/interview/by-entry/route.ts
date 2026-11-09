@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { interviewStatusByEntries, latestInterviewByEntry } from "@/app/_lib/db/interviews";
 import { findEntryByDevSubmission, getPipelineEntry } from "@/app/_lib/db/pipeline";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { consentWithholdsPii, redactTranscriptForConsent } from "@/app/_lib/consent";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { parseEntriesParam } from "@/app/_lib/entries-param";
@@ -11,7 +11,7 @@ import { parseEntriesParam } from "@/app/_lib/entries-param";
 // GET ?entry=<id>      → { session } (the latest interview session for one entry, with transcript + scorecard)
 // GET ?submission=<id> → { session, entryId } — the SAME read reached from the assignment
 //                        side, for a reviewer holding a submission id and no entry id.
-export async function GET(request: NextRequest) {
+export const GET = withWorkspace(async (workspace: string, request: NextRequest) => {
   try {
     const sp = request.nextUrl.searchParams;
     // ONE THREAD (gap 4) — the reverse link, and deliberately NOT a new column or a
@@ -27,7 +27,6 @@ export async function GET(request: NextRequest) {
     // would answer another team's board row.
     const submission = sp.get("submission");
     if (submission) {
-      const workspace = await currentWorkspace();
       const linked = findEntryByDevSubmission(submission, workspace);
       // Never promoted yet ⇒ no entry, therefore no screen. An honest empty answer,
       // not a 404: "this candidate has no voice screen" is exactly what the caller
@@ -55,7 +54,6 @@ export async function GET(request: NextRequest) {
       // which answers whatever team the row belongs to and so scoped the consent
       // lookup to the stranger's tenant while still serving their transcript.
       // A foreign (or unknown) entry answers `{ session: null }` alike.
-      const workspace = await currentWorkspace();
       const session = latestInterviewByEntry(entry, workspace);
       // Read-time consent gate (bug-ui-scan-2026-07-09 privacy-consent-provenance #3):
       // the moment consent has EXPIRED (or the entry is anonymized), withhold the verbatim
@@ -76,8 +74,8 @@ export async function GET(request: NextRequest) {
     // Bounded + de-duped at the trust boundary so a crafted/huge `entries` list
     // can't blow the SQLite variable limit or amplify the IN query (idea-191ccc0c).
     const entries = parseEntriesParam(sp.get("entries"));
-    return NextResponse.json({ status: interviewStatusByEntries(entries, await currentWorkspace()) });
+    return NextResponse.json({ status: interviewStatusByEntries(entries, workspace) });
   } catch (error) {
     return safeJsonError(error, "api:interview:by-entry", "INTERVIEW_LOOKUP_FAILED");
   }
-}
+});

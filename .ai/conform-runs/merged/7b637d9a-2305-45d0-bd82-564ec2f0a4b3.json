@@ -1,0 +1,197 @@
+{
+ "schema": "conform-run/1",
+ "worker": "7b637d9a-2305-45d0-bd82-564ec2f0a4b3",
+ "subject": "prompt-assembly",
+ "evaluatedAt": "2026-10-24T00:09:23.855956+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "llm-inference-runtime",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/reasoning-cache-key.ts:86 The reasoning verdict cache is keyed on six axes, but none is the model or provider route that produced the verdict, so after an operator re-routes the reasoning use case, the previous model's rationale keeps being served for the full 168h TTL. The house's own analyze key (app/_lib/cache-key.ts llmRoute) names this exact defect and fixes it there.",
+   "techniques": [
+    {
+     "technique": "fingerprinting-and-cache-keys",
+     "verdict": "deviation",
+     "evidence": "app/_lib/reasoning-cache-key.ts:86 The digest documents its own recomputation well (axes listed in the header) but leaves out the identity of the model the prompt was shaped for, which the standard puts IN the digest. The usage ledger also stores no prompt digest or version: llm-usage-ledger.ts LlmUsageInput has tokens and cost but no fingerprint, which is the standard's 'unrecorded send'."
+    },
+    {
+     "technique": "layered-composition",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/match_reasoning.py:556 The family this runtime spawns (reasoning_cli) appends the language directive to the string build_prompt returned, so part of the delivered prompt sits outside its assembler. The earlier verdict still holds at the same line."
+    },
+    {
+     "technique": "variable-interpolation",
+     "verdict": "conformant",
+     "evidence": "app/_lib/reasoning-run.ts:105 The locale enters as a validated, closed-vocabulary input with a declared default before it reaches argv and the key. Nothing ambient."
+    },
+    {
+     "technique": "history-compaction",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/reasoning-run.ts:171 Each reasoning call is a one-shot subprocess with no carried transcript, so there is no history layer to compact."
+    }
+   ]
+  },
+  {
+   "context": "interview-simulator",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/interview-sim/engine.ts:257 Every call sends the whole accumulated View for that speaker. The only bound is a call/turn count (maxCalls 120, maxCandidateTurns 50), with no token budget, no total check and no degradation ladder, so what fits is left to luck rather than allocation.",
+   "techniques": [
+    {
+     "technique": "context-budgeting",
+     "verdict": "deviation",
+     "evidence": "app/_lib/interview-sim/engine.ts:257 The budget is counted in calls, not in the unit the window enforces. At the configured caps a real overflow is unlikely, but no allocation exists."
+    },
+    {
+     "technique": "layered-composition",
+     "verdict": "conformant",
+     "evidence": "app/_lib/interview-sim/engine.ts:111 One assembler function per side. The stable system text (brief, then harness preamble) is fixed for the call, and all per-turn churn goes in messages."
+    },
+    {
+     "technique": "capability-documentation",
+     "verdict": "conformant",
+     "evidence": "app/_lib/interview-sim/engine.ts:82 The tool layer is rendered from the same DIRECTOR_TOOL_DEFS that production declares to the provider, not from hand-written prose."
+    },
+    {
+     "technique": "fingerprinting-and-cache-keys",
+     "verdict": "deviation",
+     "evidence": "app/_lib/interview-sim/baseline-diff.ts:138 The instrument identity digests the brief and the director files (instrument.ts DIRECTOR_VERSION_FILES) but not engine.ts. An edit to INTERVIEWER_HARNESS_PREAMBLE, which every interviewer call reads, therefore changes behaviour under an unchanged instrument key."
+    },
+    {
+     "technique": "task-envelope",
+     "verdict": "conformant",
+     "evidence": "app/_lib/interview-sim/providers.ts:76 The task line states the finished artifact exactly (done criterion). The role lines in the preambles change permissions and behaviour rather than claiming competence."
+    }
+   ]
+  },
+  {
+   "context": "task-automation-engine",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/automation-cache-key.ts:193 The automation cache key separates LLM output from template output but not one model from another, so a provider or model re-route keeps serving the previous model's screening, prep and letters for the 168h TTL.",
+   "techniques": [
+    {
+     "technique": "fingerprinting-and-cache-keys",
+     "verdict": "deviation",
+     "evidence": "app/_lib/automation-cache-key.ts:193 Otherwise exemplary input coverage (profile bytes, job JSON, evidence, scorecard, volume bucket, locale). The model identity the standard requires is missing, and the house's analyze key already carries it as llmRoute."
+    },
+    {
+     "technique": "variable-interpolation",
+     "verdict": "conformant",
+     "evidence": "app/_lib/automation-cache-key.ts:17 One declared set decides both which tasks receive the evidence input and which tasks key on it, so the declared input set and its consumers cannot drift apart."
+    },
+    {
+     "technique": "context-budgeting",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/automation.py:661 The screening fact base this engine drives caps unproven requirements at 8 with no omitted count or notice; the caller at ~line 1090 adds none. The earlier verdict still holds, shifted from 655 to 661."
+    }
+   ]
+  },
+  {
+   "context": "candidate-apply-api",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/intake/[id]/attachments/route.ts:61 A library JD attached to an intake is silently cut at 20,000 chars and later grounds the intake agent as if complete. The comment at lines 67-72 names exactly this harm for notes, then exempts JDs.",
+   "techniques": [
+    {
+     "technique": "context-budgeting",
+     "verdict": "deviation",
+     "evidence": "app/api/intake/[id]/attachments/route.ts:61 Truncation that does not name what it dropped: no marker or count travels with the attachment into the prompt. Separately, the engine's render_transcript (pipeline/jobfit/intake.py:307) still keeps the last 48 turns without an omission line, as the earlier verdict said."
+    },
+    {
+     "technique": "layered-composition",
+     "verdict": "conformant",
+     "evidence": "app/api/intake/[id]/message/route.ts:141 The route hands typed inputs (transcript, brief, message, lang, attachments, dossier) to the engine, never pre-rendered prompt text. voice-connect likewise keeps the persona out of the transport's persona-free RELAY_INSTRUCTIONS."
+    },
+    {
+     "technique": "variable-interpolation",
+     "verdict": "conformant",
+     "evidence": "app/api/intake/[id]/message/route.ts:146 The locale is normalized through one resolver before it reaches the assembler."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "prompt-assembly",
+   "context": "shared-api-utilities",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-24T00:09:23.855956+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [
+    "fingerprinting-and-cache-keys",
+    "history-compaction",
+    "layered-composition",
+    "variable-interpolation"
+   ],
+   "deviations": 1,
+   "context": "llm-inference-runtime",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T00:09:23.855956+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [
+    "capability-documentation",
+    "context-budgeting",
+    "fingerprinting-and-cache-keys",
+    "layered-composition",
+    "task-envelope"
+   ],
+   "deviations": 1,
+   "context": "interview-simulator",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T00:09:23.855956+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [
+    "context-budgeting",
+    "fingerprinting-and-cache-keys",
+    "variable-interpolation"
+   ],
+   "deviations": 1,
+   "context": "task-automation-engine",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T00:09:23.855956+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [
+    "context-budgeting",
+    "layered-composition",
+    "variable-interpolation"
+   ],
+   "deviations": 1,
+   "context": "candidate-apply-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

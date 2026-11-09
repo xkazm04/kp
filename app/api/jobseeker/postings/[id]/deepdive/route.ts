@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentUserId } from "@/app/_lib/auth/session";
 import { currentSession, requireCapability } from "@/app/_lib/auth/current-user";
@@ -40,7 +40,7 @@ import { isLocale } from "@/i18n/locales";
 
 export const maxDuration = 120;
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> {
+export const POST = withWorkspace(async (ws: string, request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   // The seeker's own data, but still a WRITE behind a seat: a viewer seat may read the
@@ -52,7 +52,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   try {
     const { id } = await params;
-    const [session, ws] = await Promise.all([currentSession(), currentWorkspace()]);
+    const session = await currentSession();
     const posting = getJobseekerPosting(id, ws);
     if (!posting) return jsonRefusal("POSTING_NOT_FOUND", 404);
     // The CALLER's profile — the same resolution GET/PUT profile and the dialogs door make.
@@ -77,4 +77,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/postings/[id]/deepdive", "JOBSEEKER_STORE_FAILED");
   }
-}
+});

@@ -7,7 +7,7 @@ from unittest import mock
 
 from pipeline.jobfit import automation
 from pipeline.jobfit.market_config import BERLIN_MARKET, CZECH_MARKET
-from pipeline.jobfit.matching import MatchCandidate, score_job
+from pipeline.jobfit.matching import FIT_PROMISING_THRESHOLD, MatchCandidate, fit_tier_for, score_job
 
 from pipeline.jobfit.tests._helpers import mkjob as _mkjob
 
@@ -78,6 +78,29 @@ class PolicyTest(unittest.TestCase):
 
     def test_screened_with_pending_approval_holds(self):
         self.assertEqual(self.ev(approvalKind="screening_review", daysInStage=9)["action"], "hold")
+
+    def test_queued_entry_column_advance_is_held_not_reproposed(self):
+        # Q2: the pass QUEUES an entry-column advance as an approval on the entry. The
+        # entry branch used to ignore a pending approval, so the queued entry was proposed
+        # again on every tick. A pending approval of ANY kind now holds it (which also
+        # keeps a knockout `decision` hold out of the policy's hands).
+        proposed = self.ev(stage="Accepted", matchScore=80)
+        self.assertEqual((proposed["action"], proposed["toStage"]), ("advance", "Screened"))
+        for kind in ("screening_review", "decision"):
+            d = self.ev(stage="Accepted", matchScore=80, approvalKind=kind)
+            self.assertEqual((d["action"], d["toStage"]), ("hold", None), kind)
+
+    def test_declined_advance_is_not_reproposed_in_either_column(self):
+        # A person declined the queued advance: no new grounds, no second proposal.
+        for stage, extra in (("Accepted", {}), ("Screened", {"daysInStage": 9})):
+            self.assertEqual(self.ev(stage=stage, matchScore=80, **extra)["action"], "advance", stage)
+            d = self.ev(stage=stage, matchScore=80, advanceDeclined=True, **extra)
+            self.assertEqual((d["action"], d["toStage"]), ("hold", None), stage)
+
+    def test_screening_column_advance_names_its_reason_and_target(self):
+        d = self.ev(matchScore=80, daysInStage=3)
+        self.assertEqual((d["action"], d["toStage"]), ("advance", "Interview"))
+        self.assertIn("BAU score 80", d["reason"])
 
     def test_interview_always_manual(self):
         self.assertEqual(self.ev(stage="Interview", daysInStage=9)["action"], "hold")
@@ -275,6 +298,9 @@ class StageRolePolicyTest(unittest.TestCase):
         # shipped stages + an unknown one is digested; the digest was taken on the tree
         # BEFORE the role switch (d57d380b8), so any change of action/toStage/reason/
         # alerts on the legacy path fails here.
+        # RE-DIGESTED for Q2 (owner ruling 2026-11-09): the ONE intended change is the entry
+        # column holding on a pending approval (it used to advance regardless), so the
+        # queued advance is not re-proposed every tick. Only the Accepted x approval rows moved.
         import hashlib
 
         rows = []
@@ -288,7 +314,7 @@ class StageRolePolicyTest(unittest.TestCase):
                             rows.append([stage, arch, score, days, appr, d["action"], d["toStage"], d["reason"], d["alerts"]])
         digest = hashlib.sha256(json.dumps(rows, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
         self.assertEqual(len(rows), 672)
-        self.assertEqual(digest, "a6ae0f22d12a21ccf180d0672b9c61d05a37e08d97877a5291bf6e1fd418dde9")
+        self.assertEqual(digest, "68e3f0a1fd0eceff82827555853edb9b10751c7d5db1aee2974c256ca05f486e")
 
     def test_reject_is_reached_only_from_a_screening_role(self):
         floor = automation.POLICY["bau_reject_score"]
@@ -424,6 +450,82 @@ class RecommendationContractTest(unittest.TestCase):
         cap = _CaptureProvider({"ratings": [], "summary": "s", "recommendation": "🤷 maybe"})
         result, _ = automation.interview_scorecard(BAU, job, "notes", provider=cap)
         self.assertEqual(result["recommendation"], "hold")
+
+
+class WorkingWithAiToolsScorecardTest(unittest.TestCase):
+    """S1 — the optional dev-case axis on the AI scorecard."""
+
+    AXIS = "Working with AI tools"
+    QUOTE = "I caught it returning a stale cache, so I diffed the output and wrote that part by hand"
+
+    def _payload(self, *, with_axis, evidence=QUOTE):
+        ratings = [
+            {"competency": c["competency"], "rating": 4, "evidence": ""}
+            for c in automation.rubric_for_candidate("bau", "software_engineering")
+        ]
+        if with_axis:
+            ratings.append({"competency": self.AXIS, "rating": 5, "evidence": evidence})
+        return {"ratings": ratings, "summary": "s", "recommendation": "hold"}
+
+    def test_no_dev_case_is_unchanged(self):
+        cap = _CaptureProvider(self._payload(with_axis=False))
+        result, _ = automation.interview_scorecard(BAU, mkjob(), "notes", provider=cap)
+        self.assertNotIn(self.AXIS, cap.prompt)
+        self.assertNotIn("notAssessed", result)
+        self.assertNotIn(self.AXIS, result["rubricKeys"])
+        self.assertEqual(
+            result["rubricVersion"],
+            automation.rubric_version_hash(automation.rubric_for_candidate("bau", "software_engineering")),
+        )
+
+    def test_dev_case_adds_the_axis_and_stamps_a_new_version(self):
+        cap = _CaptureProvider(self._payload(with_axis=True))
+        result, _ = automation.interview_scorecard(BAU, mkjob(), (self.QUOTE + ". ") * 3, provider=cap, dev_case=True)
+        self.assertIn(self.AXIS, cap.prompt)
+        plain = automation.rubric_for_candidate("bau", "software_engineering")
+        full = automation.rubric_for_candidate("bau", "software_engineering", True)
+        self.assertEqual(result["rubricVersion"], automation.rubric_version_hash(full))
+        self.assertNotEqual(result["rubricVersion"], automation.rubric_version_hash(plain))
+        self.assertEqual(result["rubricKeys"][-1], self.AXIS)
+        rated = {r["competency"]: r["rating"] for r in result["ratings"]}
+        self.assertEqual(rated[self.AXIS], 5)
+        self.assertEqual(result["notAssessed"], [])
+
+    def test_uncovered_axis_is_not_assessed_not_a_number(self):
+        # Model returns null / an unquoted midpoint / no row at all: all read "not assessed".
+        for axis_row in (
+            {"competency": self.AXIS, "rating": None, "evidence": ""},
+            {"competency": self.AXIS, "rating": 3, "evidence": ""},
+            None,
+        ):
+            payload = self._payload(with_axis=False)
+            if axis_row:
+                payload["ratings"].append(axis_row)
+            result, _ = automation.interview_scorecard(
+                BAU, mkjob(), "notes", provider=_CaptureProvider(payload), dev_case=True
+            )
+            self.assertNotIn(self.AXIS, [r["competency"] for r in result["ratings"]], repr(axis_row))
+            self.assertEqual(result["notAssessed"], [self.AXIS])
+
+    def test_keyless_fallback_gives_the_axis_no_number(self):
+        result, source = automation.interview_scorecard(BAU, mkjob(), "notes", provider=None, dev_case=True)
+        self.assertEqual(source, "deterministic")
+        self.assertEqual(result["notAssessed"], [self.AXIS])
+        self.assertNotIn(self.AXIS, [r["competency"] for r in result["ratings"]])
+        self.assertIn(self.AXIS, result["rubricKeys"])
+
+    def test_an_ungrounded_quote_does_not_earn_a_number(self):
+        payload = self._payload(with_axis=True, evidence="a sentence the candidate never said")
+        result, _ = automation.interview_scorecard(
+            BAU, mkjob(), "notes about something else", provider=_CaptureProvider(payload), dev_case=True
+        )
+        self.assertEqual(result["notAssessed"], [self.AXIS])
+
+    def test_the_axis_never_counts_toward_confidence(self):
+        notes = "word " * 500
+        base = automation.interview_scorecard(BAU, mkjob(), notes, provider=None)[0]["confidence"]
+        with_case = automation.interview_scorecard(BAU, mkjob(), notes, provider=None, dev_case=True)[0]["confidence"]
+        self.assertEqual(base, with_case)
 
 
 class MarketPersonaTest(unittest.TestCase):
@@ -930,6 +1032,22 @@ class RematchTest(unittest.TestCase):
         job = mkjob(requirements=[{"skill": "Rust", "kind": "must_have", "hardness": "prerequisite"}], seniority="senior", description="seasoned only")
         out = automation.rematch_candidate(weak, "other", [job], provider=None)
         self.assertFalse(out["found"])
+
+    def test_floor_is_the_promising_band_not_a_number_of_its_own(self):
+        # Rematch, the rediscovery admission gate (rediscover.ts) and the scorer's band
+        # ask one question. A free literal here sat outside test_fit_threshold_sync.py.
+        self.assertEqual(automation.POLICY["rematch_floor"], FIT_PROMISING_THRESHOLD)
+
+    def test_admits_at_the_floor_exactly_as_the_band_does(self):
+        # Pinned at the boundary: the old `<=` refused a total of exactly 55 that
+        # fit_tier_for calls "promising" and the TS sweep (`>= SCORE_FLOOR`) admits.
+        job = mkjob(title="Alt Python", requirements=[{"skill": "Python", "kind": "must_have", "hardness": "prerequisite"}])
+        real = score_job(BAU, job)
+        for total, admitted in ((FIT_PROMISING_THRESHOLD - 1, False), (FIT_PROMISING_THRESHOLD, True)):
+            with self.subTest(total=total), mock.patch.object(automation, "score_job", return_value=real.model_copy(update={"total": total})):
+                out = automation.rematch_candidate(BAU, "other", [job], provider=None)
+                self.assertEqual(out["found"], admitted)
+                self.assertEqual(out["found"], fit_tier_for(total) != "partial")
 
 
 class OfferTest(unittest.TestCase):
@@ -1680,7 +1798,9 @@ class UnprovenReachesScreeningTest(unittest.TestCase):
 
     def test_unproven_facts_carries_the_skill_its_strength_and_its_reason(self):
         facts = automation.unproven_facts(self.m)
-        self.assertEqual(facts, [{"skill": "Python", "strength": 0.4, "reason": "provenance"}])
+        # 0.02, not 0.4: b6bd61a4e (C6b leak a) credits a bare self_declared claim on a
+        # prerequisite at self_declared_requirement=0.05 of its 0.4 adjacency score.
+        self.assertEqual(facts, [{"skill": "Python", "strength": 0.02, "reason": "provenance"}])
 
     def test_the_screening_prompt_shows_the_bucket_and_what_it_must_do(self):
         cap = _CaptureProvider({})

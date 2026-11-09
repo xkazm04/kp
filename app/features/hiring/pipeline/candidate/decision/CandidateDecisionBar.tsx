@@ -8,10 +8,10 @@
 // Overview's Scorecard beside it is the canonical read of it.
 
 import { useState } from "react";
-import { Check, History, Sparkles, X } from "lucide-react";
+import { Check, History, Pause, Sparkles, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useDateFormat } from "@/app/_components/ui/useDateFormat";
-import { BTN_AFFIRM } from "@/app/_components/ui/recipes";
+import { BTN_AFFIRM, BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { defaultOfferTtlDays } from "@/app/_lib/offer-policy";
 import { useNumberFormat } from "@/app/_lib/use-number-format";
 import { AiReviewCardBody } from "@/app/features/hiring/decisions/DecisionsAiReviewCardBody";
@@ -24,17 +24,17 @@ export function CandidateDecisionBar({ decision }: { decision: CandidateDecision
   const tl = useTranslations("decisions.ledger");
   const n = useNumberFormat();
   const fmt = useDateFormat();
-  const { entry, staleSince, onAccept, onReject, busy } = decision;
-  const { parsed, isScorecard, isOffer, unpriced, hasBand, pricingBasis, isQueuedReject, isHumanScorecard, verdictSource, verdictProvider } =
+  const { entry, staleSince, onAccept, onReject, onKeepInPlace, busy } = decision;
+  const { parsed, isScorecard, isOffer, unpriced, hasBand, pricingBasis, isQueuedReject, isQueuedAdvance, canKeepInPlace, isHumanScorecard, verdictSource, verdictProvider } =
     useAiReviewCardLogic(entry);
   const [ttlDays, setTtlDays] = useState<number>(defaultOfferTtlDays());
-  const tag = isOffer ? t("tagOffer") : isQueuedReject ? t("tagQueuedReject") : isHumanScorecard ? t("tagHumanScorecard") : isScorecard ? t("tagScorecard") : t("tagScreening");
+  const tag = isOffer ? t("tagOffer") : isQueuedReject ? t("tagQueuedReject") : isQueuedAdvance ? t("tagQueuedAdvance") : isHumanScorecard ? t("tagHumanScorecard") : isScorecard ? t("tagScorecard") : t("tagScreening");
   const acceptLabel = isOffer ? t("acceptSendOffer") : isScorecard ? t("acceptToOffer") : t("acceptAdvance");
 
   return (
     <section aria-label={tl("decisionTitle")} className="shrink-0 border-t border-coral/30 bg-coral/5 px-4 py-3 sm:px-6">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <span className="inline-flex items-center gap-1 text-meta font-semibold uppercase tracking-wide text-coral">
+        <span className="inline-flex items-center gap-1 text-meta font-semibold uppercase tracking-wide text-coral-ink">
           <Sparkles size={11} aria-hidden /> {tag}
         </span>
         {isOffer ? (
@@ -79,11 +79,24 @@ export function CandidateDecisionBar({ decision }: { decision: CandidateDecision
           >
             <Check size={15} aria-hidden /> {acceptLabel}
           </button>
+          {canKeepInPlace ? (
+            <button
+              type="button"
+              data-sim-click="keep-in-place"
+              onClick={onKeepInPlace}
+              disabled={busy}
+              title={t("keepInPlaceTitle")}
+              className={`${BTN_SECONDARY} h-9 cursor-pointer bg-white px-3 text-body disabled:cursor-wait`}
+            >
+              <Pause size={15} aria-hidden /> {t("keepInPlace")}
+            </button>
+          ) : null}
+          <span aria-hidden className="mx-1 h-5 w-px bg-stone-200" />
           <button
             type="button"
             onClick={onReject}
             disabled={busy}
-            className="focus-ring inline-flex h-9 cursor-pointer items-center gap-1 rounded-md border border-stone-200 bg-white px-3 text-sm font-semibold text-coral hover:bg-coral/5 disabled:cursor-wait disabled:opacity-50"
+            className="focus-ring inline-flex h-9 cursor-pointer items-center gap-1 rounded-md border border-stone-200 bg-white px-3 text-sm font-semibold text-coral-ink hover:bg-coral/5 disabled:cursor-wait disabled:opacity-50"
           >
             <X size={15} aria-hidden /> {t("reject")}
           </button>

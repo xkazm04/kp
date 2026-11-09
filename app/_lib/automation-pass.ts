@@ -1,11 +1,9 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getJob } from "./db/jobs";
-import { actOnPipelineEntry, hasEventSinceStageChange, hasEventToday, listActiveEntriesForAutomation, recordAutomationEvent, setApproval, setEntryMatchScore, type AutomationEntry } from "./db/pipeline";
-import { resolveCandidatePoolEntry } from "./candidate-pool";
-import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, pythonSpawnLoad, spawnPython } from "./python-runner";
+import { hasEventSinceStageChange, hasEventToday, listActiveEntriesForAutomation, recordAutomationEvent, setApproval, type AutomationEntry } from "./db/pipeline";
+import { isScorableEntry, scoreEntriesForJob } from "./entry-scoring";
+import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, pythonSpawnLoad, spawnPython } from "./python-runner";
 import { positiveNumericEnv } from "./env";
-import { rankPoolForJob } from "./recruiter-run";
 import { assertAutoRejectFair, type AutoRejectVerdict } from "./automation-fairness";
 import { FAIRNESS_GATE_BLOCKED_REJECT, type DecisionOutcome } from "./decision-attribution";
 import { isAgingAlertKind } from "./aging-policy";
@@ -13,6 +11,8 @@ import { planCommit, type CommitSelection, type CommitVerdict } from "./automati
 import { getPipelineAxis } from "./pipeline-axis-server";
 import { roleOf, stageHasRole, type StageDef, type StageRole } from "./pipeline-stages";
 import { nextStageOnAxis } from "./db/pipeline-core";
+import { parseKnockoutHold } from "./knockout-hold";
+import { policyAdvanceDetail } from "./approval-kinds";
 
 // Audit event kind logged when the TS fairness backstop refuses a Python reject
 // and downgrades it to a hold. A non-zero count here means an upstream regression
@@ -157,6 +157,10 @@ export type AutomationDecision = {
   commitVerdict?: CommitVerdict;
   plannedAction?: AutomationDecision["action"];
   plannedToStage?: string | null;
+  /** The entry's match score as the policy step saw it (after the in-memory scoring of
+   *  a dry run). Stamped ONLY on a scoped dry run (`entryIds`), the role-run screen
+   *  stage's read; absent on every board-wide pass and every persisted run row. */
+  matchScore?: number | null;
 };
 // `evaluated` = how many active entries the pass actually scanned. It distinguishes a
 // healthy idle pass (evaluated N, 0 actions) from a pass that saw NOTHING (evaluated 0 —
@@ -167,6 +171,9 @@ export type AutomationDecision = {
 // counted in `held`. The field is kept because scheduler_runs rows persisted before
 // the retirement carry real values, and the run history must still read them. Neither
 // the preview nor the commit increments it — that parity is the point.
+// `advanced` is structurally 0 in every run since Q2 (owner ruling 2026-11-09) for the
+// same reason: the policy's advance is queued for a person, counted in `held`. Rows
+// persisted before that carry real values and still read.
 export type AutomationSummary = {
   advanced: number;
   rejected: number;
@@ -218,7 +225,12 @@ export function isPassInFlight(): boolean {
  *  A selection that finds a pass already in flight JOINS it like any other caller; the
  *  route reports that as `selectionHonored: false`, because the joined pass was planned
  *  without it. */
-export function runAutomationPass(opts?: { dryRun?: boolean; selection?: CommitSelection }): Promise<AutomationPassResult> {
+export function runAutomationPass(opts?: { dryRun?: boolean; selection?: CommitSelection; entryIds?: readonly string[] }): Promise<AutomationPassResult> {
+  // A SCOPED pass (one role-run branch) is read-only by construction: it exists to PROPOSE
+  // a route for named entries, never to move them. Applying a pass to a subset of the board
+  // would skip the board-wide single-flight and the selection plan that make a commit safe.
+  if (opts?.entryIds && !opts.dryRun) throw new AutomationPassError("entryIds scopes a dry run only", 400);
+  if (opts?.entryIds) return executeAutomationPass(true, undefined, opts.entryIds);
   // AUTO3 — a dry run is read-only (no applies, no dispatches, no score writes),
   // so it neither joins nor blocks the single-flight: previewing must never
   // return an already-APPLIED pass's result as if it were a preview.
@@ -299,9 +311,7 @@ async function scoreUnscoredEntries(entries: AutomationEntry[], dryRun: boolean)
   // only miss. Since the one-thread milestone a promoted submission carries a REAL
   // profile id (devcase-run.promoteSubmission), so those entries now pass this filter
   // and get scored like anyone else — which is the point: they were unrankable before.
-  const unscored = entries.filter(
-    (e) => e.matchScore == null && !e.intakeDegraded && e.candidateId && e.jobId && !e.candidateId.startsWith("ds-")
-  );
+  const unscored = entries.filter(isScorableEntry);
   if (unscored.length === 0) return 0;
 
   // Group by job — one recruiter_cli spawn scores all of a job's newcomers.
@@ -312,58 +322,14 @@ async function scoreUnscoredEntries(entries: AutomationEntry[], dryRun: boolean)
     byJob.set(e.jobId as string, list);
   }
 
-  const { deferred } = await runScoringSweep(byJob, scoringSpawnBudget(), async (jobId, group) => {
-    let issued = false;
-    try {
-      const candidates = group
-        // Each entry resolves within its OWN workspace — the global sweep spans
-        // tenants, so a candidate must never resolve against another team's store.
-        .map((e) => resolveCandidatePoolEntry(e.candidateId as string, e.candidateLabel, e.workspaceId))
-        .filter((c): c is NonNullable<typeof c> => c !== null);
-      if (candidates.length === 0) return false;
-
-      // Pass the DB job directly when it exists, so ingested (non-corpus) jobs
-      // score too — same contract as the candidates route. A CLI failure throws a
-      // PipelineError, caught below so the bad job is skipped and the sweep
-      // continues (the entry stays held exactly as before).
-      const job = getJob(jobId);
-      issued = true;
-      const payload = await rankPoolForJob<{ candidates?: { candidateId?: string; result?: { total?: number } }[] }>(
-        jobId,
-        candidates,
-        job,
-      );
-      const scoreById = new Map<string, number>();
-      for (const row of payload.candidates ?? []) {
-        const total = row.result?.total;
-        if (row.candidateId && typeof total === "number" && Number.isFinite(total)) {
-          scoreById.set(row.candidateId, Math.round(total));
-        }
-      }
-      for (const e of group) {
-        const score = scoreById.get(e.candidateId as string);
-        if (score == null) continue;
-        if (dryRun) {
-          // Preview-only: patch the snapshot so the policy step previews the
-          // post-scoring verdict, but persist nothing — the committed run
-          // recomputes the same deterministic score and writes it then.
-          e.matchScore = score;
-        } else if (setEntryMatchScore(e.id, score, e.workspaceId)) {
-          // Patch the in-memory snapshot so THIS pass's policy step (and the
-          // fairness backstop reading the same snapshot) sees the fresh score.
-          e.matchScore = score;
-          recordAutomationEvent(e.id, "scored", `${score} vs ${e.jobTitle ?? jobId}`, e.workspaceId);
-        }
-      }
-    } catch (error) {
-      if (error instanceof PipelineError) {
-        console.error(`[automation-pass] auto-score failed for job ${jobId}: ${error.message}`);
-      } else {
-        console.error(`[automation-pass] auto-score sweep failed for job ${jobId}`, error);
-      }
-    }
-    return issued;
-  });
+  // The scoring half is entry-scoring.ts's (shared with the post-filing hook): the
+  // ranker call, the NULL-only CAS write + `scored` event, and — on a dry run — the
+  // snapshot-only patch so the policy step previews the post-scoring verdict while
+  // the committed run recomputes the same deterministic score and writes it then.
+  // A ranker failure is logged there and the bad job is skipped; the entry stays held.
+  const { deferred } = await runScoringSweep(byJob, scoringSpawnBudget(), (jobId, group) =>
+    scoreEntriesForJob(jobId, group, { dryRun, logPrefix: "automation-pass" }),
+  );
 
   // The stop is recorded, never silent: a pass that leaves jobs unscored says so,
   // and the count is what tells an operator whether the derived budget is binding
@@ -388,8 +354,8 @@ async function scoreUnscoredEntries(entries: AutomationEntry[], dryRun: boolean)
  *  - every other alert (the fairness backstop's `fairness_gate_blocked_reject`) keeps
  *    its per-business-day dedupe: each refusal is a fresh event worth surfacing daily.
  *
- *  An aging alert on an ADVANCE decision (or on a staleSkip, where the entry moved
- *  mid-pass) is dropped: the move ends the stint the alert describes, and a row
+ *  An aging alert on an APPLIED ADVANCE decision (or on a staleSkip, where the entry
+ *  moved mid-pass) is dropped: the move ends the stint the alert describes, and a row
  *  written after the move would sit inside the NEW stint and suppress that stint's
  *  own first alert. */
 export function recordDecisionAlerts(
@@ -403,7 +369,9 @@ export function recordDecisionAlerts(
   for (const alert of d.alerts ?? []) {
     const aging = isAgingAlertKind(alert);
     // The stint is over (or already moved under us, a staleSkip): not this stint's alert.
-    if (aging && (d.action === "advance" || d.reasonCode === "staleSkip")) continue;
+    // A QUEUED advance (Q2) moves nothing, so the stint it describes is still running:
+    // its aging alert is still true and is kept.
+    if (aging && ((d.action === "advance" && d.outcome !== "queued") || d.reasonCode === "staleSkip")) continue;
     const already = aging
       ? hasEventSinceStageChange(d.entryId, alert, entrySnap?.stageChangedAt ?? null, ws)
       : hasEventToday(d.entryId, alert, ws);
@@ -433,7 +401,8 @@ export function applyPassDecisions(
   // AUTO1 RETIRED (UAT M6 / GDPR Art. 22): a rejection is the one irreversible,
   // candidate-visible ADVERSE action, so the pass NEVER applies it unattended —
   // every fairness-cleared reject is queued for a human on the Decisions gate.
-  // Advances, holds and alerts stay autonomous. This is what makes the candidate
+  // Q2 (owner ruling 2026-11-09) extends the same rule to the score-threshold advance:
+  // the pass queues it too. Only holds and alerts stay autonomous. This is what makes the candidate
   // disclosure's ONE absolute — "a rejection is always a person's: no setting can
   // hand that decision to the machine" (messages/*.json aiDisclosure.body) — true
   // unconditionally; the former opt-in `auto` reject mode is gone. The disclosure
@@ -476,10 +445,25 @@ export function applyPassDecisions(
     if (verdict === "drifted" || (verdict === "declined" && d.action === "advance")) {
       markHeldBack(d, verdict);
     } else if (d.action === "advance") {
-      const applied = actOnPipelineEntry(d.entryId, "accept", d.reason, { expectedStage: snapshotStage, expectedApprovalKind: entrySnap?.approvalKind, actor: "system" }, entryWs); // logs `auto_advanced` + stamps stage_changed_at; the approval CAS refuses if a human queued a review mid-hop
-      if (applied) {
-        summary.advanced += 1;
-        d.outcome = "applied";
+      // Q2 (owner ruling 2026-11-09): a score-threshold advance is a PROPOSAL, never a
+      // move. It is queued as a pending approval carrying the policy's own reason and
+      // the target stage, and a person's accept moves the entry one stage. Nothing is
+      // applied here, so `summary.advanced` is 0 in every committed run (as `rejected`
+      // is) and no `auto_advanced` event is written by this pass.
+      //
+      // `rationale` is read HERE, before markQueuedForApproval rewrites `d.reason`
+      // into the "Queued for approval: ..." wrapper. The CAS pins both the stage the
+      // policy decided against and the approval state it saw, so a recruiter who moved
+      // or queued the entry during the Python hop wins and the proposal is dropped.
+      const queued = setApproval(
+        d.entryId,
+        "screening_review",
+        policyAdvanceDetail({ rationale: d.reason, toStage: d.toStage, matchScore: entrySnap?.matchScore ?? null }),
+        entryWs,
+        { expectedStage: snapshotStage, expectedApprovalKind: entrySnap?.approvalKind ?? null }
+      );
+      if (queued) {
+        markQueuedForApproval(d, summary, false);
       } else {
         markStaleSkip(d);
       }
@@ -559,6 +543,14 @@ export function applyPassDecisions(
   return decisions;
 }
 
+/** Narrow a pass's entries to the named ids (a scoped dry run). Pure. An id that is not an
+ *  active entry is simply absent from the result - the caller sees no decision for it. */
+export function scopeToEntryIds(entries: AutomationEntry[], entryIds?: readonly string[]): AutomationEntry[] {
+  if (!entryIds) return entries;
+  const wanted = new Set(entryIds);
+  return entries.filter((e) => wanted.has(e.id));
+}
+
 /** The entries one pass evaluates: every team's (the global sweep) or, for a commit
  *  that carries one team's selection, that team's only. */
 export function entriesForPass(entries: AutomationEntry[], workspace?: string): AutomationEntry[] {
@@ -606,8 +598,16 @@ export function withPolicyStageFacts<E extends { stage: string; workspaceId: str
   });
 }
 
-async function executeAutomationPass(dryRun: boolean, selection?: CommitSelection): Promise<AutomationPassResult> {
-  const entries = entriesForPass(listActiveEntriesForAutomation(), selection?.workspace);
+async function executeAutomationPass(dryRun: boolean, selection?: CommitSelection, entryIds?: readonly string[]): Promise<AutomationPassResult> {
+  // A KNOCKOUT HOLD IS LEFT ALONE until a person acts (owner ruling Q1, knockout-hold.ts).
+  // It never reaches scoring or the policy. `evaluate_entry` now also holds a pending
+  // approval on the entry column (Q2: a queued advance must not be re-proposed), but the
+  // guard stays THIS exclusion, applied before the sweep and the snapshot: a held stub
+  // becomes scorable the moment a recruiter resolves its degraded intake, and the policy's
+  // hold is a second wall, not the first.
+  const entries = scopeToEntryIds(entriesForPass(listActiveEntriesForAutomation(), selection?.workspace), entryIds).filter(
+    (e) => !parseKnockoutHold(e.approvalKind, e.approvalDetail)
+  );
   const summary: AutomationSummary = { advanced: 0, rejected: 0, held: 0, alerts: 0, errors: 0, evaluated: entries.length };
   if (entries.length === 0) return { summary, decisions: [] };
 
@@ -658,7 +658,9 @@ async function executeAutomationPass(dryRun: boolean, selection?: CommitSelectio
         if (!d.entryId) continue;
         const entrySnap = byId.get(d.entryId);
         if (d.action === "advance") {
-          summary.advanced += 1;
+          // PREVIEW/COMMIT PARITY (Q2): the commit queues an advance for a person and
+          // moves nothing, so the preview forecasts the same encoding, not `advanced`.
+          markQueuedForApproval(d, summary, true);
         } else if (d.action === "reject") {
           const verdict = assertAutoRejectFair(entrySnap);
           if (!applyFairnessVerdict(d, verdict, summary, true)) {
@@ -679,6 +681,7 @@ async function executeAutomationPass(dryRun: boolean, selection?: CommitSelectio
         // — its dedupe reads are pure, so the dry run stays read-only: it writes no
         // event, it only declines to count one it wouldn't write.
         recordDecisionAlerts(d, entrySnap, summary, true);
+        if (entryIds) d.matchScore = entrySnap?.matchScore ?? null;
       }
       return { summary, decisions };
     }

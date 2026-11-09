@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { createArchetype, listArchetypes } from "@/app/_lib/archetype-registry";
 import { safeJsonError } from "@/app/_lib/api-response";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 
 // Live archetype registry for the Profile management UI (reads the shared JSON
@@ -11,13 +12,13 @@ import { safeJsonError } from "@/app/_lib/api-response";
 // config (labels, badges, weights) with no candidate or workspace data in it, and
 // the profile pickers render their routing segments straight from it; gating it
 // would blank those segments for no security gain. The WRITE below is gated.
-export async function GET() {
+export const GET = withSession(async () => {
   try {
     return NextResponse.json({ archetypes: await listArchetypes() });
   } catch (error) {
     return safeJsonError(error, "api:archetypes", "ARCHETYPES_READ_FAILED");
   }
-}
+});
 
 // Operator-gated write. The registry is ONE file per deployment
 // (pipeline/jobfit/archetypes.json — the same file the Python scorer re-reads on
@@ -28,7 +29,7 @@ export async function GET() {
 // deliberately coarse (open mode stays open for local dev, and it rejects the
 // anonymous demo session); who inside an org may edit it is an RBAC question this
 // route does not answer.
-export async function POST(request: NextRequest) {
+export const POST = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
@@ -43,4 +44,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:archetypes", "ARCHETYPES_WRITE_FAILED");
   }
-}
+});

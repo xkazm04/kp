@@ -8,7 +8,7 @@
 //   refusals: JOB_NOT_FOUND 404 · INTERVIEW_KIT_INVALID 400 {reason, at} ·
 //        PAYLOAD_TOO_LARGE 413 · TOO_MANY_REQUESTS 429 · FORBIDDEN_CAPABILITY 403
 import { NextRequest, NextResponse } from "next/server";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
@@ -56,14 +56,13 @@ function visibleJob(id: string, ws: string) {
   return job && jobVisibleToWorkspace(id, ws) ? job : null;
 }
 
-export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const GET = withWorkspace(async (ws: string, _request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   // A recruiter read of a role's authoring material: re-verify the session like every
   // sensitive route does (defence in depth behind the proxy gate).
   const unauth = await requireOperator();
   if (unauth) return unauth;
   try {
     const { id } = await context.params;
-    const ws = await currentWorkspace();
     if (!visibleJob(id, ws)) return jsonRefusal("JOB_NOT_FOUND", 404);
     // Three reads rather than one payload: the editor opens the DRAFT, the interview
     // mints from the PUBLISHED one, and the history panel needs neither's questions —
@@ -76,9 +75,9 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
   } catch (error) {
     return safeJsonError(error, "api:jobs/interview-kit", "INTERVIEW_KIT_FAILED");
   }
-}
+});
 
-export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   // AUTHORIZATION FIRST, ahead of the 404 and the throttle: a refused seat must neither
   // spend rate-limit budget nor learn which job ids exist. `pipeline:write` is what the
   // sibling job-write doors ask (priorities, translations).
@@ -91,7 +90,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   if (denied) return denied;
   try {
     const { id } = await context.params;
-    const ws = await currentWorkspace();
     // Ownership, not just visibility: authoring a role's kit is a lifecycle write, and
     // this is the same gate /publish and /close use (canWriteJobLifecycle — which also
     // encodes the decision that a shared corpus role is adoptable by every tenant).
@@ -110,9 +108,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   } catch (error) {
     return safeJsonError(error, "api:jobs/interview-kit", "INTERVIEW_KIT_FAILED");
   }
-}
+});
 
-export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const PUT = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   // IDENTITY, then AUTHORITY. requireOperator proves a trusted session is present (the
   // proxy gate is not defence in depth on its own, ADR 0005); the capability below is
   // what decides this seat may write. Same order as the sibling job-write doors.
@@ -122,7 +120,6 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
   if (denied) return denied;
   try {
     const { id } = await context.params;
-    const ws = await currentWorkspace();
     if (!canWriteJobLifecycle(id, ws) || !getJob(id, ws)) return jsonRefusal("JOB_NOT_FOUND", 404);
 
     const body = await readJsonWithLimit<{ kit?: unknown }>(request, MAX_KIT_BODY_BYTES, {});
@@ -148,4 +145,4 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
   } catch (error) {
     return safeJsonError(error, "api:jobs/interview-kit", "INTERVIEW_KIT_FAILED");
   }
-}
+});

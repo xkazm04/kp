@@ -1,0 +1,395 @@
+{
+ "schema": "conform-run/1",
+ "worker": "c310ed7d-d8f9-48b2-bc14-00eaee6c9d39",
+ "subject": "quality-gates",
+ "evaluatedAt": "2026-10-24T00:56:49.901752+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "review-gates",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "scripts/review/constitution-check.mjs:506 The route-auth-posture rule tests the RAW added text for guard names (only chainsGuard masks comments). So a new route whose only mention of requireOperator is a comment or an unused import passes, while correctly gated routes (capability gates, withWorkspace) get refused; git log has five Gate-exemption waivers for exactly that.",
+   "techniques": [
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "deviation",
+     "evidence": "scripts/review/constitution-check.mjs:506 The regex half runs on the unmasked body, so a comment can satisfy the guard. chainsGuard and the content rules use source-mask, but this check does not."
+    },
+    {
+     "technique": "false-positive-economics",
+     "verdict": "deviation",
+     "evidence": "scripts/review/constitution-check.mjs:515 It fires on correctly gated routes: requireCapability, requireOrgCapability, withWorkspace and requireHomeOrgReader are not recognised. There are five recorded waivers whose reason is that 'the lens does not recognise capability gates'. That is the death-spiral habit of waiving the gate instead of narrowing it."
+    },
+    {
+     "technique": "renameable-detector-keys",
+     "verdict": "deviation",
+     "evidence": "scripts/review/constitution-check.mjs:484 The tenancy-manifest finding is keyed on whether tenancy.ts was touched at all. Any edit to that file clears it, whether or not the new table was listed."
+    },
+    {
+     "technique": "self-reported-gate-inputs",
+     "verdict": "deviation",
+     "evidence": "scripts/review/constitution-check.mjs:24 The override channel is a commit trailer that the gated author (about 90% AI per the header) writes inside the same range it authorises. Only `secret` is fenced (UNWAIVABLE_RULES, line 158)."
+    },
+    {
+     "technique": "unparseable-form-is-a-finding",
+     "verdict": "deviation",
+     "evidence": "scripts/review/constitution-check.mjs:222 The blocking skip rule matches only literal call spellings. Alias, destructure or computed forms (`const t = test; t.skip(`, `test['skip'](`) pass silently, and no escape form is refused."
+    },
+    {
+     "technique": "blocking-by-input-determinism",
+     "verdict": "deviation",
+     "evidence": "scripts/review/agent-review.mjs:222 A single model run blocks the required 'Agent review (judgement)' check. The instrument is variable (DEFAULT_MODEL comes from an env override or an alias, with no seed and no all-of-N aggregation), and no pin/assert/aggregate trigger is written beside it."
+    },
+    {
+     "technique": "gate-liveness",
+     "verdict": "deviation",
+     "evidence": "scripts/review/agent-review.mjs:255 Could-not-run is routed to exit 0 on a required check whose green authorises merging. The keyless path exits 0 too. constitution-check.mjs:718 does this correctly with exit 2."
+    },
+    {
+     "technique": "waiver-names-its-finding",
+     "verdict": "conformant",
+     "evidence": "scripts/review/constitution-check.mjs:130 A trailer has to name rule + file[:line] to waive anything. Shapeless or unmatched trailers are reported as waiver-unmatched, and secret is unwaivable."
+    },
+    {
+     "technique": "enforcement-binding",
+     "verdict": "conformant",
+     "evidence": "scripts/review/gate-check.mjs:159 It compares the committed ruleset against the jobs the workflows emit, in both directions (required-but-absent blocks, emitted-but-unrequired is noted), and has an optional live --verify against GitHub. It does not model job-level `if:` skips."
+    },
+    {
+     "technique": "severity-by-construction",
+     "verdict": "conformant",
+     "evidence": "scripts/review/constitution-check.mjs:759 The exit code comes from the same blockedBy() the renderer uses, so a blocking finding reaches the exit path."
+    },
+    {
+     "technique": "policy-projection",
+     "verdict": "conformant",
+     "evidence": "scripts/review/constitution-check.mjs:163 The rendered report and the exit code read one enumeration, so the two surfaces cannot disagree."
+    },
+    {
+     "technique": "gate-laddering",
+     "verdict": "conformant",
+     "evidence": "scripts/review/constitution-check.mjs:13 The same script runs in the pre-push hook and in review.yml (the binding rung)."
+    },
+    {
+     "technique": "instrument-answers-only-its-own-question",
+     "verdict": "conformant",
+     "evidence": "scripts/review/constitution-check.mjs:650 Its green states which question it answered and points to the other lens."
+    },
+    {
+     "technique": "refusal-names-a-reachable-remedy",
+     "verdict": "conformant",
+     "evidence": "scripts/review/constitution-check.mjs:494 The remedy names an in-tree ADR that exists (docs/architecture/decisions/0002-\u2026)."
+    },
+    {
+     "technique": "decidable-in-a-window",
+     "verdict": "conformant",
+     "evidence": "scripts/review/constitution-check.mjs:298 The skip-with-reason rule is decided inside a bounded 8-line window of the call, which is a locally decidable property."
+    },
+    {
+     "technique": "shared-substrate-check-partition",
+     "verdict": "not-applicable",
+     "evidence": "scripts/review/agent-review.mjs:75 The two lenses run on different substrates (regex vs model), so the precondition does not hold. The judgement brief does state its negative scope and names who owns it anyway."
+    }
+   ],
+   "registryProposal": "waiver-names-its-finding treats a targeted trailer as sufficient. When the gated party is an agent that writes the commit message in the same range, a perfectly targeted waiver is still a self-reported override (self-reported-gate-inputs). The waiver technique could cross-reference that, saying who may author the trailer and not only what it names."
+  },
+  {
+   "context": "lint-quality-gates",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "scripts/lint/ruff-ratchet.mjs:250 The ruff ratchet lifts only the config-level ignore list and runs without --ignore-noqa, so inline `# noqa` comments still suppress. pipeline/ carries 118 of them, including 15 F401 and 12 E731 in selected rule families (ruff.toml ignore = [] is empty). None of these are counted, and moving a suppression from the list to an inline comment clears the ratchet.",
+   "techniques": [
+    {
+     "technique": "renameable-detector-keys",
+     "verdict": "deviation",
+     "evidence": "scripts/lint/ruff-ratchet.mjs:250 The ratchet is keyed on WHERE a suppression is written (a lint.ignore entry), not on the property (violations suppressed). That key can be moved to `# noqa` without changing the debt. The TS side counts inline directives, so this asymmetry is Python-only."
+    },
+    {
+     "technique": "blocking-by-input-determinism",
+     "verdict": "deviation",
+     "evidence": "scripts/perf/ci-budget.mjs:45 A wall-clock measurement exits 1 on every PR run (its own header line 16 calls it 'a blocking check in CI'). Its written promotion path is to become a required check once the ceilings are measured, but the variance is in the instrument. check-budget.mjs:18 is the conformant counter-example: it uses the static graph, not a stopwatch."
+    },
+    {
+     "technique": "gate-liveness",
+     "verdict": "conformant",
+     "evidence": "scripts/lint/ts-ratchet.mjs:186 A zero-file walk is fatal (exit 1) and never reads as clean. design:check has a parsed-input floor at check-design-tokens.mjs:103."
+    },
+    {
+     "technique": "severity-by-construction",
+     "verdict": "conformant",
+     "evidence": "scripts/lint/ratchet.mjs:207 The shared ladder maps undeclared/unexplained/grew to BLOCKING, and that reaches the exit code."
+    },
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "conformant",
+     "evidence": "scripts/lint/ruff-ratchet.mjs:17 It asks the engine for the resolved violation counts instead of grepping the config, which closes the 'declared rule reports zero' gap. The inline-noqa layer stays open (see renameable-detector-keys)."
+    },
+    {
+     "technique": "false-positive-economics",
+     "verdict": "conformant",
+     "evidence": "scripts/lint/ts-ratchet.mjs:39 Precision was measured over the whole population before an `any` counter was built, and the counter was declined."
+    },
+    {
+     "technique": "instrument-answers-only-its-own-question",
+     "verdict": "conformant",
+     "evidence": "scripts/lint/ts-ratchet.mjs:42 The `any` question is explicitly assigned to the instrument that owns it."
+    },
+    {
+     "technique": "waiver-names-its-finding",
+     "verdict": "conformant",
+     "evidence": "scripts/lint/ts-ratchet.mjs:22 Ceilings are per rule with a required `why`, so there is no blanket allowance that a new class can hide under."
+    },
+    {
+     "technique": "prose-rule-drift",
+     "verdict": "conformant",
+     "evidence": "scripts/perf/check-budget.mjs:13 The prose barrel-import rule was turned into a blocking import-graph budget held by test:perf."
+    },
+    {
+     "technique": "unmeasurable-criteria",
+     "verdict": "conformant",
+     "evidence": "scripts/perf/ci-budget.mjs:101 Unmeasured jobs are skipped and announced. An unreadable run is exit 2 NOT MEASURED, never a pass."
+    },
+    {
+     "technique": "refusal-names-a-reachable-remedy",
+     "verdict": "conformant",
+     "evidence": "scripts/lint/ruff-ratchet.mjs:263 When ruff cannot run, the message says what is missing and gives an install path the reader can actually use."
+    },
+    {
+     "technique": "gate-laddering",
+     "verdict": "conformant",
+     "evidence": "scripts/lint/ts-ratchet.mjs:69 The same script runs at the merge rung (ci.yml) and, per AGENTS.md, in pre-push."
+    }
+   ],
+   "registryProposal": "The ratchet guidance (ratchet-design / match-the-resolved-artifact) should name inline suppressions the engine still honours after the config-level ignore is lifted (`# noqa`, without --ignore-noqa) as a standard blind spot. A ratchet that lifts only the list is answering half its own question."
+  },
+  {
+   "context": "shared-api-utilities",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/app-currency-literal.test.ts:43 The context does contain a blocking source-scan gate: test:unit fails on a stranded CZK literal outside an allowlist. The earlier not-applicable verdict is refuted. Its patterns accept only the double-quoted spelling, so `currency: 'CZK'` or a template literal passes; no quote-style gate exists in package.json or eslint config to close that.",
+   "techniques": [
+    {
+     "technique": "unparseable-form-is-a-finding",
+     "verdict": "deviation",
+     "evidence": "app/_lib/app-currency-literal.test.ts:43 The quote character is a fixed, language-level escape. It is not refused, so the gate reports clean on an equivalent literal."
+    },
+    {
+     "technique": "gate-liveness",
+     "verdict": "deviation",
+     "evidence": "app/_lib/app-currency-literal.test.ts:66 There is no floor on the walked population, so an empty walk would yield offenders = [] and pass. Compare authz-parity.test.ts, which asserts FILES.length >= 14."
+    },
+    {
+     "technique": "chokepoint-tag-registry",
+     "verdict": "conformant",
+     "evidence": "app/_lib/app-currency-literal.test.ts:86 Direction 3: every allowlist row must still resolve to a live site."
+    },
+    {
+     "technique": "waiver-names-its-finding",
+     "verdict": "conformant",
+     "evidence": "app/_lib/app-currency-literal.test.ts:23 Each exemption names its site (the file) and carries its own reason."
+    },
+    {
+     "technique": "refusal-names-a-reachable-remedy",
+     "verdict": "conformant",
+     "evidence": "app/_lib/app-currency-literal.test.ts:81 The remedy points at an in-tree module that exists."
+    },
+    {
+     "technique": "false-positive-economics",
+     "verdict": "conformant",
+     "evidence": "app/_lib/app-currency-literal.test.ts:41 The patterns are narrowed to positions where the currency is a value, so prose about CZK does not fire."
+    }
+   ]
+  },
+  {
+   "context": "pipeline-api",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/pipeline/error-message-hygiene.test.ts:27 The error-hygiene guard hand-lists 10 routes, but git ls-files shows 18 route.ts files under app/api/pipeline. notes, offer-letter, work-sample, automation-counts, command/reverse, events/recent, rejected and stage-sla are not checked by this guard. They are compliant today, but the gap is silent, and the file's own comment records that this snapshot already went stale once.",
+   "techniques": [
+    {
+     "technique": "gate-liveness",
+     "verdict": "deviation",
+     "evidence": "app/api/pipeline/error-message-hygiene.test.ts:27 The guarded population is an enumerated inclusion list, so any new route is exempt without anyone deciding it. authz-parity.test.ts in the same context derives its population by walking the tree and asserts a floor (line 80)."
+    },
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "deviation",
+     "evidence": "app/api/pipeline/error-message-hygiene.test.ts:59 This presence assertion runs on raw source, so a comment mentioning safeJsonError satisfies it. The code() mask at line 72 is applied only to the third test. authz-parity's GATE_CALL also matches raw source."
+    },
+    {
+     "technique": "chokepoint-tag-registry",
+     "verdict": "conformant",
+     "evidence": "app/api/pipeline/batch/authz-parity.test.ts:100 The walk is derived from the tree, and every allowlist row must resolve back to a live handler."
+    },
+    {
+     "technique": "waiver-names-its-finding",
+     "verdict": "conformant",
+     "evidence": "app/api/pipeline/batch/authz-parity.test.ts:40 An exemption is keyed `<route> <METHOD>` and carries a reason: one waiver, one handler."
+    },
+    {
+     "technique": "unparseable-form-is-a-finding",
+     "verdict": "conformant",
+     "evidence": "app/api/pipeline/pipeline-refusals-coded.test.ts:80 An expression argument (the escape form) is itself a failure, with one declared exception that is checked against a closed union."
+    },
+    {
+     "technique": "false-positive-economics",
+     "verdict": "conformant",
+     "evidence": "app/api/pipeline/pipeline-refusals-coded.test.ts:36 The detector is deliberately narrowed so it does not fire on variable bodies."
+    },
+    {
+     "technique": "refusal-names-a-reachable-remedy",
+     "verdict": "conformant",
+     "evidence": "app/api/pipeline/error-message-hygiene.test.ts:46 The failure names the in-tree responder to use."
+    },
+    {
+     "technique": "decidable-in-a-window",
+     "verdict": "conformant",
+     "evidence": "app/api/pipeline/batch/authz-parity.test.ts:63 The gate-per-handler rule is decided within each handler's own slice, which is a local property."
+    }
+   ]
+  },
+  {
+   "context": "pipeline-move-bulk-operations",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/hiring/pipeline/pipelineMovePath.test.ts:34 The refusal slice runs from `if (!r.ok)` to the first `moved?.entry`, and so includes the comment at usePipelineBoardData.ts:295 ('the success path used to `await load()`'). Deleting the real `await load();` from the refusal branch would leave this guard green: the comment explaining the rule satisfies its own detector.",
+   "techniques": [
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/pipeline/pipelineMovePath.test.ts:34 This is a live instance, not a hypothetical. The source pins in this directory (pipelineMovePath, usePipelineBulk) match raw text with no comment masking."
+    },
+    {
+     "technique": "gate-liveness",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/usePipelineBulk.test.ts:12 The guard was seen red against the pre-fix code before it was trusted green."
+    },
+    {
+     "technique": "instrument-answers-only-its-own-question",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/pipelineMovePath.test.ts:9 It states that it is a structural pin and names the behavioural tests that own the other half."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-24T00:56:49.901752+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "blocking-by-input-determinism",
+    "decidable-in-a-window",
+    "enforcement-binding",
+    "false-positive-economics",
+    "gate-laddering",
+    "gate-liveness",
+    "instrument-answers-only-its-own-question",
+    "match-the-resolved-artifact",
+    "policy-projection",
+    "refusal-names-a-reachable-remedy",
+    "renameable-detector-keys",
+    "self-reported-gate-inputs",
+    "severity-by-construction",
+    "shared-substrate-check-partition",
+    "unparseable-form-is-a-finding",
+    "waiver-names-its-finding"
+   ],
+   "deviations": 1,
+   "context": "review-gates",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T00:56:49.901752+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "blocking-by-input-determinism",
+    "false-positive-economics",
+    "gate-laddering",
+    "gate-liveness",
+    "instrument-answers-only-its-own-question",
+    "match-the-resolved-artifact",
+    "prose-rule-drift",
+    "refusal-names-a-reachable-remedy",
+    "renameable-detector-keys",
+    "severity-by-construction",
+    "unmeasurable-criteria",
+    "waiver-names-its-finding"
+   ],
+   "deviations": 1,
+   "context": "lint-quality-gates",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T00:56:49.901752+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "chokepoint-tag-registry",
+    "false-positive-economics",
+    "gate-liveness",
+    "refusal-names-a-reachable-remedy",
+    "unparseable-form-is-a-finding",
+    "waiver-names-its-finding"
+   ],
+   "deviations": 1,
+   "context": "shared-api-utilities",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T00:56:49.901752+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "chokepoint-tag-registry",
+    "decidable-in-a-window",
+    "false-positive-economics",
+    "gate-liveness",
+    "match-the-resolved-artifact",
+    "refusal-names-a-reachable-remedy",
+    "unparseable-form-is-a-finding",
+    "waiver-names-its-finding"
+   ],
+   "deviations": 1,
+   "context": "pipeline-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T00:56:49.901752+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "gate-liveness",
+    "instrument-answers-only-its-own-question",
+    "match-the-resolved-artifact"
+   ],
+   "deviations": 1,
+   "context": "pipeline-move-bulk-operations",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -1,0 +1,123 @@
+{
+ "schema": "conform-run/1",
+ "worker": "6fba37b7-b487-4e83-bdfd-c8771b4d0f86",
+ "subject": "combining-signals-into-a-hire-decision",
+ "evaluatedAt": "2026-10-16T00:51:18.096862+00:00",
+ "provider": "grok",
+ "model": "grok-4.7",
+ "pairs": [
+  {
+   "context": "decisions-review-ui",
+   "subject": "combining-signals-into-a-hire-decision",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/hiring/decisions/DecisionsAnalysisParts.tsx:218 The queue card is meant to be decided from the score and rank, while the narrative that carries red flags lives one click deeper and is capped at four items.",
+   "techniques": [
+    {
+     "technique": "a-hold-that-blocks-auto-advance",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/decisions/DecisionsAnalysisParts.tsx:184 Strengths and red flags share one list capped at four, and only inside the analysis modal. A hold's flags are not on the glance card, and the score is not subordinate to them."
+    },
+    {
+     "technique": "discrepancy-between-signals-is-itself-a-signal",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/decisions/DecisionsAnalysisModalBench.tsx:69 The bench orders peers by one match total. No within-candidate discrepancy rule, tolerance, or composite cap appears in these files."
+    },
+    {
+     "technique": "outcome-feedback-loop-per-team",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/decisions/DecisionsRulesModal.tsx:207 Family-floor chips send the recruiter to Analytics to edit a recommendation. This tab does not feed outcomes back into a rule."
+    },
+    {
+     "technique": "promote-floor-calibrated-against-real-outcomes",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/decisions/DecisionsRulesModal.tsx:176 The screening reject cutoff is a free 0\u2013100 field. The modal does not show a resolved-outcome count, an uncalibrated label, or a derived band beside the number that drives auto-reject."
+    },
+    {
+     "technique": "terminal-decisions-stay-with-a-person",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/decisions/DecisionsAiReviewCardLadder.tsx:33 The ladder replaced the narrative so the card can be decided at a glance. The analysis-modal note is optional (DecisionsAnalysisParts.tsx:239). Bulk accept calls bulkDecideReviews(\"accept\") on one click (DecisionsBatchBar.tsx:84); bulk reject arms a confirm. Group-eval does require a non-empty reason (DecisionsGroupEvalRejectModal.tsx:107), and the screen-wave commit is a second confirm."
+    },
+    {
+     "technique": "weight-signals-by-validity-not-by-precision",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/decisions/DecisionsAiReviewCardLadder.tsx:6 This block ranks one candidate against the role's pipeline. It does not assign composite weights. An unassessed scorecard rating is painted as words, not dots (line 54), which is the absence rule and not a weight."
+    }
+   ],
+   "registryProposal": "The promote-floor technique is written for a threshold that advances people. This surface's maxMatchToReject is a typed reject-below cutoff, and the devcase promote_floor is a different number. The technique never says whether a human-typed reject cutoff is the same object."
+  },
+  {
+   "context": "autonomy-control-room",
+   "subject": "combining-signals-into-a-hire-decision",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/control/page.tsx:32 The room applies a promote floor that is one org-wide key, while the suggestion it applies is calibrated from the caller's workspace only.",
+   "techniques": [
+    {
+     "technique": "outcome-feedback-loop-per-team",
+     "verdict": "deviation",
+     "evidence": "app/api/devcase/outcomes/route.ts:22 The same handler says the corpus, and so the recommendation, is the caller's workspace (lines 20\u201321). calibrate() reads that workspace only (app/_lib/dev-outcomes.ts:658). setPromoteFloor writes the global key (app/_lib/dev-control.ts:156). The panel's apply button posts setFloor (CalibrationPanel.tsx:149)."
+    },
+    {
+     "technique": "promote-floor-calibrated-against-real-outcomes",
+     "verdict": "conformant",
+     "evidence": "app/control/CalibrationPanel.tsx:225 Apply is hidden until at least four resolved outcomes exist, and the armed key is the floor value. Bands show per-band counts (line 261). The sentence is composed from rationale.kind plus params (line 34), not frozen prose. The self-grading caveat was not on this panel."
+    }
+   ],
+   "registryProposal": "The per-team technique already forbids applying one team's floor beyond that team. This room is the case the application node--outcome-feedback-loop-per-team describes, and the code still matches that write-up."
+  }
+ ],
+ "declined": [
+  {
+   "subject": "combining-signals-into-a-hire-decision",
+   "context": "decisions-screen-wave-logic",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "combining-signals-into-a-hire-decision",
+   "context": "hiring-decisions-api",
+   "reason": "evidence leans on screen-wave/route.ts, which is not a tracked file"
+  },
+  {
+   "subject": "combining-signals-into-a-hire-decision",
+   "context": "pipeline-api",
+   "reason": "evidence leans on command/route.ts, which is not a tracked file"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-16T00:51:18.096862+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "combining-signals-into-a-hire-decision"
+   ],
+   "techniques": [
+    "a-hold-that-blocks-auto-advance",
+    "discrepancy-between-signals-is-itself-a-signal",
+    "outcome-feedback-loop-per-team",
+    "promote-floor-calibrated-against-real-outcomes",
+    "terminal-decisions-stay-with-a-person",
+    "weight-signals-by-validity-not-by-precision"
+   ],
+   "deviations": 1,
+   "context": "decisions-review-ui",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  },
+  {
+   "ts": "2026-10-16T00:51:18.096862+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "combining-signals-into-a-hire-decision"
+   ],
+   "techniques": [
+    "outcome-feedback-loop-per-team",
+    "promote-floor-calibrated-against-real-outcomes"
+   ],
+   "deviations": 1,
+   "context": "autonomy-control-room",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  }
+ ]
+}

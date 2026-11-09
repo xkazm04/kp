@@ -1,0 +1,71 @@
+{
+ "schema": "conform-run/1",
+ "worker": "4b1b0f4b-d9e1-422f-9cbc-67aea84b5a87",
+ "subject": "candidate-ai-disclosure-and-explanation",
+ "evaluatedAt": "2026-10-26T22:43:14.788444+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "application-status-page",
+   "subject": "candidate-ai-disclosure-and-explanation",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/status/[token]/StatusClient.tsx:397 The review right on the decision history is a sentence (en.json status.decisions.humanReviewNote: \"Just reply to any message from the hiring team\"), not a mechanism. Separately, the renderer falls back to a de-snaked kind name, hides decisions whose attribution is unknown, and shows the model's self-reported confidence.",
+   "techniques": [
+    {
+     "technique": "right-to-request-a-human-review",
+     "verdict": "deviation",
+     "evidence": "app/status/[token]/StatusClient.tsx:397 The copy resolves to \"You can request a human review of any decision at any time. Just reply to any message from the hiring team.\" That is the reply-to-any-message shape the technique calls a contact address. There is no control carrying the decision id, nothing routes it, and nothing seals the outcome."
+    },
+    {
+     "technique": "allowlist-of-candidate-visible-decisions",
+     "verdict": "deviation",
+     "evidence": "app/status/[token]/StatusClient.tsx:349 The server allowlists kinds (CANDIDATE_VISIBLE_DECISION_KINDS, status-decisions.ts:89). The renderer still has the humanised-identifier fallback the technique forbids, and the comment at lines 186-188 says so deliberately. A kind admitted server-side without copy renders as its de-snaked enum name."
+    },
+    {
+     "technique": "three-state-attribution-that-fails-to-unknown",
+     "verdict": "deviation",
+     "evidence": "app/status/[token]/StatusClient.tsx:350 An unknown attribution renders no label at all, where the technique requires an explicit 'cannot determine'. Downgrade-not-upgrade (sealedActorAttribution) and the automated+person-approved two-fact rendering (lines 353-356) are realized."
+    },
+    {
+     "technique": "decisive-facts-not-the-rationale",
+     "verdict": "deviation",
+     "evidence": "app/status/[token]/StatusClient.tsx:389 The threshold pair and its sealed staleness caveat cross correctly (lines 370-371), and rubric dimensions are shown. But the verdict facts emit the AI scorer's own confidence percentage. The technique names a model's self-reported confidence as something not to emit."
+    },
+    {
+     "technique": "disclosure-at-the-point-of-submission",
+     "verdict": "deviation",
+     "evidence": "app/status/[token]/page.tsx:22 The regime is resolved server-side, so there is no client-default first paint. But disclosureComplianceFor (compliance-disclosure.ts:45) returns DEFAULT_REGIME_ID when the lookup throws. AiDisclosure then renders regimeNote naming that regime's laws, so a failed lookup is treated as the home regime rather than as unknown."
+    },
+    {
+     "technique": "held-data-derived-from-what-exists",
+     "verdict": "not-applicable",
+     "evidence": "app/status/[token]/StatusClient.tsx:419 This page has no what-we-hold inventory; that sits behind the /data link. The one held-data item it does show, the recording, is gated on its actual presence, which matches the technique's spirit."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-26T22:43:14.788444+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-ai-disclosure-and-explanation"
+   ],
+   "techniques": [
+    "allowlist-of-candidate-visible-decisions",
+    "decisive-facts-not-the-rationale",
+    "disclosure-at-the-point-of-submission",
+    "held-data-derived-from-what-exists",
+    "right-to-request-a-human-review",
+    "three-state-attribution-that-fails-to-unknown"
+   ],
+   "deviations": 1,
+   "context": "application-status-page",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

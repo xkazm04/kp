@@ -31,7 +31,7 @@ export function JobFitTab({ analysis }: { analysis: Analysis }) {
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
-                <BriefcaseBusiness className="h-5 w-5 text-coral" aria-hidden />
+                <BriefcaseBusiness className="h-5 w-5 text-coral-ink" aria-hidden />
                 <h3 className="font-serif text-h3 text-ink">{t("panel.jobFit")}</h3>
               </div>
               <p className="mt-3 text-base leading-6 text-ink">{analysis.jobFit.summary}</p>
@@ -224,7 +224,7 @@ function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
       {overUsed.length ? (
         <div className="mt-5 rounded-md bg-paper p-3">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-coral" aria-hidden />
+            <AlertTriangle className="h-4 w-4 text-coral-ink" aria-hidden />
             <p className="text-base font-semibold text-ink">{t("panel.keywordStuffing")}</p>
           </div>
           <p className="mt-1 text-sm leading-5 text-steel">{t("panel.keywordStuffingHint")}</p>

@@ -9,7 +9,7 @@ AI job-description builds, CV analysis and job-fit scoring, a pipeline board
 with automation, candidate self-scheduling, AI voice interviews, work-sample
 "devcase" assessments, comms outbox, analytics, and Polar prepaid billing.
 
-Stack, in one breath: **Next 16 (canary) + React 19 + TypeScript**, Tailwind 4,
+Stack, in one breath: **Next 16.4 (pinned exactly, instant-navigations line — ADR 0001) + React 19 + TypeScript**, Tailwind 4,
 **better-sqlite3** at `data/kp.sqlite` (override with `KP_DB_PATH`; a fresh DB
 self-seeds the demo corpus from `data/seed_*`), custom **HMAC session auth**
 (`KP_OPERATOR_PASSWORD` unset = open dev mode; production **fails closed**
@@ -32,7 +32,7 @@ npm run dev:empty           # second, isolated empty-DB dev server (.next-empty 
 npm run typecheck           # GOTCHA: runs schemas:gen (python -m pipeline.jobfit.codegen)
                             # BEFORE tsc — Python + repo deps must be installed
 npm run lint                # eslint
-npm run test:unit           # node:test over app/**/*.test.ts (process isolation)
+npm run test:unit           # node:test over {app,packages,edge,i18n}/**/*.test.ts (process isolation)
 npm run test:python         # Python unit tests
 npm run test:python:gate    # gated Python suite (CI gate)
 npm run design:check        # design-token lint (no raw hex outside app/landing/)
@@ -80,8 +80,9 @@ e2e/                          # Playwright. The subset below is DECLARED as
                               #   filters, the 20-row pager, the confirm-guarded
                               #   delete — fixtures created THROUGH /api/profile,
                               #   which is pure profile_cli logic, so keyless)
-                              # + landing (the public landing: a11y per band, the
-                              #   spotlight's focus contract, phone nav — the ONLY
+                              # + landing (the public landing: a11y per band and per
+                              #   scene, the ring's named medallions, a scene's focus contract and
+                              #   /#spotlight-<key> deep link, phone nav — the ONLY
                               #   spec that must not seedDevAuth)
                               # + public-pages (the OTHER indexed surfaces: axe on
                               #   /about /trust /privacy /terms /market, plus
@@ -112,6 +113,15 @@ e2e/                          # Playwright. The subset below is DECLARED as
                               #   event kind, and a `fixed inset-0` overlay contained by
                               #   the tab panel's animation transform instead of the
                               #   viewport, so it measured 1264x0)
+                              # + journey-job-to-accept (the keyless hire: a pasted
+                              #   job ad to an accepted offer on /offer/[token],
+                              #   rated by hand, no provider)
+                              # + same-origin-write-door (a state-changing /api
+                              #   request with a foreign Origin is refused 403 by
+                              #   proxy.ts, its own Origin is not)
+                              # + token-doors-axe (axe on the public offer, erasure
+                              #   and invite token doors; the /status timeline and
+                              #   /skill sweeps skip when no seeded data mints them)
                               #
                               # The managed webServer runs on a THROWAWAY
                               # KP_DB_PATH (data/kp-e2e.sqlite, see
@@ -222,7 +232,7 @@ ignore it silently. The dismiss path is the deliberate trade-off for catching dr
 per-session instead of via periodic cleanups.
 
 The hook honors `stop_hook_active`, so it cannot loop. Fixtures:
-`node scripts/docs/__tests__/check-doc-sync.test.mjs` (19 checks, no deps) — they also
+`node scripts/docs/__tests__/check-doc-sync.test.mjs` (28 checks, no deps) — they also
 validate the map itself: every mapped doc must exist and every glob root must resolve.
 
 ### Writing a feature doc
@@ -277,7 +287,7 @@ The ones that actually bite:
   `no-restricted-syntax` in `eslint.config.mjs`.
 - **A catch body is never empty — an intentional drop says why, inside the
   block.** `catch { /* best-effort: the ledger is telemetry, never the request */ }`
-  is the house shape (164 sites); a bare `catch {}` is how `core.ts`'s migrator
+  is the house shape; a bare `catch {}` is how `core.ts`'s migrator
   once booted a structurally-broken DB silently. Enforced at `error` by
   `no-empty` (`allowEmptyCatch: false`) in `eslint.config.mjs`. The comment is
   the declaration, not a door: a failure an operator would act on still needs
@@ -292,6 +302,14 @@ The ones that actually bite:
   — a row count cannot tell "never seeded" from "seeded, then legitimately
   emptied", and the difference is demo data reappearing in a real install
   (`app/_lib/db/seed-marks.ts`).
+- **Every non-public route enters through `app/_lib/auth/workspace-context.ts`.**
+  `export const GET = withWorkspace(async (ws: string, request: Request) => {...})` (or
+  `withSession` when no tenant is needed, or `route(withOperator, withCapability(c),
+  withRateLimit({...}))(handler)` for a gated, throttled door). The handler is handed the
+  workspace; it never calls `currentWorkspace()` itself. Session 401 comes first, then the
+  chain's guards in written order, then the handler's own gates (ADR 0026
+  `0026-route-chain-refusal-order`). Public token routes are NOT wrapped. Ratchet:
+  `app/api/route-workspace-coverage.test.ts` (its allowlist can only shrink).
 - **Rate-limit contract tests pin limiter call sites.**
   `app/api/rate-limit-contract.test.ts` asserts which open/paid routes call
   `rateLimit()` and how — adding, moving, or re-keying a limiter means updating
@@ -329,7 +347,8 @@ The ones that actually bite:
 This repo is wired to the organization's AI registry - ONE local checkout, at the path in
 `.ai/manifest.yaml` under `registry.local` (default `../ai-registry`).
 
-- **The knowledge is already loaded.** `.claude/rules/ai-registry-*.md` are links to the
+- **The knowledge is already loaded** — once linked. `.claude/rules/ai-registry-*.md` are
+  gitignored links (absent in a fresh checkout until `link-registry.mjs` runs) to the
   registry's generated rules: the access contract, plus a subject map for every domain in
   `.ai/manifest.yaml` `knowledge.domains`. Rules load in every session, so the corpus is in
   front of you without invoking anything. Before a design, architecture or product decision

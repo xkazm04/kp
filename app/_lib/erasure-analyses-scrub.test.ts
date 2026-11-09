@@ -6,7 +6,7 @@
 // Drives the REAL db.ts against a throwaway SQLite file.
 //   npm run test:unit
 import { test, after } from "node:test";
-import { removeTempDirs } from "./testing/tmp-cleanup.ts";
+import { removeTempDirsInHook } from "./testing/tmp-cleanup.ts";
 import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
@@ -53,7 +53,7 @@ delete process.env.DATABASE_URL;
 
 const { createPipelineEntry, anonymizeEntry, saveAnalysis, loadAnalysis } = await import("./db.ts");
 
-after(() => removeTempDirs(TMP_DIR));
+after(() => removeTempDirsInHook([TMP_DIR]));
 
 test("erasure scrubs PII from the candidate's saved analyses (matched by label)", () => {
   const label = `Jane Doe ${process.pid}`;

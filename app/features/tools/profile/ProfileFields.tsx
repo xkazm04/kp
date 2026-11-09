@@ -93,7 +93,7 @@ export function Text({
         error={Boolean(error)}
         aria-describedby={errId}
       />
-      {error ? <span id={errId} className="text-sm text-coral">{error}</span> : null}
+      {error ? <span id={errId} className="text-sm text-coral-ink">{error}</span> : null}
     </label>
   );
 }

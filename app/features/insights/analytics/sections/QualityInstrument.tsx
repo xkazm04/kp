@@ -89,8 +89,8 @@ export { verdictFor, type Verdict };
 const TONE = {
   trustworthy: { icon: CheckCircle2, cls: "text-moss", title: "verdictGood", body: "verdictGoodBody" },
   weak: { icon: AlertTriangle, cls: "text-dial-amber", title: "verdictWeak", body: "verdictWeakBody" },
-  untrustworthy: { icon: AlertTriangle, cls: "text-coral", title: "verdictBad", body: "verdictBadBody" },
-  circular: { icon: Ban, cls: "text-coral", title: "verdictCircular", body: "verdictCircularBody" },
+  untrustworthy: { icon: AlertTriangle, cls: "text-coral-ink", title: "verdictBad", body: "verdictBadBody" },
+  circular: { icon: Ban, cls: "text-coral-ink", title: "verdictCircular", body: "verdictCircularBody" },
   unknown: { icon: HelpCircle, cls: "text-steel", title: "verdictUnknown", body: "verdictUnknownBody" },
 } as const;
 
@@ -131,7 +131,7 @@ export function QualityInstrument() {
     <div className="animate-arrive-in space-y-6">
       {/* ---- The verdict ---------------------------------------------------- */}
       <section className={`${PANEL} p-5`}>
-        <p className="text-meta uppercase text-coral">{t("instrumentEyebrow")}</p>
+        <p className="text-meta uppercase text-coral-ink">{t("instrumentEyebrow")}</p>
 
         {error ? (
           <p className="mt-2 text-base text-steel">{t("calibrationUnavailable")}</p>

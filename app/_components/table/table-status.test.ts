@@ -30,7 +30,9 @@ const source = read("_components/table/TableStatus.tsx");
 /** The surfaces that own a sort or a filter today. Adding one adds a row here. */
 const WIRED = [
   "features/tools/profile/ProfileRoster.tsx",
+  "features/insights/analytics/sections/EconomicsBoard.tsx",
   "features/insights/analytics/sections/DecisionLogTable.tsx",
+  "features/insights/analytics/sections/DecisionRecordsTable.tsx",
   "features/insights/activity/ActivityTab.tsx",
   "features/shell/tasks/TasksRunsPanel.tsx",
 ];

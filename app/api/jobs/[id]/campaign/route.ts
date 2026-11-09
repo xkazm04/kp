@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCampaignPack } from "@/app/_lib/db/campaign";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { CampaignError, resolveLang, runCampaign } from "@/app/_lib/campaign-run";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -28,22 +28,20 @@ function visibleJob(id: string, ws: string) {
   return job && jobVisibleToWorkspace(id, ws) ? job : null;
 }
 
-export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const GET = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const { id } = await context.params;
   // Scope the pack read to the session team: campaign_packs is workspace-stamped, so
   // an unscoped read (defaulting to the single tenant) would serve/overwrite the
   // wrong team's pack for a job in any other workspace.
-  const ws = await currentWorkspace();
   const job = visibleJob(id, ws);
   if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
   const lang = resolveLang(new URL(request.url).searchParams.get("lang"));
   return NextResponse.json({ pack: getCampaignPack(job.id, lang, ws) });
-}
+});
 
-export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = await context.params;
-    const ws = await currentWorkspace();
     // BEFORE the spawn: a refused pack must not have cost an LLM call.
     if (!visibleJob(id, ws)) return NextResponse.json({ error: "Job not found." }, { status: 404 });
     const body = (await request.json().catch(() => ({}))) as { lang?: unknown };
@@ -69,4 +67,4 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     }
     return safeJsonError(error, "api:jobs/campaign", "JOB_CAMPAIGN_FAILED");
   }
-}
+});

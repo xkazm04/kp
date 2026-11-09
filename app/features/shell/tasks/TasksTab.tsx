@@ -102,9 +102,9 @@ export function TasksTab() {
 
       {startError ? (
         <div className="flex items-start gap-2 rounded-lg border border-coral/40 bg-coral/5 p-3">
-          <AlertTriangle size={15} className="mt-0.5 shrink-0 text-coral" aria-hidden />
+          <AlertTriangle size={15} className="mt-0.5 shrink-0 text-coral-ink" aria-hidden />
           <div className="min-w-0 flex-1">
-            <p className="text-base font-semibold text-coral">
+            <p className="text-base font-semibold text-coral-ink">
               {startError.kind === "cancel" ? t("cancelErrorTitle") : t("startErrorTitle")}
             </p>
             <p className="break-words text-sm text-steel">{startError.message}</p>
@@ -113,7 +113,7 @@ export function TasksTab() {
             type="button"
             onClick={clearStartError}
             title={t("dismiss")}
-            className="focus-ring shrink-0 rounded p-1 text-steel hover:bg-stone-100 hover:text-coral"
+            className="focus-ring shrink-0 rounded p-1 text-steel hover:bg-stone-100 hover:text-coral-ink"
           >
             <X size={14} aria-hidden />
           </button>

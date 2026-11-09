@@ -5,6 +5,7 @@ import { STAGES as PIPELINE_STAGES } from "@/app/features/shared/pipelineTypes";
 import type { ScreenDecisionRead } from "@/app/_lib/screen-wave-contract";
 import type { SimPhaseId } from "./constants";
 import type { SimMoveLog } from "./simMove";
+import type { SimLedgerStep } from "./simRunLedger";
 import type { SimResumePoint } from "./simWalkResume";
 
 // `error` is the explicit unavailable/timed-out state: set when the evaluation
@@ -68,6 +69,11 @@ export type SimState = {
   /** How each scripted move of this run reached the app (a real click, or the
    *  checked API fallback) and why it fell back. See simMove.ts. */
   moves: SimMoveLog;
+  /** This run's id (simRunLedger.ts), minted when the walk starts; null while idle. */
+  runId: string | null;
+  /** One record per finished chapter: the machine-readable measurement behind
+   *  "a full demo run with zero manual edits" (summarizeLedger reads it). */
+  ledger: SimLedgerStep[];
 };
 
 export type SimCtx = SimState & {
@@ -140,6 +146,8 @@ export const IDLE_STATE: SimState = {
   error: null,
   done: false,
   moves: {},
+  runId: null,
+  ledger: [],
 };
 
 // The transient run surface, cleared together whenever a run ends (done/stop/fail)

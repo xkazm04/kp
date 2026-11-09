@@ -71,7 +71,7 @@ export function MatchWeightsPanel({
         }}
         className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 py-1.5 text-sm font-semibold text-ink hover:border-coral/40"
       >
-        <SlidersHorizontal size={14} className="text-coral" /> {t("weights.adjustWeighting")}
+        <SlidersHorizontal size={14} className="text-coral-ink" /> {t("weights.adjustWeighting")}
       </button>
     );
   }

@@ -413,6 +413,8 @@ reported as `catalog: "ok" | "empty"`, which rides `isOperator()` with `tables`
 rather than the public verdict: how much business a deployment holds is not a
 readiness fact. Pinned by `app/api/health/seed-catalog-verdict.test.ts`.
 
+**`POST /api/voice/readiness` is gated by the voice off-switch.** With `KP_VOICE_INTERVIEW` unset the proxy answers it 404, like an unknown route, because the probe mints one credential per paid provider; the decision is made on the decoded, case-folded path so `/api/voice/%72eadiness` and re-cased spellings are refused too. `GET /api/voice/readiness` stays open (it never mints and the Spend strip reads "switched off" from it).
+
 ### 1.3 Public token surfaces carry a projection, not a row
 
 `/schedule/[token]`, `/interview/[token]`, `/offer/[token]`, `/status/[token]`,
@@ -701,7 +703,9 @@ literals is a shrinking holdout list in that test, never a new entry.
 
 Both are backstops, not deadlines, and both **kill the child and reject**:
 
-- `timeoutMs` — 10 minutes by default (`PYTHON_CMD` picks the interpreter).
+- `timeoutMs` — 10 minutes by default (`PYTHON_CMD`, then `KP_PYTHON`, names the
+  interpreter; unset, the first of the platform's candidates to answer `--version` at
+  3.11+ is probed once and cached — `app/_lib/python-runner-resolve.test.ts`).
 - `maxBufferBytes` — 64 MB of combined stdout+stderr, `PYTHON_MAX_BUFFER_MB` to
   override. Without it a chatty child accumulates its whole output in the Node
   heap and can OOM the server process, taking down every route rather than the

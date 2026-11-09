@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { listDevCasesForJob } from "@/app/_lib/db/devcase";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { safeJsonError } from "@/app/_lib/api-response";
 
@@ -17,14 +17,14 @@ import { safeJsonError } from "@/app/_lib/api-response";
 // leave here — the same discipline the public token routes state as "a projection, not
 // the row", applied to an internal surface because the payload is large as well as
 // sensitive.
-export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+export const GET = withWorkspace(async (ws: string, _request: Request, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const { id } = await context.params;
   try {
     // Workspace-scoped: an enumeration of a team's assignments, keyed by a job id the
     // caller supplied. The store filters on the session's workspace, never the job's.
-    const cases = listDevCasesForJob(id, await currentWorkspace()).map((c) => ({
+    const cases = listDevCasesForJob(id, ws).map((c) => ({
       id: c.id,
       title: c.title,
       roleTitle: c.roleTitle,
@@ -35,4 +35,4 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   } catch (error) {
     return safeJsonError(error, "api:jobs/assignments", "JOB_ASSIGNMENTS_FAILED");
   }
-}
+});

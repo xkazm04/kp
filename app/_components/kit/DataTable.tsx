@@ -23,6 +23,8 @@ export type Column = {
   /** Two-line primary cell: the row's one weight-600 name + a quiet small line. */
   primary?: boolean;
   quiet?: boolean;
+  /** A sortable column's state, set as `aria-sort` on its head cell (its `head` carries the control). */
+  sort?: "ascending" | "descending" | "none";
 };
 
 type Props<T> = {
@@ -45,6 +47,8 @@ type Props<T> = {
   metaSplit?: string;
   label: string;
   pagerExtra?: ReactNode;
+  /** The pager's "N rows in the DOM" footer. On by default; pass false to opt out. */
+  domFooter?: boolean;
   /** Change it when the rows are re-cut (a filter): the viewport returns to the top. */
   resetKey?: string;
 };
@@ -54,7 +58,7 @@ type Props<T> = {
  */
 export function DataTable<T>({
   rows, columns, cells, rowKey, rowState, visibleRows = 12, selectedKey, onSelect, state = "ready",
-  emptyText, loadingText, errorText, onRetry, metaSplit, label, pagerExtra, resetKey,
+  emptyText, loadingText, errorText, onRetry, metaSplit, label, pagerExtra, domFooter, resetKey,
 }: Props<T>) {
   const t = useTranslations("kit");
   const tc = useTranslations("common");
@@ -114,6 +118,7 @@ export function DataTable<T>({
           key={c.id}
           className={`k-th${c.numeric ? " is-num" : ""}${foldClass(c.track)}`}
           role="columnheader"
+          aria-sort={c.sort}
           style={{ gridColumn: columnTrack(c.track) }}
           data-tip={c.tip}
           tabIndex={c.tip ? 0 : undefined}
@@ -192,7 +197,7 @@ export function DataTable<T>({
       {head}
       {body}
       {total && state === "ready" ? (
-        <DataTablePager from={win.from || 1} to={win.to || vis} total={total} domRows={win.end - win.start} extra={pagerExtra} onPage={page} />
+        <DataTablePager from={win.from || 1} to={win.to || vis} total={total} domRows={win.end - win.start} domFooter={domFooter} extra={pagerExtra} onPage={page} />
       ) : null}
     </div>
   );

@@ -62,7 +62,7 @@ export function JdsTemplateManagerEditor({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 space-y-1">
           <p className="text-sm text-steel">
-            {t("placeholders")}{TEMPLATE_PLACEHOLDERS.map((p) => <code key={p} className="mr-1 rounded bg-paper px-1 text-coral">{`{{${p}}}`}</code>)}
+            {t("placeholders")}{TEMPLATE_PLACEHOLDERS.map((p) => <code key={p} className="mr-1 rounded bg-paper px-1 text-coral-ink">{`{{${p}}}`}</code>)}
           </p>
           {/* one-language-jd — the opt-in localization tokens: heading/filler that
               render in the JD's OUTPUT language (the seeded default uses them). A
@@ -72,7 +72,7 @@ export function JdsTemplateManagerEditor({
             {t("localizedTokens")}{TEMPLATE_LOCALIZED_TOKENS.map((p) => <code key={p} className="mr-1 rounded bg-paper px-1 text-moss">{`{{${p}}}`}</code>)}
           </p>
         </div>
-        <p className={`shrink-0 text-sm tabular-nums ${editing.body.length >= TEMPLATE_BODY_MAX_LENGTH * 0.9 ? "text-coral" : "text-steel"}`}>
+        <p className={`shrink-0 text-sm tabular-nums ${editing.body.length >= TEMPLATE_BODY_MAX_LENGTH * 0.9 ? "text-coral-ink" : "text-steel"}`}>
           {grouped(editing.body.length)} / {grouped(TEMPLATE_BODY_MAX_LENGTH)}
         </p>
       </div>

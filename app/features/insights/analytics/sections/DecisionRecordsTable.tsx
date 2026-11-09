@@ -24,6 +24,7 @@ import { localizedFailureMessage } from "../analyticsFetchError";
 import { ColumnFilter } from "@/app/_components/table/ColumnFilter";
 import { ColumnHead } from "@/app/_components/table/ColumnHead";
 import { clampPage, pageSlice, TablePager } from "@/app/_components/table/TablePager";
+import { TableStatus } from "@/app/_components/table/TableStatus";
 import { useTableSort } from "@/app/_components/table/useTableSort";
 import type { DecisionRecord } from "@/app/_lib/decision-record-store";
 import {
@@ -33,7 +34,7 @@ import {
   matchesSubject,
   resolveAuditTimeZone,
   shortHash,
-} from "../analyticsDecisionLogTypes";
+} from "@/app/_lib/analytics-decision-types";
 import { DecisionRecordDetail } from "./DecisionRecordDetail";
 import { META_LABEL, NOTICE } from "@/app/_components/ui/recipes";
 
@@ -116,6 +117,14 @@ export function DecisionRecordsTable({
   );
   const safePage = clampPage(page, filtered.length);
   const shown = pageSlice(filtered, safePage);
+  const sortTitle: Record<Col, string> = {
+    seq: t("colSeq"),
+    kind: t("colKind"),
+    subject: t("colSubject"),
+    actor: t("colActor"),
+    createdAt: t("colSealed"),
+    keyId: t("colKey"),
+  };
 
   // Facets from the FULL set, not the filtered view, so the option list doesn't
   // shrink as you narrow and strand the reader with no way back.
@@ -147,6 +156,7 @@ export function DecisionRecordsTable({
   return (
     <>
       <p className={`mt-3 ${META_LABEL}`}>{t("timeZoneNote", { zone })}</p>
+      <TableStatus columnTitle={sortTitle[sort.col]} dir={sort.dir} matched={filtered.length} filtered={Boolean(kind || actor || subject)} />
       {dossierError ? (
         <p role="alert" className="mt-2 text-sm text-red-700">
           {dossierError}
@@ -217,7 +227,7 @@ export function DecisionRecordsTable({
                       {subjectEntry?.live ? (
                         <Link
                           href={boardHref(subjectEntry.label)}
-                          className="focus-ring rounded text-ink underline-offset-2 hover:text-coral hover:underline"
+                          className="focus-ring rounded text-ink underline-offset-2 hover:text-coral-ink hover:underline"
                         >
                           {subjectEntry.label}
                         </Link>

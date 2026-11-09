@@ -90,7 +90,7 @@ export function BillingAlertsPanel({ alerts, onResolved }: { alerts: BillingAler
               </div>
             </div>
             {failure?.id === alert.id ? (
-              <p role="alert" className="mt-2 text-sm text-coral">
+              <p role="alert" className="mt-2 text-sm text-coral-ink">
                 {failure.text}
               </p>
             ) : null}

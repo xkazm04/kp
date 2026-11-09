@@ -59,7 +59,7 @@ test("every store-backed route routes its catch path through safeJsonError", () 
 });
 
 test("safeJsonError logs server-side and returns a generic message + stable code, never err.message", () => {
-  const src = read("../../_lib/api-response.ts");
+  const src = read("../../_lib/api-response.ts") + read("../../_lib/api-errors/store-errors.ts") + read("../../_lib/api-errors/refusal-errors.ts");
   assert.match(src, /export function safeJsonError/, "the shared responder must exist");
   // Full detail is logged server-side only...
   assert.match(src, /console\.error\(/, "safeJsonError must log the full error server-side");
@@ -92,12 +92,12 @@ test("every JD 404 is jsonRefusal JD_NOT_FOUND, never a bare English string", ()
     refusals += hits.length;
   }
   assert.equal(refusals, 11, "eleven JD 404s must carry JD_NOT_FOUND");
-  const registry = read("../../_lib/api-response.ts");
+  const registry = read("../../_lib/api-response.ts") + read("../../_lib/api-errors/store-errors.ts") + read("../../_lib/api-errors/refusal-errors.ts");
   assert.match(registry, /JD_NOT_FOUND:\s*"That job description could not be found\."/);
 });
 
 test("the stable-code catalogue covers every JD/template failure path", () => {
-  const src = read("../../_lib/api-response.ts");
+  const src = read("../../_lib/api-response.ts") + read("../../_lib/api-errors/store-errors.ts") + read("../../_lib/api-errors/refusal-errors.ts");
   for (const code of [
     "JD_LIST_FAILED",
     "JD_LOAD_FAILED",

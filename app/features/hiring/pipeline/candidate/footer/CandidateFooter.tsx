@@ -4,7 +4,7 @@
 // interfaces (the Scorecard's footer and the Actions tab) that offered overlapping
 // doors to the same operations.
 //
-//   [ move to step ▾ ]  [ AI actions this step offers… ]  [ voice link ] [ scheduling link ]   [ Move to {next} → ]
+//   [ move to step ▾ ]  [ AI actions this step offers… ]  [ voice link ] [ scheduling link ] [ work sample ]   [ Move to {next} → ]
 //
 // Which AI actions appear is the column's rule (app/_lib/stage-ai-actions.ts): the
 // workspace's own list from Settings → Hiring, else the product default by role —
@@ -12,12 +12,15 @@
 // produces opens in the TRAY above the bar (CandidateFooterTray), so the tab being
 // read stays where it is.
 
+import { useVoiceEnabled } from "@/app/_lib/voice/use-voice-enabled";
+import { voiceSurfaceVisible } from "@/app/_lib/voice/enabled";
 import { useState } from "react";
 import {
   ArrowRight,
   Ban,
   Banknote,
   CalendarClock,
+  ClipboardCheck,
   ClipboardList,
   Mail,
   Mic,
@@ -32,6 +35,7 @@ import type { StageAiAction, StageDef } from "@/app/_lib/pipeline-stages";
 import { offeredStageActions } from "@/app/_lib/stage-ai-actions";
 import type { Entry } from "@/app/features/shared/pipelineTypes";
 import { moveStageSelectValues } from "../../pipelineMoveTargets";
+import { offersManualOfferDraft } from "../candidateView";
 import type { CandidateState } from "../state/useCandidateState";
 import { CandidateFooterTray, type TrayView } from "./CandidateFooterTray";
 
@@ -54,6 +58,8 @@ export function CandidateFooter({
   nextStage,
   stageLabel,
   labelOf,
+  onOpenScorecard,
+  onChanged,
 }: {
   entry: Entry;
   axis: readonly StageDef[];
@@ -62,11 +68,17 @@ export function CandidateFooter({
   stageLabel: (stage: StageDef) => string;
   /** A stage id's display label (workspace-renamed or catalog). */
   labelOf: (stageId: string) => string;
+  /** Opens the prep modal holding the human scorecard. Absent off an interview step. */
+  onOpenScorecard?: () => void;
+  /** Re-reads the entry after a hand-drafted offer raises its approval. */
+  onChanged: () => void;
 }) {
   const t = useTranslations("pipeline.candidate.footer");
   const tDrawer = useTranslations("pipeline.drawer");
   const tActions = useTranslations("pipeline.actions");
   const tScore = useTranslations("pipeline.candidate.scorecard");
+  const tSchedule = useTranslations("scheduleTab");
+  const voiceOn = voiceSurfaceVisible(useVoiceEnabled());
   const [tray, setTray] = useState<TrayView | null>(null);
   const actions = offeredStageActions(entry, axis);
   const active = entry.status === "active";
@@ -78,7 +90,7 @@ export function CandidateFooter({
 
   return (
     <footer aria-label={t("aria")} className="shrink-0 border-t border-stone-200 bg-white">
-      {tray ? <CandidateFooterTray view={tray} entry={entry} st={st} onClose={() => setTray(null)} /> : null}
+      {tray ? <CandidateFooterTray view={tray} entry={entry} st={st} onChanged={onChanged} onClose={() => setTray(null)} /> : null}
       <div className="flex flex-wrap items-center gap-2 px-4 py-3 sm:px-6">
         {active ? (
           <Select
@@ -111,10 +123,10 @@ export function CandidateFooter({
                   disabled={st.busy !== null}
                   aria-busy={running}
                   className={`focus-ring inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 text-sm font-semibold transition-colors disabled:cursor-wait disabled:opacity-50 ${
-                    last ? "border-coral bg-coral/5 text-coral" : "border-stone-200 bg-white text-ink hover:border-coral/40"
+                    last ? "border-coral bg-coral/5 text-coral-ink" : "border-stone-200 bg-white text-ink hover:border-coral/40"
                   }`}
                 >
-                  <Icon size={14} className="shrink-0 text-coral" aria-hidden />
+                  <Icon size={14} className="shrink-0 text-coral-ink" aria-hidden />
                   {running ? tDrawer("working") : tActions(id)}
                 </button>
               );
@@ -122,15 +134,38 @@ export function CandidateFooter({
           )}
         </div>
 
+        {/* A person's own rating, deliberately outside the AI actions group above. */}
+        {onOpenScorecard ? (
+          <button type="button" onClick={onOpenScorecard} className={LINK_BTN}>
+            <ClipboardList size={14} className="text-coral-ink" aria-hidden /> {tSchedule("prepScorecard")}
+          </button>
+        ) : null}
+
+        {offersManualOfferDraft(entry, axis) ? (
+          <button type="button" aria-expanded={tray === "manualOffer"} onClick={() => toggle("manualOffer")} className={LINK_BTN}>
+            <Banknote size={14} className="text-coral-ink" aria-hidden /> {t("manualOffer")}
+          </button>
+        ) : null}
+
         {st.showLinks ? (
           <>
-            <button type="button" aria-expanded={tray === "voice"} onClick={() => toggle("voice")} className={LINK_BTN}>
-              <Mic size={14} className="text-coral" aria-hidden /> {t("voiceLink")}
-            </button>
+            {voiceOn ? (
+              <button type="button" aria-expanded={tray === "voice"} onClick={() => toggle("voice")} className={LINK_BTN}>
+                <Mic size={14} className="text-coral-ink" aria-hidden /> {t("voiceLink")}
+              </button>
+            ) : null}
             <button type="button" aria-expanded={tray === "schedule"} onClick={() => toggle("schedule")} className={LINK_BTN}>
-              <CalendarClock size={14} className="text-coral" aria-hidden /> {t("scheduleLink")}
+              <CalendarClock size={14} className="text-coral-ink" aria-hidden /> {t("scheduleLink")}
             </button>
           </>
+        ) : null}
+
+        {/* Send this role's assignment to this candidate (CX S43) — the homework column's
+            own send, for a board without one. Any step: a work sample is not tied to a column. */}
+        {active && entry.jobId ? (
+          <button type="button" aria-expanded={tray === "workSample"} onClick={() => toggle("workSample")} className={LINK_BTN}>
+            <ClipboardCheck size={14} className="text-coral-ink" aria-hidden /> {t("workSampleAction")}
+          </button>
         ) : null}
 
         {tray !== "result" && (st.result || st.error) ? (

@@ -222,7 +222,7 @@ const INVITES_ADDED = [
   "reconcile_reason", "needs_more_slots", "more_slots_flagged_at", "duration_min", "reschedule_count",
   "candidate_tz", "attendance_status", "attendance_at", "meeting_url", "workspace_id", "proposals",
   "proposals_at", "proposal_status", "calendar_event_id", "calendar_event_link", "calendar_event_state",
-  "calendar_event_at",
+  "calendar_event_at", "nudge_sent_at", "nudge_attempts", "nudge_last_attempt_at",
 ];
 
 test("case 5: offers/scheduler/schedule stores gain every column on a legacy DB, and a second process issues no ALTER", () => {

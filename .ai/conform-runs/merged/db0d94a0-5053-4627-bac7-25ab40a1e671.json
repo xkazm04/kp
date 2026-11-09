@@ -1,0 +1,194 @@
+{
+ "schema": "conform-run/1",
+ "worker": "db0d94a0-5053-4627-bac7-25ab40a1e671",
+ "subject": "release-pipeline",
+ "evaluatedAt": "2026-10-17T02:46:58.749993+00:00",
+ "provider": "grok",
+ "model": "grok-4.7",
+ "pairs": [
+  {
+   "context": "release-pipeline",
+   "subject": "release-pipeline",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "scripts/release/prepare.mjs:279 The operator is told to push the version tag first, and that tag is what starts the workflow, so the public version claim exists before the image build has succeeded.",
+   "techniques": [
+    {
+     "technique": "announcing-versus-silent-breakage",
+     "verdict": "deviation",
+     "evidence": "docs/architecture/releases.md:36 A changed default is classed as major. The release scripts add no process-wide restore switch and no probe; check-chart.mjs only fails when a required env key is absent."
+    },
+    {
+     "technique": "changelog-generation",
+     "verdict": "deviation",
+     "evidence": "scripts/release/prepare.mjs:90 An empty user-facing cut becomes a placeholder and the section is still returned. refactor, style and docs stay in the note; the dry-run count is the unfiltered subject list. Internal kinds are dropped unless --include-internal."
+    },
+    {
+     "technique": "deprecation-by-version-arithmetic",
+     "verdict": "not-applicable",
+     "evidence": "scripts/release/prepare.mjs:43 Searched scripts/release for deprecat, since and removed. The section table has a breaking bucket and no since/removed operand; these scripts do not mark public symbols."
+    },
+    {
+     "technique": "pipeline-staging",
+     "verdict": "deviation",
+     "evidence": "scripts/release/prepare.mjs:279 release.yml on.push.tags is the build. Gate checks run after the tag exists; docker push is inside the build step. A failed publish leaves a public tag with no image."
+    },
+    {
+     "technique": "release-level-by-reader-reach",
+     "verdict": "conformant",
+     "evidence": "docs/architecture/releases.md:32 Level is stated from the self-host readers (env contract, database, inbox URLs, Helm values). prepare.mjs does not derive minor/major from commit types; the operator passes --version. A new optional variable is minor, one step above patch."
+    },
+    {
+     "technique": "release-verification",
+     "verdict": "deviation",
+     "evidence": ".github/workflows/release.yml:200 The image is pushed in the build step. The gate job re-runs the source suite, checks tag against package.json, and refuses a thin SBOM; nothing installs the image and asks it its version before the registry write."
+    },
+    {
+     "technique": "size-budgets",
+     "verdict": "deviation",
+     "evidence": ".github/workflows/release.yml:286 The packaged chart is listed. Searched scripts/release, scripts/deploy and release.yml for an artifact byte baseline or size ceiling; none is consulted before push."
+    },
+    {
+     "technique": "updater-chain",
+     "verdict": "not-applicable",
+     "evidence": "docs/architecture/releases.md:14 Operators pin an image tag or Helm appVersion. No component in this path polls a feed and applies an update to an installed copy."
+    },
+    {
+     "technique": "version-single-truth",
+     "verdict": "deviation",
+     "evidence": "scripts/release/prepare.mjs:276 One command writes package.json, Chart.yaml appVersion and CHANGELOG, and checkCoherence fails if those disagree. package-lock.json line 9 also stores the root version and is neither written nor read by that gate. The new version is not required to sort after the current one; an unparseable version is refused."
+    }
+   ],
+   "registryProposal": "updater-chain never says a pull-only server deploy is out of scope, while the golden path says server deployment is the same doctrine with an escape hatch. Add a when-not-to: if operators pin an image or chart and no component applies an update, updater-chain does not apply."
+  },
+  {
+   "context": "tests-pipeline-automation",
+   "subject": "release-pipeline",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "pipeline/jobfit/tests/test_pipeline.py:1 These files test the CV analysis pipeline; a search of pipeline/jobfit/tests for changelog, appVersion, semver and sbom found none of that release vocabulary.",
+   "techniques": [],
+   "absenceTerms": [
+    "changelog",
+    "appVersion",
+    "semver",
+    "sbom"
+   ]
+  },
+  {
+   "context": "jobs-posting-campaign",
+   "subject": "release-pipeline",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/library/jobs/jobsPostingLifecycle.ts:10 This module tracks a job requisition's draft, published and closed status; a search of app/features/library/jobs for changelog, appVersion, semver and sbom found none.",
+   "techniques": [],
+   "absenceTerms": [
+    "changelog",
+    "appVersion",
+    "semver",
+    "sbom"
+   ]
+  },
+  {
+   "context": "tests-cv-extraction",
+   "subject": "release-pipeline",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "pipeline/jobfit/tests/test_extractors.py:1 These files test CV text extraction and related pins; a search of pipeline/jobfit/tests for changelog, appVersion, semver and sbom found none.",
+   "techniques": [],
+   "absenceTerms": [
+    "changelog",
+    "appVersion",
+    "semver",
+    "sbom"
+   ]
+  },
+  {
+   "context": "jobs-api",
+   "subject": "release-pipeline",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/jobs/[id]/publish/route.ts:27 This route publishes a job requisition; a search of app/api/jobs for changelog, appVersion, semver and sbom found none.",
+   "techniques": [],
+   "absenceTerms": [
+    "changelog",
+    "appVersion",
+    "semver",
+    "sbom"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-17T02:46:58.749993+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "release-pipeline"
+   ],
+   "techniques": [
+    "announcing-versus-silent-breakage",
+    "changelog-generation",
+    "deprecation-by-version-arithmetic",
+    "pipeline-staging",
+    "release-level-by-reader-reach",
+    "release-verification",
+    "size-budgets",
+    "updater-chain",
+    "version-single-truth"
+   ],
+   "deviations": 1,
+   "context": "release-pipeline",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  },
+  {
+   "ts": "2026-10-17T02:46:58.749993+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "release-pipeline"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "tests-pipeline-automation",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  },
+  {
+   "ts": "2026-10-17T02:46:58.749993+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "release-pipeline"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "jobs-posting-campaign",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  },
+  {
+   "ts": "2026-10-17T02:46:58.749993+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "release-pipeline"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "tests-cv-extraction",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  },
+  {
+   "ts": "2026-10-17T02:46:58.749993+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "release-pipeline"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "jobs-api",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  }
+ ]
+}

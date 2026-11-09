@@ -20,7 +20,7 @@
 // nothing: it returns EFFECTS (probe, start, applyMode, markEvaluated) and the thin
 // hook (useGroupEvalOpen.ts) performs them. React-free so node:test can drive it.
 import { syncGovernanceOnCacheHit, type GovernanceCacheMismatch } from "./governanceCacheSync";
-import { selectionCacheKey } from "./cache-key";
+import { selectionCacheKey } from "@/app/_lib/group-eval-cache-key";
 import type { GroupEvalPayload } from "@/app/features/shared/groupEvalTypes";
 import type { GovernanceMode } from "@/app/_lib/group-eval-governance";
 import type { Group } from "../decisionsQueueTypes";

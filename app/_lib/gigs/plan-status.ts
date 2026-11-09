@@ -142,11 +142,10 @@ export function parsePlanStatus(text: string, keys: ReadonlySet<string>): Map<st
 export function readPlanStatusFile(workdir: string): string | null {
   const file = path.join(workdir, GIG_PLAN_STATUS_FILE);
   try {
-    if (!lstatSync(file).isFile()) return null;
-    // Judge the size on the OPEN descriptor, then read that same descriptor: a path-level
-    // stat followed by a path-level read can see two different files (js/file-system-race).
+    // Judge and read the OPEN descriptor, never two path lookups (js/file-system-race).
     const fd = openSync(file, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0));
     try {
+      if (!lstatSync(file).isFile()) return null;
       const st = fstatSync(fd);
       if (!st.isFile() || st.size > GIG_PLAN_STATUS_MAX_BYTES) return null;
       return readFileSync(fd, "utf8");

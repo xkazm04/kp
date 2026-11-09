@@ -1,0 +1,256 @@
+{
+  "schema": "conform-run/1",
+  "worker": "f2cfef90-1796-4da5-a39c-e87a7b804da5",
+  "subject": "model-routing",
+  "evaluatedAt": "2026-10-17T04:31:42.401150+00:00",
+  "provider": "grok",
+  "model": "grok-4.7",
+  "pairs": [
+    {
+      "context": "voice-provider-io",
+      "subject": "model-routing",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/_lib/voice/openai.ts:15 The OpenAI voice adapter chooses the realtime model from an environment variable inside the provider, so every session changes with no call-site parameter, no consumer, and no expiry.",
+      "techniques": [
+        {
+          "technique": "turn-classification",
+          "verdict": "deviation",
+          "evidence": "app/_lib/voice/minute-prices.ts:95 The usage row stamps one fixed label after the session; that label does not select a tier or an effort, and the model is chosen in the adapter."
+        },
+        {
+          "technique": "effort-calibration",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/voice/openai.ts:217 The only eagerness dial is semantic voice-activity detection, not a reasoning-effort setting on the model."
+        },
+        {
+          "technique": "routing-policy",
+          "verdict": "deviation",
+          "evidence": "app/_lib/voice/provider-traits.ts:82 The free-provider must not fail onto a paid one is a conditional in the evaluator, not a data rule with an owner that warns at edit time."
+        },
+        {
+          "technique": "consumer-overrides",
+          "verdict": "deviation",
+          "evidence": "app/_lib/voice/openai.ts:15 The model override is read from the environment inside the adapter, so it is an invisible global with no reaper."
+        },
+        {
+          "technique": "capability-floors",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/voice/provider-traits.ts:25 Providers differ by wire transport, not by an ordinal model tier below which the interview still returns a plausible answer."
+        },
+        {
+          "technique": "admission-is-not-a-tier",
+          "verdict": "deviation",
+          "evidence": "app/_lib/voice/connect-failover.ts:63 Failover to ElevenLabs still succeeds while that provider ignores the tool list the caller handed to every dial."
+        },
+        {
+          "technique": "policy-governance",
+          "verdict": "deviation",
+          "evidence": "app/_lib/voice/minute-prices.ts:93 The ledger row takes the serving provider and a minute count; it has no policy version, rule chain, or failover flag."
+        },
+        {
+          "technique": "model-identity",
+          "verdict": "conformant",
+          "evidence": "app/_lib/voice/minute-prices.ts:81 Attribution identity is the trait the roster declares: the realtime model id, or else the ElevenLabs agent id, not a guess from behavior."
+        },
+        {
+          "technique": "failover-horizon",
+          "verdict": "deviation",
+          "evidence": "app/_lib/voice/minute-prices.ts:103 A completed billed session is recorded as ok without a check that the interview produced a usable answer, and failedOver never enters this row."
+        },
+        {
+          "technique": "failover-path-liveness",
+          "verdict": "deviation",
+          "evidence": "app/_lib/voice/connect-failover.test.ts:97 The transition is proven by a stubbed adapter test only; nothing states that this is the weaker, non-production claim, and there is no bounded live injection."
+        },
+        {
+          "technique": "candidate-ranking",
+          "verdict": "deviation",
+          "evidence": "app/_lib/voice/provider-traits.ts:70 Alternate order is a fixed canonical list plus an availability filter, not a live score with a window and a sample size."
+        },
+        {
+          "technique": "quality-axis-separation",
+          "verdict": "deviation",
+          "evidence": "app/_lib/voice/minute-prices.ts:104 The usage row writes a success because the session was billed, so transport completion is stored as the outcome."
+        },
+        {
+          "technique": "cache-continuity",
+          "verdict": "conformant",
+          "evidence": "app/_lib/voice/connect-failover.ts:47 Substitution happens only when connect throws, before a session exists, so a live interview is not moved onto another model."
+        }
+      ]
+    },
+    {
+      "context": "models-keys-and-routing",
+      "subject": "model-routing",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:14 The operator table pins a named provider and model string for each feature use case, which is the routing decision, and it does not map a closed call class to a tier and an effort.",
+      "techniques": [
+        {
+          "technique": "turn-classification",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/models/modelsRoutingSections.ts:1 The vocabulary is about twenty-five feature use cases, each pinned to a provider and model, which is a class per feature rather than a tier-and-effort pair."
+        },
+        {
+          "technique": "effort-calibration",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/models/modelsRoutingActions.ts:18 A save preserves maxTokens and timeoutS and never sets reasoning effort, so a capped call inherits the provider default."
+        },
+        {
+          "technique": "routing-policy",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:141 Some use cases are bound to a call-site provider and model that this table cannot change, so not every call is decided at one door."
+        },
+        {
+          "technique": "consumer-overrides",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/models/ModelsRoutingRow.tsx:51 A call-site pin is shown as locked with no removal condition on this surface."
+        },
+        {
+          "technique": "capability-floors",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/ModelsRoutingRow.tsx:17 The floor named here is the deterministic template that served instead of a model, not a measured minimum tier the pin is forbidden to cross."
+        },
+        {
+          "technique": "admission-is-not-a-tier",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/models/modelsKeysPanelLogic.ts:79 A self-hosted endpoint is stored as a base URL on a provider row, with no declared dialect, context limit, or admission surface."
+        },
+        {
+          "technique": "policy-governance",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/models/ModelsQualityOverview.tsx:240 A routing change applies on one click; the stale-write check stops a lost update and is not a reviewed before/after diff or a policy version."
+        },
+        {
+          "technique": "model-identity",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/models/modelsRoutingHealth.ts:82 Drift is raised only when the served provider differs; a different model on the pinned provider stays serving."
+        },
+        {
+          "technique": "failover-horizon",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/modelsRoutingHealth.ts:18 The row classifies a finished ledger read; it does not decide whether a candidate can still be swapped before the first byte."
+        },
+        {
+          "technique": "failover-path-liveness",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/modelsRoutingHealth.test.ts:3 The template fallback is something the ledger already recorded; this classifier does not inject or withhold the primary."
+        },
+        {
+          "technique": "candidate-ranking",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/models/ModelsQualityOverview.tsx:238 Order is a baked noise-band then minimum cost, not a live convex score with a named window and sample size."
+        },
+        {
+          "technique": "quality-axis-separation",
+          "verdict": "deviation",
+          "evidence": "app/_lib/llm-quality.ts:439 The pick the Pin button writes drops any model whose llmRate is under 0.9 before quality and cost are combined, so an operational ratio is a gate."
+        },
+        {
+          "technique": "cache-continuity",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/ModelsTab.tsx:14 The decision this tab stores is a standing use-case pin; the directory has no prompt-prefix or mid-conversation swap."
+        }
+      ],
+      "registryProposal": "turn-classification's three-to-five semantic classes and capability-floors' per-capability measurement pull apart: a product that measures breakage per capability, as this table does with one row per use case, has no legal place to put that row without either becoming a class-per-feature or hiding the floor inside a shared class."
+    }
+  ],
+  "declined": [
+    {
+      "subject": "model-routing",
+      "context": "group-eval-comparison",
+      "reason": "conformant with fewer than two techniques shown realized"
+    },
+    {
+      "subject": "model-routing",
+      "context": "candidate-profile",
+      "reason": "conformant with fewer than two techniques shown realized"
+    },
+    {
+      "subject": "model-routing",
+      "context": "profile-roster-matrix",
+      "reason": "withdrawn after review: reviewer (sonnet): The not-applicable rests on ProfileRoster.tsx:25, which is only an import or comment line and shows no absence of an LLM call. The absence search was also narrow: the roster renders ProfileRosterRefreshBar and an onRebuild flow, and I could not confirm that neither of them starts a model call."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-17T04:31:42.401150+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "model-routing"
+      ],
+      "techniques": [
+        "admission-is-not-a-tier",
+        "cache-continuity",
+        "candidate-ranking",
+        "capability-floors",
+        "consumer-overrides",
+        "effort-calibration",
+        "failover-horizon",
+        "failover-path-liveness",
+        "model-identity",
+        "policy-governance",
+        "quality-axis-separation",
+        "routing-policy",
+        "turn-classification"
+      ],
+      "deviations": 1,
+      "context": "voice-provider-io",
+      "via": "curator-multi:grok",
+      "model": "grok-4.7"
+    },
+    {
+      "ts": "2026-10-17T04:31:42.401150+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "model-routing"
+      ],
+      "techniques": [
+        "admission-is-not-a-tier",
+        "cache-continuity",
+        "candidate-ranking",
+        "capability-floors",
+        "consumer-overrides",
+        "effort-calibration",
+        "failover-horizon",
+        "failover-path-liveness",
+        "model-identity",
+        "policy-governance",
+        "quality-axis-separation",
+        "routing-policy",
+        "turn-classification"
+      ],
+      "deviations": 1,
+      "context": "models-keys-and-routing",
+      "via": "curator-multi:grok",
+      "model": "grok-4.7"
+    },
+    {
+      "ts": "2026-10-17T04:31:42.401150+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "model-routing"
+      ],
+      "techniques": [
+        "admission-is-not-a-tier",
+        "cache-continuity",
+        "candidate-ranking",
+        "capability-floors",
+        "consumer-overrides",
+        "effort-calibration",
+        "failover-horizon",
+        "failover-path-liveness",
+        "model-identity",
+        "policy-governance",
+        "quality-axis-separation",
+        "routing-policy",
+        "turn-classification"
+      ],
+      "deviations": 0,
+      "context": "profile-roster-matrix",
+      "via": "curator-multi:grok",
+      "model": "grok-4.7"
+    }
+  ]
+}

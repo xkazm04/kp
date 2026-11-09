@@ -10,7 +10,9 @@ import { useDeliveryCapability } from "@/app/features/shell/useDeliveryCapabilit
 import { commsStatusLabels, displayRecipient, type Message, type ReceiptLabels, type RefInfo } from "../../channelsCommsHelpers";
 import { VERDICT_MARK, humanKind, ledgerName, ledgerRole } from "../ledger/channelsNightLedgerModel";
 import { CorrectAddressDoor, RetryDoor } from "./ChannelsNightResendDoor";
+import { ChannelsNightHandSend } from "./ChannelsNightHandSend";
 import { ChannelsNightMessageTimeline } from "./ChannelsNightMessageTimeline";
+import { canHandSend } from "./letterHandSend";
 import { deliveryTimeline, messageNote } from "./channelsNightMessageModel";
 import "./message.css";
 
@@ -24,7 +26,9 @@ import "./message.css";
  * re-dispatched, a bounce to a corrected address), or, for mail queued with no relay, the relay's
  * own level, with the truth that configuring it does not send this letter. The prototype's
  * "hand the queue to the relay", "resend a copy" of a sent letter and "recover" of an unmatched
- * receipt have no API behind them and are not offered. An unaddressable recipient is the caution
+ * receipt have no API behind them and are not offered. A letter that did not reach the candidate
+ * (queued, failed, bounced) also offers "send it yourself" (ChannelsNightHandSend: copy, or open in
+ * the reader's mail program), which writes nothing and says so. An unaddressable recipient is the caution
  * note from the shared predicate (isUnaddressable), never a read of the raw bit: the drawer and
  * this letter tell one truth (drawerCommsTruth.test.ts).
  */
@@ -49,6 +53,8 @@ export function ChannelsNightLetter({ message: m, refs, receipt, relayConfigured
   const name = ledgerName(m, refs, receipt);
   const recipient = displayRecipient(m, receipt);
   const configure = verdict === "queued" && !relayConfigured;
+  const hand = canHandSend(m);
+  const acts = Boolean(door || configure || hand);
 
   const noteText =
     note?.key === "queuedNoRelay" ? tm.rich("note.queuedNoRelay", { name, b: (c) => <b>{c}</b> })
@@ -80,22 +86,23 @@ export function ChannelsNightLetter({ message: m, refs, receipt, relayConfigured
       />
       {note && noteText ? <Note tone={note.tone}>{noteText}</Note> : null}
       {isUnaddressable(m, relay) ? <Note tone="caution">{t("noAddressHint")}</Note> : null}
-      <div className="cn-msg__grid" data-acts={door || configure ? "1" : undefined}>
-        {door || configure ? (
+      <div className="cn-msg__grid" data-acts={acts ? "1" : undefined}>
+        {acts ? (
           <section className="cn-msg__part cn-msg__acts">
             <h3 className="cn-msg__h">{tm("act.title")}</h3>
             {door === "correctAddress" ? (
               <CorrectAddressDoor id={m.id} defaultRecipient={m.recipient} onResent={onResent} />
             ) : door === "retry" ? (
               <RetryDoor id={m.id} onResent={onResent} />
-            ) : (
+            ) : configure ? (
               <div className="cn-door">
                 <div className="cn-door__row">
                   <Button variant="primary" icon="right" label={tn("cta")} onClick={(e) => onConfigureRelay(e.currentTarget)} data-level-key="door" />
                 </div>
                 <p className="cn-door__help">{tm("act.configureHelp")}</p>
               </div>
-            )}
+            ) : null}
+            {hand ? <ChannelsNightHandSend message={m} /> : null}
           </section>
         ) : null}
         <ChannelsNightMessageTimeline steps={deliveryTimeline(m, relayConfigured)} />

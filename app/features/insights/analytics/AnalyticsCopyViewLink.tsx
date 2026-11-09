@@ -65,7 +65,7 @@ export function AnalyticsCopyViewLink({ section, days, job = null }: { section: 
         type="button"
         onClick={copy}
         title={t("copyViewLinkTitle")}
-        className="focus-ring inline-flex items-center gap-1.5 rounded-full border border-stone-200 px-3 py-1 text-sm font-semibold text-steel transition-colors hover:border-coral/40 hover:text-coral"
+        className="focus-ring inline-flex items-center gap-1.5 rounded-full border border-stone-200 px-3 py-1 text-sm font-semibold text-steel transition-colors hover:border-coral/40 hover:text-coral-ink"
       >
         {state.kind === "copied" ? (
           <Check size={13} className="text-moss" aria-hidden />

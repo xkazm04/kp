@@ -71,7 +71,7 @@ export function DecisionsBatchBar({
             {t(bulkResult.verb === "accepted" ? "batch.accepted" : "batch.rejected", { count: bulkResult.ok })}
           </span>
           {bulkResult.failed > 0 ? (
-            <span className="font-semibold text-coral">
+            <span className="font-semibold text-coral-ink">
               {" · "}
               {t("batch.failed", { count: bulkResult.failed })}
             </span>
@@ -86,12 +86,12 @@ export function DecisionsBatchBar({
           </button>
           {confirmingBulkReject ? (
             <>
-              <span className="text-sm font-semibold text-coral">{t("batch.rejectConfirm", { count: selectedReviews.length })}</span>
+              <span className="text-sm font-semibold text-coral-ink">{t("batch.rejectConfirm", { count: selectedReviews.length })}</span>
               <button
                 type="button"
                 onClick={() => void bulkDecideReviews("reject")}
                 disabled={bulkBusy}
-                className="focus-ring cursor-pointer rounded-md bg-coral px-3 py-1 text-sm font-semibold text-white hover:bg-coral/90 disabled:opacity-50"
+                className="focus-ring cursor-pointer rounded-md bg-coral-solid px-3 py-1 text-sm font-semibold text-white hover:bg-coral-solid/90 disabled:opacity-50"
               >
                 {bulkBusy ? t("batch.rejecting") : t("batch.rejectConfirmYes")}
               </button>
@@ -109,7 +109,7 @@ export function DecisionsBatchBar({
               type="button"
               onClick={() => setConfirmingBulkReject(true)}
               disabled={bulkBusy}
-              className="focus-ring cursor-pointer rounded-md border border-coral/40 bg-white px-3 py-1 text-sm font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
+              className="focus-ring cursor-pointer rounded-md border border-coral/40 bg-white px-3 py-1 text-sm font-semibold text-coral-ink hover:bg-coral/5 disabled:opacity-50"
             >
               {t("batch.reject", { count: selectedReviews.length })}
             </button>

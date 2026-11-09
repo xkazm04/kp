@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { isHomeOrgReader, isOperator } from "@/app/_lib/auth/require-operator";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { isEntityKind, isPreviewableTab, resolveEntityPreview, resolveTabPreview } from "@/app/_lib/palette-preview";
@@ -15,13 +15,12 @@ import { isEntityKind, isPreviewableTab, resolveEntityPreview, resolveTabPreview
 // models) follow the home-org gate their data routes use (requireHomeOrgReader).
 const MAX_ID_LENGTH = 128;
 
-export async function GET(request: Request) {
+export const GET = withWorkspace(async (ws: string, request: Request) => {
   try {
     const { searchParams } = new URL(request.url);
     const tab = searchParams.get("tab");
     const type = searchParams.get("type");
     const id = (searchParams.get("id") ?? "").slice(0, MAX_ID_LENGTH);
-    const ws = await currentWorkspace();
     if (tab) {
       if (!isPreviewableTab(tab)) return NextResponse.json({ preview: { view: "missing" } });
       return NextResponse.json({ preview: await resolveTabPreview(tab, ws, await isOperator(), await isHomeOrgReader()) });
@@ -33,4 +32,4 @@ export async function GET(request: Request) {
   } catch (error) {
     return safeJsonError(error, "api:palette/preview", "SEARCH_FAILED");
   }
-}
+});

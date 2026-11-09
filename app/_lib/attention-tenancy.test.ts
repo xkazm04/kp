@@ -72,7 +72,7 @@ const routeSrc = readFileSync(path.join(HERE, "..", "api", "attention", "route.t
 const navSrc = readFileSync(path.join(HERE, "..", "features", "shell", "WorkspaceNav.tsx"), "utf8");
 
 test("both call sites pass the session workspace", () => {
-  assert.match(routeSrc, /attentionCounts\(await currentWorkspace\(\)\)/, "/api/attention scopes to the session");
+  assert.match(routeSrc, /attentionCounts\(ws\)/, "/api/attention scopes to the session");
   assert.match(navSrc, /attentionCounts\(await currentWorkspace\(\)\)/, "the server-rendered nav scopes to the session");
 });
 

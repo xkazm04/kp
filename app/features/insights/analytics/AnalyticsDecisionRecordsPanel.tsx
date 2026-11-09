@@ -12,7 +12,7 @@ import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
 import { matchVerdictReasons, waveReasonText } from "@/app/_lib/decision-attribution";
 import { MATCH_VERDICT_KIND } from "@/app/_lib/match-verdict";
 import type { MatchReasonsTranslator } from "@/app/features/insights/matrix/focus/matchReasons";
-import { resolveAuditTimeZone } from "./analyticsDecisionLogTypes";
+import { resolveAuditTimeZone } from "@/app/_lib/analytics-decision-types";
 import { DecisionRecordsTable } from "./sections/DecisionRecordsTable";
 // `import type` only — decision-record-store has server imports; types are erased.
 import type { DecisionRecord, ChainVerdict } from "@/app/_lib/decision-record-store";
@@ -182,7 +182,7 @@ export function DecisionRecordsPanel() {
               what it now says, in those words, with the ceiling beside it: a key set
               tomorrow cannot retro-seal what was sealed today. */}
           {!data.chain.ok ? (
-            <div className="mt-4 flex items-center gap-2 rounded-md border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral" role="alert">
+            <div className="mt-4 flex items-center gap-2 rounded-md border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral-ink" role="alert">
               <ShieldAlert className="h-4 w-4" aria-hidden />
               {t("broken", { seq: data.chain.brokenAtSeq ?? 0 })}
             </div>

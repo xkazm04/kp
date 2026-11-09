@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { consentWithholdsPii, redactTranscriptForConsent } from "@/app/_lib/consent";
 import { getInterviewSessionInWorkspace } from "@/app/_lib/db/interviews";
@@ -12,12 +12,11 @@ import { getPipelineEntry } from "@/app/_lib/db/pipeline";
 // conversation it paid for through this door. Operator-gated, scoped to the
 // caller's workspace (a foreign or unknown id answers 404), consent-redacted like
 // the entry-keyed read, and NEVER carries the candidate's bearer token.
-export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const GET = withWorkspace(async (ws: string, _request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { id } = await context.params;
-    const ws = await currentWorkspace();
     const session = getInterviewSessionInWorkspace(id, ws);
     if (!session) return jsonRefusal("INTERVIEW_SESSION_NOT_FOUND", 404);
     const entry = session.entryId ? getPipelineEntry(session.entryId, ws) : null;
@@ -29,4 +28,4 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
   } catch (error) {
     return safeJsonError(error, "api:interview:sessions/[id]", "INTERVIEW_LOOKUP_FAILED");
   }
-}
+});

@@ -92,7 +92,7 @@ function chipText(item: unknown): string {
 
 function Scalar({ value }: { value: unknown }) {
   const t = useTranslations("common");
-  if (value === null || value === undefined) return <span className="text-steel/60">—</span>;
+  if (value === null || value === undefined) return <span className="text-steel">—</span>;
   if (typeof value === "boolean") {
     return <span className={value ? "font-medium text-moss" : "text-steel"}>{value ? t("yes") : t("no")}</span>;
   }
@@ -183,7 +183,7 @@ function Entry({ label, value, depth }: { label: string; value: unknown; depth: 
       <section className="space-y-1.5">
         <h4 className={META_LABEL}>{label}</h4>
         {empty ? (
-          <p className="text-sm text-steel/70">{t("empty")}</p>
+          <p className="text-sm text-steel">{t("empty")}</p>
         ) : (
           <div className="border-l border-stone-200 pl-3">
             <ReadoutBody value={value} depth={depth + 1} />
@@ -197,7 +197,7 @@ function Entry({ label, value, depth }: { label: string; value: unknown; depth: 
       return (
         <section className="space-y-1.5">
           <h4 className={META_LABEL}>{label}</h4>
-          <p className="text-sm text-steel/70">{t("empty")}</p>
+          <p className="text-sm text-steel">{t("empty")}</p>
         </section>
       );
     }
@@ -205,7 +205,7 @@ function Entry({ label, value, depth }: { label: string; value: unknown; depth: 
     return (
       <section className="space-y-1.5">
         <h4 className={META_LABEL}>
-          {label} <span className="font-normal normal-case text-steel/70">({value.length})</span>
+          {label} <span className="font-normal normal-case text-steel">({value.length})</span>
         </h4>
         {objects.length === value.length ? (
           <ObjectTable rows={objects} depth={depth} />
@@ -251,7 +251,7 @@ function ReadoutBody({ value, depth }: { value: unknown; depth: number }) {
   }
   if (isPlainObject(value)) {
     const entries = Object.entries(value).slice(0, MAX_ITEMS);
-    if (entries.length === 0) return <p className="text-sm text-steel/70">{t("empty")}</p>;
+    if (entries.length === 0) return <p className="text-sm text-steel">{t("empty")}</p>;
     // Scalars first: the at-a-glance facts shouldn't sit below a long nested
     // block the reader has to scroll past to find them.
     const scalars = entries.filter(([, v]) => !isPlainObject(v) && !Array.isArray(v) && !isProse(v));

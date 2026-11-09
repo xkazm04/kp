@@ -1,7 +1,7 @@
 // The Personas run sync (sync.ts) with an injected fetchExecution - no network.
 // unit-db.ts must be the first project import.
 import { cleanupUnitDb } from "../testing/unit-db.ts";
-import { removeTempDirs } from "../testing/tmp-cleanup.ts";
+import { removeTempDirsInHook } from "../testing/tmp-cleanup.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import type { Gig, GigAttempt } from "./types.ts";
@@ -20,7 +20,7 @@ import { fixtureAcceptedPlan } from "./__fixtures__/accepted-plan.ts";
 
 after(() => cleanupUnitDb());
 const tempDirs: string[] = [];
-after(() => removeTempDirs(...tempDirs));
+after(() => removeTempDirsInHook(tempDirs));
 
 const FENCE = "`".repeat(3);
 const GOOD_OUTPUT = [

@@ -5,7 +5,7 @@ import { offerConversion, type OfferConversion } from "../analytics-offer";
 import { automationRoi, type AutomationRoi } from "../automation-roi";
 import { hasAdvancedPastScreening, screeningGateIndex, stageHasRole, stageIndex, stagesWithRole, stageWithRole, type StageDef } from "../pipeline-stages";
 import { getPipelineAxis } from "../pipeline-axis-server";
-import { SIM_TITLE_LIKE } from "@/app/features/shell/simulation/constants";
+import { SIM_TITLE_LIKE } from "@/app/_lib/sim-marker";
 import { ensureDb, notAgentSql } from "./core";
 import { JD_ACTIVE_SQL } from "./jobs";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";

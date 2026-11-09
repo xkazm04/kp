@@ -3,7 +3,7 @@ import { createIntake, listIntakes } from "@/app/_lib/db/intakes";
 import { runIntakeOpening } from "@/app/_lib/intake-run";
 import { intakeLang } from "@/app/_lib/intake-lang";
 import { updateIntakeDialog } from "@/app/_lib/db/intakes";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
@@ -14,7 +14,7 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 // the first impression is identical keyless and keyed).
 // GET — the workspace's intake ledger.
 
-export async function POST(request: Request) {
+export const POST = withWorkspace(async (ws: string, request: Request) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
@@ -50,7 +50,6 @@ export async function POST(request: Request) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
-    const ws = await currentWorkspace();
     const intake = createIntake({ title: typeof body.title === "string" ? body.title : "", lang, scanId }, ws);
     const opening = await runIntakeOpening(lang, scanId ? "app_master" : undefined);
     const transcript = [{ role: "interviewer" as const, text: opening.reply, at: new Date().toISOString() }];
@@ -59,15 +58,14 @@ export async function POST(request: Request) {
   } catch (error) {
     return safeJsonError(error, "api:intake", "INTAKE_CREATE_FAILED");
   }
-}
+});
 
-export async function GET() {
+export const GET = withWorkspace(async (ws: string) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
-    const ws = await currentWorkspace();
     return NextResponse.json({ intakes: listIntakes(ws) });
   } catch (error) {
     return safeJsonError(error, "api:intake", "INTAKE_LIST_FAILED");
   }
-}
+});

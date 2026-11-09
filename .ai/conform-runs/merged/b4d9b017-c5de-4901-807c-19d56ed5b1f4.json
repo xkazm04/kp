@@ -1,0 +1,191 @@
+{
+ "schema": "conform-run/1",
+ "worker": "b4d9b017-c5de-4901-807c-19d56ed5b1f4",
+ "subject": "analytics-time-windows",
+ "evaluatedAt": "2026-10-18T00:01:59.659466+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "db-analytics-billing-llm",
+   "subject": "analytics-time-windows",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/db/analytics.ts:364 The live cohort query omits the captured window end, allowing boundary-time and future-dated entries into a nominally bounded reporting window.",
+   "techniques": [
+    {
+     "technique": "calendar-arithmetic",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/billing.ts:381 Billing storage accepts an existing period key; analytics uses rolling day durations rather than constructing calendar months, quarters, or aligned weeks."
+    },
+    {
+     "technique": "canonical-zone-single-source",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/llm.ts:505 Usage bucketing declares its zone independently of analytics.ts:249 BUCKET_TZ; the stores do not obtain their reporting zone from one shared accessor."
+    },
+    {
+     "technique": "half-open-interval-policy",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/analytics.ts:333 A live window has no upper predicate unless endMs is explicitly supplied, despite capturing a clock for that read."
+    }
+   ]
+  },
+  {
+   "context": "analytics-computation",
+   "subject": "analytics-time-windows",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/analytics-momentum.ts:73 Momentum includes an event stamped exactly at now, making its event-time window closed at the upper endpoint instead of half-open.",
+   "techniques": [
+    {
+     "technique": "calendar-arithmetic",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/analytics-momentum.ts:19 These are explicitly rolling duration buckets, so calendar-week alignment is not their contract."
+    },
+    {
+     "technique": "canonical-zone-single-source",
+     "verdict": "deviation",
+     "evidence": "app/_lib/metric-pack.ts:183 Metric-pack formatting hardcodes UTC independently of momentumWeekLabel's UTC literal; neither reads a shared reporting-zone authority."
+    },
+    {
+     "technique": "half-open-interval-policy",
+     "verdict": "deviation",
+     "evidence": "app/_lib/analytics-momentum.ts:73 The now + 1 comparison admits the endpoint; a file-free Node probe confirmed that an event exactly at now contributes one."
+    }
+   ]
+  },
+  {
+   "context": "analytics-calibration",
+   "subject": "analytics-time-windows",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/calibration.ts:137 The calibration producer defines UTC locally and returns quarter metadata without its zone, leaving the drift payload outside the shared reporting-zone contract.",
+   "techniques": [
+    {
+     "technique": "baseline-as-window-start",
+     "verdict": "not-applicable",
+     "evidence": "app/features/insights/analytics/calibrationVerdict.ts:125 This compares rates of decisions before and after a policy change, rather than an entity's state against its window-start value."
+    },
+    {
+     "technique": "calendar-arithmetic",
+     "verdict": "conformant",
+     "evidence": "app/_lib/calibration.ts:136 The drift producer assigns quarters by calendar month, rather than fixed ninety-day spans."
+    },
+    {
+     "technique": "canonical-zone-single-source",
+     "verdict": "deviation",
+     "evidence": "app/_lib/calibration.ts:135 Quarter bucketing chooses UTC locally rather than reading a shared zone accessor, and CalibrationCohort carries no zone."
+    },
+    {
+     "technique": "cohort-matched-comparison",
+     "verdict": "not-applicable",
+     "evidence": "app/features/insights/analytics/AnalyticsDriftStrip.tsx:42 Each quarter displays the predictive error of its decision-event population; it does not compute longitudinal movement of matched entities."
+    },
+    {
+     "technique": "half-open-interval-policy",
+     "verdict": "conformant",
+     "evidence": "app/_lib/calibration.ts:386 The policy-change split assigns boundary observations exclusively to the after side, with no overlap or gap."
+    },
+    {
+     "technique": "range-precedence-resolution",
+     "verdict": "not-applicable",
+     "evidence": "app/features/insights/analytics/AnalyticsCalibrationPanel.tsx:100 Calibration selects source, outcome and family; its request does not resolve competing reporting-period inputs."
+    }
+   ]
+  },
+  {
+   "context": "analytics-dashboard",
+   "subject": "analytics-time-windows",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:67 An unsupported explicit win parameter silently selects all time instead of being rejected or disclosed as a fallback.",
+   "techniques": [
+    {
+     "technique": "calendar-arithmetic",
+     "verdict": "not-applicable",
+     "evidence": "app/features/insights/analytics/AnalyticsMomentumPanel.tsx:11 This component renders supplied rolling-week buckets rather than constructing calendar periods."
+    },
+    {
+     "technique": "canonical-zone-single-source",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/analytics/AnalyticsHeader.tsx:115 The header displays the zone echoed by the served payload instead of inferring the browser's zone."
+    },
+    {
+     "technique": "range-precedence-resolution",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:67 Local parsing treats an invalid explicit parameter identically to absence, with no rejection or fallback provenance."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-18T00:01:59.659466+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "analytics-time-windows"
+   ],
+   "techniques": [
+    "calendar-arithmetic",
+    "canonical-zone-single-source",
+    "half-open-interval-policy"
+   ],
+   "deviations": 1,
+   "context": "db-analytics-billing-llm",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-18T00:01:59.659466+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "analytics-time-windows"
+   ],
+   "techniques": [
+    "calendar-arithmetic",
+    "canonical-zone-single-source",
+    "half-open-interval-policy"
+   ],
+   "deviations": 1,
+   "context": "analytics-computation",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-18T00:01:59.659466+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "analytics-time-windows"
+   ],
+   "techniques": [
+    "baseline-as-window-start",
+    "calendar-arithmetic",
+    "canonical-zone-single-source",
+    "cohort-matched-comparison",
+    "half-open-interval-policy",
+    "range-precedence-resolution"
+   ],
+   "deviations": 1,
+   "context": "analytics-calibration",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-18T00:01:59.659466+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "analytics-time-windows"
+   ],
+   "techniques": [
+    "calendar-arithmetic",
+    "canonical-zone-single-source",
+    "range-precedence-resolution"
+   ],
+   "deviations": 1,
+   "context": "analytics-dashboard",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

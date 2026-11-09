@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { setChannelSpend } from "@/app/_lib/db/channels";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { can } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
@@ -28,7 +28,7 @@ import { invalidateAnalyticsWorkspace } from "@/app/_lib/analytics-cache";
 const MAX_CHANNEL_LENGTH = 40;
 const MAX_AMOUNT_CZK = 100_000_000; // sanity ceiling, not a business rule
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   if (!(await can("pipeline:write"))) return jsonRefusal("ANALYTICS_POLICY_FORBIDDEN", 403);
@@ -43,7 +43,6 @@ export async function POST(request: NextRequest) {
     if (amount !== null && (!Number.isFinite(amount) || amount < 0 || amount > MAX_AMOUNT_CZK)) {
       return NextResponse.json({ error: "Invalid amount." }, { status: 400 });
     }
-    const ws = await currentWorkspace();
     setChannelSpend(channel, amount, ws);
     // Same reason as /api/analytics/targets: `byChannel[].spendCzk` and every
     // cost-per-hire figure derived from it ride the memoized analytics payload, and
@@ -57,4 +56,4 @@ export async function POST(request: NextRequest) {
     // carries constraint text and the absolute db path.
     return safeJsonError(error, "api:analytics/spend", "ANALYTICS_SPEND_SAVE_FAILED");
   }
-}
+});

@@ -16,10 +16,10 @@ import { randomBytes } from "node:crypto";
 /** A prefixed, roughly time-ordered id: `${prefix}-<base36 time>-<6 base36 random>`
  *  (e.g. randomId("off") -> "off-l9x2k1-a8f3qz"). The random suffix only de-collides
  *  ids minted in the same millisecond; these are internal keys, never exposed as a
- *  secret, so Math.random() is intentional here and the Date.now() prefix keeps ids
+ *  secret, so a CSPRNG suffix is cheap insurance, and the Date.now() prefix keeps ids
  *  roughly sortable. For anything that gates access, use randomToken() instead. */
 export function randomId(prefix: string): string {
-  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  return `${prefix}-${Date.now().toString(36)}-${randomBytes(3).toString("hex")}`;
 }
 
 /** A cryptographically-strong opaque token: `${prefix}-<32 base64url chars>` minted

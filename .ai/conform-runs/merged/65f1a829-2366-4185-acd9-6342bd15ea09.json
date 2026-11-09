@@ -1,0 +1,193 @@
+{
+ "schema": "conform-run/1",
+ "worker": "65f1a829-2366-4185-acd9-6342bd15ea09",
+ "subject": "usage-aggregation-semantics",
+ "evaluatedAt": "2026-10-25T02:03:25.180437+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "billing-subscriptions",
+   "subject": "usage-aggregation-semantics",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/billing/plans.ts:31 Every meter in the closed vocabulary is a flow: one act per debit, added into a window-closed per-period counter. That is one of the two kinds the subject says a plain sum gets right. A search of app/_lib and app/_lib/billing for highWater, high_water, timeWeighted and integral found nothing, and there is no seat or held-level meter.",
+   "techniques": [
+    {
+     "technique": "level-valued-time-integral",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/billing/plans.ts:31 No meter is something the customer holds. All five describe acts (posted, hired, analysed, designed, interviewed), so the value between events is zero."
+    },
+    {
+     "technique": "replayed-state-machine-count",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/billing/entitlements.ts:287 Each debit source is a chargeable act, not an add/remove change of state, which is the technique's own 'when not to use'. Org seats exist (org-service.ts) but are not billed."
+    },
+    {
+     "technique": "high-water-mark-advance-billing",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/billing/entitlements.ts:317 Prepaid credits are consumed at event time, but the debit refuses non-positive quantities and refundMeterUsage was removed. The aggregate is monotonic by construction, so the decision rule 'skip the mark' applies."
+    },
+    {
+     "technique": "seeded-recurring-aggregate",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/billing/entitlements.ts:222 Window-closed: the allowance read is the counter for this period key alone. The only carry is the one-time calendar-to-anchored re-key (ADR 0023), not a recurring level seed."
+    }
+   ],
+   "absenceTerms": [
+    "highWater",
+    "timeWeighted",
+    "integral"
+   ]
+  },
+  {
+   "context": "db-analytics-billing-llm",
+   "subject": "usage-aggregation-semantics",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/db/billing.ts:385 The stored aggregate is an additive per-(org, meter, period) counter of flow debits, plus a credit ledger and an LLM-usage rollup that are plain sums too. The level, state-machine, ratchet and seed machinery has no precondition here; a search of app/_lib/db for highWater, high_water, timeWeighted and integral found nothing.",
+   "techniques": [
+    {
+     "technique": "level-valued-time-integral",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/billing.ts:385 A flow counter summed per period key. There is no level whose between-event value is nonzero."
+    },
+    {
+     "technique": "replayed-state-machine-count",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/llm.ts:554 Counts are event counts (calls), not distinct-identifier holdings, so there is no add/remove vocabulary to replay."
+    },
+    {
+     "technique": "high-water-mark-advance-billing",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/billing.ts:376 The balance is a ledger of the effects actually issued (grants, consumes, refunds), not a peak ratchet. There is no decreasing level to ratchet over."
+    },
+    {
+     "technique": "seeded-recurring-aggregate",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/billing.ts:408 calendarUsageCarried is a half-open, window-bounded carry for a period re-key migration, read from the journal. No metric spans periods, so there is no recurring seed."
+    }
+   ],
+   "absenceTerms": [
+    "highWater",
+    "timeWeighted",
+    "integral"
+   ]
+  },
+  {
+   "context": "billing-api",
+   "subject": "usage-aggregation-semantics",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/billing/route.ts:31 The routes perform no fold. The overview route serializes billingOverview from app/_lib/billing, and the webhook hands off to ingestBillingWebhook, so none of the four aggregation techniques has a site in this context. A search of app/api and app/api/billing for highWater, high_water, timeWeighted and integral found nothing.",
+   "techniques": [
+    {
+     "technique": "level-valued-time-integral",
+     "verdict": "not-applicable",
+     "evidence": "app/api/billing/route.ts:12 The route reports a period's flow usage. Nothing held is integrated here."
+    },
+    {
+     "technique": "high-water-mark-advance-billing",
+     "verdict": "not-applicable",
+     "evidence": "app/api/billing/webhook/route.ts:75 The webhook delegates credit grants and refunds to the lib layer. No per-event aggregate or mark is computed in the route."
+    }
+   ],
+   "absenceTerms": [
+    "highWater",
+    "timeWeighted",
+    "integral"
+   ]
+  },
+  {
+   "context": "billing-plan-and-spend",
+   "subject": "usage-aggregation-semantics",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/settings/billing/spend/spendUsageFold.ts:25 The only fold in this UI context is a plain sum of flows (calls, tokens, cost) for display, plus a used-versus-limit ratio. It bills nothing and holds no level, seat, mark or seed. A search of app/features/settings/billing for highWater, high_water, timeWeighted and integral found nothing.",
+   "techniques": [
+    {
+     "technique": "level-valued-time-integral",
+     "verdict": "not-applicable",
+     "evidence": "app/features/settings/billing/spend/spendUsageFold.ts:40 Calls, tokens and cost are flows, so summing them is the correct fold."
+    },
+    {
+     "technique": "high-water-mark-advance-billing",
+     "verdict": "not-applicable",
+     "evidence": "app/features/settings/billing/BillingUsageMeterRow.tsx:74 Display of the server's monotonic used counter. No charge is computed client-side."
+    }
+   ],
+   "absenceTerms": [
+    "highWater",
+    "timeWeighted",
+    "integral"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-25T02:03:25.180437+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "usage-aggregation-semantics"
+   ],
+   "techniques": [
+    "high-water-mark-advance-billing",
+    "level-valued-time-integral",
+    "replayed-state-machine-count",
+    "seeded-recurring-aggregate"
+   ],
+   "deviations": 0,
+   "context": "billing-subscriptions",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-25T02:03:25.180437+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "usage-aggregation-semantics"
+   ],
+   "techniques": [
+    "high-water-mark-advance-billing",
+    "level-valued-time-integral",
+    "replayed-state-machine-count",
+    "seeded-recurring-aggregate"
+   ],
+   "deviations": 0,
+   "context": "db-analytics-billing-llm",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-25T02:03:25.180437+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "usage-aggregation-semantics"
+   ],
+   "techniques": [
+    "high-water-mark-advance-billing",
+    "level-valued-time-integral"
+   ],
+   "deviations": 0,
+   "context": "billing-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-25T02:03:25.180437+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "usage-aggregation-semantics"
+   ],
+   "techniques": [
+    "high-water-mark-advance-billing",
+    "level-valued-time-integral"
+   ],
+   "deviations": 0,
+   "context": "billing-plan-and-spend",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

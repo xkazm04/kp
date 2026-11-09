@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getIntake, reopenIntake } from "@/app/_lib/db/intakes";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
@@ -9,12 +9,11 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 // turn is appended so the transcript honestly records the re-open; PROMOTED
 // sessions stay closed (the JD exists). Body: { note? } — an optional
 // localized system-turn text from the client; a server default applies.
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: Request, { params }: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { id } = await params;
-    const ws = await currentWorkspace();
     const intake = getIntake(id, ws);
     if (!intake) return jsonRefusal("INTAKE_NOT_FOUND", 404);
     // Two different 409s that used to be two English sentences behind one
@@ -32,4 +31,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } catch (error) {
     return safeJsonError(error, "api:intake/reopen", "INTAKE_REOPEN_FAILED");
   }
-}
+});

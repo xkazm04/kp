@@ -98,12 +98,20 @@ def derive_signals(events, seed_paths=None) -> dict:
     }
 
 
-def tooling_from_events(events, cover_probes=None, seed_paths=None) -> dict:
+# An UNWITNESSED timeline (it arrived in bulk, not as it happened - see db/devcase.ts
+# witnessVerdictOf) caps how far the process read is trusted. It never moves a score:
+# only ``confidence`` changes. Kept above models.py's LOW_CONFIDENCE (0.4) so the cap is
+# not itself read as thin evidence; the explicit unwitnessed reason carries the hold.
+UNWITNESSED_CONFIDENCE_CAP = 0.5
+
+
+def tooling_from_events(events, cover_probes=None, seed_paths=None, witnessed=None) -> dict:
     """Deterministic tooling assessment from observed events. Returns the SAME shape
     as reflect.assess_tooling so it is a drop-in for the observed path (plus a raw
     ``signals`` block — case-sim round 1: the deterministic evaluator needs the
     observed verification indicators, or judgment reads 0 for every live session).
-    Confidence is high (0.8) because the inputs are watched, not reconstructed."""
+    Confidence is high (0.8) because the inputs are watched, not reconstructed -
+    unless ``witnessed`` is False, which caps it at UNWITNESSED_CONFIDENCE_CAP."""
     sig = derive_signals(events, seed_paths)
     fluency = _clamp01(
         0.4 * sig["readBeforeWrite"]
@@ -163,5 +171,5 @@ def tooling_from_events(events, cover_probes=None, seed_paths=None) -> dict:
         # Raw observed signals, exposed for downstream deterministic consumers
         # (evaluate's fallback derives observed verification from these).
         "signals": sig,
-        "confidence": 0.8,
+        "confidence": 0.8 if witnessed is not False else UNWITNESSED_CONFIDENCE_CAP,
     }

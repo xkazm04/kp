@@ -49,8 +49,8 @@ registerHooks({
 // ── (a) Source guard: the route wires the workspace through the whole gate ──────
 test("analyze route scopes the in-flight count, the meter read, and the task stamp per workspace", () => {
   const src = readFileSync(fileURLToPath(new URL("./route.ts", import.meta.url)), "utf8");
-  // The requesting workspace is resolved once and reused.
-  assert.match(src, /const workspace = await currentWorkspace\(\)/, "must resolve the requesting workspace");
+  // The requesting workspace is resolved once (by withWorkspace) and reused.
+  assert.match(src, /withWorkspace\(async \(workspace: string/, "must receive the requesting workspace");
   // The in-flight reservation count is scoped to that workspace (3rd arg to listRecentTasks).
   assert.match(
     src,

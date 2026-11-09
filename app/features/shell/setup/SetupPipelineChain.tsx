@@ -26,7 +26,7 @@ export function SetupPipelineChain({
         <li key={stage.id} className="flex items-center gap-1">
           <span
             className={`rounded-full px-2 py-0.5 text-sm ${
-              added.has(stage.id) ? "bg-coral/10 font-semibold text-coral" : "bg-stone-100 text-steel"
+              added.has(stage.id) ? "bg-coral/10 font-semibold text-coral-ink" : "bg-stone-100 text-steel"
             }`}
           >
             {stage.label}

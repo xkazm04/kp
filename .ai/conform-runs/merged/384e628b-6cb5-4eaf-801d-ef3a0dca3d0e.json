@@ -1,0 +1,191 @@
+{
+ "schema": "conform-run/1",
+ "worker": "384e628b-6cb5-4eaf-801d-ef3a0dca3d0e",
+ "subject": "translation-quality-measurement",
+ "evaluatedAt": "2026-11-08T00:28:39.633030+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "devcase-core",
+   "subject": "translation-quality-measurement",
+   "bundle": "localization",
+   "state": "not-applicable",
+   "evidence": "pipeline/jobfit/devcase/evaluate.py:143 Devcase writes localized text in only two ways: the LLM writes it directly in the target language, and the keyless fallback reads hand-authored committed per-locale tables. No source unit is machine-translated into a derived store, so the subject's precondition does not hold. A search of pipeline/jobfit/devcase for glossary, termbase, chrF, pretranslat and MQM found nothing; the only 'translat' hits are a comment about the comms translator and the _t fallback docstring.",
+   "techniques": [
+    {
+     "technique": "deterministic-checks-before-estimates",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/devcase/evaluate.py:148 The localized keyless strings are a hand-authored committed table, not a machine-translated store that a check suite would gate."
+    },
+    {
+     "technique": "regression-detection-under-a-moving-engine",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/devcase/evaluate.py:146 The hosted LLM generates text in the language, not a translation of a pinned source unit. No regenerable translation store exists whose rebuild could silently change text."
+    },
+    {
+     "technique": "engine-quality-from-reviewer-corrections",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/devcase/evaluate.py:388 A missing locale falls back to English. No machine pretranslation exists for a reviewer to approve or correct."
+    }
+   ],
+   "absenceTerms": [
+    "glossary",
+    "termbase",
+    "chrF",
+    "pretranslat",
+    "MQM"
+   ],
+   "registryProposal": "The subject assumes a source to target translation unit. It says nothing about an LLM generating candidate-facing prose directly in the target language from a language directive. That output has the same moving-engine and per-language quality risk but no source to compare against, so a boundary line naming which subject governs it would stop seats from forcing this subject onto it."
+  },
+  {
+   "context": "tests-devcase",
+   "subject": "translation-quality-measurement",
+   "bundle": "localization",
+   "state": "not-applicable",
+   "evidence": "pipeline/jobfit/tests/test_devcase_evaluate.py:436 These locale tests check hand-authored committed tables: the strings differ per locale, and capability codes stay verbatim. They also check that LLM prompts carry the language directive. No machine-translated store's quality is measured here, so the precondition does not hold. A search of pipeline/jobfit/tests for glossary, termbase, chrF, pretranslat and MQM found nothing.",
+   "techniques": [
+    {
+     "technique": "deterministic-checks-before-estimates",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/tests/test_devcase_evaluate.py:458 This is a skeleton-parity-shaped rule, but it runs over committed hand-authored strings, not a machine-translated store. It is listed as neighbouring evidence only."
+    },
+    {
+     "technique": "reference-free-quality-estimation",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/tests/test_devcase_evaluate.py:482 The LLM path is tested only for carrying the write-in-language directive. There is no source and candidate translation pair to estimate."
+    }
+   ],
+   "absenceTerms": [
+    "glossary",
+    "termbase",
+    "chrF",
+    "pretranslat",
+    "MQM"
+   ]
+  },
+  {
+   "context": "i18n-locale-resolution",
+   "subject": "translation-quality-measurement",
+   "bundle": "localization",
+   "state": "not-applicable",
+   "evidence": "i18n/locales.ts:5 This context only defines the locale universe and the cookie, then Accept-Language, then default resolution path over committed messages catalogs. No translation is produced or measured here, so the subject's precondition does not hold. A search of i18n/ for glossary, termbase, chrF, pretranslat and MQM found nothing.",
+   "techniques": [
+    {
+     "technique": "per-pair-engine-selection",
+     "verdict": "not-applicable",
+     "evidence": "i18n/locales.ts:6 This is the list of shipped catalog locales, not engine routing per language pair."
+    }
+   ],
+   "absenceTerms": [
+    "glossary",
+    "termbase",
+    "chrF",
+    "pretranslat",
+    "MQM"
+   ]
+  },
+  {
+   "context": "tests-cv-extraction",
+   "subject": "translation-quality-measurement",
+   "bundle": "localization",
+   "state": "not-applicable",
+   "evidence": "pipeline/jobfit/tests/test_extractors.py:7 These tests cover CV text extraction, decoding, redaction, profiling and AI-Act prompt compliance. Nothing is translated, so translation quality is never measured. The subject matched only on generic tokens (quality, pipeline, suite). A search of pipeline/jobfit/tests for glossary, termbase, chrF, pretranslat and MQM found nothing, and these files have no 'translat' hit at all.",
+   "techniques": [],
+   "absenceTerms": [
+    "glossary",
+    "termbase",
+    "chrF",
+    "pretranslat",
+    "MQM"
+   ]
+  },
+  {
+   "context": "jd-template-engine",
+   "subject": "translation-quality-measurement",
+   "bundle": "localization",
+   "state": "not-applicable",
+   "evidence": "app/features/shared/renderTemplate.ts:39 renderTemplate fills placeholders and lang-aware heading tokens. The caller passes in their text from the committed catalog, and user templates are explicitly never machine-translated, so this module neither produces nor measures any translation. A search of app/features/shared for glossary, termbase, chrF, pretranslat and MQM found nothing.",
+   "techniques": [],
+   "absenceTerms": [
+    "glossary",
+    "termbase",
+    "chrF",
+    "pretranslat",
+    "MQM"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-08T00:28:39.633030+00:00",
+   "bundle": "localization",
+   "subjects": [
+    "translation-quality-measurement"
+   ],
+   "techniques": [
+    "deterministic-checks-before-estimates",
+    "engine-quality-from-reviewer-corrections",
+    "regression-detection-under-a-moving-engine"
+   ],
+   "deviations": 0,
+   "context": "devcase-core",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T00:28:39.633030+00:00",
+   "bundle": "localization",
+   "subjects": [
+    "translation-quality-measurement"
+   ],
+   "techniques": [
+    "deterministic-checks-before-estimates",
+    "reference-free-quality-estimation"
+   ],
+   "deviations": 0,
+   "context": "tests-devcase",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T00:28:39.633030+00:00",
+   "bundle": "localization",
+   "subjects": [
+    "translation-quality-measurement"
+   ],
+   "techniques": [
+    "per-pair-engine-selection"
+   ],
+   "deviations": 0,
+   "context": "i18n-locale-resolution",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T00:28:39.633030+00:00",
+   "bundle": "localization",
+   "subjects": [
+    "translation-quality-measurement"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "tests-cv-extraction",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T00:28:39.633030+00:00",
+   "bundle": "localization",
+   "subjects": [
+    "translation-quality-measurement"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "jd-template-engine",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -167,7 +167,7 @@ export function StopClient() {
       <div className="mb-4 flex justify-end">
         <LanguageSwitcher />
       </div>
-      <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
+      <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral-ink">
         <BellOff size={14} /> {t("eyebrow")}
       </p>
 

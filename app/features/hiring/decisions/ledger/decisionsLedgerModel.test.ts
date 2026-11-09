@@ -65,3 +65,13 @@ test("grouping folds the sorted rows by role and remembers the best fit", () => 
   const groups = groupLedgerRows(sorted);
   assert.deepEqual(groups.map((g) => [g.title, g.rows.length, g.best]), [["Analyst", 1, null], ["Backend", 2, 85]]);
 });
+
+test("Q2: a queued policy advance is its own ledger kind, an advance with its reason, never a queued reject", () => {
+  const detail = JSON.stringify({ recommendation: "advance", confidence: 80, rationale: "BAU score 80", policyAdvance: { toStage: "Interview" } });
+  const row = ledgerRowOf(e("a", { approvalDetail: detail }), null);
+  assert.equal(row.kind, "queuedAdvance");
+  assert.equal(row.recommendation, "advance");
+  assert.equal(row.eligible, true);
+  assert.equal(ledgerKindOf({ approvalKind: "rejection_review" }, parseApproval({ approvalDetail: detail })), "queuedReject");
+  assert.equal(ledgerKindOf({ approvalKind: "screening_review" }, { recommendation: "advance" }), "screening", "an AI screening is unchanged");
+});

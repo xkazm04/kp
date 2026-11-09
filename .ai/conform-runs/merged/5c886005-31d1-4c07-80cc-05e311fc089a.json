@@ -1,0 +1,120 @@
+{
+  "schema": "conform-run/1",
+  "worker": "5c886005-31d1-4c07-80cc-05e311fc089a",
+  "subject": "hypothesis-not-verdict-soft-signals",
+  "evaluatedAt": "2026-10-19T00:02:04.389270+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [
+    {
+      "context": "results-detail-tabs",
+      "subject": "hypothesis-not-verdict-soft-signals",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evidence": "app/_components/results/interview/SoftSignalsSection.tsx:24 The exported checklist places every risk before every strength without an item cap or decision-impact ordering, preserving a detector list instead of the required bounded agenda.",
+      "techniques": [
+        {
+          "technique": "a-confirmation-probe-per-signal",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/soft_signals.py:317 Every folded model flag receives this generic interviewer instruction rather than a specific, verbatim-askable question with a defined resolution."
+        },
+        {
+          "technique": "antipattern-and-hidden-strength-pairing",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/soft_signals.py:96 The claim-attachment detector emits an adverse record without a favourable reading of the same property; the panel's strength detectors do not supply that counterpart."
+        },
+        {
+          "technique": "benign-alternative-stated-alongside-the-risk",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/soft_signals.py:97 This exported detail supplies no benign alternative, although the tenure detector does."
+        },
+        {
+          "technique": "claim-versus-evidence-overclaim-detection",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_soft_signals.py:33 The fixture above contains one strong claim and one described role, yet requires an adverse signal, violating the standard's minimum-sample rule."
+        },
+        {
+          "technique": "signal-source-trust-ordering",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/soft_signals.py:315 Model flags share the source identifier used by deterministic document hypotheses, preventing the renderer from distinguishing the required fourth, lowest-trust tier."
+        },
+        {
+          "technique": "what-to-confirm-checklist-not-a-dossier",
+          "verdict": "deviation",
+          "evidence": "app/_components/results/interview/SoftSignalsSection.tsx:108 The component renders every supplied row in separate risk and strength groups, without a three-to-five-item cap or resolution controls."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "hypothesis-not-verdict-soft-signals",
+      "context": "devcase-detail",
+      "reason": "withdrawn after review: reviewer (sonnet): Both not-applicable verdicts are contradicted: pipeline/jobfit/soft_signals.py `panel_to_probe_briefs` feeds CV-hypothesis briefs into `design_case(focus_probes=…)`, so devcase cover probes (ProbeRow in DevCaseDetailInternal and DevAnalysisDesignCard) can come from career-document soft signals; the "
+    },
+    {
+      "subject": "hypothesis-not-verdict-soft-signals",
+      "context": "devcase-lifecycle",
+      "reason": "withdrawn after review: reviewer (sonnet): Both not-applicable verdicts are contradicted: pipeline/jobfit/soft_signals.py `panel_to_probe_briefs` feeds CV-hypothesis briefs into `design_case(focus_probes=…)`, so devcase cover probes (ProbeRow in DevCaseDetailInternal and DevAnalysisDesignCard) can come from career-document soft signals; the "
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-19T00:02:04.389270+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "hypothesis-not-verdict-soft-signals"
+      ],
+      "techniques": [
+        "a-confirmation-probe-per-signal",
+        "antipattern-and-hidden-strength-pairing",
+        "benign-alternative-stated-alongside-the-risk",
+        "claim-versus-evidence-overclaim-detection",
+        "signal-source-trust-ordering",
+        "what-to-confirm-checklist-not-a-dossier"
+      ],
+      "deviations": 0,
+      "context": "devcase-detail",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-19T00:02:04.389270+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "hypothesis-not-verdict-soft-signals"
+      ],
+      "techniques": [
+        "a-confirmation-probe-per-signal",
+        "antipattern-and-hidden-strength-pairing",
+        "benign-alternative-stated-alongside-the-risk",
+        "claim-versus-evidence-overclaim-detection",
+        "signal-source-trust-ordering",
+        "what-to-confirm-checklist-not-a-dossier"
+      ],
+      "deviations": 1,
+      "context": "results-detail-tabs",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-19T00:02:04.389270+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "hypothesis-not-verdict-soft-signals"
+      ],
+      "techniques": [
+        "a-confirmation-probe-per-signal",
+        "antipattern-and-hidden-strength-pairing",
+        "benign-alternative-stated-alongside-the-risk",
+        "claim-versus-evidence-overclaim-detection",
+        "signal-source-trust-ordering",
+        "what-to-confirm-checklist-not-a-dossier"
+      ],
+      "deviations": 0,
+      "context": "devcase-lifecycle",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { currentSession } from "@/app/_lib/auth/current-user";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { currentUserId } from "@/app/_lib/auth/session";
@@ -27,7 +27,7 @@ const REUSE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 
 // THROTTLE (rate-limit-contract.test.ts): one hash + one lookup per dropped CV, the
 // import's own rhythm; 60/10min per IP, the profile PUT's budget.
-export async function POST(request: Request): Promise<NextResponse> {
+export const POST = withWorkspace(async (ws: string, request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -38,7 +38,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   try {
     const body = (await request.json().catch(() => ({}))) as { text?: unknown };
     if (typeof body.text !== "string" || !body.text.trim()) return jsonRefusal("INTAKE_TEXT_REQUIRED", 400);
-    const [session, ws] = await Promise.all([currentSession(), currentWorkspace()]);
+    const session = await currentSession();
     const userId = currentUserId(session);
     const stored = findJobseekerCvByText(userId, body.text, ws);
     if (!stored) return NextResponse.json({ reused: false });
@@ -47,4 +47,4 @@ export async function POST(request: Request): Promise<NextResponse> {
   } catch (err) {
     return safeJsonError(err, "api:jobseeker/cvs/reuse", "JOBSEEKER_STORE_FAILED");
   }
-}
+});

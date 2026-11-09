@@ -72,7 +72,7 @@ export function roleDescription(role: MemberRole, t: MembersTranslator): string 
 export function roleTone(role: MemberRole): string {
   switch (role) {
     case "owner":
-      return "bg-coral/12 text-coral";
+      return "bg-coral/12 text-coral-ink";
     case "admin":
       return "bg-moss/15 text-moss";
     case "recruiter":

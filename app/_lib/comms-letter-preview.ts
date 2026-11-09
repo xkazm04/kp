@@ -23,13 +23,13 @@
 // Deliberately NOT imported by any route that sends a letter: it pulls in the send
 // gate's store reads, and the letter-sending routes sit at their import-graph budget.
 import type { PipelineEntry } from "./db/core";
-import { candidateRecipient, composeOfferLetter, renderCandidateFooters } from "./comms-dispatch";
+import { candidateRecipient, composeOfferLetter, draftedByModel, renderCandidateFooters } from "./comms-dispatch";
 import { recipientRefusal } from "./comms-recipient";
 import { commsSendSuppression } from "./comms";
 import { isRelayConfigured } from "./comms-relay";
 import { resolveCommsLocale } from "./comms-locale";
 import { commsTranslator } from "./comms-translator";
-import { isSimTitle } from "@/app/features/shell/simulation/constants";
+import { isSimTitle } from "@/app/_lib/sim-marker";
 import { offerExpiresAtMs, resolveOfferTtlDays } from "./offer-policy";
 import { publicBaseUrl } from "./public-base-url.ts";
 import type { Locale } from "@/i18n/locales";
@@ -58,7 +58,9 @@ export type OfferLetterPreview = {
 
 type PreviewEntry = PipelineEntry & { population?: string | null };
 
-function parseDraft(detail: string | null | undefined): { subject?: unknown; body?: unknown; startDate?: unknown } {
+function parseDraft(
+  detail: string | null | undefined
+): { subject?: unknown; body?: unknown; startDate?: unknown; verdictSource?: unknown } {
   try {
     const parsed = detail ? JSON.parse(detail) : {};
     return parsed && typeof parsed === "object" ? parsed : {};
@@ -97,11 +99,16 @@ export async function previewOfferLetter(
     t,
   });
   const recipient = candidateRecipient(entry);
-  // The same skip rule as candidateFooters: a refused or erased entry gets no footers.
+  // The same rules as candidateFooters: a refused entry gets no footers; an erased one
+  // gets no legal links; and the AI-drafted line (Q10) rides on the draft's stored source
+  // alone, read by the same draftedByModel the send path uses, tokens or not.
+  const aiDrafted = draftedByModel(draft.verdictSource);
   const footers =
-    recipient !== null && !entry.anonymizedAt && entry.id
-      ? renderCandidateFooters(t, locale, base, { erasureToken: PREVIEW_TOKEN, optOutToken: PREVIEW_TOKEN }).text
-      : "";
+    recipient === null
+      ? ""
+      : !entry.anonymizedAt && entry.id
+        ? renderCandidateFooters(t, locale, base, { erasureToken: PREVIEW_TOKEN, optOutToken: PREVIEW_TOKEN }, { aiDrafted }).text
+        : renderCandidateFooters(t, locale, "", { erasureToken: null, optOutToken: null }, { aiDrafted }).text;
   const { forecast, reason } = forecastFor(entry, recipient);
   return {
     locale,

@@ -16,6 +16,8 @@
 // (billing gate, reissue guard, delivery truth), because a copy is how two doors drift
 // into two behaviours.
 
+import { useVoiceEnabled } from "@/app/_lib/voice/use-voice-enabled";
+import { voiceSurfaceVisible } from "@/app/_lib/voice/enabled";
 import { useCallback, useEffect, useState } from "react";
 import { Check, CircleDashed, Loader2, MicVocal, Phone, TriangleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -49,7 +51,7 @@ type ScreenSession = {
 const REC_TONE: Record<string, string> = {
   advance: "bg-moss/10 text-moss",
   hold: "bg-amber-100 text-amber-700",
-  reject: "bg-coral/15 text-coral",
+  reject: "bg-coral/15 text-coral-ink",
 };
 
 // `observedMean` moved to DevHelpers.ts: the number a reviewer reads as the
@@ -67,6 +69,9 @@ export function DevVoiceScreenPanel({ submissionId }: { submissionId: string }) 
   const [reloadKey, setReloadKey] = useState(0);
   const [voiceProvider, setVoiceProvider] = useState<"openai" | "elevenlabs">("openai");
   const voice = useTokenLink("/api/interview/create");
+  // Switched off (KP_VOICE_INTERVIEW unset): no affordance that mints a session. A screen
+  // already on file stays readable below; only the "start one" branch is hidden.
+  const voiceOn = voiceSurfaceVisible(useVoiceEnabled());
 
   // A REFETCH does not re-enter the loading state: `loading` is only ever the FIRST
   // read, so a re-read after minting keeps the panel's chrome on screen instead of
@@ -104,6 +109,7 @@ export function DevVoiceScreenPanel({ submissionId }: { submissionId: string }) 
   }
 
   if (!session) {
+    if (!voiceOn) return null;
     return (
       <div className="mt-2">
         <PipelineVoiceScreenPanel
@@ -128,7 +134,7 @@ export function DevVoiceScreenPanel({ submissionId }: { submissionId: string }) 
 
   return (
     <div className="mt-2 rounded-md border border-stone-200 bg-white p-2.5 text-micro text-ink">
-      <p className="flex flex-wrap items-center gap-1.5 text-micro font-semibold uppercase tracking-wide text-coral">
+      <p className="flex flex-wrap items-center gap-1.5 text-micro font-semibold uppercase tracking-wide text-coral-ink">
         <MicVocal size={12} aria-hidden /> {t("title")}
         <StatusChip
           tone={interviewStatusTone(session.status)}

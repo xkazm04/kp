@@ -128,6 +128,9 @@ def main(argv: list[str] | None = None) -> int:
     # reason / an enthusiasm the record contradicted. Absent = no interview happened,
     # and both prompts fall back to their evidence-less wording.
     parser.add_argument("--scorecard-file", type=Path)
+    # S1 — `scorecard` only: the entry carries a dev case, so the optional "Working with AI
+    # tools" axis is appended to the rubric. Absent = the pre-S1 rubric, byte for byte.
+    parser.add_argument("--dev-case", action="store_true")
     # GH7 — compact GitHub evidence summary written by automation-run.ts
     # (github.json). Read by screen/prep/scorecard; ignored elsewhere.
     parser.add_argument("--github-evidence", type=Path)
@@ -267,7 +270,7 @@ def main(argv: list[str] | None = None) -> int:
             result, source = automation.interview_prep(candidate, job, m, lang=lang or "en", provider=provider, github=github)
         elif args.command == "scorecard":
             notes = args.notes_file.read_text(encoding="utf-8") if args.notes_file else ""
-            result, source = automation.interview_scorecard(candidate, job, notes, lang=lang or "en", provider=provider, github=github)
+            result, source = automation.interview_scorecard(candidate, job, notes, lang=lang or "en", provider=provider, github=github, **({"dev_case": True} if args.dev_case else {}))
         elif args.command == "offer":
             result, source = automation.draft_offer(candidate, job, m, lang=lang, provider=provider, scorecard=scorecard)
         else:  # pragma: no cover

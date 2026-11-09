@@ -18,7 +18,7 @@ import type { RolePattern, RolePriorityMap, Winnability } from "./rolePatterns";
 // variant's three-notch priority control in place of the chip row.
 
 const ICON_BTN =
-  "focus-ring inline-grid h-8 w-8 cursor-pointer place-items-center rounded-md text-steel transition-colors hover:bg-paper hover:text-coral";
+  "focus-ring inline-grid h-8 w-8 cursor-pointer place-items-center rounded-md text-steel transition-colors hover:bg-paper hover:text-coral-ink";
 
 type Col = "pattern" | "share" | "priority";
 

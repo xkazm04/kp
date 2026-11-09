@@ -8,7 +8,7 @@ import {
   type ChannelWebhookRecord,
 } from "@/app/_lib/db/channels";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
@@ -39,18 +39,18 @@ import { assertPublicHttpsEndpoint } from "@/app/_lib/safe-url";
 // host at a time. 60/10min sits far above a recruiter wiring receivers by hand.
 const RECEIVER_WRITE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 
-export async function GET() {
+export const GET = withWorkspace(async (ws: string) => {
   // Bounded (db/channels) — the panes filter this list BY CHANNEL, so a silent cut
   // would empty one pane and read as "nothing is wired". `truncated` says otherwise.
   // Each `ChannelWebhookRecord` already carries the recruiter-safe pull half
   // (pullUrl / hasPullSecret / lastPullAt / lastPullError) so the Channels tab can
   // show a week-old lastPullError without a per-row extra GET. PATCH `{ pull }` is
   // still the detailed read (cursor included). The bearer is never on this list.
-  const { webhooks, truncated } = listChannelWebhooks(await currentWorkspace());
+  const { webhooks, truncated } = listChannelWebhooks(ws);
   return NextResponse.json({ webhooks, truncated });
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("org:manage", requireOrgCapability);
@@ -72,7 +72,6 @@ export async function POST(request: NextRequest) {
       // the code and never renders the server's English string (api-contracts.md 1.1).
       return jsonRefusal("CHANNEL_UNKNOWN", 400, { channel: channel || null });
     }
-    const ws = await currentWorkspace();
     const jobId = String(body.jobId ?? "").trim();
     const job = jobId ? getJob(jobId, ws) : null;
     // getJob is an unscoped by-id point read (jobs-tenancy.test.ts exempts it), so the
@@ -99,7 +98,7 @@ export async function POST(request: NextRequest) {
     // the Add-receiver modal painted it verbatim in every locale.
     return safeJsonError(error, "api:channels/webhooks", "CHANNEL_WEBHOOK_CREATE_FAILED");
   }
-}
+});
 
 /**
  * Configure the PULL half of a receiver (L0 — docs/concepts/local-first-edge.md §3.1).
@@ -116,7 +115,7 @@ export async function POST(request: NextRequest) {
  * Scoped to the owning team by setChannelPull: knowing a token is not enough to
  * point another team's receiver at your server.
  */
-export async function PATCH(request: NextRequest) {
+export const PATCH = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("org:manage", requireOrgCapability);
@@ -139,7 +138,6 @@ export async function PATCH(request: NextRequest) {
     } catch {
       return jsonRefusal("CHANNEL_PULL_URL_INVALID", 400);
     }
-    const ws = await currentWorkspace();
     const ok = setChannelPull(token, { url: validatedUrl, secret }, ws);
     // Same answer as an unknown token, for the same reason the receiver gives it:
     // a caller must not be able to probe which tokens exist in another team.
@@ -148,4 +146,4 @@ export async function PATCH(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:channels/webhooks", "CHANNEL_WEBHOOK_UPDATE_FAILED");
   }
-}
+});

@@ -1,0 +1,115 @@
+{
+ "schema": "conform-run/1",
+ "worker": "3e4bd56a-99c1-47b9-b7b9-6af9991dec15",
+ "subject": "role-intake-conversation",
+ "evaluatedAt": "2026-10-19T00:53:07.670768+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "jd-intake-studio",
+   "subject": "role-intake-conversation",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/library/jds/intake/coats/atelier/IntakeAtelierDesk.tsx:127 Card selections use the same text-only callback as typed answers, losing the distinction between choosing interviewer wording and composing an answer.",
+   "techniques": [
+    {
+     "technique": "expansion-reflection-over-confirmation",
+     "verdict": "deviation",
+     "evidence": "app/features/library/jds/intake/coats/atelier/IntakeAtelierDesk.tsx:127 The composer also uses logic.send at line 140; StudioChoiceCards converts selections to labels and passes only that message, without identifying the answer as selected from an offer."
+    }
+   ]
+  },
+  {
+   "context": "jd-intake-brief-logic",
+   "subject": "role-intake-conversation",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/library/jds/intake/jdsIntakeLogic.ts:436 The client records card-generated wording as ordinary requestor text and sends no selection provenance, making adopted suggestions indistinguishable from independently authored answers.",
+   "techniques": [
+    {
+     "technique": "expansion-reflection-over-confirmation",
+     "verdict": "deviation",
+     "evidence": "app/features/library/jds/intake/jdsIntakeLogic.ts:441 send accepts only a message string, appends it as candidate text, and transmits only that text; the selection origin and selected option identifiers are not carried."
+    }
+   ]
+  },
+  {
+   "context": "candidate-apply-api",
+   "subject": "role-intake-conversation",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/api/intake/[id]/message/route.ts:173 The hiring-intake message route persists selected card labels as ordinary requestor speech, erasing whether the answer adopted interviewer wording.",
+   "techniques": [
+    {
+     "technique": "context-reinstatement-opening",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/intake.py:1020 The opener pairs reassurance with a retrospective anchor, but the fallback story script advances after one context answer to title elicitation rather than remaining in the scene for at least two exchanges and bridging to outcomes."
+    },
+    {
+     "technique": "contradiction-as-a-dig-site",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/intake.py:1567 The attachment-grounding instruction preselects the winner of document/requestor conflicts instead of requiring the conflict to be named and excavated before its resolution is recorded."
+    },
+    {
+     "technique": "expansion-reflection-over-confirmation",
+     "verdict": "deviation",
+     "evidence": "app/api/intake/[id]/message/route.ts:173 The route accepts only message text and stores an untagged requestor turn; retaining offered cards on interviewer turns does not identify whether this answer was clicked or independently typed."
+    },
+    {
+     "technique": "laddering-a-hard-requirement",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/intake.py:923 The fallback records must-have labels as prerequisite rows and advances through the fixed slot script without a capability, situation, or evidence probe; immediate capture is present, but laddering is missing."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-19T00:53:07.670768+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "role-intake-conversation"
+   ],
+   "techniques": [
+    "expansion-reflection-over-confirmation"
+   ],
+   "deviations": 1,
+   "context": "jd-intake-studio",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-19T00:53:07.670768+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "role-intake-conversation"
+   ],
+   "techniques": [
+    "expansion-reflection-over-confirmation"
+   ],
+   "deviations": 1,
+   "context": "jd-intake-brief-logic",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-19T00:53:07.670768+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "role-intake-conversation"
+   ],
+   "techniques": [
+    "context-reinstatement-opening",
+    "contradiction-as-a-dig-site",
+    "expansion-reflection-over-confirmation",
+    "laddering-a-hard-requirement"
+   ],
+   "deviations": 1,
+   "context": "candidate-apply-api",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

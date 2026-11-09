@@ -220,6 +220,44 @@ for, which is exactly why the subscription is the control.
 
 ## 2. Quick start (Docker Compose)
 
+*One person on one computer, no Docker:* `npm run up` (`scripts/up.mjs`) checks Node 24
+and Python 3.11+, installs what is missing, and starts the app on an unseeded, persistent
+workspace (`data/kp-owner.sqlite`, `KP_EMPTY=1`) so the first-run wizard runs; `-- --demo`
+starts the seeded demo instead. It runs `next dev`, so it is a desk install, not a server.
+
+### 2a. `npm run up -- --public` — candidate pages on the internet from a desk install
+
+Candidate links (offer, scheduling, interview, apply, status) must open on the
+candidate's machine, and on a desk install they point at `localhost`. `--public`
+fixes that for the length of one run:
+
+1. **Open mode and a weak password are refused.** `up` reads `KP_OPERATOR_PASSWORD` the
+   way `next dev` will: from the shell, or else from the first of `.env.development.local`,
+   `.env.local`, `.env.development` and `.env` that assigns it. If it is missing or
+   shorter than 12 characters, `up` asks for one in a terminal (hidden, 12+ characters,
+   typed twice). In a session with no terminal it exits non-zero with a one-line fix and
+   never prints the password. A typed password is
+   handed to the app's environment for that run only and is **not written to disk**
+   (the auth layer compares a plaintext env value, so there is no hash to store); put
+   it in `.env.local` to stop being asked.
+2. **A Cloudflare quick tunnel** (`cloudflared tunnel --url http://localhost:<port>`)
+   gives a `https://….trycloudflare.com` address; `up` passes it to the app as
+   `APP_BASE_URL` (and `NEXT_PUBLIC_APP_BASE_URL`, effective because `next dev`
+   inlines it at compile time), so `publicBaseUrl()` builds every candidate link on it.
+3. **What is exposed:** the public candidate surfaces (`app/_lib/auth/public-routes.ts`)
+   are reachable by anyone who has a link. The studio and its API stay behind the
+   operator password. Traffic passes through Cloudflare.
+4. **`cloudflared` is a third-party binary you install** (`winget install --id
+   Cloudflare.cloudflared`, `brew install cloudflared`, or the Linux package). KP
+   never downloads it; without it `--public` prints these instructions and exits non-zero.
+5. **The address changes on every start.** Links already mailed to candidates from an
+   earlier run stop working; use a named domain and `APP_BASE_URL` for anything lasting.
+   Ctrl+C stops the tunnel with the app.
+
+Without `--public` and without `APP_BASE_URL`, the server logs one `[link-base]`
+warning (`app/_lib/link-base-warning.ts`) the first time a sender resolves a loopback
+or placeholder link base, naming both fixes.
+
 ```bash
 cp .env.example .env
 # edit .env — at minimum set KP_OPERATOR_PASSWORD and KP_SECRET (see §3)
@@ -249,6 +287,15 @@ answers, nothing in the app links to it, and the `jobseeker_scan` clock job is n
 registered nor run. Set `KP_JOBSEEKER=1` (exactly `1`) only to run it for yourself — the
 switch is read in one place, `app/_lib/jobseeker/enabled.ts`.
 
+**The AI voice interview is off unless you turn it on.** It is out of the 1.0 cut (human
+interviews remain the path), so with `KP_VOICE_INTERVIEW` unset `/interview/<token>` and the
+doors that start or serve a live voice session (`/api/interview/connect|create|director|simulate`,
+`/api/intake/<id>/voice-*`, the interview-kit rehearse route, and the `POST` probe
+`/api/voice/readiness`; its `GET` stays open) answer exactly what an unknown
+route answers, including for percent-encoded or re-cased spellings of those paths, and no candidate is sent a voice-interview link. Records of sessions already
+held stay readable and erasable. Set `KP_VOICE_INTERVIEW=1` (exactly `1`) to run it — the
+switch is read in one place, `app/_lib/voice/enabled.ts`.
+
 ### 3b. Sizing the Python engine
 
 The jobfit pipeline is **spawned per request** ([ADR: spawn-per-request](decisions/))
@@ -263,7 +310,7 @@ rather than letting a burst starve the Node server every route shares.
 | `KP_PYTHON_QUEUE_WAIT_MS` | `20000` | How long a call waits for a slot before the route answers **503 `ENGINE_BUSY`**. Well inside a normal client deadline; an unbounded queue would only convert an overload into sockets held open past the point their users gave up. |
 | `KP_PYTHON_BACKGROUND_WAIT_MS` | `600000` | How long BACKGROUND work (a task-runner handler, the automation clock's pass) waits for a slot before it is refused `ENGINE_BUSY`. Long because nobody is holding a socket open and the task has a 15-minute budget; bounded so a wedged engine still answers the task. See the lane rule below. |
 | `PYTHON_MAX_BUFFER_MB` | `64` | Combined stdout+stderr a child may buffer before it is killed. |
-| `PYTHON_CMD` | `python3` (`python` on Windows) | The interpreter. |
+| `PYTHON_CMD` / `KP_PYTHON` | probed: `python3`, `python` (Windows: `python`, `python3`, `py -3`) | The interpreter. A named one (`PYTHON_CMD` first) is used as-is; otherwise the first candidate answering `--version` at 3.11+ is cached for the process, so the Windows Store `python` stub is skipped. None found: `ops-warn.log` says so in one sentence, the client still gets `ENGINE_FAILED`. |
 
 Two operational properties to know:
 

@@ -59,6 +59,7 @@ export const ORG_CONFIG_TABLES = new Set([
   "ats_connections",
   "ats_delivery",
   "comms_relay_config",
+  "comms_smtp_config",
   "personas_bridge",
   "edge_config",
 ]);

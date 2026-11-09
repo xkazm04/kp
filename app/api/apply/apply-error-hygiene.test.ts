@@ -13,6 +13,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readApiResponseSource } from "../../_lib/api-errors/read-source.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(path.join(HERE, rel), "utf8");
@@ -33,7 +34,7 @@ test("both public apply routes answer their 500 through safeJsonError", () => {
 });
 
 test("safeJsonError's body is the generic message + code — the raw error only reaches the log", () => {
-  const src = readFileSync(path.join(HERE, "..", "..", "_lib", "api-response.ts"), "utf8");
+  const src = readApiResponseSource(path.join(HERE, "..", "..", "_lib", "api-response.ts"));
   assert.match(
     src,
     /export function safeJsonError\([\s\S]*?\)\s*:\s*NextResponse\s*\{\s*console\.error\([^)]*\);\s*return NextResponse\.json\(\{ error: STORE_ERRORS\[code\], code \}, \{ status \}\);/,
@@ -136,7 +137,7 @@ test("every validation refusal on both doors carries a CODE, not English prose",
   // all four languages, on a PUBLIC surface a candidate reaches in their own. The
   // copy now lives in REFUSAL_ERRORS (canonical English for the log and for API
   // consumers) and the client renders `errors.<CODE>` instead.
-  const refusals = readFileSync(path.join(HERE, "..", "..", "_lib", "api-response.ts"), "utf8");
+  const refusals = readApiResponseSource(path.join(HERE, "..", "..", "_lib", "api-response.ts"));
   for (const rel of ["[id]/route.ts", "[id]/quick/route.ts"] as const) {
     const src = read(rel);
     // ZERO bare `{ error: … }` bodies now remain on either door.
@@ -177,7 +178,7 @@ test("the two SECONDARY apply doors answer with codes too, not English prose", (
   // found.", "Role closed.", a shared `{ error: "not found" }` on three distinct
   // 404 paths, and "Could not save your answers." on the 500. None carried a code,
   // so none of them reached a candidate in their own language.
-  const refusals = readFileSync(path.join(HERE, "..", "..", "_lib", "api-response.ts"), "utf8");
+  const refusals = readApiResponseSource(path.join(HERE, "..", "..", "_lib", "api-response.ts"));
   for (const rel of ["[id]/session/route.ts", "[id]/followup/route.ts"] as const) {
     const src = read(rel);
     assert.deepEqual(

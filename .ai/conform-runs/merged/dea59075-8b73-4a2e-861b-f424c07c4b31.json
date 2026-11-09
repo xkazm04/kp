@@ -1,0 +1,148 @@
+{
+ "schema": "conform-run/1",
+ "worker": "dea59075-8b73-4a2e-861b-f424c07c4b31",
+ "subject": "requisition-lifecycle-governance",
+ "evaluatedAt": "2026-10-18T02:28:49.133435+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "jobs-api",
+   "subject": "requisition-lifecycle-governance",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/api/jobs/[id]/publish/route.ts:154 The publish route takes draft roles live based solely on billing quota without enforcing headcount approval preconditions or named approver chains.",
+   "techniques": [
+    {
+     "technique": "best-effort-ingest-with-an-explicit-retry",
+     "verdict": "deviation",
+     "evidence": "app/api/jobs/ingest/route.ts:55 Synchronous LLM ad parse executes inside the request prior to any draft persistence, failing to preserve raw ad text if the parse throws."
+    },
+    {
+     "technique": "closing-withdraws-candidates-in-flight",
+     "verdict": "deviation",
+     "evidence": "app/api/jobs/[id]/close/route.ts:40 Requisition status flip commits before entry withdrawal runs in a separate non-atomic step, and no candidate communications are queued."
+    },
+    {
+     "technique": "draft-live-and-closed-as-distinct-states",
+     "verdict": "deviation",
+     "evidence": "app/api/jobs/[id]/candidates/outreach/route.ts:44 The candidates outreach endpoint verifies job visibility but permits candidate pipeline creation and outreach against draft roles."
+    },
+    {
+     "technique": "fill-is-a-count-and-close-is-the-act-it-triggers",
+     "verdict": "conformant",
+     "evidence": "app/api/jobs/[id]/publish/route.ts:159 Target hires is validated and set on publish, while browse queries derive hired counts dynamically from terminal stage entries."
+    },
+    {
+     "technique": "headcount-approval-as-a-precondition",
+     "verdict": "deviation",
+     "evidence": "app/api/jobs/[id]/publish/route.ts:152 Publishing verifies billing meter allowance rather than checking any headcount approval chain, named approver, or budget authority."
+    },
+    {
+     "technique": "ingest-as-draft-never-as-live",
+     "verdict": "conformant",
+     "evidence": "app/api/jobs/ingest/route.ts:63 Ad ingest enforces minimum length, hashes text for deduplication, and explicitly forces initial status to draft."
+    },
+    {
+     "technique": "publish-means-two-different-things",
+     "verdict": "conformant",
+     "evidence": "app/api/jobs/[id]/publish/route.ts:31 The contract explicitly disambiguates internal go-live (sourcing into pipeline) from external board distribution while preserving route stability."
+    }
+   ],
+   "registryProposal": "The standard specifies headcount approval expiry as an intentional design position, whereas commercial recruiting engines predominantly record approval as an indefinite permission until manually amended or closed."
+  },
+  {
+   "context": "jobs-posting-campaign",
+   "subject": "requisition-lifecycle-governance",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/library/jobs/JobsIngestAdPanel.tsx:107 The ingest panel directly commits parsed job advertisements into the catalog without providing a field-by-field extraction preview for reviewer verification.",
+   "techniques": [
+    {
+     "technique": "best-effort-ingest-with-an-explicit-retry",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jobs/jobsIngestRunOutcome.ts:54 Run settlement preserves raw ad text in the input area when an import produces no new catalog entries or is cancelled."
+    },
+    {
+     "technique": "closing-withdraws-candidates-in-flight",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jobs/JobsPostingModalFooter.tsx:93 Modal footer cleanly separates zero candidates in flight from positive withdrawal counts and surfaces failed withdrawals."
+    },
+    {
+     "technique": "draft-live-and-closed-as-distinct-states",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jobs/jobsPostingLifecycle.ts:28 Derives discrete draft, live, and closed states to govern candidate entry permissions and apply link availability."
+    },
+    {
+     "technique": "fill-is-a-count-and-close-is-the-act-it-triggers",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jobs/JobsLifecycleStrip.tsx:117 Derives the hired metric directly from candidates standing on stages carrying the terminal role on the pipeline axis."
+    },
+    {
+     "technique": "headcount-approval-as-a-precondition",
+     "verdict": "deviation",
+     "evidence": "app/features/library/jobs/jobsPostingModalLogic.ts:167 Publishing modal captures target hires and languages but includes no headcount approval precondition or named approver chain."
+    },
+    {
+     "technique": "ingest-as-draft-never-as-live",
+     "verdict": "deviation",
+     "evidence": "app/features/library/jobs/JobsIngestAdPanelResults.tsx:28 The results display reports binary addition status without providing a field-by-field extraction preview prior to catalog entry."
+    },
+    {
+     "technique": "publish-means-two-different-things",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jobs/JobsPostingModalFooter.tsx:142 The modal labels internal go-live 'Source into Pipeline', withholding public apply links until the role is live."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "requisition-lifecycle-governance",
+   "context": "devcase-lifecycle-api",
+   "reason": "devcase-lifecycle-api routes govern work-sample assessment cases, candidate submissions, and evaluator feedback rather than job requisition lifecycle governance; because the subject's precondition does not hold here and not-applicable is not accepted from this seat, this context is declined."
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-18T02:28:49.133435+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "requisition-lifecycle-governance"
+   ],
+   "techniques": [
+    "best-effort-ingest-with-an-explicit-retry",
+    "closing-withdraws-candidates-in-flight",
+    "draft-live-and-closed-as-distinct-states",
+    "fill-is-a-count-and-close-is-the-act-it-triggers",
+    "headcount-approval-as-a-precondition",
+    "ingest-as-draft-never-as-live",
+    "publish-means-two-different-things"
+   ],
+   "deviations": 1,
+   "context": "jobs-api",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-18T02:28:49.133435+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "requisition-lifecycle-governance"
+   ],
+   "techniques": [
+    "best-effort-ingest-with-an-explicit-retry",
+    "closing-withdraws-candidates-in-flight",
+    "draft-live-and-closed-as-distinct-states",
+    "fill-is-a-count-and-close-is-the-act-it-triggers",
+    "headcount-approval-as-a-precondition",
+    "ingest-as-draft-never-as-live",
+    "publish-means-two-different-things"
+   ],
+   "deviations": 1,
+   "context": "jobs-posting-campaign",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}

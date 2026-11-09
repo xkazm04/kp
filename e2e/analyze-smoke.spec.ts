@@ -36,8 +36,15 @@ const JOB_DESCRIPTION = [
 const COMPANY_OVERVIEW =
   "Large international corporate bank in Prague with enterprise engineering, regulated delivery, and strong benefits.";
 
+// The input is server-rendered before React hydrates, so a `change` fired in that
+// window is dropped (the drop zone stays empty and Analyze stays disabled).
+// Retry the attach until the chosen file shows up in the intake list.
 async function attachCv(page: Page, fixture: string): Promise<void> {
-  await page.locator("#profile-file-0").setInputFiles(fixture);
+  const name = path.basename(fixture);
+  await expect(async () => {
+    await page.locator("#profile-file-0").setInputFiles(fixture, { timeout: 2_000 });
+    await expect(page.locator("#main").getByText(name).first()).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 30_000 });
 }
 
 async function fillJobDescription(page: Page): Promise<void> {
@@ -53,7 +60,7 @@ async function setGithub(page: Page, handle: string): Promise<void> {
 }
 
 async function runAnalysis(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Analyze", exact: true }).click();
+  await page.locator("#main").getByRole("button", { name: "Analyze", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Score Breakdown" })).toBeVisible({ timeout: SCORE_TIMEOUT });
 }
 
@@ -69,7 +76,7 @@ async function expectNoSeriousA11yViolations(page: Page): Promise<void> {
 }
 
 test("CV only — overall profile assessment with no job context", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/?tab=analyze");
   await expect(page.getByRole("button", { name: "LinkedIn", exact: true })).toHaveCount(0);
   await attachCv(page, sampleCv);
   await runAnalysis(page);
@@ -79,31 +86,31 @@ test("CV only — overall profile assessment with no job context", async ({ page
   await expect(page.getByRole("heading", { name: "Score Breakdown" })).toBeVisible();
 
   // Salary tab shows market estimate but no company-context block.
-  await page.getByRole("button", { name: "Salary", exact: true }).click();
+  await page.getByRole("tab", { name: "Salary", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Salary Estimate" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Company Compensation Context" })).toHaveCount(0);
 
   // No JD → no Job-fit block populated, no Keyword Coverage; no GitHub panel.
-  await page.getByRole("button", { name: "Job fit", exact: true }).click();
+  await page.getByRole("tab", { name: "Job fit", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Job Fit" }).first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "Keyword Coverage" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "GitHub Analysis" })).toHaveCount(0);
 });
 
 test("CV + job description — adds role-fit, missing-skills, and keyword coverage", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/?tab=analyze");
   await attachCv(page, sampleCv);
   await fillJobDescription(page);
   await runAnalysis(page);
 
   // Job fit tab populated against the JD; keyword coverage now lives here.
-  await page.getByRole("button", { name: "Job fit", exact: true }).click();
+  await page.getByRole("tab", { name: "Job fit", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Job Fit", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Matching Skills" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Keyword Coverage" })).toBeVisible();
 
   // Salary still rendered, still no company-context block.
-  await page.getByRole("button", { name: "Salary", exact: true }).click();
+  await page.getByRole("tab", { name: "Salary", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Salary Estimate" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Company Compensation Context" })).toHaveCount(0);
 
@@ -112,21 +119,21 @@ test("CV + job description — adds role-fit, missing-skills, and keyword covera
 });
 
 test("CV + JD + company overview — applies enterprise context and salary multiplier", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/?tab=analyze");
   await attachCv(page, sampleCv);
   await fillJobDescription(page);
   await fillCompany(page);
   await runAnalysis(page);
 
   // Company classification is applied to the salary tab.
-  await page.getByRole("button", { name: "Salary", exact: true }).click();
+  await page.getByRole("tab", { name: "Salary", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Salary Estimate" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Company Compensation Context" })).toBeVisible();
   // The wording "international corporate bank" maps to enterprise/corporate via the taxonomy.
   await expect(page.getByText(/Enterprise/i).first()).toBeVisible();
 
   // Job fit tab combines role-fit and keyword coverage in one place.
-  await page.getByRole("button", { name: "Job fit", exact: true }).click();
+  await page.getByRole("tab", { name: "Job fit", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Matching Skills" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Keyword Coverage" })).toBeVisible();
 
@@ -136,7 +143,7 @@ test("CV + JD + company overview — applies enterprise context and salary multi
 
 test("CV + JD + company + GitHub profile — full pipeline renders all panels", async ({ page }) => {
   if (!GITHUB_LIVE) await stubGithubAnalysis(page);
-  await page.goto("/");
+  await page.goto("/?tab=analyze");
   await attachCv(page, sampleCv);
   await fillJobDescription(page);
   await fillCompany(page);
@@ -147,11 +154,11 @@ test("CV + JD + company + GitHub profile — full pipeline renders all panels", 
   await expect(page.getByRole("heading", { name: "Score Breakdown" })).toBeVisible();
 
   // Company context is applied.
-  await page.getByRole("button", { name: "Salary", exact: true }).click();
+  await page.getByRole("tab", { name: "Salary", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Company Compensation Context" })).toBeVisible();
 
   // GitHub analysis is now a tab inside the result panel — click it.
-  await page.getByRole("button", { name: "GitHub", exact: true }).click();
+  await page.getByRole("tab", { name: "GitHub", exact: true }).click();
   await expect(page.getByRole("heading", { name: "GitHub Analysis" })).toBeVisible({ timeout: 30_000 });
   // Stubbed → deterministic content. Live → accept the rate-limit error too.
   await expect(
@@ -172,7 +179,7 @@ const GITHUB_INPUT_VARIANTS: Array<{ label: string; value: string }> = [
 
 test("a11y — result tabs have no serious/critical WCAG violations", async ({ page }) => {
   await stubGithubAnalysis(page);
-  await page.goto("/");
+  await page.goto("/?tab=analyze");
   // NOT the landing: seedDevAuth() ran in beforeEach, so '/' is the WORKSPACE
   // dashboard here. The landing's own accessibility is covered keylessly by
   // e2e/landing.spec.ts; this call audits the analyze surface before a run.
@@ -182,7 +189,7 @@ test("a11y — result tabs have no serious/critical WCAG violations", async ({ p
   await runAnalysis(page);
 
   for (const tab of ["Extraction", "Salary", "Job fit"]) {
-    await page.getByRole("button", { name: tab, exact: true }).click();
+    await page.getByRole("tab", { name: tab, exact: true }).click();
     await expectNoSeriousA11yViolations(page);
   }
 });
@@ -190,12 +197,12 @@ test("a11y — result tabs have no serious/critical WCAG violations", async ({ p
 for (const variant of GITHUB_INPUT_VARIANTS) {
   test(`GitHub input — ${variant.label} (${variant.value})`, async ({ page }) => {
     if (!GITHUB_LIVE) await stubGithubAnalysis(page);
-    await page.goto("/");
+    await page.goto("/?tab=analyze");
     await attachCv(page, sampleCv);
     await setGithub(page, variant.value);
     await runAnalysis(page);
 
-    await page.getByRole("button", { name: "GitHub", exact: true }).click();
+    await page.getByRole("tab", { name: "GitHub", exact: true }).click();
     await expect(page.getByRole("heading", { name: "GitHub Analysis" })).toBeVisible({ timeout: 30_000 });
 
     // Stubbed → deterministic `@xkazm04` header. Live → accept the rate-limit

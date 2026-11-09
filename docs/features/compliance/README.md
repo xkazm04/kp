@@ -321,6 +321,9 @@ hand-rolling. What changed on the two doors in this document:
   reader's language (`docs/architecture/api-contracts.md` §1.1). Pinned by
   `app/api/status/status-decisions.test.ts` and `app/_lib/candidate-nps.test.ts`.
 
+`/status/[token]` opens with `EmployerBrand` (owner's logo + display name; nothing on a
+default brand), as the apply and schedule doors do.
+
 `e2e/token-doors-axe.spec.ts` now sweeps `/status/[token]` in two states — the
 loaded timeline and the dead-link alert — beside the offer, erasure and invite
 doors it already covered.

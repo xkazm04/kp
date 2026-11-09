@@ -211,7 +211,7 @@ export function HistoryTab() {
             {rows.length === 0 ? (
               <p className="mt-4 rounded-md bg-paper p-4 text-base text-steel">
                 {t("noMatch")}{" "}
-                <button type="button" onClick={clearAll} className="font-semibold text-coral underline underline-offset-2">
+                <button type="button" onClick={clearAll} className="font-semibold text-coral-ink underline underline-offset-2">
                   {t("clearFilters")}
                 </button>
               </p>

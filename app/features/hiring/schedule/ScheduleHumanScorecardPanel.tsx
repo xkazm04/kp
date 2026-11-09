@@ -42,7 +42,7 @@ export function HumanScorecardPanel({
 }) {
   const t = useTranslations("scheduleTab.scorecard");
   const tc = useTranslations("common");
-  const { data, error, reload } = useJsonFetch<{ mine?: HumanScorecardRecord | null; records?: HumanScorecardRecord[] }>(
+  const { data, error, reload } = useJsonFetch<{ mine?: HumanScorecardRecord | null; othersCount?: number; devCase?: boolean }>(
     `/api/interview-prep/scorecard?entry=${encodeURIComponent(entryId)}`,
     t("loadMineFailed")
   );
@@ -51,7 +51,7 @@ export function HumanScorecardPanel({
   // than from the GET that loaded before the save.
   const [savedHere, setSavedHere] = useState<Scorecard | null>(null);
   const mine: Scorecard | null = savedHere ?? data?.mine ?? null;
-  const othersCount = Math.max(0, (data?.records?.length ?? 0) - (data?.mine ? 1 : 0));
+  const othersCount = Math.max(0, data?.othersCount ?? 0);
   const saved = Boolean(mine?.ratings?.length);
 
   if (!open) {
@@ -62,7 +62,7 @@ export function HumanScorecardPanel({
           onClick={() => setOpen(true)}
           className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:border-coral/40"
         >
-          <ClipboardCheck size={15} className="text-coral" />
+          <ClipboardCheck size={15} className="text-coral-ink" />
           {saved ? t("editScorecard") : t("scoreInterview")}
           {saved ? <Check size={14} className="text-moss" /> : null}
         </button>
@@ -72,7 +72,7 @@ export function HumanScorecardPanel({
 
   if (error && !savedHere) {
     return (
-      <section className="flex flex-wrap items-center gap-2 text-sm text-coral">
+      <section className="flex flex-wrap items-center gap-2 text-sm text-coral-ink">
         <AlertTriangle size={15} aria-hidden /> {error}
         <button
           type="button"
@@ -88,7 +88,7 @@ export function HumanScorecardPanel({
   if (!data && !savedHere) {
     return (
       <p role="status" className="flex items-center gap-2 text-sm text-steel">
-        <Loader2 size={14} className="animate-spin text-coral" aria-hidden /> {t("loadingMine")}
+        <Loader2 size={14} className="animate-spin text-coral-ink" aria-hidden /> {t("loadingMine")}
       </p>
     );
   }
@@ -98,6 +98,7 @@ export function HumanScorecardPanel({
       entryId={entryId}
       archetype={archetype}
       roleFamily={roleFamily}
+      devCase={data?.devCase === true}
       initial={mine}
       othersCount={othersCount}
       onSaved={setSavedHere}
@@ -112,6 +113,7 @@ function HumanScorecardEditor({
   entryId,
   archetype,
   roleFamily,
+  devCase,
   initial,
   othersCount,
   onSaved,
@@ -120,6 +122,10 @@ function HumanScorecardEditor({
   entryId: string;
   archetype: string | null | undefined;
   roleFamily?: string | null;
+  // S1 — the entry carries a work sample, so the rubric gains the optional "Working with
+  // AI tools" axis (the same flag the POST route resolves). Left unrated it saves with
+  // no number; it is never seeded to a midpoint.
+  devCase: boolean;
   initial: Scorecard | null;
   othersCount: number;
   onSaved: (sc: Scorecard) => void;
@@ -134,7 +140,7 @@ function HumanScorecardEditor({
   // PREP3 — render the rubric in the recruiter's language; the canonical English
   // `competency` stays the POSTed scorecard key (ratings/evidence are keyed by
   // it below), so localizing display can't corrupt the scoring contract.
-  const rubric = localizedRubric(rubricForArchetype(archetype, roleFamily), rubricStrings);
+  const rubric = localizedRubric(rubricForArchetype(archetype, roleFamily, devCase), rubricStrings);
   const ratingAnchors = localizedRatingAnchors(rubricStrings);
   // Honest coverage cue, resolved by the SAME pure function the prep header and the
   // scorecard write path use (rubricCoverage), so the pack, the form and the stored
@@ -211,7 +217,7 @@ function HumanScorecardEditor({
   return (
     <section className="rounded-md border border-coral/30 bg-coral/5 p-3">
       <div className="flex items-center justify-between">
-        <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
+        <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral-ink">
           <ClipboardCheck size={13} /> {t("yourScorecard")}
         </p>
         <button type="button" onClick={onCollapse} className="focus-ring rounded px-2 py-0.5 text-sm font-semibold text-steel hover:text-ink">
@@ -242,14 +248,14 @@ function HumanScorecardEditor({
           type="button"
           onClick={save}
           disabled={saving || ratedCount === 0}
-          className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
+          className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral-solid px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
         >
           {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
           {saving ? t("saving") : t("saveScorecard")}
         </button>
         <span className="text-meta text-steel">{t("ratedCount", { rated: ratedCount, total: rubric.length })}</span>
         {saved && !saving ? <span className="text-sm font-semibold text-moss">{t("saved")}</span> : null}
-        {error ? <span className="text-sm text-coral">{error}</span> : null}
+        {error ? <span className="text-sm text-coral-ink">{error}</span> : null}
       </div>
       {gated && !saving ? (
         <p role="status" className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-moss">

@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 // dev-empty — run the app as a BRAND-NEW, completely empty tenant to verify the
-// first-run/onboarding experience. Companion to `npm run dev` (seeded ČS demo).
+// first-run/onboarding experience. Companion to `npm run dev` (which seeds the ČS demo
+// only on an existing seeded DB or with KP_SEED_DEMO=1 since operator triage T1).
+// KP_EMPTY=1 answers the first-run "start empty or demo?" choice as "empty", so this
+// server goes straight to the setup wizard; to look at the choice itself, run
+// `npm run dev` against a fresh KP_DB_PATH instead.
 //
 // What it does:
 //   1. reaps any STALE empty-dev instance (see below) so its open handle on the

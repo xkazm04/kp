@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { setArchetypeArchived, updateArchetype, type ArchetypeError } from "@/app/_lib/archetype-registry";
 import { safeJsonError } from "@/app/_lib/api-response";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // Both handlers here WRITE the shared archetype registry
 // (pipeline/jobfit/archetypes.json — one file per deployment, re-read by the Python
@@ -22,7 +23,7 @@ function errorResponse(err: ArchetypeError) {
   return NextResponse.json({ error: err.message, code: err.code, params: err.params }, { status });
 }
 
-export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const PUT = withSession(async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
@@ -34,11 +35,11 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
   } catch (error) {
     return safeJsonError(error, "api:archetypes", "ARCHETYPES_WRITE_FAILED");
   }
-}
+});
 
 // Retire / restore a custom archetype (archived lifecycle). Body: { archived: boolean }.
 // Built-in archetypes are refused (archive_builtin) with an honest reason.
-export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const PATCH = withSession(async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
@@ -53,4 +54,4 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   } catch (error) {
     return safeJsonError(error, "api:archetypes", "ARCHETYPES_WRITE_FAILED");
   }
-}
+});

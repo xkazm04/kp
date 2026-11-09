@@ -85,7 +85,7 @@ export function JobsRediscoveryFeedRow({
               {lead.prior.label}
             </span>
           )}
-          {leadError ? <p className="mt-0.5 text-meta text-coral">{leadError}</p> : null}
+          {leadError ? <p className="mt-0.5 text-meta text-coral-ink">{leadError}</p> : null}
         </div>
         {actions(lead, false)}
       </div>
@@ -102,7 +102,7 @@ export function JobsRediscoveryFeedRow({
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm text-ink">{a.jobTitle}</p>
-                    {err ? <p className="text-meta text-coral">{err}</p> : null}
+                    {err ? <p className="text-meta text-coral-ink">{err}</p> : null}
                   </div>
                   {actions(a, true)}
                 </li>
@@ -116,7 +116,7 @@ export function JobsRediscoveryFeedRow({
 }
 
 const ACTION_BTN =
-  "focus-ring inline-flex items-center gap-1.5 rounded-md border border-coral/40 bg-coral/5 text-sm font-semibold text-coral hover:bg-coral/10 disabled:opacity-50";
+  "focus-ring inline-flex items-center gap-1.5 rounded-md border border-coral/40 bg-coral/5 text-sm font-semibold text-coral-ink hover:bg-coral/10 disabled:opacity-50";
 
 // One role's affordance, by its PAIR status: done badges, a withheld note, or the
 // three actions. A pending pair keeps its buttons, disabled, so the row does not jump.

@@ -266,8 +266,19 @@ export function resolveIncludes(text, root = REPO_ROOT, seen = new Set()) {
       if (!m || seen.has(m[1])) return line;
       const target = path.resolve(root, m[1]);
       if (path.relative(root, target).startsWith('..')) return line; // outside the tree
-      if (!fs.existsSync(target) || !fs.statSync(target).isFile()) return line;
-      return resolveIncludes(fs.readFileSync(target, 'utf8'), root, new Set([...seen, m[1]]));
+      let body;
+      try {
+        const fd = fs.openSync(target, 'r');
+        try {
+          if (!fs.fstatSync(fd).isFile()) return line;
+          body = fs.readFileSync(fd, 'utf8'); // judged and read on one descriptor
+        } finally {
+          fs.closeSync(fd);
+        }
+      } catch {
+        return line;
+      }
+      return resolveIncludes(body, root, new Set([...seen, m[1]]));
     })
     .join('\n');
 }

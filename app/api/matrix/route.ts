@@ -4,7 +4,7 @@ import path from "node:path";
 import { getJobsByIds, getRoleStatusForWorkspace } from "@/app/_lib/db/jobs";
 import { withScopedPosition } from "./matrix-positions";
 import { countMatrixProfiles, listMatrixProfiles, listOpenPositions, MATRIX_POOL_CAP, pipelinePlacements } from "@/app/_lib/db/profiles";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { cleanupWorkdir, createWorkdir, engineRefusal, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { matrixEngineAnswer, MATRIX_GRID_SURFACE } from "./matrix-error-code";
@@ -64,10 +64,9 @@ type MatrixOut = {
 const matrixCache = createBoundedCache<MatrixOut>();
 
 // Candidate x open-position fit heatmap. Scores are deterministic (no LLM).
-export async function GET(request: NextRequest) {
+export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
   let workdir: string | null = null;
   try {
-    const ws = await currentWorkspace();
     const profiles = listMatrixProfiles(MATRIX_POOL_CAP, ws);
     // The unclamped pool size, so the grid can say "Showing 200 of N" instead of
     // silently omitting candidates past the cap (skill-matrix-coverage #1).
@@ -183,4 +182,4 @@ export async function GET(request: NextRequest) {
   } finally {
     if (workdir) await cleanupWorkdir(workdir);
   }
-}
+});

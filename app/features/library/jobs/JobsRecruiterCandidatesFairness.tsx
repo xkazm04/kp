@@ -52,7 +52,7 @@ export const FairnessAuditPanel = memo(function FairnessAuditPanel({
   return (
     <details className="mt-3 rounded-md border border-stone-200 bg-paper/40 px-3 py-2">
       <summary className="focus-ring flex cursor-pointer items-center gap-1.5 text-sm font-semibold text-steel hover:text-ink">
-        <Scale size={13} className="text-coral" /> {t("fairnessAudit")}
+        <Scale size={13} className="text-coral-ink" /> {t("fairnessAudit")}
       </summary>
       <p className="mt-2 text-sm text-steel">{t("fairnessAuditHelp")}</p>
       {poolTruncated ? (

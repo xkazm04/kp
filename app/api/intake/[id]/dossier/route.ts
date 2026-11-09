@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getIntake, updateIntakeDossier } from "@/app/_lib/db/intakes";
 import { runIntakeAppMasterSync } from "@/app/_lib/intake-run";
 import { repoDossierSchema } from "@/app/_lib/schemas.generated";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
@@ -21,12 +21,11 @@ import { intakeLang } from "@/app/_lib/intake-lang";
 // touches a row — plus one more gate: the `scanId` must be the one THIS intake
 // was created from, so a dossier from another session's scan cannot be posted
 // onto this brief.
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: Request, { params }: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { id } = await params;
-    const ws = await currentWorkspace();
     const intake = getIntake(id, ws);
     // Every refusal below answers with a CODE (docs/architecture/api-contracts.md
     // §1.1). They used to be bare English strings, so the card could only say
@@ -89,4 +88,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (request.signal.aborted) return new NextResponse(null, { status: 499 });
     return safeJsonError(error, "api:intake/dossier", "INTAKE_DOSSIER_FAILED");
   }
-}
+});

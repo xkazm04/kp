@@ -16,6 +16,7 @@
     "gateHuman": "Mensch gibt frei",
     "tipGateHuman": "Eine Person gibt dieses Urteil in Entscheidungen frei. Klicken, um es unbeaufsichtigt anzuwenden.",
     "tipGateAuto": "Dieses Urteil wird unbeaufsichtigt angewendet. Klicken, damit eine Person es freigibt.",
+    "tipGateFixed": "Diesen Schritt entscheidet eine Person; keine Einstellung übergibt ihn an die Maschine.",
     "tipKindAi": "Hier führt eine KI das Interview. Klicken, um daraus eine menschliche Runde zu machen.",
     "tipKindHuman": "Eine Person führt diese Runde. Klicken, um daraus ein KI-Interview zu machen.",
     "tipModeScreening": "Das Screening macht immer die KI. Sie wählen, wer es abzeichnet.",
@@ -207,7 +208,7 @@
       },
       "dist": {
         "title": "Verteilung an Kandidaten",
-        "summary": "Beim Speichern der Anzeige wird der Kandidatenpool gegen die neue Stelle gerankt und als Pipeline-Einträge im Status Accepted angelegt; der Accepted-Zweig des Policy-Durchlaufs (Richtung #1) rückt passende Kandidaten automatisch nach Screened vor (erste Bewertungswelle). Das Posten auf externen Jobbörsen bleibt manuell."
+        "summary": "Beim Speichern der Anzeige wird der Kandidatenpool gegen die neue Stelle gerankt und als Pipeline-Einträge im Status Accepted angelegt; der Accepted-Zweig des Policy-Durchlaufs (Richtung #1) schlägt passende Kandidaten für Screened vor (erste Bewertungswelle) und reiht jeden Vorschlag zur Freigabe durch einen Menschen ein. Das Posten auf externen Jobbörsen bleibt manuell."
       },
       "apply": {
         "title": "Bewerbung / Lebenslauf-Upload",
@@ -255,7 +256,7 @@
       },
       "cron": {
         "title": "Scheduler / Cron",
-        "summary": "Richtung #5: eine dauerhafte Uhr. Ein Instrumentierungs-Heartbeat taktet den Scheduler, der einen fälligen Lauf atomar übernimmt und den Policy-Durchlauf ausführt (Nachfass-Erinnerungen nach Liegezeit, zeitbasierte Vorrückungen). Standardmäßig AUS. Einschaltbar über den Schalter im Pipeline-Tab oder AUTOMATION_SCHEDULER_AUTOSTART=1."
+        "summary": "Richtung #5: eine dauerhafte Uhr. Ein Instrumentierungs-Heartbeat taktet den Scheduler, der einen fälligen Lauf atomar übernimmt und den Policy-Durchlauf ausführt (Nachfass-Erinnerungen nach Liegezeit, eingereihte Vorrückungsvorschläge). Standardmäßig AUS. Einschaltbar über den Schalter im Pipeline-Tab oder AUTOMATION_SCHEDULER_AUTOSTART=1."
       }
     }
   },
@@ -552,6 +553,7 @@
     "theRole": "die Stelle",
     "aRole": "eine Stelle",
     "yourNewRole": "Ihre neue Stelle",
+    "aiDraftedFooter": "Diese Nachricht wurde von einer KI entworfen.",
     "dataFooter": "· · ·\nIhre Daten: Sehen Sie jederzeit ein, welche Daten wir über Sie speichern, oder fordern Sie deren Löschung an:\n{link}",
     "stopFooter": "Diese Nachrichten stoppen: Weitere Nachrichten zu Stellenangeboten können Sie jederzeit mit einem Klick abbestellen:\n{link}",
     "ack": {
@@ -576,7 +578,7 @@
     },
     "koDecline": {
       "subject": "Ihre Bewerbung: {role}",
-      "body": "Hallo {name},\n\nvielen Dank für Ihre Bewerbung auf {role}. Sie haben eine Voraussetzung, die die Stelle ausdrücklich verlangt, mit Nein beantwortet:\n\n{mustHaves}\n\nDamit endet die Bewerbung automatisch; kein Mensch hat darüber entschieden. Halten Sie das für falsch oder haben Sie sich vertippt, antworten Sie einfach auf diese Nachricht, dann überprüft ein Mensch die Entscheidung.\n\nWir speichern diese E-Mail-Adresse nur, um festzuhalten, dass dieser Brief versendet wurde, und löschen sie nach {days} Tagen automatisch.\n\nAnforderungen können sich mit der Zeit ändern. Wir würden uns freuen, wenn Sie sich in Zukunft erneut bewerben.\n\nAlles Gute für Sie,\n{team}",
+      "body": "Hallo {name},\n\nvielen Dank für Ihre Bewerbung auf {role}. Sie haben eine Voraussetzung, die die Stelle ausdrücklich verlangt, mit Nein beantwortet:\n\n{mustHaves}\n\nEin Mensch hat Ihre Bewerbung geprüft und bestätigt, dass sie diese Voraussetzung nicht erfüllt, deshalb können wir sie nicht weiterführen. Halten Sie das für falsch oder haben Sie sich vertippt, antworten Sie einfach auf diese Nachricht, dann prüft ein Mensch sie erneut.\n\nIhre Bewerbung, einschließlich dieser E-Mail-Adresse, bleibt wie jede andere Bewerbung bei uns gespeichert, und Sie können jederzeit über den Link unten verlangen, dass wir sie löschen.\n\nAnforderungen können sich mit der Zeit ändern. Wir würden uns freuen, wenn Sie sich in Zukunft erneut bewerben.\n\nAlles Gute für Sie,\n{team}",
       "mustHaveFallback": "eine der Voraussetzungen der Stelle"
     },
     "offer": {
@@ -611,6 +613,10 @@
       "length": " Planen Sie etwa {minutes} Minuten ein.",
       "body": "Hallo {name},\n\nnur eine kurze Erinnerung, dass Ihr Interview für {role} um {slot} ansteht.{length} Wir freuen uns auf das Gespräch mit Ihnen. Bis dahin!\n\n{team}",
       "slotFallback": "Ihr vereinbarter Termin"
+    },
+    "interviewNudge": {
+      "subject": "Noch kein Termin? Wählen Sie Ihr Interview für {role}",
+      "body": "Hallo {name},\n\nSie haben noch keinen Termin für Ihr Interview zu {role} gewählt. Hier können Sie einen passenden Zeitpunkt auswählen:\n{link}\n\nDer Link ist nur begrenzte Zeit gültig, buchen Sie daher am besten bald. Falls kein Termin passt, antworten Sie einfach, dann finden wir eine Lösung.\n\n{team}"
     },
     "offerReminder": {
       "subject": "Erinnerung: Ihr Angebot für {role} ist noch offen",
@@ -779,7 +785,8 @@
       "sections": "Seitenabschnitte",
       "top": "Nach oben",
       "about": "Über die App",
-      "signIn": "Anmelden"
+      "signIn": "Anmelden",
+      "openWorkspace": "Ihren Arbeitsbereich öffnen"
     },
     "hero": {
       "badge": "Automatisiertes Recruiting, vom Menschen freigegeben",
@@ -787,6 +794,7 @@
       "proof": "Open Source, AGPL-3.0. Läuft auf Ihrer Maschine, mit Ihren Modellen: das ganze Produkt, kostenlos und ohne Limits. Die bezahlten Pläne kaufen fremde Server.",
       "proofCta": "Selbst betreiben",
       "ctaPrimary": "Kostenlos loslegen",
+      "ctaOpen": "Ihren Arbeitsbereich öffnen",
       "ctaPending": "Ihr Arbeitsbereich wird geöffnet…",
       "ctaDemo": "Live-Demo ansehen",
       "mascotAlt": "Kandi, das KandiDate-Maskottchen, jubelt unter einem freigegebenen Lebenslauf"
@@ -895,7 +903,7 @@
       "subtitle": "Gebaut für reguliertes Recruiting nach EU AI Act und DSGVO: Die Maschine liest, aber eine qualifizierte Person trifft jede Entscheidung, die einen Kandidaten betrifft.",
       "human": {
         "title": "Human in the Loop",
-        "body": "Bis auf ein automatisches Ausschlusskriterium trifft eine Ablehnung ein Mensch: die Maschine kann keine vollziehen, und eine Sammelablehnung braucht eine unterschriebene menschliche Freigabe genau dieser Liste. Das Ausschlusskriterium: Wer eine Voraussetzung, die die Stelle ausdrücklich nennt, mit Nein beantwortet, dessen Bewerbung endet sofort; die Person erfährt, um welche es ging, und kann eine Überprüfung durch einen Menschen verlangen. Auch das Weiterreichen und das Unterbreiten eines Angebots sind standardmäßig menschlich freigegeben. Ein Workspace kann beides Stufe für Stufe an die Automatik übergeben, und jeder dann unbeaufsichtigte Schritt wird samt der Regel protokolliert, die ihn erlaubt hat."
+        "body": "Eine Ablehnung trifft ein Mensch: die Maschine kann keine vollziehen, und eine Sammelablehnung braucht eine unterschriebene menschliche Freigabe genau dieser Liste. Ein Nein bei einer Voraussetzung, die die Stelle ausdrücklich nennt, lehnt niemanden ab: die Bewerbung wird für einen Menschen zurückgehalten, der die Ablehnung bestätigt oder die Zurückhaltung aufhebt, und erst eine bestätigte Ablehnung teilt der Person mit, um welche Voraussetzung es ging und wie sie eine Überprüfung durch einen Menschen verlangen kann. Jedes Angebot gibt ein Mensch frei, und keine Einstellung eines Workspace kann eine Screening- oder Angebotsentscheidung an die Maschine übergeben."
       },
       "oversight": {
         "title": "AI Act, Artikel für Artikel"
@@ -926,7 +934,7 @@
           },
           "auto": "auto",
           "you": "Sie",
-          "lockedNote": "Absagen nach Eingang der Bewerbung bleiben immer bei Ihnen: dieser Schalter bleibt gesperrt"
+          "lockedNote": "Screening, Angebote und Absagen nach Eingang der Bewerbung bleiben immer bei Ihnen: diese Schalter bleiben gesperrt"
         }
       }
     },
@@ -1097,7 +1105,7 @@
       "screen": {
         "eyebrow": "Schritt 04 · Screening",
         "title": "Jeder Lebenslauf, wirklich gelesen",
-        "body": "Jede Bewerbung wird anhand der Stelle von 0–100 bewertet, mit nachvollziehbaren Belegen. Zuerst läuft eine Fairness-Prüfung; eindeutig starke Treffer rücken selbst vor, alles andere wartet auf einen Menschen."
+        "body": "Jede Bewerbung wird anhand der Stelle von 0–100 bewertet, mit nachvollziehbaren Belegen. Zuerst läuft eine Fairness-Prüfung; eindeutig starke Treffer werden einem Menschen zum Vorrücken vorgelegt, alles andere wartet auf einen Menschen."
       },
       "assignment": {
         "eyebrow": "Schritt 05 · Arbeitsprobe",
@@ -1221,22 +1229,26 @@
     "close": "Schließen",
     "scanningCv": "Lebenslauf wird gescannt",
     "formatting": "Formatierung",
-    "salesEnquirySubject": "Anfrage zum Enterprise-Tarif"
+    "salesEnquirySubject": "Anfrage zum Enterprise-Tarif",
+    "employerLogo": "Logo des Arbeitgebers"
   },
   "aiDisclosure": {
     "loadFailed": "Die Regeln dieses Arbeitsbereichs konnten nicht bestätigt werden. Die Standardinformationen werden angezeigt.",
     "retry": "Erneut versuchen",
     "title": "So funktioniert es",
-    "body": "Wir setzen AI zur Unterstützung von Screening und Interviews ein und bewerten dabei Ihre <highlight>Fähigkeiten, Erfahrung und Eignung</highlight> für die Stelle. Wer eine Voraussetzung, die die Stelle ausdrücklich nennt, mit Nein beantwortet, dessen Bewerbung endet automatisch; Sie erfahren, um welche es ging, und können eine Überprüfung durch einen Menschen verlangen. Jede andere Ablehnung trifft ein Mensch: keine Einstellung kann diese Entscheidung an die Maschine übergeben. Das Weiterreichen und ein Angebot sind standardmäßig menschlich freigegeben; ein Workspace kann beides Stufe für Stufe an die Automatik übergeben, und jeder Schritt, der dann unbeaufsichtigt läuft, wird protokolliert. Sie können jederzeit eine Prüfung durch einen Menschen verlangen.",
+    "body": "Wir setzen AI zur Unterstützung von Screening und Interviews ein und bewerten dabei Ihre <highlight>Fähigkeiten, Erfahrung und Eignung</highlight> für die Stelle. Wer eine Voraussetzung, die die Stelle ausdrücklich nennt, mit Nein beantwortet, dessen Bewerbung endet dadurch nicht von selbst: sie wird für einen Menschen zurückgehalten, und erst dessen Bestätigung lehnt sie ab. Danach erfahren Sie, um welche Voraussetzung es ging, und können eine Überprüfung durch einen Menschen verlangen. Jede Ablehnung trifft ein Mensch: keine Einstellung kann diese Entscheidung an die Maschine übergeben. Jedes Angebot gibt ein Mensch frei, und keine Einstellung eines Workspace kann eine Screening- oder Angebotsentscheidung an die Maschine übergeben. Sie können jederzeit eine Prüfung durch einen Menschen verlangen.",
     "dataConsent": "Mit dem Absenden stimmen Sie zu, dass wir Ihre personenbezogenen Daten für diese Stelle bis zu {months, plural, one {# Monat} other {# Monate}} verarbeiten dürfen. Sie können Ihre Daten jederzeit über den Link in unseren Nachrichten einsehen oder deren Löschung verlangen.",
-    "interviewData": "Zu diesem Interview: Der/die Recruiter/in kann Ihr Transkript und die AI-Bewertung bis zu {months, plural, one {# Monat} other {# Monate}} lesen. Danach bleiben Ihre Worte verborgen. Um die Löschung Ihrer Daten zu verlangen, nutzen Sie den Link „Meine Daten verwalten“ in einer unserer Nachrichten. Um eine Überprüfung durch eine Person zu verlangen, antworten Sie auf eine beliebige Nachricht des Einstellungsteams.",
+    "interviewData": "Zu diesem Interview: Der/die Recruiter/in kann Ihr Transkript und die AI-Bewertung bis zu {months, plural, one {# Monat} other {# Monate}} lesen. Danach bleiben Ihre Worte verborgen. Um die Löschung Ihrer Daten zu verlangen, nutzen Sie den Link „Ihre Daten“ am Ende jeder unserer Nachrichten. Um eine Überprüfung durch eine Person zu verlangen, antworten Sie auf eine beliebige Nachricht des Einstellungsteams.",
     "regimeNote": "Bewertet gemäß {framework}; Ihre personenbezogenen Daten werden gemäß {dataLaw} verarbeitet."
   },
   "errors": {
     "generic": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+    "ENOTFOUND": "Diese Adresse wurde nicht gefunden. Prüfen Sie die URL und versuchen Sie es erneut.",
+    "EADDRNOTPUBLIC": "Diese Adresse führt in ein privates Netzwerk und wurde deshalb nicht aufgerufen.",
     "OFFER_RESPOND_FAILED": "Ihre Rückmeldung konnte nicht erfasst werden. Bitte versuchen Sie es erneut.",
     "SCHEDULE_CONFIRM_FAILED": "Der Termin konnte nicht bestätigt werden. Bitte versuchen Sie es erneut.",
     "SCHEDULE_INVITE_FAILED": "Der Terminlink konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+    "WORK_SAMPLE_SEND_FAILED": "Die Aufgabe konnte nicht gesendet werden. Bitte versuchen Sie es erneut.",
     "JD_LIST_FAILED": "Die Bibliothek der Stellenbeschreibungen konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "JD_LOAD_FAILED": "Die Stellenbeschreibung konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "JD_NOT_FOUND": "Diese Stellenbeschreibung wurde nicht gefunden.",
@@ -1338,6 +1350,7 @@
     "FEEDBACK_LIST_FAILED": "Feedback konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "POSTING_CLOSED": "Die Bewerbungsphase für diese Stelle ist beendet; es werden keine weiteren Einreichungen angenommen.",
     "OFFER_EXPIRED": "Dieses Angebot ist abgelaufen.",
+    "OFFER_NO_LONGER_OPEN": "Dieses Angebot ist nicht mehr offen.",
     "OFFER_NOT_FOUND": "Dieses Angebot wurde nicht gefunden. Möglicherweise wurde der Link durch einen neueren ersetzt.",
     "SESSION_TOKEN_REQUIRED": "Diese Arbeitssitzung gehört zu einem anderen Bewerbungslink. Öffnen Sie bitte den Link aus Ihrer Einladungs-E-Mail, um fortzufahren.",
     "DEVCASE_SESSION_UNAVAILABLE": "Dieser Fall nimmt keine Einreichungen mehr an.",
@@ -1376,6 +1389,8 @@
     "PIPELINE_MOVE_CONFLICT": "Verschieben nicht möglich: Die Person wurde gerade geändert oder ist abgeschlossen. Aktualisieren Sie und versuchen Sie es erneut.",
     "PIPELINE_STAGE_CHANGED": "Der Schritt dieser Person hat sich seit dem Öffnen der Ansicht geändert. Aktualisieren Sie und entscheiden Sie erneut.",
     "PIPELINE_DECISION_NOT_SEALED": "Diese Entscheidung konnte nicht aufgezeichnet werden und wurde deshalb nicht ausgeführt. Nichts wurde geändert und nichts versendet. Versuchen Sie es in Kürze erneut.",
+    "PIPELINE_ENTRY_HIRED": "Diese Person ist bereits eingestellt und kann daher nicht abgelehnt werden. Es wurde nichts geändert.",
+    "PIPELINE_NO_QUEUED_ADVANCE": "Für diesen Eintrag gibt es keinen wartenden Vorschlag zum Weiterleiten, den man belassen könnte, daher wurde nichts geändert. Möglicherweise wurde bereits entschieden.",
     "PIPELINE_ACTION_UNKNOWN": "Diese Aktion unterstützt dieses Board nicht.",
     "PIPELINE_GITHUB_EVIDENCE_INVALID": "Diese GitHub-Belege haben nicht die erwartete Form.",
     "PIPELINE_ADD_REASONS_INVALID": "Die dieser Aufnahme beigefügte Begründung hat nicht das erwartete Format.",
@@ -1391,6 +1406,7 @@
     "PIPELINE_NOTE_EMPTY": "Schreiben Sie etwas, bevor Sie eine Notiz hinzufügen.",
     "PIPELINE_NOT_REINSTATABLE": "Hier gibt es keine automatische Absage, die sich zurücknehmen ließe. Die Person wurde bereits wieder aufgenommen oder anders abgeschlossen.",
     "PIPELINE_INTAKE_NOT_DEGRADED": "Bei dieser Person gibt es keine unvollständige Profilübernahme, die zu klären wäre.",
+    "OFFER_DRAFT_NOT_AVAILABLE": "Ein Angebot lässt sich nur für aktive Personen im Angebotsschritt entwerfen, bei denen keine Entscheidung offen ist.",
     "OFFER_NOT_DISPATCHED": "Das Angebot wurde erstellt, konnte aber nicht gesendet werden. Nichts ist verloren: Genehmigen Sie erneut, dann geht derselbe Link hinaus.",
     "OFFER_SENT_APPROVAL_CHANGED": "Das Angebot ist hinaus, aber die Freigabe dieser Person hat sich währenddessen geändert. Aktualisieren Sie, bevor Sie erneut entscheiden.",
     "PIPELINE_BATCH_ITEM_MALFORMED": "Bei diesem Eintrag fehlte die Person, oder er nannte eine Aktion, die dieses Board nicht hat.",
@@ -1445,6 +1461,7 @@
     "ANALYZE_TOO_MANY_VARIANTS": "Pro Durchlauf lassen sich höchstens 3 Lebenslauf-Varianten vergleichen.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "Diese Einreichung wurde nicht gefunden.",
     "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Bewerten Sie die Einreichung, bevor Sie ein Voice-Screening starten.",
+    "INTERVIEW_ENTRY_NOT_ACTIVE": "Diese Kandidatin bzw. dieser Kandidat ist nicht mehr aktiv, daher kann keine neue Scorecard abgelegt werden.",
     "INTERVIEW_ENTRY_REQUIRED": "Geben Sie an, für welche Kandidatin oder welchen Kandidaten dieses Interview ist.",
     "INTERVIEW_JOB_REQUIRED": "Wählen Sie eine Stelle, um Interviews zu vergleichen.",
     "INTERVIEW_SIM_ATTACH_FIELDS_REQUIRED": "Wählen Sie ein Übungsinterview und eine Person zum Anhängen aus.",
@@ -1456,6 +1473,7 @@
     "INTERVIEW_ALREADY_COMPLETED": "Dieses Interview wurde bereits abgeschlossen.",
     "INTERVIEW_NOT_RESCORABLE": "Dieses Interview kann nicht erneut bewertet werden.",
     "INTERVIEW_SCORECARD_UNGROUNDED": "Die Bewertung konnte kein Urteil im Transkript begründen, daher wurde nichts gespeichert. Versuchen Sie die Neubewertung später erneut.",
+    "INTERVIEW_SCORECARD_RATINGS_REQUIRED": "Bewerten Sie mindestens eine Kompetenz, bevor Sie einen Bewertungsbogen einreichen.",
     "INTERVIEW_CONSENT_REQUIRED": "Vor dem Start des Interviews ist die Einwilligung zur Aufzeichnung erforderlich.",
     "INTERVIEW_PROVIDER_INVALID": "Diesen Sprachanbieter kennt der Server nicht.",
     "INTERVIEW_PROVIDER_UNCONFIGURED": "Der Sprachanbieter ist auf diesem Server nicht konfiguriert, deshalb kann der Anruf nicht starten.",
@@ -1497,11 +1515,20 @@
     "DECISION_CONFIG_SAVE_FAILED": "Die Regeln konnten nicht gespeichert werden. Bitte erneut versuchen.",
     "SCREEN_WAVE_FAILED": "Die Screening-Welle konnte nicht ausgeführt werden. Bitte erneut versuchen.",
     "SCREEN_WAVE_JOB_REQUIRED": "Nennen Sie die Stelle, für die diese Screening-Welle laufen soll.",
+    "ROLE_VIEW_JOB_REQUIRED": "Wählen Sie eine Stelle, um ihre Kandidaten nebeneinander zu sehen.",
+    "SHORTLIST_REQUEST_INVALID": "Diese Shortlist-Änderung konnte nicht gelesen werden. Laden Sie neu und versuchen Sie es erneut.",
+    "SHORTLIST_ENTRY_UNKNOWN": "Diese Person ist nicht mehr auf dieser Stelle. Laden Sie neu, um die aktuelle Liste zu sehen.",
     "SCREEN_WAVE_APPROVAL_REQUIRED": "Prüfen Sie die Vorschau und genehmigen Sie diese Auswahl, bevor die Welle ausgeführt wird.",
     "SCREEN_WAVE_APPROVAL_EXPIRED": "Diese Genehmigung ist abgelaufen. Bitte neu vorschauen und die aktuelle Auswahl genehmigen, bevor Sie die Welle ausführen.",
     "SCREEN_WAVE_APPROVAL_MISMATCH": "Die Kandidatenauswahl hat sich seit der Vorschau geändert. Bitte neu vorschauen und die aktuelle Auswahl genehmigen, bevor Sie die Welle ausführen.",
     "SCREEN_WAVE_APPROVAL_SPENT": "Diese Prüfung wurde bereits verwendet. Bitte neu vorschauen und die aktuelle Auswahl genehmigen, bevor Sie die Welle ausführen.",
     "SCREEN_WAVE_APPROVAL_UNATTRIBUTED": "Melden Sie sich an oder setzen Sie den Operatornamen, damit diese Prüfung zugeordnet werden kann.",
+    "ROLE_RUN_NOT_FOUND": "Dieser Rollenlauf wurde nicht gefunden.",
+    "ROLE_RUN_GATE_INVALID": "Nennen Sie das Gate (Absage, Intervieweinladung oder Angebot), den Kandidatenzweig und zum Bestätigen Ihre Entscheidung.",
+    "ROLE_RUN_GATE_NOT_PARKED": "Dieser Kandidat wartet an diesem Gate nicht. Laden Sie den Lauf neu, um den Stand zu sehen.",
+    "ROLE_RUN_START_INVALID": "Nennen Sie die Rolle, für die dieser Lauf starten soll.",
+    "ROLE_RUN_JOB_NOT_FOUND": "Diese Rolle ist nicht verfügbar.",
+    "ROLE_RUN_BUSY": "Dieser Lauf wird bereits weitergeführt. Laden Sie in einem Moment neu, um den Stand zu sehen.",
     "MATRIX_BUILD_FAILED": "Die Eignungsmatrix konnte nicht erstellt werden. Bitte erneut versuchen.",
     "MATCH_REASONING_FAILED": "Dieser Match konnte nicht erklärt werden. Bitte erneut versuchen.",
     "MATRIX_INPUT_INVALID": "Aus dieser Anfrage ließ sich die Eignungsmatrix nicht erstellen.",
@@ -1524,6 +1551,10 @@
     "ANALYTICS_SPEND_SAVE_FAILED": "Diese Ausgabe konnte nicht gespeichert werden. Bitte erneut versuchen.",
     "ANALYTICS_TARGET_SAVE_FAILED": "Dieses Ziel konnte nicht gespeichert werden. Bitte erneut versuchen.",
     "ANALYTICS_METRIC_PACK_FAILED": "Das Kennzahlenpaket konnte nicht erstellt werden. Bitte erneut versuchen.",
+    "ANALYTICS_READ_FAILED": "Die Analyse konnte nicht erstellt werden. Bitte erneut versuchen.",
+    "ANALYTICS_CALIBRATION_READ_FAILED": "Die Kalibrierung konnte nicht berechnet werden. Bitte erneut versuchen.",
+    "ANALYTICS_SCORE_BAND_READ_FAILED": "Der Punktebereich konnte nicht geladen werden. Bitte erneut versuchen.",
+    "ANALYTICS_THRESHOLD_HISTORY_READ_FAILED": "Der Schwellenverlauf konnte nicht geladen werden. Bitte erneut versuchen.",
     "DECISION_LOG_LOAD_FAILED": "Das Entscheidungsprotokoll konnte nicht geladen werden. Bitte erneut versuchen.",
     "CALIBRATION_APPLY_FAILED": "Der Schwellenwert konnte nicht übernommen werden. Bitte das Panel neu laden und die aktuelle Untergrenze prüfen.",
     "ANALYTICS_POLICY_FORBIDDEN": "Ihre Rolle darf die Analyse-Einstellungen und die Screening-Untergrenze dieses Teams nicht ändern.",
@@ -1562,12 +1593,18 @@
     "COMMS_RELAY_STALE": "Jemand hat eine neuere Relay-Konfiguration gespeichert. Bitte neu laden und die Änderung erneut vornehmen.",
     "COMMS_RELAY_INVALID": "Dieser Relay-Endpunkt ist nicht zulässig. Verwenden Sie eine öffentliche https://-URL.",
     "COMMS_RELAY_SAVE_FAILED": "Die Relay-Konfiguration konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+    "COMMS_SMTP_STALE": "Jemand hat inzwischen einen neueren E-Mail-Versand gespeichert. Laden Sie neu und nehmen Sie Ihre Änderung erneut vor.",
+    "COMMS_SMTP_INVALID": "Diese Einstellung für den E-Mail-Versand ist ungültig. Prüfen Sie Adresse, Server und Port.",
+    "COMMS_SMTP_SAVE_FAILED": "Der E-Mail-Versand konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
     "PROFILE_STALE": "Dieses Profil wurde nach dem Öffnen von jemand anderem gespeichert. Laden Sie es neu und wenden Sie Ihre Änderungen erneut an.",
     "ATS_CONFIG_SAVE_FAILED": "Die Webhook-Einstellungen konnten nicht gespeichert werden. Bitte erneut versuchen.",
     "ATS_CONFIG_STALE": "Jemand hat inzwischen neuere Webhook-Einstellungen gespeichert. Laden Sie sie neu und nehmen Sie Ihre Änderung erneut vor.",
     "GROUP_EVAL_READ_FAILED": "Der gespeicherte Vergleich konnte nicht geladen werden. Bitte erneut versuchen.",
     "DECISION_RECORDS_READ_FAILED": "Die Entscheidungsprotokolle konnten nicht geladen werden. Bitte erneut versuchen.",
     "JD_FRESHNESS_LOOKUP_FAILED": "Es konnte nicht geprüft werden, wann diese JDs zuletzt bearbeitet wurden. Bitte erneut versuchen.",
+    "ROLE_VIEW_LOOKUP_FAILED": "Die Kandidaten dieser Stelle konnten nicht geladen werden. Bitte erneut versuchen.",
+    "SHORTLIST_READ_FAILED": "Die Shortlist konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "SHORTLIST_SAVE_FAILED": "Die Shortlist konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
     "SIM_RESET_FAILED": "Die Simulationsdaten konnten nicht gelöscht werden. Bitte erneut versuchen.",
     "SIM_INBOUND_FAILED": "Die eingehende Bewerbung konnte nicht simuliert werden. Bitte erneut versuchen.",
     "SIM_SCREEN_DRAFT_FAILED": "Die Screening-Empfehlung konnte nicht erstellt werden. Bitte erneut versuchen.",
@@ -1681,6 +1718,9 @@
     "PROFILE_BUILD_TIMEOUT": "Die Verarbeitung des Profils hat zu lange gedauert und wurde abgebrochen. Versuchen Sie erneut zu speichern.",
     "JOB_WINNABILITY_TIMEOUT": "Die Bewertung dieser Stelle hat zu lange gedauert und wurde abgebrochen. Bitte versuchen Sie es erneut.",
     "COMMS_SUPPRESSED": "Diese Kandidatin bzw. dieser Kandidat darf nicht mehr kontaktiert werden.",
+    "OUTREACH_LETTER_NOT_FOUND": "Dieser Brief ist nicht mehr verfügbar.",
+    "OUTREACH_LETTER_CONFLICT": "Dieser Brief wurde gerade geändert oder bereits bearbeitet. Aktualisieren Sie die Seite und versuchen Sie es erneut.",
+    "OUTREACH_BODY_TOO_LONG": "Dieser Brief ist zu lang zum Versenden. Kürzen Sie ihn und versuchen Sie es erneut.",
     "TTS_UNAVAILABLE": "Sprachausgabe ist auf diesem Server nicht eingerichtet, daher kann nichts sprechen.",
     "STT_UNAVAILABLE": "Transkription ist auf diesem Server nicht eingerichtet.",
     "ATS_CANDIDATE_ERASED": "Die Daten dieser Kandidatin bzw. dieses Kandidaten wurden gelöscht und können nicht exportiert werden.",
@@ -1708,6 +1748,10 @@
     "BRAND_ACCENT_ILLEGIBLE_LIGHT": "Dieser Akzent ist für Studio Light zu hell: Button-Text und Fokusrahmen wären unsichtbar. Wählen Sie eine dunklere Farbe (mindestens 3:1).",
     "BRAND_ACCENT_ILLEGIBLE_DARK": "Dieser Akzent hat keine lesbare Spark-Dark-Variante. Er ist zu dunkel, um ihn ohne Farbwechsel aufzuhellen, wählen Sie deshalb einen helleren oder kräftigeren Ton.",
     "BRAND_LOGO_INVALID": "Der Logo-Link muss eine https://-URL sein und kurz genug zum Speichern.",
+    "BRAND_LOGO_EMPTY": "Die Logo-Datei ist leer.",
+    "BRAND_LOGO_TOO_LARGE": "Die Logo-Datei ist zu groß. Das Limit beträgt 512 KB.",
+    "BRAND_LOGO_TYPE": "Ein Logo muss eine PNG- oder SVG-Datei sein.",
+    "BRAND_LOGO_UNSAFE": "Diese SVG enthält etwas, das ein Logo nicht enthalten darf: Skripte, externe Links oder eingebettete Inhalte.",
     "BRAND_LOAD_FAILED": "Branding konnte nicht geladen werden. Bitte erneut versuchen.",
     "BRAND_SAVE_FAILED": "Branding konnte nicht gespeichert werden. Bitte erneut versuchen.",
     "AUTOMATION_TASK_FAILED": "Dieser KI-Schritt konnte für diese Person nicht ausgeführt werden. Bitte erneut versuchen.",
@@ -1748,6 +1792,7 @@
     "SCHEDULE_BULK_UNADDRESSABLE": "Diese Person hat keine E-Mail-Adresse, es wurde kein Terminlink gesendet.",
     "SCHEDULE_INVITE_ENTRY_REQUIRED": "Wählen Sie eine Person aus, bevor Sie einen Terminlink erstellen.",
     "SCHEDULE_INVITE_ENTRY_INACTIVE": "Diese Person ist nicht mehr aktiv, es wurde keine Einladung gesendet.",
+    "WORK_SAMPLE_ENTRY_INACTIVE": "Diese Person ist nicht mehr aktiv, es wurde keine Aufgabe gesendet.",
     "ATS_CONNECTION_SAVE_FAILED": "Die ATS-Verbindung konnte nicht gespeichert werden. Bitte erneut versuchen.",
     "ATS_CONNECTION_REMOVE_FAILED": "Die ATS-Verbindung konnte nicht entfernt werden. Bitte erneut versuchen.",
     "ATS_CANDIDATE_NOT_FOUND": "Diese Kandidatin bzw. dieser Kandidat ist nicht auf diesem Board.",
@@ -1776,6 +1821,8 @@
     "TTS_TEXT_TOO_LONG": "Dieser Text ist zu lang, um am Stück vorgelesen zu werden. Senden Sie ihn in kürzeren Teilen.",
     "AGENT_HIRE_FROM_NEED_FAILED": "Aus diesem Bedarf konnte keine Rolle erstellt und versendet werden. Bitte versuchen Sie es erneut.",
     "ROLE_SLATE_FAILED": "Die Kandidatenliste dieser Rolle konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "ROLE_RUN_GATE_FAILED": "Das Gate dieses Rollenlaufs konnte nicht geladen oder erfasst werden. Bitte versuchen Sie es erneut.",
+    "ROLE_RUN_ADVANCE_FAILED": "Dieser Rollenlauf konnte nicht gestartet oder weitergeführt werden. Bitte versuchen Sie es erneut.",
     "HIRE_AUTOMATION_DISABLED": "Maschinelles Einstellen ist in dieser Installation nicht aktiviert.",
     "HIRE_UNAUTHORIZED": "Nicht autorisiert.",
     "HIRE_NEED_REQUIRED": "Beschreiben Sie den Bedarf: die Arbeit, den Nachweis, dass sie nötig ist, und was als erledigt gilt.",
@@ -1836,6 +1883,10 @@
     "ENGINE_FAILED": "Die Analyse-Engine wurde beendet, bevor dieser Lauf abgeschlossen war. Bitte versuchen Sie es erneut und wenden Sie sich an Ihre Administration, wenn es wiederholt auftritt.",
     "TASK_TIME_LIMIT": "Dieser Lauf hat sein Zeitlimit überschritten und wurde abgebrochen. Bitte versuchen Sie es erneut.",
     "CAPABILITY_UNKNOWN": "Diese Berechtigung gibt es nicht.",
+    "DEBRIEF_FINDING_QUOTE_REQUIRED": "Ein Befund gegen den Kandidaten braucht ein Zitat dessen, was gesagt wurde.",
+    "DEBRIEF_FINDING_INVALID": "Dieser Befund passt zu keiner Nachfrage dieser Einreichung.",
+    "DEBRIEF_CLEARANCE_REFUSED": "Die Autorschaft kann noch nicht bestätigt werden: Halten Sie zuerst zu jeder Nachfrage einen Befund fest; mindestens vier von fünf müssen bestätigt sein.",
+    "DEBRIEF_NOT_HELD": "Diese Einreichung wird nicht zur Autorschaftsprüfung zurückgehalten.",
     "INTERVIEW_PREP_SCORECARDS_FULL": "Für diese Kandidatin bzw. diesen Kandidaten sind bereits so viele Interview-Scorecards gespeichert wie möglich. Ihre Scorecard wurde nicht gespeichert.",
     "VOICE_READINESS_FAILED": "Die Bereitschaft der Sprachdienste konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "VOICE_READINESS_OFFLINE": "Dieser Server läuft offline, daher können Sprachanbieter nicht geprüft werden.",
@@ -2305,9 +2356,12 @@
       "lang": "Die Arbeitssprache der Stelle"
     },
     "declinedMustHave": "Nicht erfüllte Voraussetzung:",
-    "declinedAutoNote": "Wer eine Voraussetzung, die die Stelle ausdrücklich nennt, mit Nein beantwortet, dessen Bewerbung endet automatisch. Diese Entscheidung hat kein Mensch getroffen, und Sie können verlangen, dass ein Mensch sie überprüft.",
+    "declinedAutoNote": "Sie können verlangen, dass ein Mensch diese Entscheidung überprüft.",
     "declinedReviewEmail": "Wir senden Ihnen diese Entscheidung per E-Mail an die angegebene Adresse. Antworten Sie einfach auf diese Nachricht, dann prüft ein Mensch sie. Kommt nichts an, wenden Sie sich direkt an das Team, das die Stelle besetzt.",
-    "declinedReviewNoEmail": "Wir konnten Ihnen die Entscheidung nicht per E-Mail schicken. Damit ein Mensch sie überprüft, wenden Sie sich bitte direkt an das Team, das die Stelle besetzt."
+    "declinedReviewNoEmail": "Wir konnten Ihnen die Entscheidung nicht per E-Mail schicken. Damit ein Mensch sie überprüft, wenden Sie sich bitte direkt an das Team, das die Stelle besetzt.",
+    "heldMessage": "Danke für Ihre Bewerbung. Wegen einer Ihrer Antworten sieht sich zuerst ein Mensch Ihre Bewerbung an, bevor etwas entschieden wird.",
+    "heldMustHave": "Mit Nein beantwortet:",
+    "heldNote": "Es ist noch nichts entschieden. Zuerst prüft ein Mensch Ihre Bewerbung. Bestätigt er, dass sie diese Voraussetzung nicht erfüllt, erfahren Sie, um welche es ging und wie Sie eine Überprüfung verlangen können. Hebt er die Zurückhaltung auf, läuft Ihre Bewerbung wie gewohnt weiter."
   },
   "interview": {
     "completedTitle": "Vielen Dank",
@@ -2527,6 +2581,8 @@
     "stopTourAction": "Geführte Tour beenden",
     "newIntakeAliases": "aufnahme rolle neues gespräch personalbedarf",
     "tourSub": "Startet die Live-Demo: JD → Sourcing → Screening → Interview → Angebot → eingestellt",
+    "finishSetupAction": "Einrichtung abschließen",
+    "finishSetupSub": "Die Ersteinrichtung dort fortsetzen, wo Sie aufgehört haben",
     "hintNavigate": "navigieren",
     "hintOpen": "öffnen",
     "hintClose": "schließen",
@@ -2761,6 +2817,7 @@
     "signOutConfirmBody": "Ihre Sitzung endet und Sie kehren zur Startseite zurück.",
     "signOutConfirmCancel": "Hier bleiben",
     "tabs": {
+      "one": "One",
       "pipeline": "Übersicht",
       "channels": "Kanäle",
       "decisions": "Entscheidungen",
@@ -2776,7 +2833,7 @@
       "about": "Über",
       "billing": "Abrechnung",
       "models": "Modelle",
-      "integrations": "Integrationen",
+      "integrations": "Integrationen (in Kanälen)",
       "organization": "Organisation",
       "workspace": "Workspaces",
       "agents": "Agenten",
@@ -3084,6 +3141,10 @@
       "cmpCount": "{count, number} von höchstens {max, number}",
       "cmpSiblings": "Die zwei Besten dieser Phase",
       "cmpClear": "Leeren",
+      "cmpOutreach": "Anschreiben für {count, plural, one {# ausgewählte Person} other {# ausgewählte Personen}} entwerfen",
+      "cmpOutreachRunning": "Schreiben werden entworfen…",
+      "cmpOutreachNone": "Es wurde kein Schreiben entworfen: Diese Kandidaten wurden schon kontaktiert oder dürfen nicht kontaktiert werden.",
+      "cmpOutreachFailed": "Die Schreiben konnten nicht entworfen werden. Versuchen Sie es erneut.",
       "cmpEmpty": "Markieren Sie zwei oder mehr Personen in der Leiter, um sie hier nebeneinanderzustellen.",
       "cmpTooMany": "Nur die ersten {max, number} ausgewählten werden verglichen.",
       "cmpStage": "Phase",
@@ -3209,6 +3270,7 @@
       "auto_rejected": "wurde vom Policy-Lauf automatisch abgelehnt",
       "screening_hold": "wurde zur menschlichen Prüfung zurückgestellt",
       "interview_scorecard": "hat eine synthetisierte Interview-Scorecard",
+      "interview_scorecard_human": "hat eine von einer Person erfasste Interview-Scorecard",
       "interview_prep_generated": "hat ein generiertes Interview-Briefing",
       "rejection_drafted": "hat einen Absage-Entwurf",
       "offer_drafted": "hat einen Angebotsentwurf",
@@ -3307,14 +3369,14 @@
       "previewTitle": "Vorschau: Was dieser Durchlauf tun würde",
       "previewSubtitle": "{evaluated} aktive Kandidat/innen bewertet. Es wurde noch nichts angewendet und niemand per E-Mail benachrichtigt.",
       "previewRejectsQueued": "{count, plural, one {Würde # zur Freigabe vorlegen. Der Durchlauf lehnt nie selbst ab} other {Würde # zur Freigabe vorlegen. Der Durchlauf lehnt nie selbst ab}}",
-      "previewAdvances": "{count, plural, one {Würde # weiterleiten} other {Würde # weiterleiten}}",
+      "previewAdvances": "{count, plural, one {Würde # Weiterleitung zur Freigabe einreihen} other {Würde # Weiterleitungen zur Freigabe einreihen}}",
       "previewHeld": "{count, plural, one {Zur Prüfung zurückgehalten (#). Gründe ansehen} other {Zur Prüfung zurückgehalten (#). Gründe ansehen}}",
       "previewFairnessBlocked": "{count, plural, one {# geplante Ablehnung durch die Fairness-Sicherung zurückgehalten} other {# geplante Ablehnungen durch die Fairness-Sicherung zurückgehalten}}",
       "previewApply": "{count, plural, one {# Änderung anwenden} other {# Änderungen anwenden}}",
       "previewCancel": "Abbrechen",
       "previewNothing": "Nichts anzuwenden. Jede/r Kandidat/in ist zurückgehalten oder unverändert.",
       "previewNote": "Beim Übernehmen wird erneut anhand des Live-Boards bewertet. Ein/e zwischenzeitlich verschobene/r Kandidat/in wird übersprungen, nie falsch angewendet.",
-      "runPassTitle": "Deterministischer Richtlinien-Durchlauf: starke BAU-Matches automatisch weiterleiten, Berufseinsteiger/innen für einen Menschen zurückhalten, Alterung markieren",
+      "runPassTitle": "Deterministischer Richtlinien-Durchlauf: starke BAU-Matches einem Menschen zur Weiterleitung vorlegen, Berufseinsteiger/innen für einen Menschen zurückhalten, Alterung markieren",
       "passSummaryLead": "Automatiklauf",
       "passAdvanced": "{n} weitergeleitet",
       "passRejected": "{n} abgelehnt",
@@ -3686,16 +3748,120 @@
         "noSkills": "Keine Nachweise zu Kompetenzen vorhanden.",
         "loading": "Score-Aufschlüsselung wird geladen…",
         "noAnalysis": "Für diese Stelle liegt keine Analyse vor, nur der Score vom Board.",
-        "matchError": "Score-Details sind gerade nicht verfügbar."
+        "matchError": "Score-Details sind gerade nicht verfügbar.",
+        "ruleBased": "Regelbasierter Abgleich · ohne KI",
+        "ruleBasedWeighs": "Gewichtet Fähigkeiten, Erfahrung und Sprachen gegenüber der Rolle.",
+        "boardShows": "Die Karte auf dem Board zeigt {score} ({source})."
       },
       "footer": {
         "aria": "Aktionen zur Bewerbung",
         "moveStage": "In Schritt verschieben",
         "voiceLink": "Link zum Voice-Screening",
         "scheduleLink": "Link zur Terminwahl",
+        "manualOffer": "Angebot manuell entwerfen",
+        "manualOfferAmount": "Monatsgehalt ({currency})",
+        "manualOfferHint": "Leer lassen, um die Mitte der Gehaltsspanne der Stelle zu verwenden. Vor dem Versand gibt ein Mensch das Angebot frei.",
+        "manualOfferSubmit": "Entwurf erstellen",
+        "manualOfferDrafted": "Entwurf erstellt. Gib ihn unter Entscheidungen frei, um ihn zu senden.",
+        "manualOfferFailed": "Das Angebot konnte nicht entworfen werden.",
         "closeTray": "Bereich schließen",
         "showResult": "Letztes Ergebnis",
-        "noActions": "In diesem Schritt sind keine KI-Aktionen verfügbar"
+        "noActions": "In diesem Schritt sind keine KI-Aktionen verfügbar",
+        "workSampleAction": "Arbeitsprobe",
+        "workSample": {
+          "aria": "Arbeitsprobe senden",
+          "intro": "Sendet {name} die freigegebene Aufgabe für diese Stelle per E-Mail, mit einem Link zum Bearbeiten. Bevor Sie klicken, wird nichts gesendet.",
+          "send": "Arbeitsprobe senden",
+          "sending": "Wird gesendet…",
+          "sendFailed": "Die Arbeitsprobe konnte nicht gesendet werden, es ging nichts hinaus. Bitte versuchen Sie es erneut.",
+          "createAssignment": "Unter Aufgaben eine für diese Stelle erstellen",
+          "reopenAssignment": "Unter Aufgaben wieder öffnen",
+          "outcome": {
+            "sent": "Per E-Mail an die Person gesendet. Ihr Link steht unten.",
+            "queued": "In der Warteschlange, nicht gesendet: Es ist kein E-Mail-Relay eingerichtet, daher hat die Person nichts erhalten. Kopieren Sie den Link unten und senden Sie ihn selbst.",
+            "failed": "Die E-Mail konnte nicht gesendet werden. Kopieren Sie den Link unten und senden Sie ihn selbst.",
+            "alreadyInvited": "Diese Person hat diese Aufgabe bereits erhalten, daher wurde keine zweite E-Mail gesendet. Ihr Link steht unten.",
+            "noCase": "Für diese Stelle gibt es noch keine freigegebene Aufgabe, daher wurde nichts gesendet.",
+            "agent": "Dieser Eintrag ist ein KI-Agent, daher wird keine Aufgabe gesendet.",
+            "unaddressable": "Für diese Person ist keine E-Mail-Adresse hinterlegt, daher wurde nichts gesendet. Ergänzen Sie eine und senden Sie erneut.",
+            "suppressed": "Wir dürfen dieser Person nicht schreiben (Einwilligung oder Löschung), daher wurde nichts gesendet.",
+            "intakeStopped": "Diese Aufgabe nimmt keine Einreichungen mehr an, daher wurde nichts gesendet.",
+            "notSent": "Es wurde nichts gesendet. Bitte versuchen Sie es gleich noch einmal."
+          }
+        }
+      },
+      "outreach": {
+        "aria": "Erstkontakt-Brief",
+        "title": "Erstkontakt-Brief",
+        "state": {
+          "drafted": "Wartet auf Freigabe",
+          "approved": "Freigegeben, nicht gesendet",
+          "released": "Zum Versand übergeben",
+          "delivery_failed": "Zustellung fehlgeschlagen",
+          "suppressed": "Zurückgehalten: Kontakt nicht möglich",
+          "discarded": "Verworfen"
+        },
+        "approvedBy": "Freigegeben von {approver}",
+        "approve": "Diese Fassung freigeben",
+        "release": "Senden",
+        "releaseRetry": "Erneut senden",
+        "approving": "Wird freigegeben…",
+        "releasing": "Wird gesendet…",
+        "loading": "Brief wird geladen…",
+        "loadFailed": "Der Erstkontakt-Brief konnte nicht geladen werden.",
+        "actionFailed": "Das hat nicht geklappt. Bitte versuchen Sie es erneut.",
+        "stale": "Der Brief hat sich seit dem Lesen geändert. Laden Sie ihn neu und lesen Sie die neue Fassung, bevor Sie freigeben.",
+        "reload": "Neu laden",
+        "letterLanguage": "Sprache: {language}",
+        "letterTo": "An: {recipient}",
+        "letterNoRecipient": "Kein Empfänger",
+        "letterSubject": "Betreff: {subject}",
+        "placeholderNote": "Die Links sind Platzhalter. Die privaten Links für die Kandidatin oder den Kandidaten werden beim Senden erzeugt.",
+        "forecastRelay": "Zustellung: wird an Ihr Mail-Relay übergeben.",
+        "forecastRelayNoContact": "Zustellung: wird an Ihr Mail-Relay übergeben, aber es ist keine E-Mail-Adresse hinterlegt, daher muss das Relay die Person über den Namen finden.",
+        "forecastLocal": "Zustellung: Es ist kein Mail-Relay konfiguriert. Das Senden speichert den Brief nur im Postausgang, niemand erhält ihn.",
+        "forecastRefused": "Zustellung: wird nicht gesendet. Dieses Mitglied der Shortlist ist ein KI-Agent ohne Postfach.",
+        "forecastSuppressed": "Zustellung: wird nicht gesendet. {reason, select, consent_expired {Die Einwilligung der Person ist abgelaufen.} anonymized {Die Daten der Person wurden gelöscht.} other {Diese Person darf nicht kontaktiert werden.}}",
+        "forecastSimulation": "Zustellung: Simulationsstelle. Der Brief wird im Postausgang erfasst und nie weitergeleitet.",
+        "releasedRelay": "An Ihr Mail-Relay übergeben.",
+        "releasedLocal": "Im lokalen Postausgang abgelegt. Es ist kein Mail-Relay konfiguriert, daher hat niemand diesen Brief erhalten.",
+        "sent": "An Ihr Mail-Relay übergeben.",
+        "queued": "Im lokalen Postausgang abgelegt. Es ist kein Mail-Relay konfiguriert, daher hat niemand diesen Brief erhalten.",
+        "failed": "Das Relay konnte den Brief nicht zustellen. Senden Sie erneut; er geht unter derselben Nachrichten-ID raus.",
+        "suppressedNote": "Nicht gesendet. {reason, select, consent_expired {Die Einwilligung der Person ist abgelaufen.} anonymized {Die Daten der Person wurden gelöscht.} other {Diese Person darf nicht kontaktiert werden.}}",
+        "bulk": {
+          "title": "{count, plural, one {# Erstanschreiben prüfen} other {# Erstanschreiben prüfen}}",
+          "intro": "Es wurde noch nichts gesendet. Lesen Sie jeden Brief, bearbeiten Sie ihn bei Bedarf, geben Sie den Stapel dann frei und senden Sie ihn.",
+          "loading": "Briefe werden geladen…",
+          "close": "Schließen",
+          "forecastTitle": "Prognose für den Stapel",
+          "forecastSend": "Werden an Ihr Mail-Relay übergeben: {count}",
+          "forecastQueue": "Landen im lokalen Postausgang, niemand erhält sie: {count}",
+          "forecastRefuse": "Werden nicht gesendet: {count}. Grund:",
+          "forecastSettled": "Bereits gesendet: {count}",
+          "forecastMissing": "Kein Brief zu prüfen: {count}",
+          "reason": "{reason, select, consent_expired {Einwilligung abgelaufen} anonymized {Daten gelöscht} agent_population {KI-Agent ohne Postfach} no_recipient {kein Empfänger} delivery_failed {Zustellung fehlgeschlagen} other {darf nicht kontaktiert werden}}",
+          "loadFailedRow": "Dieser Brief konnte nicht geladen werden.",
+          "noLetter": "Für diese Person wurde kein Brief entworfen.",
+          "rowSend": "Geht an Ihr Mail-Relay",
+          "rowQueue": "Landet im lokalen Postausgang",
+          "rowRefuse": "Wird nicht gesendet: {reason}",
+          "edit": "Bearbeiten",
+          "save": "Änderungen speichern",
+          "saving": "Speichern…",
+          "cancel": "Abbrechen",
+          "subjectLabel": "Betreff",
+          "bodyLabel": "Brief",
+          "running": "Wird gesendet… {done} von {total}",
+          "approveRelease": "{count, plural, one {# Brief freigeben und senden} other {# Briefe freigeben und senden}}",
+          "summary": "Gesendet {released}, im Postausgang {queued}, abgelehnt {refused}, seit dem Lesen geändert {conflict}.",
+          "result": {
+            "released": "Gesendet",
+            "queued": "Lokal eingereiht",
+            "refused": "Abgelehnt: {reason}",
+            "conflict": "Seit dem Lesen geändert, nicht gesendet"
+          }
+        }
       },
       "needsYou": "{count, plural, one {# braucht Sie} other {# brauchen Sie}}",
       "needsYouAria": "{count, plural, one {# Nachricht wurde nicht zugestellt und braucht Ihre Aufmerksamkeit} other {# Nachrichten wurden nicht zugestellt und brauchen Ihre Aufmerksamkeit}}"
@@ -3755,7 +3921,7 @@
       "rejectModeLabel": "Ablehnungen",
       "rejectModeApprove": "überwacht (zur Genehmigung einreihen)",
       "rejectModeAuto": "autonom (anwenden & benachrichtigen)",
-      "rejectModeTitle": "Jede vom Timer berechnete Ablehnung wird am Entscheidungs-Gate für einen menschlichen Klick eingereiht. Sie wird nie unbeaufsichtigt angewendet (Weiterleitungen und Zurückhaltungen bleiben automatisch). Ein Mensch prüft und trifft jede nachteilige Entscheidung.",
+      "rejectModeTitle": "Jede vom Timer berechnete Ablehnung wird am Entscheidungs-Gate für einen menschlichen Klick eingereiht. Sie wird nie unbeaufsichtigt angewendet, und eine Weiterleitung ebenso wenig: auch sie wird zur Freigabe eingereiht, automatisch bleiben nur Zurückhaltungen. Ein Mensch prüft und trifft jede nachteilige Entscheidung.",
       "outcome": {
         "applied": "angewendet",
         "failed": "fehlgeschlagen",
@@ -3776,7 +3942,8 @@
         "jobseekerScan": "Stellenmarkt-Scan",
         "interviewRecordingRetention": "Aufbewahrung von Interviewaufnahmen",
         "gigScan": "Auftrags-Scan",
-        "gigSync": "Abgleich der Auftragsläufe"
+        "gigSync": "Abgleich der Auftragsläufe",
+        "roleRunAdvance": "Rollenläufe weiterführen"
       },
       "unverified": "Starten Sie zuerst einen Scan von Hand. Der Timer lässt sich einschalten, sobald ein Scan erfolgreich war.",
       "jobToggleTitle": "{job} pausieren oder fortsetzen",
@@ -3900,6 +4067,7 @@
     "reachOut": {
       "sent": "{name} wurde angeschrieben. Die Person ist in der Pipeline und eine erste Nachricht ist unterwegs.",
       "alreadySent": "{name} ist in der Pipeline und wurde für diese Rolle bereits kontaktiert, deshalb ging keine neue Nachricht raus.",
+      "held": "{name} ist in der Pipeline. Das Erstanschreiben wartet auf Ihre Freigabe und wurde nicht gesendet.",
       "failed": "{name} konnte nicht angeschrieben werden.",
       "failedAnnounce": "{name} konnte nicht angeschrieben werden. {reason}",
       "suppressed": {
@@ -3924,7 +4092,8 @@
     "intakeReasons": {
       "leadPending": "Lead über {channel}: Profil wartet auf Anreicherung. Der Link zur vollständigen Bewerbung wurde mit der Bestätigung verschickt.",
       "leadPendingUngated": "Lead über {channel}: Profil wartet auf Anreicherung. Der Link zur vollständigen Bewerbung wurde mit der Bestätigung verschickt. Eignung vom Quellformular nicht geprüft: {ungated}",
-      "atsImported": "Aus {channel} importiert: noch kein Lebenslaufprofil. Erstellen Sie eines aus dem Lebenslauf, um die Person zu bewerten."
+      "atsImported": "Aus {channel} importiert: noch kein Lebenslaufprofil. Erstellen Sie eines aus dem Lebenslauf, um die Person zu bewerten.",
+      "knockoutHeld": "{channel}: bei einer Voraussetzung, die die Stelle ausdrücklich nennt, mit Nein geantwortet. Zurückgehalten, bis ein Mensch die Ablehnung bestätigt oder die Zurückhaltung aufhebt. Es ist nichts entschieden und es wurde kein Brief verschickt."
     },
     "offAxis": {
       "title": "Außerhalb des Boards",
@@ -4033,6 +4202,9 @@
       "tagHumanScorecard": "Interview-Scorecard (Mensch)",
       "tagScreening": "AI-Screening",
       "tagQueuedReject": "Auto-Ablehnung in Warteschlange (die Ablehnung benachrichtigt den Kandidaten)",
+      "tagQueuedAdvance": "Weiterleitung in Warteschlange (ein Mensch rückt die Person vor)",
+      "keepInPlace": "Hier belassen",
+      "keepInPlaceTitle": "Die Person bleibt, wo sie ist, und dieser Vorschlag entfällt. Sie wird dadurch nicht abgelehnt.",
       "acceptSendOffer": "Angebot senden",
       "acceptToOffer": "Zum Angebot",
       "acceptAdvance": "Weiterleiten",
@@ -4126,7 +4298,7 @@
       "standardFallback": "Vier-Fünftel-Analyse",
       "postureCoveredTitle": "Was die Plattform durchsetzt",
       "postureCeilingTitle": "Was sie nicht tut",
-      "covered1": "Ein Mensch prüft und trifft jede Weiterleitung, jedes Angebot und jede Ablehnung, sobald eine Bewerbung eingegangen ist. Die einzige automatische Entscheidung ist das Ausschlusskriterium: Ein Nein bei einer ausdrücklich genannten Voraussetzung beendet die Bewerbung, die Person erfährt, um welche es ging, und kann eine Überprüfung durch einen Menschen verlangen ({oversight}).",
+      "covered1": "Ein Mensch prüft und trifft jede Weiterleitung, jedes Angebot und jede Ablehnung, sobald eine Bewerbung eingegangen ist. Ein Nein bei einer ausdrücklich genannten Voraussetzung entscheidet nichts: die Bewerbung wird für einen Menschen zurückgehalten, der die Ablehnung bestätigt (die Person erfährt dann, um welche Voraussetzung es ging, und kann eine Überprüfung durch einen Menschen verlangen) oder die Zurückhaltung aufhebt ({oversight}).",
       "covered2": "Jede Entscheidung wird in einem manipulationssicheren Audit-Protokoll versiegelt.",
       "covered3": "Kandidaten sehen einen Hinweis zur AI-Nutzung und können jederzeit eine menschliche Prüfung anfordern.",
       "covered4": "Kandidaten am Karriereanfang und nicht klassifizierte Kandidaten sind vor automatischer Ablehnung geschützt (fail-closed).",
@@ -4220,7 +4392,16 @@
         "sealFailed": "beibehalten: Der manipulationssichere Entscheidungssatz konnte nicht versiegelt werden, die automatische Absage wurde daher nicht ausgeführt",
         "reinstated": "beibehalten: Eine frühere automatische Absage wurde von einer Recruiterin aufgehoben, die Automatik wiederholt sie nicht",
         "holdoutSealFailed": "beibehalten, aber der Kalibrierungs-Holdout konnte nicht versiegelt werden, diese Person ist daher nicht im sauberen Arm",
-        "recruiterSpared": "beibehalten: Sie haben diese Person in dieser Vorschau aus der Welle genommen, die Welle lehnt sie daher nicht ab (Match {score}, Schwelle {threshold})"
+        "recruiterSpared": "beibehalten: Sie haben diese Person in dieser Vorschau aus der Welle genommen, die Welle lehnt sie daher nicht ab (Match {score}, Schwelle {threshold})",
+        "score_above_floor": "Weiterleitung vorgeschlagen: Match {score} erreicht die Schwelle von {floor}",
+        "score_below_floor": "Halten vorgeschlagen: Der Match-Wert erreicht die Schwelle von {floor} nicht",
+        "not_active": "Ablehnung vorgeschlagen: Die Person ist für diese Stelle nicht mehr aktiv",
+        "policy_advance": "Weiterleitung nach den Automatisierungsregeln vorgeschlagen",
+        "policy_reject": "Ablehnung nach den Automatisierungsregeln vorgeschlagen, ein Mensch entscheidet",
+        "policy_hold": "Nach den Automatisierungsregeln gehalten",
+        "policy_none": "Die Regeln schlagen keine Änderung vor, zur Prüfung gehalten",
+        "wouldBeQueuedForApproval": "Ablehnung nach den Automatisierungsregeln vorgeschlagen, wartet auf die Freigabe durch einen Menschen",
+        "fairnessWouldRefuse": "Automatische Ablehnung vom Fairness-Schutz gestoppt, für Recruiter gehalten"
       },
       "spare": "Verschonen",
       "unspare": "Rückgängig",
@@ -4587,7 +4768,84 @@
       "trailLabel": "Wo Sie sind",
       "ladderTitle": "Score-Leiter",
       "ladderNote": "Bewertete Personen nach Passung, beste zuerst. Nie bewertete stehen darunter ohne Balken.",
-      "decideTitle": "Entscheiden"
+      "decideTitle": "Entscheiden",
+      "ws": {
+        "label": "Arbeitsprobe",
+        "held": "angehalten",
+        "cleared": "bestätigt",
+        "template": "Vorlage",
+        "failed": "nicht geladen",
+        "none": {
+          "not_sent": "nicht gesendet",
+          "not_submitted": "nicht zurück",
+          "not_evaluated": "noch nicht bewertet"
+        },
+        "tip": {
+          "score": "Ergebnis der Arbeitsprobe {score} von 100, aus der eingereichten Arbeit.",
+          "template": "Mit der eingebauten Vorlage bewertet, nicht von einem KI-Modell.",
+          "graded": "Von einem KI-Modell bewertet.",
+          "watched": "Hat die eigene Arbeit beim Lösen {count, plural, one {einmal} other {#-mal}} überprüft.",
+          "notWatched": "Die Arbeit wurde nicht live beobachtet.",
+          "defended": "Nachgespräch: {supported} von {total} Antworten auf Nachfragen stützten die Arbeit.",
+          "held": "Angehalten: Vor dem Weiterkommen muss jemand bestätigen, dass die Person die Arbeit selbst gemacht hat.",
+          "cleared": "Jemand hat bestätigt, dass die Person die Arbeit selbst gemacht hat.",
+          "not_sent": "Dieser Person wurde keine Arbeitsprobe gesendet.",
+          "not_submitted": "Eine Arbeitsprobe wurde gesendet; es ist noch nichts zurückgekommen.",
+          "not_evaluated": "Die Arbeit ist zurück, wurde aber noch nicht bewertet.",
+          "failed": "Die Ergebnisse der Arbeitsprobe konnten nicht geladen werden."
+        }
+      },
+      "overview": {
+        "title": "Alle auf dieser Stelle",
+        "note": "Jede Spalte wird für sich gelesen, nichts wird addiert. Wer keinen Wert hat, steht am Ende.",
+        "cols": {
+          "tick": "Shortlist",
+          "candidate": "Kandidat",
+          "stage": "Phase",
+          "match": "Passung",
+          "workSample": "Arbeitsprobe",
+          "interview": "Interview",
+          "proposal": "KI-Vorschlag"
+        },
+        "sortBy": "Sortieren nach {column}",
+        "tick": "{name} auf die Shortlist",
+        "tickCap": "Ein Vergleich umfasst höchstens {cap} Personen.",
+        "compare": "{count, plural, =0 {Shortlist vergleichen} one {# auf der Shortlist vergleichen} other {# auf der Shortlist vergleichen}}",
+        "compareTip": "Markieren Sie 2 bis {cap} Personen, um sie in der Gruppenbewertung zu vergleichen. Die Shortlist wird für das ganze Team gespeichert.",
+        "choose": "Als ausgewählt markieren",
+        "unchoose": "Zurück zur Shortlist",
+        "chooseTip": "Markiert die angehakten Personen als ausgewählt für diese Stelle. Es wird festgehalten, wer und wann.",
+        "chosenBy": "Ausgewählt von {who}, {date}",
+        "saveFailed": "Die Shortlist konnte nicht gespeichert werden. Ihre letzte Änderung wurde rückgängig gemacht.",
+        "clear": "Shortlist leeren",
+        "matchNone": "nicht bewertet",
+        "prov": {
+          "analysis": "CV-Analyse",
+          "scored": "regelbasiert",
+          "snapshot": "beim Hinzufügen",
+          "transfer": "Arbeitsprobe"
+        },
+        "ivCount": "{count, plural, one {# Bewertungsbogen} other {# Bewertungsbögen}}",
+        "ivNone": {
+          "no_scorecard": "kein Bewertungsbogen",
+          "no_ratings": "noch keine Noten"
+        },
+        "ivAi": "KI {avg}",
+        "ivTip": "Durchschnitt der Interviewenden auf einer Skala von 1 bis {scale}, aus {count, plural, one {# Bewertungsbogen} other {# Bewertungsbögen}}.",
+        "aiTip": "Der eigene Durchschnitt des KI-Interviews auf einer Skala von 1 bis {scale}, getrennt von den Interviewenden.",
+        "proposalNone": "nichts wartet",
+        "offer": "Angebot",
+        "openAria": "{name} öffnen",
+        "loadFailed": "Die Personen auf dieser Stelle konnten nicht geladen werden.",
+        "noJob": "Diese Stelle hat keinen Stelleneintrag, daher lassen sich ihre Personen nicht nebeneinander lesen.",
+        "empty": "Auf dieser Stelle ist niemand aktiv."
+      },
+      "roster": {
+        "title": "Alle offenen Stellen",
+        "note": "Öffnen Sie eine Stelle, um alle darauf zu sehen, auch wenn nichts auf Sie wartet.",
+        "active": "{count, plural, one {# aktiv} other {# aktiv}}",
+        "waiting": "{count, plural, one {# wartet} other {# warten}}"
+      }
     }
   },
   "scheduleTab": {
@@ -5639,7 +5897,7 @@
       "roleTitle": "Stellenbezeichnung *",
       "roleTitlePlaceholder": "Senior Platform Engineer",
       "company": "Unternehmen",
-      "companyPlaceholder": "Česká spořitelna",
+      "companyPlaceholder": "Name Ihres Unternehmens",
       "seniority": "Seniorität",
       "field": "Fachgebiet",
       "outputLanguage": "Sprache der Stellenbeschreibung",
@@ -5965,7 +6223,8 @@
       "noTranslationBody": "Dieses Inserat ist auf {source} verfasst. Eine Fassung in dieser Sprache schreibt die KI; das Original bleibt unverändert.",
       "generateTranslation": "Übersetzung erzeugen",
       "generatingTranslation": "Wird übersetzt…",
-      "translateFailed": "Das Inserat konnte nicht übersetzt werden. Versuchen Sie es erneut."
+      "translateFailed": "Das Inserat konnte nicht übersetzt werden. Versuchen Sie es erneut.",
+      "tabRun": "Lauf"
     },
     "coach": {
       "loadFailed": "Diese Stelle konnte nicht bewertet werden.",
@@ -6340,7 +6599,8 @@
     "snapshot": "Snapshot beim Hinzufügen",
     "freshMatch": "von diesem Matching-Lauf berechnet",
     "freshMatchTitle": "Jetzt berechnet, von diesem Matching-Lauf, gegen den aktuellen Text der Rolle. Der Wert wird nie bei der Kandidatin oder dem Kandidaten gespeichert, deshalb kann das Pipeline-Board ehrlich eine andere Zahl zeigen: den Score, der beim Hinzufügen festgehalten wurde.",
-    "transfer": "aus der Arbeitsprobe"
+    "transfer": "aus der Arbeitsprobe",
+    "scoredLater": "regelbasiert, nach dem Hinzufügen bewertet · {date}"
   },
   "match": {
     "band": {
@@ -6976,6 +7236,10 @@
       "statusOff": "Nicht konfiguriert",
       "envNote": "Über die Umgebungsvariable COMMS_WEBHOOK_URL konfiguriert. Entfernen Sie sie, um das Relay hier zu verwalten.",
       "urlLabel": "Relay-Endpunkt (https)",
+      "whatIs": "Ein Relay ist eine Webadresse, die jede Nachricht entgegennimmt und an den Kandidaten weiterschickt: zum Beispiel ein Zapier-, Make- oder n8n-Webhook oder Ihr eigener Maildienst.",
+      "httpsOnly": "Es muss eine öffentliche https://-Adresse mit Namen sein, etwa hooks.zapier.com. Eine Adresse auf diesem Computer (localhost), eine reine IP-Adresse oder ein .local-Name wird nicht angenommen.",
+      "elsewhere": "Kalender- und ATS-Verbindungen finden Sie unter Einstellungen → Integrationen.",
+      "elsewhereCta": "Integrationen öffnen",
       "secretLabel": "Signaturschlüssel",
       "secretPlaceholder": "Optional: signiert jede Zustellung",
       "secretKeepPlaceholder": "Leer lassen, um den aktuellen Schlüssel zu behalten",
@@ -7494,6 +7758,7 @@
       "currencyLabel": "Gehaltswährung",
       "currencyHint": "Das Pipeline-Board beschriftet Gehaltsbänder in dieser Währung. Es wird nichts umgerechnet.",
       "previewOnboarding": "Onboarding-Ablauf ansehen",
+      "finishSetup": "Einrichtung abschließen",
       "backup": {
         "confirmWord": "ERSETZEN",
         "title": "Sicherung & Wiederherstellung",
@@ -7769,6 +8034,8 @@
       "errorClosed": "Die Bewerbungsphase für diese Stelle ist beendet; es werden keine weiteren Einreichungen angenommen. Ihre Arbeit kann hier nicht mehr eingereicht werden.",
       "chatHeading": "Fragen Sie während der Arbeit",
       "chatIntro": "Nutzen Sie den integrierten AI-Assistenten oder stellen Sie dem Stakeholder hinter dem Briefing eine Rückfrage. Diese Gespräche sind Teil Ihrer Einreichung, gute Fragen und gute Prompts zählen also zu Ihren Gunsten.",
+      "chatIntroStandIn": "In dieser Aufgabe antwortet gerade keine KI, daher antworten beide Tabs nur mit einer kurzen vorbereiteten Notiz. Das ist keine echte KI. Nutzen Sie stattdessen Ihre eigenen Werkzeuge, auch KI, und halten Sie Ihre Annahmen in der Entscheidungsnotiz fest. Was Sie hier fragen, bleibt Teil Ihrer Einreichung.",
+      "introGeneral": "Arbeiten Sie in den Dateien unten. Wir halten fest, wie Sie zum Ergebnis kommen: welche Dateien Sie öffnen, was Sie ändern und die kurze Entscheidungsnotiz, die Sie in DECISIONS.md führen. So bewerten wir Ihre Arbeit und den Weg dorthin, nicht nur das Endergebnis. Sie dürfen beliebige Werkzeuge nutzen, auch KI. Wir zeichnen niemals Tastatureingaben oder Ihren Bildschirm auf.",
       "tabAssistant": "AI-Assistent",
       "tabStakeholder": "Stakeholder",
       "chatPlaceholderAssistant": "Fragen Sie den Assistenten alles zur Arbeit…",
@@ -7779,7 +8046,7 @@
       "updateHeading": "Update vom Team",
       "restored": "Wir haben Ihre ungespeicherte Arbeit von diesem Gerät wiederhergestellt. Nichts ist verloren gegangen.",
       "chatRateLimited": "Sie haben das Limit für den Assistenten vorerst erreicht. Ihre Arbeit und alles, was Sie geschrieben haben, bleibt erhalten. Arbeiten Sie weiter und versuchen Sie es in ein paar Minuten erneut.",
-      "chatDeterministicNote": "Diese Antwort stammt aus dem Offline-Ersatz, nicht von einem Live-Modell. Behandeln Sie sie als Platzhalter und halten Sie Ihre Annahmen im Entscheidungsprotokoll fest.",
+      "chatDeterministicNote": "Dies ist eine vorbereitete Antwort, keine echte KI: Diesmal hat keine KI geantwortet. Halten Sie Ihre Annahmen in der Entscheidungsnotiz fest.",
       "syncBlocked": "Diese Sitzung konnte nicht mit dem Server synchronisiert werden. Ihre Arbeit ist auf diesem Gerät gespeichert. Laden Sie die Seite über Ihren ursprünglichen Link neu, um die Verbindung wiederherzustellen.",
       "clockHm": "{h} Std. {m} Min.",
       "clockM": "{m} Min.",
@@ -7795,6 +8062,7 @@
     "briefUnavailable": "Das Aufgaben-Briefing ist derzeit nicht verfügbar. Schauen Sie in Kürze wieder vorbei oder wenden Sie sich an den Recruiter, der diesen Link geteilt hat.",
     "submitHeading": "Lösung einreichen",
     "submitHint": "Pushen Sie Ihre Arbeit in ein öffentliches Repository und teilen Sie den Link unten. Sie erhalten sofort eine Bestätigung.",
+    "aiAllowed": "Sie dürfen beliebige Werkzeuge nutzen, auch KI.",
     "fieldName": "Ihr Name",
     "fieldContact": "E-Mail",
     "fieldContactPlaceholder": "Damit wir uns bei Ihnen melden können",
@@ -8215,7 +8483,10 @@
         "interview_no_show": "Interview nicht wahrgenommen",
         "interview_proposal_declined": "Vorgeschlagener Termin abgelehnt",
         "screening_threshold_adjusted": "Screening-Schwelle angepasst",
-        "match_verdict": "Match-Urteil"
+        "advance_declined": "Weiterleitung belassen",
+        "match_verdict": "Match-Urteil",
+        "debrief_findings": "Debrief-Befunde",
+        "authorship_verified": "Autorschaft bestätigt"
       },
       "traceTitle": "KI-Nachvollziehbarkeit (Art. 12)",
       "tracePrompt": "Begründungs-Prompt",
@@ -8410,6 +8681,7 @@
         "advanced": "Automatisch weitergeleitet",
         "screening_hold": "Zur manuellen Prüfung zurückgehalten",
         "interview_scorecard": "Scorecard erstellt",
+        "interview_scorecard_human": "Scorecard von einer Person erfasst",
         "interview_prep_generated": "Interview-Vorbereitung erstellt",
         "offer_drafted": "Angebot entworfen",
         "rematched": "Neu auf andere Stelle gematcht",
@@ -8981,16 +9253,15 @@
     "tab": {
       "eyebrow": "Verbundene Dienste",
       "title": "Integrationen",
-      "intro": "Verbinden Sie die externen Systeme, aus denen Kandi liest und in die es schreibt."
+      "intro": "Verbinden Sie die externen Systeme, aus denen Kandi liest und in die es schreibt.",
+      "commsElsewhere": "Die E-Mail an Kandidaten richten Sie unter Kanäle → Zustell-Relay ein.",
+      "commsElsewhereCta": "Zustell-Relay öffnen"
     },
     "calendar": {
       "title": "Google Calendar",
       "intro": "Damit prüft Kandi vor jedem Terminvorschlag, ob eine interviewende Person belegt ist, und trägt das bestätigte Interview in deren Kalender ein. Kandi fordert nur Frei/Belegt- und Terminrechte an. Es sieht, dass Sie belegt sind, nie warum.",
       "loadFailed": "Die Kalenderverbindung konnte nicht geladen werden.",
       "retry": "Erneut versuchen",
-      "notConfiguredTitle": "Auf dieser Installation nicht konfiguriert",
-      "notConfiguredBody": "Google Calendar benötigt einen OAuth-Client. Setzen Sie diese beiden Umgebungsvariablen, starten Sie neu, und dieses Panel bietet eine Schaltfläche zum Verbinden an. Bis dahin funktioniert die Terminplanung weiter. Sie schlägt lediglich Zeiten aus Ihren Arbeitszeiten statt aus einem echten Kalender vor.",
-      "redirectUriLabel": "In der Google Cloud zu registrierende Redirect-URI",
       "connect": "Google Calendar verbinden",
       "connectHint": "Öffnet den Google-Zustimmungsdialog. Danach kehren Sie hierher zurück.",
       "accountLabel": "Verbundenes Konto",
@@ -9041,7 +9312,7 @@
         },
         "not_configured": {
           "title": "Google Calendar ist nicht mehr konfiguriert",
-          "body": "Die OAuth-Zugangsdaten sind zwischen Start und Abschluss verschwunden. Prüfen Sie GOOGLE_OAUTH_CLIENT_ID und GOOGLE_OAUTH_CLIENT_SECRET."
+          "body": "Der OAuth-Client ist zwischen Start und Abschluss verschwunden. Richten Sie ihn im Bereich unten erneut ein oder prüfen Sie GOOGLE_OAUTH_CLIENT_ID und GOOGLE_OAUTH_CLIENT_SECRET."
         },
         "no_refresh_token": {
           "title": "Verbindung bewusst abgelehnt",
@@ -9063,6 +9334,37 @@
         "undecryptableBody": "Seit {date} kann Kandi das gespeicherte Kalender-Token nicht mehr lesen, meist weil sich der Verschlüsselungsschlüssel des Servers geändert hat. Verbinden Sie den Kalender erneut, um ein neues zu speichern.",
         "unsynced": "{count, plural, one {# anstehendes Interview fehlt in Ihrem Kalender.} other {# anstehende Interviews fehlen in Ihrem Kalender.}}",
         "reconnectAction": "Jetzt erneut verbinden"
+      },
+      "setup": {
+        "title": "Google Calendar einrichten",
+        "intro": "Kandi braucht einen eigenen OAuth-Client aus Ihrem Google-Cloud-Projekt. Das dauert etwa fünf Minuten und ist nur einmal nötig.",
+        "loadFailed": "Die Einrichtungsdetails konnten nicht geladen werden.",
+        "retry": "Erneut versuchen",
+        "unreadable": "Hier ist ein Client gespeichert, aber sein Secret lässt sich nicht mehr lesen, meist weil sich der Verschlüsselungsschlüssel geändert hat. Fügen Sie das Client Secret erneut ein.",
+        "step1": "Öffnen Sie in einem neuen Tab die Seite Credentials der Google Cloud Console und wählen oder erstellen Sie ein Projekt:",
+        "copyConsole": "Adresse der Console kopieren",
+        "step2": "Öffnen Sie unter APIs & Services die Library, suchen Sie Google Calendar API und aktivieren Sie sie.",
+        "step3": "Tragen Sie unter OAuth consent screen den App-Namen und Ihre E-Mail ein und fügen Sie diese zwei Scopes hinzu. Damit sieht Kandi, wann Sie belegt sind, und trägt das Interview ein, mehr nicht:",
+        "copyScope": "Scope kopieren",
+        "step4": "Wählen Sie zurück unter Credentials Create credentials, dann OAuth client ID, Typ Web application. Fügen Sie unter Authorized redirect URIs genau diese Adresse hinzu:",
+        "step4Exact": "Google vergleicht sie Zeichen für Zeichen, einschließlich http oder https und Port.",
+        "copyRedirect": "Redirect-URI kopieren",
+        "copied": "Kopiert",
+        "step5": "Google zeigt jetzt eine Client ID und ein Client Secret. Fügen Sie beides unten ein und speichern Sie. Kandi öffnet dann den Zustimmungsbildschirm von Google, um Ihren Kalender zu verbinden.",
+        "clientIdLabel": "Client ID",
+        "clientSecretLabel": "Client Secret",
+        "clientSecretKeep": "Leer lassen, um das gespeicherte Secret zu behalten",
+        "secretNote": "Das Secret wird auf diesem Server verschlüsselt gespeichert und nie wieder angezeigt. Ein Neustart ist nicht nötig.",
+        "saveAndConnect": "Speichern und verbinden",
+        "saving": "Wird gespeichert…",
+        "envAlternative": "Lieber Konfigurationsdateien? Setzen Sie stattdessen GOOGLE_OAUTH_CLIENT_ID und GOOGLE_OAUTH_CLIENT_SECRET in der Umgebung. Ein hier gespeicherter Client hat Vorrang.",
+        "fail": {
+          "client_id_invalid": "Diese Client ID sieht nicht richtig aus. Kopieren Sie sie erneut aus der Google Cloud Console.",
+          "client_secret_invalid": "Dieses Client Secret sieht nicht richtig aus. Kopieren Sie es erneut, ohne Leerzeichen.",
+          "client_secret_required": "Fügen Sie auch das Client Secret ein.",
+          "key_unavailable": "Der Server konnte keinen Verschlüsselungsschlüssel anlegen, weil er .env.local nicht schreiben kann. Setzen Sie KP_CALENDAR_SECRET_KEY in der Umgebung und versuchen Sie es erneut.",
+          "save_failed": "Der Client konnte nicht gespeichert werden. Versuchen Sie es erneut."
+        }
       }
     },
     "ats": {
@@ -9296,6 +9598,16 @@
     },
     "paidPeriodEnd": "Bezahlter Zeitraum endet am {date}",
     "allowancesReset": "Enthaltene Kontingente werden am {date} zurückgesetzt"
+  },
+  "logoUpload": {
+    "choose": "Logo hochladen",
+    "replace": "Logo ersetzen",
+    "remove": "Logo entfernen",
+    "uploading": "Wird hochgeladen…",
+    "rules": "PNG oder SVG, bis 512 KB. Wird in Ihrer Datenbank gespeichert und von dieser App ausgeliefert.",
+    "failed": "Das Logo konnte nicht hochgeladen werden.",
+    "alt": "Ihr hochgeladenes Logo",
+    "orUrl": "Oder stattdessen einen Link verwenden"
   },
   "branding": {
     "eyebrow": "White-Label",
@@ -9873,7 +10185,7 @@
       },
       "logoLabel": "Logo-URL",
       "logoInvalid": "Geben Sie eine https://-Bild-URL ein.",
-      "nameHint": "Diesen Namen sehen Kandidatinnen und Kandidaten in Stellenanzeigen, Angeboten und in jeder Nachricht, die Sie senden.",
+      "nameHint": "Wir tragen ihn bei neuen Stellen, die Sie hier anlegen, als Unternehmen ein, sodass er in deren Stellenanzeigen erscheint. Bei jeder Stelle können Sie ihn ändern.",
       "currencyLabel": "Gehaltswährung",
       "currencyHint": "Die Währung, in der Sie Gehaltsbänder angeben. Sie können sie später unter Einstellungen → Organisation ändern."
     },
@@ -10367,7 +10679,8 @@
       "interviewer_brief": "Interviewer-Briefing",
       "schedule_invite": "Termin-Einladung",
       "consent_expiry": "Erinnerung an das Einwilligungsende",
-      "interview_letter": "Interview-Rückmeldung"
+      "interview_letter": "Interview-Rückmeldung",
+      "schedule_nudge": "Terminerinnerung zur Buchung"
     },
     "cohort": {
       "title": "Kohorten-Auswertung der Prüfpunkte",
@@ -10399,6 +10712,27 @@
       "copy": "Kopieren",
       "export": "Exportieren",
       "intro": "Jede Frage prüft, ob der Kandidat eine echte Entscheidung aus seiner Einreichung wirklich verantwortet. Die Hinweise „worauf achten“ und die Warnsignale sind nur für die interviewende Person bestimmt.",
+      "debrief": {
+        "title": "Debrief-Befunde",
+        "intro": "Halten Sie pro Nachfrage einen Befund fest. Eine nicht gestellte Nachfrage gilt als nicht gestellt, nie als mittlere Bewertung.",
+        "held": "Zur Autorschaftsprüfung zurückgehalten. Band und Score bleiben unverändert; nur ein bestätigtes Debrief hebt die Sperre auf.",
+        "cleared": "Autorschaft bestätigt von {who}. Band und Score sind unverändert.",
+        "progress": "{supported} von {total} bestätigt",
+        "kind": {
+          "supported": "Bestätigt",
+          "revised": "Korrigiert",
+          "not_evidenced": "Nicht belegt",
+          "not_asked": "Nicht gefragt"
+        },
+        "quoteLabel": "Was gesagt wurde",
+        "quotePlaceholder": "Die eigenen Worte, so genau wie möglich",
+        "quoteNeeded": "Ergänzen Sie, was gesagt wurde, um diesen Befund zu speichern.",
+        "save": "Befunde speichern",
+        "saving": "Wird gespeichert…",
+        "clear": "Autorschaft bestätigen",
+        "failed": "Speichern fehlgeschlagen. Bitte erneut versuchen.",
+        "pickAria": "Befund zu Nachfrage {n}"
+      },
       "doc": {
         "heading": "Interview-Kit: {case}",
         "caseFallback": "Aufgabe",
@@ -10453,6 +10787,12 @@
       "markerIntactTitle": "Der eigene Marker dieser Sitzung ist in den eingereichten Dateien weiterhin vorhanden.",
       "markerAbsent": "Sitzungsmarker fehlt",
       "markerAbsentTitle": "Der Marker dieser Sitzung ist nicht mehr in den eingereichten Dateien. Für sich genommen beweist das nichts: Die Zeile kann schlicht gelöscht worden sein.",
+      "witnessed": "Zeitverlauf bezeugt",
+      "witnessedTitle": "Die Ereignisse erreichten den Server, als sie geschahen ({batches} Übertragungen während der Sitzung); der aufgezeichnete Zeitverlauf wurde also live beobachtet.",
+      "witnessNeutral": "Nach Unterbrechung wieder verbunden",
+      "witnessNeutralTitle": "Ein Teil der Arbeit erreichte den Server gebündelt, doch die Sitzung lief drumherum live, die übliche Form einer Offline-Phase. Neutral: ändert keine Bewertung und hält nichts an.",
+      "unwitnessed": "Zeitverlauf nicht bezeugt",
+      "unwitnessedTitle": "{late} von {total} Ereignissen erreichten den Server lange nach der Zeit, die sie angeben, in {batches} Übertragung(en), {span} angegebener Arbeit kamen gebündelt an. Das kostet die Person keine Punkte; es hält die automatische Weiterleitung an, begrenzt die Prozess-Zuverlässigkeit und blockiert die Übernahme beobachteter Fähigkeiten, bis jemand die Arbeit live prüft.",
       "markerForeign": "{count, plural, one {# fremder Marker} other {# fremde Marker}}",
       "markerForeignTitle": "In diesen Dateien taucht der Marker einer anderen Arbeitssitzung auf: das Anzeichen einer weitergereichten oder kursierenden Lösung. Urheberschaft live prüfen.",
       "footnote": "Manipulationsnachweis für das Protokoll, kein Urteil über die Arbeit.",
@@ -10608,10 +10948,12 @@
         "failed": "Diese Einreichung konnte nicht weitergeleitet werden.",
         "reasons": {
           "authenticity_suspect": "{known, select, yes {Die Prozess-Authentizität ist verdächtig ({score}/100)} other {Die Prozess-Authentizität ist verdächtig}}",
+          "debrief_cleared": "Ein dokumentiertes Debriefing hat die Urheberschaftssperre aufgehoben",
           "low_confidence": "Die Bewertung beruht auf dünner Evidenz (Konfidenz {confidence})",
           "not_scored": "Noch kein Transfer-Score, daher kann die Schwelle nicht erreicht werden",
           "score_below_floor": "Transfer-Score {score} liegt unter der Schwelle von {floor}",
-          "score_clears_floor": "Transfer-Score {score} erreicht die Schwelle von {floor}"
+          "score_clears_floor": "Transfer-Score {score} erreicht die Schwelle von {floor}",
+          "trace_unwitnessed": "Die Arbeitschronik kam gebündelt an, nicht beim Entstehen (Punktzahl unverändert)"
         }
       },
       "caseScore": "Aufgabenwert",
@@ -10882,6 +11224,17 @@
       "service_orientation_reliability": {
         "label": "Serviceorientierung & Verlässlichkeit",
         "description": "Kundenorientierte Haltung, Gelassenheit unter Druck sowie verlässliche Anwesenheit und konsequentes Nachfassen."
+      },
+      "working_with_ai_tools": {
+        "label": "Arbeit mit KI-Werkzeugen",
+        "description": "Wie sie die KI-Unterstützung bei der Arbeitsprobe beurteilen und steuern: was das Werkzeug falsch gemacht hat, wie sie es bemerkt haben und was sie bewusst selbst erledigt haben. Bewertet wird das Verhalten, nie, welches Werkzeug genannt wird.",
+        "anchor": {
+          "1": "Kann nicht sagen, was das Werkzeug falsch gemacht hat; übernimmt die Ausgabe unverändert oder kann den Einsatz nicht beschreiben.",
+          "2": "Räumt ein, dass das Werkzeug generell irren kann, nennt aber keinen konkreten Fehler aus der eigenen Arbeit.",
+          "3": "Prüft die Ausgabe des Werkzeugs, kann aber nicht sagen, wo sie bewusst nicht delegiert haben.",
+          "4": "Nennt einen konkreten Fehler des Werkzeugs und die Prüfung, die ihn aufgedeckt hat, beschreibt aber nur vage, was sie selbst behalten haben.",
+          "5": "Nennt den Fehler, die Prüfung, die ihn aufgedeckt hat, und die Stelle, an der sie bewusst nicht delegiert haben, samt Begründung."
+        }
       }
     }
   },
@@ -11749,7 +12102,8 @@
       "gigPlans": "Auftragspläne · {count, plural, one {# Auftrag} other {# Aufträge}}",
       "gigReport": "Auftragsbericht",
       "gigProposal": "Kundenangebot",
-      "analyzeCohort": "Kandidatenvergleich · {role}"
+      "analyzeCohort": "Kandidatenvergleich · {role}",
+      "scoreEntry": "Bewertung nach Eingang · {entry}"
     },
     "filter": {
       "clear": "Zurücksetzen"
@@ -11836,6 +12190,9 @@
         "already_sent": "Bereits gesendet",
         "suppressed_anonymized": "Nicht gesendet: die Daten wurden anonymisiert",
         "suppressed_consent_expired": "Nicht gesendet: Einwilligung abgelaufen",
+        "suppressed_replied": "Nicht gesendet: Die Person hat geantwortet",
+        "suppressed_manual": "Nicht gesendet: Die Ansprache wurde manuell gestoppt",
+        "suppressed_candidate": "Nicht gesendet: Die Person hat widersprochen",
         "rematched": "Einer anderen Rolle zugeordnet",
         "already_rematched": "Bereits neu zugeordnet",
         "no_alternative": "Keine passende andere Rolle gefunden",
@@ -11945,7 +12302,7 @@
       "ai": {
         "title": "AI-Transparenz",
         "oversight": "Nach der EU-AI-Verordnung ist das Screenen, Bewerten, Einstufen und Interviewen von Kandidaten eine Hochrisiko-Anwendung. Jede Kandidatenseite zeigt deshalb einen AI-Hinweis, bevor eine AI Ihre Daten liest, wie es Artikel 50 verlangt.",
-        "sealed": "Standardmäßig kommt kein Kandidat allein durch die Maschine weiter oder erhält von ihr ein Angebot (ein Workspace kann beides an die Automatik übergeben, jeder unbeaufsichtigte Schritt wird protokolliert). Die einzige Ablehnung, die die Maschine allein ausspricht, ist das Ausschlusskriterium: Wer eine Voraussetzung, die die Stelle ausdrücklich nennt, mit Nein beantwortet, dessen Bewerbung endet automatisch; die Person erfährt, um welche es ging, und kann eine Überprüfung durch einen Menschen verlangen. Jede andere nachteilige Entscheidung erfordert einen Menschen, und jede Entscheidung, ob menschlich oder automatisiert, wird in einem manipulationssicheren Audit-Protokoll festgeschrieben, das dokumentiert, wer entschieden hat und warum."
+        "sealed": "Standardmäßig kommt kein Kandidat allein durch die Maschine weiter oder erhält von ihr ein Angebot. Die Maschine lehnt niemanden allein ab: ein Nein bei einer Voraussetzung, die die Stelle ausdrücklich nennt, hält die Bewerbung für einen Menschen zurück, der die Ablehnung bestätigt oder die Zurückhaltung aufhebt, und erst eine bestätigte Ablehnung teilt der Person mit, um welche Voraussetzung es ging und wie sie eine Überprüfung durch einen Menschen verlangen kann. Jede nachteilige Entscheidung erfordert einen Menschen, und jede Entscheidung, ob menschlich oder automatisiert, wird in einem manipulationssicheren Audit-Protokoll festgeschrieben, das dokumentiert, wer entschieden hat und warum."
       },
       "subprocessors": {
         "title": "Unterauftragsverarbeiter",
@@ -12376,13 +12733,13 @@
       "gate": "ein Mensch",
       "stops": "stoppt",
       "applied": "automatisch ausgeführt",
-      "noteRejection": "Entscheidend ist die Zeile mit der Ablehnung. Der Durchlauf berechnet sie, führt sie durch das Fairness-Gate und weigert sich dann, sie auszuführen, und stellt sie stattdessen einem Menschen in die Warteschlange. Eine Ablehnung ist die eine unumkehrbare, für die Person sichtbare Maßnahme im Produkt, also führt sie nichts von allein aus. (Die einzige automatische Absage liegt davor: Wer eine Voraussetzung, die die Stelle ausdrücklich nennt, mit Nein beantwortet, erfährt, um welche es ging, und kann eine Überprüfung durch einen Menschen verlangen.)",
-      "noteAutonomous": "Weiterleitungen, Zurückstellungen, Hinweise, Bewertung und Entwürfe bleiben autonom, und genau dass wir das klar benennen, gibt dem Rest der Aussage Gewicht.",
+      "noteRejection": "Entscheidend ist die Zeile mit der Ablehnung. Der Durchlauf berechnet sie, führt sie durch das Fairness-Gate und weigert sich dann, sie auszuführen, und stellt sie stattdessen einem Menschen in die Warteschlange. Eine Ablehnung ist die eine unumkehrbare, für die Person sichtbare Maßnahme im Produkt, also führt sie nichts von allein aus. (Eine nicht erfüllte Voraussetzung ändert daran nichts: die Bewerbung wird für einen Menschen zurückgehalten, der die Ablehnung bestätigt oder die Zurückhaltung aufhebt.)",
+      "noteAutonomous": "Zurückstellungen, Hinweise, Bewertung und Entwürfe bleiben autonom, und genau dass wir das klar benennen, gibt dem Rest der Aussage Gewicht.",
       "noteHired": "Eingestellt liegt gar nicht auf diesem Weg. Ein manueller Wechsel zu Eingestellt liefert 422, denn diese Phase setzt die Annahme eines Angebots durch die Person und sonst nichts.",
       "status": {
         "s0": "der unbeaufsichtigte Durchlauf schlägt vier Aktionen vor",
         "s2": "approvalKind: ein Feld entscheidet, was anhält",
-        "s3": "Weiterleitung: ausgeführt und in die Chronik geschrieben",
+        "s3": "Weiterleitung: berechnet, dann eingereiht statt ausgeführt",
         "s4": "Zurückstellung: ausgeführt",
         "s5": "Ablehnung: berechnet, dann eingereiht statt ausgeführt",
         "s6": "Angebot: entworfen, dann eingereiht",
@@ -13914,6 +14271,7 @@
         "emphasis": "{n, plural, one {# für {target} wichtiger Begriff fett gesetzt} other {# für {target} wichtige Begriffe fett gesetzt}}",
         "compact": "{where} einzeilig gesetzt: Nichts darin betrifft {target}",
         "objective": "„{after}“ unter Ihrer Überschrift ergänzt, als das, was Sie suchen",
+        "projectsFirst": "Ihre Projekte stehen jetzt vor der Berufserfahrung: kein Jobtitel dort passt zu {target}, „{after}“ schon",
         "projects": "{n, plural, one {# Projekt ohne Bezug zu {target} ausgelassen} other {# Projekte ohne Bezug zu {target} ausgelassen}}"
       },
       "coverage": {
@@ -14354,6 +14712,7 @@
       "interviewScheduled": "Das Gespräch wurde geplant",
       "interviewReminderSent": "Die Gesprächserinnerung wurde gesendet",
       "interviewPrepGenerated": "Die Gesprächsvorbereitung wurde erstellt",
+      "interviewScorecardHuman": "Eine Person hat die Scorecard erfasst",
       "rejectionSent": "Die Absage wurde gesendet",
       "rejected": "Der Kandidat wurde abgelehnt",
       "autoRejected": "Die Automatisierung hat den Kandidaten abgelehnt",
@@ -15990,8 +16349,7 @@
         "signed": "Unterschrieben · {signer} (Beispiel). Die Kandidatin kommt weiter, und die Entscheidung behält ihren Nachweis."
       },
       "legendLocked": "gesperrt, nie delegiert",
-      "legendDelegable": "ein Arbeitsbereich kann es delegieren",
-      "logNone": "Nichts läuft unbeaufsichtigt: Jede Phase wartet auf einen Menschen.",
+      "logNone": "Screening und Angebote warten auf einen Menschen; keine Einstellung ändert das.",
       "logOne": "Jetzt unbeaufsichtigt: {stage}. Jeder solche Schritt wird samt der Regel protokolliert, die ihn erlaubt hat.",
       "logTwo": "Jetzt unbeaufsichtigt: {first} und {second}. Jeder solche Schritt wird samt der Regel protokolliert, die ihn erlaubt hat."
     },
@@ -16296,7 +16654,7 @@
       "flow4Text": "Was über sie entschieden wurde und warum.",
       "rejection": "Absage",
       "neverUnlocks": "bleibt gesperrt",
-      "neverText": "Ein Nein bei einer ausdrücklich genannten Voraussetzung beendet die Bewerbung automatisch und nennt den Grund. Jede andere Absage kommt von einem Menschen.",
+      "neverText": "Ein Nein bei einer ausdrücklich genannten Voraussetzung hält die Bewerbung für einen Menschen zurück. Abgelehnt wird erst, wenn ein Mensch es bestätigt, und die Person erfährt dann den Grund. Jede Absage kommt von einem Menschen.",
       "detailNote": "Ein Schalter pausiert jeden Schritt, der unbeaufsichtigt läuft."
     }
   },
@@ -16461,7 +16819,11 @@
       "hired": "eingestellt",
       "hiredOf": "von {target, number}",
       "open": "offene Stellen, noch ohne Kandidat/innen",
-      "drafts": "+ {count, plural, one {# Entwurf} other {# Entwürfe}}"
+      "drafts": "+ {count, plural, one {# Entwurf} other {# Entwürfe}}",
+      "automated": "automatisierte Aktionen diese Woche",
+      "autoScreens": "{count, plural, one {# Screening durchgeführt} other {# Screenings durchgeführt}}",
+      "autoOutreach": "{count, plural, one {# Nachricht gesendet} other {# Nachrichten gesendet}}",
+      "autoInvites": "{count, plural, one {# Einladung gesendet} other {# Einladungen gesendet}}"
     },
     "lit": {
       "aria": "Im Orbit hervorgehoben",
@@ -16469,7 +16831,13 @@
     },
     "ringKey": {
       "lead": "Ringe, von außen nach innen",
-      "item": "{stage} · {count, number}"
+      "item": "{stage} · {count, number}",
+      "plan": {
+        "ai": "KI-Runden",
+        "human": "Runden mit Menschen",
+        "mixed": "KI- und Menschenrunden",
+        "humanGate": "Freigabe durch Menschen"
+      }
     }
   },
   "channelsNight": {
@@ -16620,6 +16988,31 @@
           "title": "{role}: wartet auf die erste Bewerbung",
           "detail": "Konfiguriert, noch nichts empfangen.",
           "cta": "Empfänger öffnen"
+        },
+        "linksThisComputer": {
+          "title": "Links für Kandidaten zeigen auf diesen Computer",
+          "detail": "Auf dem Telefon oder Laptop eines Kandidaten öffnen sie sich nicht. Betreiben Sie KandiDate unter einer aus dem Internet erreichbaren Adresse und setzen Sie NEXT_PUBLIC_APP_BASE_URL darauf.",
+          "cta": "Karriereseite öffnen"
+        },
+        "linksLocalNetwork": {
+          "title": "Links für Kandidaten öffnen sich nur in Ihrem Netzwerk",
+          "detail": "Kandidaten außerhalb Ihres Netzwerks können sie nicht öffnen. Betreiben Sie KandiDate unter einer aus dem Internet erreichbaren Adresse und setzen Sie NEXT_PUBLIC_APP_BASE_URL darauf.",
+          "cta": "Karriereseite öffnen"
+        },
+        "linksNowhere": {
+          "title": "Links für Kandidaten zeigen auf eine Platzhalteradresse",
+          "detail": "Es ist keine öffentliche Adresse gesetzt, daher führen die Links ins Leere. Setzen Sie NEXT_PUBLIC_APP_BASE_URL auf eine Adresse, unter der KandiDate läuft und die Kandidaten erreichen.",
+          "cta": "Karriereseite öffnen"
+        },
+        "atsDead": {
+          "title": "{count, plural, one {<em># Ergebnis</em> hat Ihr ATS nicht erreicht} other {<em># Ergebnisse</em> haben Ihr ATS nicht erreicht}}",
+          "detail": "Der ATS-Webhook hat nach allen Versuchen aufgegeben. Das Ergebnis ist hier festgehalten, fehlt aber in Ihrem ATS, bis Sie es erneut senden.",
+          "cta": "Prüfen und erneut senden"
+        },
+        "calendarReconnect": {
+          "title": "Ihr Kalender muss neu verbunden werden",
+          "detail": "Google akzeptiert den Zugriff von kp auf den Kalender nicht mehr, daher werden Interviewtermine nicht mehr damit abgeglichen. Verbinden Sie ihn neu, um Frei/Gebucht wieder zu lesen.",
+          "cta": "Neu verbinden"
         }
       },
       "chip": {
@@ -16638,6 +17031,9 @@
       "fact": {
         "careersRoles": "{count, plural, one {# offene Stelle} other {# offene Stellen}}, je ein Link",
         "careersNone": "Für einen Link eine Stelle veröffentlichen",
+        "careersLinksThisComputer": "{count, plural, one {# offene Stelle} other {# offene Stellen}} · die Links öffnen sich nur auf diesem Computer",
+        "careersLinksLocalNetwork": "{count, plural, one {# offene Stelle} other {# offene Stellen}} · die Links öffnen sich nur in Ihrem Netzwerk",
+        "careersLinksNowhere": "{count, plural, one {# offene Stelle} other {# offene Stellen}} · die Links zeigen auf eine Platzhalteradresse",
         "emailNone": "Noch kein Stellen-Postfach",
         "adsNone": "Noch kein Anzeigenformular-Empfänger",
         "receiversNothing": "{count, plural, one {# Empfänger} other {# Empfänger}}, noch nichts empfangen",
@@ -16661,6 +17057,11 @@
         "bookTraffic": "{total, plural, one {# Nachricht} other {# Nachrichten}} · {sent} gesendet{orphaned, plural, =0 {} other { · # nicht zuordenbar}}",
         "bookEmptyFact": "Nachrichten erscheinen, sobald Kandidat/innen den Funnel durchlaufen",
         "olderExist": "es gibt ältere"
+      },
+      "deckDoor": {
+        "unread": "Konnektoren",
+        "sealed": "Konnektoren: Aufrufe nach außen sind gesperrt",
+        "count": "Konnektoren: {connected} von {total} verbunden"
       }
     },
     "ledger": {
@@ -16670,8 +17071,39 @@
       "needsYou": "Wartet auf Sie",
       "notMeasuredTip": "Nicht gemessen: Ohne Relay wird nichts gesendet, eine Null wäre hier also keine gute Nachricht.",
       "notMeasuredNote": "Ein Strich ist keine Null: Ohne Relay wird nichts gesendet, also kann nichts fehlschlagen, unzustellbar sein oder zurückkommen.",
-      "relayOffStays": "Ein konfiguriertes Relay sendet die Nachrichten, die danach kommen. Die hier erfassten bleiben erfasst.",
-      "queuedStays": "Diese Nachrichten wurden erfasst, als kein Relay konfiguriert war. Eine Nachricht in der Warteschlange bleibt im lokalen Postausgang; nichts sendet sie später.",
+      "relayOffStays": "Ein konfiguriertes Relay sendet die Nachrichten, die danach kommen. Die hier erfassten werden Ihnen zum Senden angeboten, sobald es funktioniert, und gehen nur nach Ihrer Bestätigung hinaus.",
+      "queuedStays": "Diese Nachrichten wurden erfasst, als kein Relay konfiguriert war. Von selbst sendet sie nichts: Prüfen Sie die Liste und bestätigen Sie das Senden.",
+      "backlog": {
+        "title": "{count, plural, one {<em># Brief</em> wartete} other {<em># Briefe</em> warteten}} auf einen Absender",
+        "detail": "Sie wurden erfasst, bevor ein Absender eingerichtet war, deshalb ist nichts hinausgegangen. Gesendet wird erst, wenn Sie auf Senden drücken.",
+        "review": "Prüfen und senden",
+        "close": "Liste schließen",
+        "listLabel": "Briefe, die auf einen Absender warteten",
+        "recorded": "erfasst {when}",
+        "pick": "Senden an {recipient}: {subject}",
+        "handHelp": "Schon einen selbst aus Ihrem eigenen Postfach geschickt? Wählen Sie ihn hier ab, damit er nicht doppelt hinausgeht.",
+        "send": "{count, plural, one {# Brief senden} other {# Briefe senden}}",
+        "sending": "Wird gesendet…",
+        "nonePicked": "Wählen Sie mindestens einen Brief zum Senden aus.",
+        "result": {
+          "sent": "{count, plural, one {# Brief wurde gesendet.} other {# Briefe wurden gesendet.}}",
+          "failed": "{count, plural, one {# Brief konnte nicht zugestellt werden; das Postbuch führt ihn als fehlgeschlagen.} other {# Briefe konnten nicht zugestellt werden; das Postbuch führt sie als fehlgeschlagen.}}",
+          "queued": "{count, plural, one {# Brief wurde nur erneut erfasst, weil kein Absender mehr bereit ist.} other {# Briefe wurden nur erneut erfasst, weil kein Absender mehr bereit ist.}}",
+          "skipped": "{count, plural, one {# Brief wurde nicht gesendet:} other {# Briefe wurden nicht gesendet:}}",
+          "refused": "Das hat nicht geklappt. Das Postbuch zeigt, was gegebenenfalls hinausgegangen ist."
+        },
+        "skip": {
+          "relay_not_ready": "Es ist kein Absender zum Zustellen bereit.",
+          "too_many": "Über dem Limit pro Durchgang; senden Sie den Rest danach.",
+          "not_found": "In diesem Arbeitsbereich nicht gefunden.",
+          "not_offered": "Kein wartender Brief mehr.",
+          "already_sent": "Bereits zugestellt.",
+          "in_progress": "Wird bereits gesendet.",
+          "recipient_invalid": "Der Empfänger ist keine verwendbare E-Mail-Adresse.",
+          "suppressed": "Die Person darf nicht kontaktiert werden (Einwilligung, Löschung oder Widerspruch).",
+          "body_rejected": "Der Brief wurde wegen Länge oder Form abgelehnt."
+        }
+      },
       "scope": "Nachrichten für die {count, plural, one {# Stelle} other {# Stellen}}, die {channel} speist.",
       "scopeNone": "{channel} speist noch keine Stelle, daher gehört keine Nachricht dazu.",
       "showAll": "Alle Nachrichten zeigen",
@@ -16700,13 +17132,20 @@
       "reference": "Referenz",
       "note": {
         "queuedNoRelay": "<b>Nichts hat diesen Rechner verlassen: Es ist kein Relay konfiguriert.</b> Diese Nachricht ist erfasst, wird aber NICHT an {name} gesendet.",
-        "queuedLater": "Die Nachricht wurde erfasst, als kein Relay konfiguriert war. Eine Nachricht in der Warteschlange bleibt im lokalen Postausgang; nichts sendet sie später."
+        "queuedLater": "Die Nachricht wurde erfasst, als kein Relay konfiguriert war. Von selbst sendet sie nichts: Das Postbuch bietet an, die wartenden Briefe zu senden, und Sie bestätigen."
       },
       "act": {
         "title": "Was Sie tun können",
         "configureHelp": "Ein Relay sendet die Nachrichten, die danach kommen. Diese hier bleibt erfasst.",
         "retryHelp": "Ein erneuter Versand ist eine eigene Zeile, sodass Original und Wiederholung unterscheidbar bleiben. „Erneut gesendet“ steht nur dann da, wenn das Relay ihn annimmt.",
-        "correctSubmit": "An die korrigierte Adresse senden"
+        "correctSubmit": "An die korrigierte Adresse senden",
+        "hand": {
+          "copy": "Nachricht kopieren",
+          "mail": "In meinem E-Mail-Programm öffnen",
+          "help": "Senden Sie sie selbst aus Ihrem Postfach. Kandi sieht das nicht: Dieser Eintrag bleibt, wie er ist.",
+          "cutCopied": "Die Nachricht ist für einen Mail-Link zu lang, daher öffnet sich Ihre E-Mail nur mit dem Betreff. Die Nachricht liegt in der Zwischenablage: Fügen Sie sie ein.",
+          "cutFailed": "Die Nachricht ist für einen Mail-Link zu lang, und die Zwischenablage wurde blockiert. Markieren Sie die Nachricht unten und fügen Sie sie in Ihre E-Mail ein."
+        }
       },
       "timeline": {
         "title": "Zustellverlauf",
@@ -16727,7 +17166,7 @@
           "neverHanded": {
             "title": "Nie an ein Relay übergeben",
             "relayOff": "Es ist kein Zustell-Relay konfiguriert, daher hat die Nachricht diesen Rechner nicht verlassen.",
-            "relayOn": "Die Nachricht wurde erfasst, als kein Relay konfiguriert war. Nichts sendet eine Nachricht aus der Warteschlange später."
+            "relayOn": "Die Nachricht wurde erfasst, als kein Relay konfiguriert war. Sie geht nur hinaus, wenn Sie sie im Angebot im Postbuch bestätigen."
           },
           "deadLettered": {
             "title": "Als Dead-Letter abgelegt",
@@ -16862,6 +17301,171 @@
         "nudge": "Benachrichtigungsziel",
         "ledger": "Das Abholjournal",
         "noBeat": "Noch kein Lebenszeichen"
+      },
+      "smtp": {
+        "title": "Aus dem eigenen Postfach senden",
+        "intro": "Kein Relay? Briefe an Kandidaten können aus einem Postfach versendet werden, das Sie bereits haben. kp meldet sich über eine verschlüsselte Verbindung an und versendet jeden Brief selbst.",
+        "status": {
+          "active": "Briefe werden aus diesem Postfach versendet.",
+          "precedence": "Ein Relay ist eingerichtet, daher gehen Briefe über das Relay. Dieses Postfach wird nur verwendet, wenn kein Relay eingerichtet ist.",
+          "relayOnly": "Briefe gehen über das Relay. Richten Sie hier nur dann ein Postfach ein, wenn es als Absender dienen soll, falls kein Relay eingerichtet ist.",
+          "off": "Nicht eingerichtet. Briefe bleiben im lokalen Postausgang und werden nicht versendet.",
+          "unreadable": "Ein Postfach ist gespeichert, aber sein Passwort lässt sich nicht mehr lesen (der Serverschlüssel hat sich geändert). Geben Sie das Passwort erneut ein. Bis dahin werden keine Briefe versendet."
+        },
+        "preset": "Anbieter",
+        "presets": {
+          "gmail": "Gmail",
+          "seznam": "Seznam",
+          "office365": "Office 365",
+          "custom": "Anderer Server"
+        },
+        "presetHelp": {
+          "gmail": "Gmail braucht ein App-Passwort (Google-Konto, Sicherheit, App-Passwörter). Ihr normales Passwort wird abgelehnt.",
+          "seznam": "Verwenden Sie das Passwort Ihres Seznam-Postfachs oder ein App-Passwort, wenn Sie sich in zwei Schritten anmelden.",
+          "office365": "Verwenden Sie Ihr Microsoft-365-Passwort. Ihre Administration muss die SMTP-Anmeldung für dieses Postfach eventuell erlauben.",
+          "custom": "Servername und Port für SMTP erfahren Sie bei Ihrem Mail-Anbieter. Nur verschlüsselte Verbindungen sind erlaubt."
+        },
+        "host": "SMTP-Server",
+        "port": "Port",
+        "security": "Verschlüsselung",
+        "securityTls": "TLS (Port 465)",
+        "securityStarttls": "STARTTLS (Port 587)",
+        "address": "E-Mail-Adresse",
+        "addressHelp": "Briefe werden von dieser Adresse versendet, und der Testbrief geht an sie.",
+        "fromName": "Absendername (optional)",
+        "password": "Passwort",
+        "passwordPlaceholder": "App-Passwort",
+        "passwordKeep": "Leer lassen, um das gespeicherte Passwort zu behalten",
+        "version": "v{version}",
+        "save": "Speichern",
+        "saved": "Gespeichert.",
+        "saveFailed": "Der E-Mail-Versand konnte nicht gespeichert werden.",
+        "test": "Testbrief senden",
+        "testHint": "Sendet einen Brief an {address}.",
+        "gate": {
+          "ok": "Bereit zum Testen.",
+          "busy": "Wird bearbeitet…",
+          "noSender": "Speichern Sie zuerst eine Adresse und ein Passwort.",
+          "unreadable": "Geben Sie das Passwort vor dem Test erneut ein.",
+          "unsaved": "Speichern Sie Ihre Änderungen vor dem Test."
+        },
+        "outcome": {
+          "sent": "Gesendet.",
+          "failed": "Nicht gesendet.",
+          "refused": "Abgelehnt."
+        },
+        "testOk": "Der Server hat den Brief angenommen ({code}). Prüfen Sie {address}.",
+        "testFailed": "Der Server antwortete {code} bei {stage}: {text}",
+        "testNoReply": "Keine Antwort vom Server bei {stage}: {text}",
+        "testSealed": "Der Versand ist auf diesem Server ausgeschaltet (KP_NO_COMMS_EGRESS).",
+        "recent": "Letzte Versuche",
+        "recentEmpty": "Noch keine Versuche.",
+        "attemptTest": "Testbrief",
+        "attempt": {
+          "sent": "gesendet",
+          "retry": "neuer Versuch folgt",
+          "failed": "fehlgeschlagen",
+          "refused": "abgelehnt"
+        },
+        "suppressed": "{count, plural, one {# Adresse} other {# Adressen}}, die der Server dauerhaft abgelehnt hat",
+        "suppressedHelp": "An diese Adressen werden keine Briefe versendet. Entfernen Sie eine, sobald die Adresse korrigiert ist.",
+        "unsuppress": "Entfernen"
+      },
+      "linkBase": {
+        "title": "Bewerber-Links zeigen auf diesen Computer",
+        "body": "Briefe können versendet werden, doch die Links darin führen zu einer Adresse, die ein Bewerber nicht öffnen kann (dieser Computer oder ein Platzhalter). Starten Sie „npm run up -- --public“ für eine vorübergehende öffentliche Adresse oder setzen Sie APP_BASE_URL auf Ihre öffentliche Adresse."
+      }
+    },
+    "connectors": {
+      "kicker": "Verbindungen",
+      "title": "Konnektoren",
+      "lead": "Alles, womit das Studio außerhalb von kp spricht: wo Post an Kandidaten hinausgeht, Ihr ATS, Ihr Kalender. Jeder Konnektor sagt in einem Wort, wie es um ihn steht.",
+      "summary": {
+        "reading": "Konnektoren werden gelesen",
+        "notRead": "Die Konnektoren konnten nicht gelesen werden",
+        "sealed": "Aufrufe nach außen sind gesperrt",
+        "count": "{connected} von {total} verbunden",
+        "fact": "Der Zustand stammt aus den gespeicherten Einstellungen. Ein Konnektor wird nur geprüft, wenn Sie auf Jetzt prüfen klicken; im Hintergrund wird nichts geprüft.",
+        "failing": "{count, plural, one {# Konnektor schlägt fehl.} other {# Konnektoren schlagen fehl.}}"
+      },
+      "group": {
+        "delivery": {
+          "title": "Zustellung",
+          "blurb": "Von hier gehen Briefe an Kandidaten hinaus. Eingerichtet wird das in der Zustell-Einrichtung."
+        },
+        "ats": {
+          "title": "ATS",
+          "blurb": "Bewerbungen, die aus Ihrem ATS kommen, und Ergebnisse, die dorthin zurückgehen."
+        },
+        "calendar": {
+          "title": "Kalender",
+          "blurb": "Frei/Gebucht-Zeiten für die Planung von Interviews."
+        }
+      },
+      "name": {
+        "comms_relay": "Zustell-Relay",
+        "smtp": "SMTP-Postfach",
+        "ats_webhook": "ATS-Webhook (Ergebnisse hinaus)",
+        "calendar": "Google Kalender",
+        "ats_inbound": "ATS-Import: {provider, select, recruitee {Recruitee} recruitis {Recruitis} teamio {Teamio} other {{provider}}}"
+      },
+      "health": {
+        "connected": "Verbunden",
+        "unverified": "Gespeichert, nicht geprüft",
+        "failing": "Fehlerhaft",
+        "notConfigured": "Nicht eingerichtet",
+        "sealed": "Gesperrt"
+      },
+      "fact": {
+        "lastOk": "Letzte Prüfung erfolgreich {time}.",
+        "failure": "Letzter Fehler: {reason}",
+        "notConfiguredSender": "Nichts gespeichert. Richten Sie es in der Zustell-Einrichtung ein.",
+        "notConfiguredBelow": "Nichts gespeichert. Richten Sie es unten ein.",
+        "connected": "Die letzte Prüfung war erfolgreich.",
+        "failing": "Die letzte Prüfung ist fehlgeschlagen.",
+        "unverified": "Gespeichert, aber seit dem Speichern oder dem Serverstart nicht geprüft.",
+        "sealed": "Dieser Server darf keine externen Dienste aufrufen (KP_NO_COMMS_EGRESS), daher wird nichts geprüft.",
+        "smtpRule": "Wird hier nie geprüft: Eine Prüfung sendet einen echten Brief. Nutzen Sie Testbrief senden in der Zustell-Einrichtung."
+      },
+      "busy": {
+        "read": "Frei/Gebucht: bei der letzten Prüfung gelesen.",
+        "unknown": "Frei/Gebucht: unbekannt. Ohne gelesene Daten wird ein Termin nie als frei angezeigt."
+      },
+      "door": {
+        "probe": "Jetzt prüfen",
+        "probing": "Wird geprüft…",
+        "sender": "Zustell-Einrichtung öffnen",
+        "reconnect": "Neu verbinden"
+      },
+      "probe": {
+        "ok": "Prüfung erfolgreich.",
+        "failed": "Prüfung fehlgeschlagen. Die Karte nennt den Grund.",
+        "notRun": "Nichts wurde geprüft: nicht eingerichtet, oder Aufrufe nach außen sind gesperrt.",
+        "throttled": "Zu viele Prüfungen. Warten Sie ein paar Minuten und versuchen Sie es erneut.",
+        "noAnswer": "Die Prüfung konnte nicht laufen. Versuchen Sie es erneut."
+      },
+      "ats": {
+        "notRead": "Das ATS-Zustellprotokoll wurde nicht gelesen.",
+        "dead": "{count, plural, one {# Ergebnis hat Ihr ATS nicht erreicht} other {# Ergebnisse haben Ihr ATS nicht erreicht}}",
+        "noneDead": "Jedes gesendete Ergebnis hat Ihr ATS erreicht",
+        "empty": "Noch nichts an Ihr ATS gesendet",
+        "counts": "{due, plural, =0 {Keine Wiederholung wartet} one {# Wiederholung wartet} other {# Wiederholungen warten}}. {stranded, plural, =0 {Nichts unterbrochen.} one {# unterbrochen, beim nächsten Durchlauf übernommen.} other {# unterbrochen, beim nächsten Durchlauf übernommen.}}",
+        "deadList": "Ergebnisse, die Ihr ATS nicht erreicht haben",
+        "deadChip": "Nicht angekommen",
+        "gaveUp": "Nach {attempts, plural, one {# Versuch} other {# Versuchen}} aufgegeben, {time}.",
+        "lastAnswer": "Letzte Antwort: {answer}",
+        "replay": "Erneut senden",
+        "replaying": "Wird erneut gesendet…",
+        "replayed": "Erneut eingereiht und versucht. Hat Ihr ATS geantwortet, ist die Zeile aus dieser Liste verschwunden.",
+        "replayFailed": "Das erneute Senden ist nicht gelaufen. Versuchen Sie es erneut.",
+        "event": {
+          "candidateHired": "Einstellung",
+          "candidateRejected": "Absage",
+          "offerAccepted": "Angebot angenommen",
+          "offerDeclined": "Angebot abgelehnt",
+          "ping": "Test-Ping",
+          "other": "Ergebnis"
+        }
       }
     }
   },
@@ -17865,6 +18469,716 @@
       },
       "shared": "{n} wie in der ersten Zeile",
       "modelGivenBar": "Die Passung bewertet das Modell selbst: Pro und Contra erklären sie, ohne Punkte."
+    }
+  },
+  "evidenceLadder": {
+    "reasons": {
+      "watchedActs": "{count, plural, =0 {Wir haben keine Überprüfung der Arbeit gesehen} one {Wir haben gesehen, wie die Person die Arbeit einmal überprüft hat} other {Wir haben gesehen, wie die Person die Arbeit # Mal überprüft hat}}",
+      "watchedTest": "Hat einen automatischen Test geschrieben oder angepasst, der die Arbeit prüft",
+      "watchedTestGeneral": "Hat eine Kontrolle geschrieben oder angepasst, mit der die eigene Arbeit geprüft wird",
+      "watchedAssistant": "{count, plural, one {Hat den KI-Assistenten einmal gebeten, seine Antwort zu überprüfen} other {Hat den KI-Assistenten # Mal gebeten, seine Antwort zu überprüfen}}",
+      "watchedStakeholder": "{count, plural, one {Hat einmal einen Zweifel oder vermuteten Fehler beim Auftraggeber angesprochen} other {Hat # Mal einen Zweifel oder vermuteten Fehler beim Auftraggeber angesprochen}}",
+      "watchedPlanted": "{caught} von {graded} prüfbaren Fehlern gefunden, die wir im Ausgangsmaterial versteckt hatten; zählt als eine Überprüfung",
+      "witness_witnessed": "Wir haben gesehen, wie die Arbeit Schritt für Schritt entstand",
+      "witness_neutral": "Ein Teil der Arbeit entstand offline, der Verlauf spricht daher weder dafür noch dagegen",
+      "witness_unwitnessed": "Der Großteil der Arbeit erschien auf einmal, statt Schritt für Schritt zu entstehen. Ein Grund, innezuhalten und nachzufragen, nie ein Abzug",
+      "defendedSupported": "{supported} von {total} Antworten auf Nachfragen haben die Arbeit bestätigt",
+      "defendedRevised": "{count, plural, one {# Antwort hat das Bild verändert, das die Arbeit vermittelte} other {# Antworten haben das Bild verändert, das die Arbeit vermittelte}}",
+      "defendedNotEvidenced": "{count, plural, one {# Aussage blieb unbelegt} other {# Aussagen blieben unbelegt}}",
+      "defendedNotAsked": "{count, plural, one {# Nachfrage wurde nicht gestellt} other {# Nachfragen wurden nicht gestellt}}",
+      "defendedHeld": "Angehalten, bis ein Mensch bestätigt, dass die Arbeit von der Person selbst stammt",
+      "defendedCleared": "Ein Mensch hat bestätigt, dass die Arbeit von der Person selbst stammt",
+      "quotedRatings": "{count, plural, one {# Bewertung, wie abgegeben} other {# Bewertungen, wie abgegeben und nie gemittelt}}",
+      "quotedNoEvidence": "Mindestens eine Bewertung hat keine erklärenden Notizen"
+    },
+    "empty": {
+      "no_case": "Noch keine Belege: Diesem Kandidaten ist keine Arbeitsprobe zugeordnet.",
+      "not_evaluated": "Noch keine Belege: Die Arbeitsprobe wurde noch nicht ausgewertet.",
+      "not_watched": "Noch keine Belege: Die Arbeit wurde fertig als Link eingereicht, wie sie entstand, haben wir also nicht gesehen.",
+      "no_followups": "Noch keine Belege: Die Auswertung der Arbeit hat keine Nachfragen ergeben.",
+      "not_recorded": "Noch keine Belege: Die Antworten aus dem Nachgespräch wurden noch nicht erfasst.",
+      "not_rated": "Noch keine Belege: Niemand aus dem Interview hat die Arbeit mit KI-Werkzeugen bewertet."
+    },
+    "title": "Wie die Person mit KI arbeitet",
+    "intro": "Drei Arten von Belegen, jede für sich gelesen und nie zusammengezählt. Nichts davon fließt in den Match-Score ein. Die bei der Arbeitsprobe beobachteten Überprüfungen zählen aber für deren Transfer-Score; die Antworten im Nachgespräch und die Bewertung im Interview zählen für keinen Score.",
+    "gateNote": "Diese Ansicht unterstützt Ihre Entscheidung. Sie löst nichts aus.",
+    "rung": {
+      "watched": "Beobachtet bei der Arbeitsprobe",
+      "defended": "Erklärt im Nachgespräch",
+      "quoted": "Bewertet im Interview"
+    },
+    "rungHint": {
+      "watched": "Jede Überprüfung der Arbeit statt blinden Vertrauens, egal auf welchem Weg.",
+      "defended": "Was die interviewende Person zu jeder Nachfrage zur Arbeit festgehalten hat.",
+      "quoted": "Die Bewertung der Arbeit mit KI-Werkzeugen, wie jede interviewende Person sie abgab."
+    },
+    "rating": "{rating} von {max}",
+    "byAi": "KI-Interview",
+    "byHuman": "Interviewer",
+    "finding": {
+      "revised": "Korrigiert",
+      "not_evidenced": "Nicht belegt"
+    },
+    "followup": "Nachfrage {index}",
+    "loading": "Belege werden gelesen",
+    "loadFailed": "Die Belege der Arbeitsprobe konnten nicht gelesen werden. Die anderen Stufen bleiben sichtbar.",
+    "devcaseNote": "Dieselbe Stufe steht in der Kandidatenübersicht, neben Debriefing und Interview."
+  },
+  "linkReach": {
+    "candidates": {
+      "thisComputer": "Kandidaten können diesen Link nicht öffnen: Er zeigt auf diesen Computer.",
+      "localNetwork": "Nur Geräte in Ihrem Netzwerk können diesen Link öffnen, Kandidaten anderswo nicht.",
+      "nowhere": "Kandidaten können diesen Link nicht öffnen: Er zeigt auf eine Platzhalteradresse, nicht auf diesen Arbeitsbereich."
+    },
+    "sources": {
+      "thisComputer": "Dienste außerhalb dieses Computers erreichen diese Adresse nicht: Sie zeigt auf diesen Computer.",
+      "localNetwork": "Nur Geräte in Ihrem Netzwerk erreichen diese Adresse, externe Dienste nicht.",
+      "nowhere": "Nichts erreicht diese Adresse: Sie ist ein Platzhalter, nicht dieser Arbeitsbereich."
+    },
+    "howToFix": "So beheben Sie das",
+    "fix": {
+      "candidates": "Betreiben Sie KandiDate unter einer aus dem Internet erreichbaren Adresse, setzen Sie NEXT_PUBLIC_APP_BASE_URL auf diese Adresse und starten Sie KandiDate neu (ein Produktions-Build muss neu gebaut werden). Die Anleitung zum Selbstbetrieb erklärt die Einrichtung. Der optionale dauerhaft erreichbare Rand leitet nur eingehende Webhooks und E-Mails weiter; Seiten für Kandidaten stellt er nicht bereit.",
+      "sources": "Betreiben Sie KandiDate unter einer aus dem Internet erreichbaren Adresse und setzen Sie NEXT_PUBLIC_APP_BASE_URL darauf, oder koppeln Sie den dauerhaft erreichbaren Rand und richten Sie die Quelle auf dessen Adresse. Die Anleitung zum Selbstbetrieb erklärt beides."
+    }
+  },
+  "firstRunData": {
+    "eyebrow": "Erster Start",
+    "title": "Wie möchten Sie beginnen?",
+    "intro": "Dieser Arbeitsbereich ist leer. Starten Sie ganz neu oder erkunden Sie die App mit einer Beispiel-Recruiting-Pipeline. Sie entscheiden einmal; dieser Bildschirm erscheint nicht wieder.",
+    "empty": {
+      "action": "Leer starten",
+      "detail": "Nur Ihre eigenen Stellen und Kandidaten. Der Einrichtungsassistent führt Sie durch die ersten Schritte."
+    },
+    "demo": {
+      "action": "Mit Demodaten erkunden",
+      "detail": "Stellen, Kandidaten und eine laufende Pipeline einer Beispielbank, damit jede Ansicht etwas zeigt."
+    },
+    "working": "Wird geöffnet…",
+    "seeding": "Demodaten werden geladen…",
+    "errors": {
+      "hasData": "Dieser Arbeitsbereich enthält bereits Daten, deshalb wurden keine Demodaten hinzugefügt.",
+      "failed": "Das hat nicht geklappt. Bitte versuchen Sie es erneut."
+    }
+  },
+  "roleRun": {
+    "heading": "Rollenlauf",
+    "intro": "Der Lauf führt diese Rolle von der Ausschreibung bis zum Angebotsentwurf. Er hält an drei menschlichen Toren an; niemand wird abgelehnt, eingeladen oder bekommt ein Angebot, bevor Sie entscheiden.",
+    "noRun": "Für diese Rolle wurde noch kein Lauf gestartet.",
+    "start": "Lauf starten",
+    "starting": "Wird gestartet…",
+    "reload": "Neu laden",
+    "cycle": "Zyklus {cycle}",
+    "status": {
+      "running": "Läuft",
+      "complete": "Abgeschlossen",
+      "cancelled": "Abgebrochen"
+    },
+    "noStages": "Der Lauf hat noch nichts erzeugt.",
+    "noGates": "Im Moment wartet nichts auf Sie.",
+    "advance": "Lauf fortsetzen",
+    "advancing": "Wird fortgesetzt…",
+    "stagesHeading": "Bisherige Stufen",
+    "stage": {
+      "role_spec": "Rollenprofil",
+      "slate": "Shortlist",
+      "screen": "Screening",
+      "case_assignment": "Fallaufgabe",
+      "interview": "Interview",
+      "scorecard": "Bewertungsbogen",
+      "offer_draft": "Angebotsentwurf"
+    },
+    "gate": {
+      "rejection": {
+        "title": "Absagetor",
+        "hint": "Das Screening schlägt vor, wer nicht weiterkommt. Mit der Freigabe werden diese Vorschläge festgehalten; bei Ablehnung bleiben die Kandidaten im Lauf."
+      },
+      "interview_invite": {
+        "title": "Einladungstor",
+        "hint": "Der Lauf hat Interview-Einladungen vorbereitet. Mit der Freigabe wird die Entscheidung festgehalten; von hier wird keine Einladung versendet."
+      },
+      "offer": {
+        "title": "Angebotstor",
+        "hint": "Der Lauf hat Angebotskonditionen vorbereitet. Mit der Freigabe wird die Entscheidung festgehalten; von hier wird kein Angebot erstellt."
+      }
+    },
+    "candidates": "{count, plural, one {# Kandidat} other {# Kandidaten}}",
+    "policy": "Richtlinie {policy}",
+    "subjects": "{count, plural, one {# Entscheidung} other {# Entscheidungen}}",
+    "previewHeading": "Kandidaten in diesem Stapel",
+    "review": "Stapel prüfen",
+    "previewing": "Wird geladen…",
+    "approve": "Stapel freigeben",
+    "committing": "Wird festgehalten…",
+    "decline": "Stapel ablehnen",
+    "humanStep": "Ihre Entscheidung wird unter Ihrem Namen festgehalten. Nach Ihrer Entscheidung läuft der Lauf von selbst weiter.",
+    "failed": "Bei diesem Lauf ist etwas schiefgegangen. Bitte versuchen Sie es erneut."
+  },
+  "one": {
+    "sheets": {
+      "today": "Today",
+      "asked": "You asked",
+      "position": "{index} of {total}",
+      "notYet": "not built yet, honestly",
+      "changeLabel": "What changed",
+      "tabsLabel": "Views on screen",
+      "pinned": "pinned",
+      "keysLabel": "Keys",
+      "keyStep": "answers",
+      "keyEnter": "Enter",
+      "keyOpen": "open",
+      "keyEsc": "Esc",
+      "keyBack": "back",
+      "stackLabel": "Open sheets",
+      "back": "Back to {name}",
+      "close": "Close {name}",
+      "sheet": {
+        "letters": "Letters to approve",
+        "calendar": "Interview calendar",
+        "profile": "{label} · Profile",
+        "letter": "{label} · Letter",
+        "schedule": "{label} · Schedule"
+      },
+      "push": {
+        "letter": "Letter",
+        "schedule": "Schedule"
+      },
+      "calendar": {
+        "pick": "Pick someone who is waiting, then a free time to book them.",
+        "picked": "{label}: pick a free time to book, or",
+        "link": "send a self-scheduling link"
+      }
+    },
+    "core": {
+      "meta": {
+        "region": "One",
+        "console": "Console",
+        "consoleTip": "Open the full workspace (Ctrl K or ⌘K)",
+        "regionLabel": "Views One put on screen",
+        "conversationLabel": "Conversation with One",
+        "regionEmpty": "Nothing on screen yet. Ask a question or pick one below."
+      },
+      "composer": {
+        "label": "Ask One",
+        "placeholder": "Ask what needs you, or say what to do",
+        "send": "Send",
+        "stop": "Stop",
+        "working": "Opening the views…"
+      },
+      "step": {
+        "back": "Earlier answer",
+        "forward": "Later answer",
+        "position": "Answer {index} of {total}"
+      },
+      "header": {
+        "label": "What is waiting",
+        "stats": {
+          "decisions": {
+            "label": "Decisions",
+            "full": "Decisions waiting on you"
+          },
+          "pipeline": {
+            "label": "Stalled",
+            "full": "Candidates past their step's limit"
+          },
+          "channels": {
+            "label": "New",
+            "full": "New arrivals waiting for a first look"
+          },
+          "letters": {
+            "label": "Letters",
+            "full": "Outreach letters waiting for your approval"
+          },
+          "schedule": {
+            "label": "Interviews",
+            "full": "Interviews ahead"
+          },
+          "jobs": {
+            "label": "Drafts",
+            "full": "Draft roles to publish"
+          }
+        }
+      },
+      "you": "You",
+      "one": "One",
+      "say": {
+        "empty": "Ask me what needs you, or pick a question below.",
+        "needsShown": "Here is what needs you.",
+        "decisionsShown": "These candidates are waiting on your decision.",
+        "pipelineShown": "Here is the active pipeline.",
+        "pipelineRoleShown": "Here is the pipeline for that role, with the role beside it.",
+        "stalledShown": "These candidates have sat in their step past its limit.",
+        "interviewsShown": "These are the interviews on the calendar ahead.",
+        "funnelShown": "Here is how candidates move through the funnel.",
+        "arrivalsShown": "These candidates arrived and wait for a first look.",
+        "draftsShown": "These roles are still drafts, not yet published.",
+        "outboxShown": "Here is what was sent to candidates lately.",
+        "lettersShown": "Here are the emails waiting for your approval.",
+        "calendarShown": "Here is the interview calendar, with who is waiting for a slot.",
+        "profileShown": "Here is their profile.",
+        "profileMany": "Several candidates answer to that name. Pick one.",
+        "profileNone": "No active candidate answers to that name.",
+        "roleShown": "Here is that role and its candidates.",
+        "roleAsk": "Which role? Say it like \"the pipeline for backend\".",
+        "waveRejectProposed": "I have set up that cut. Check who it touches; nothing happens until you confirm.",
+        "waveAdvanceProposed": "I have set up that advance. Check who it touches; nothing happens until you confirm.",
+        "companionProposed": "That one is done in the Console today. The way there is below.",
+        "consoleOffered": "The full workspace is one click away.",
+        "notYet": "That is not in this prototype yet. Try one of these."
+      },
+      "dropped": "{count, plural, one {One part of this answer could not be shown.} other {# parts of this answer could not be shown.}}",
+      "chips": {
+        "needs": "What needs me?",
+        "decisions": "Decisions waiting",
+        "pipeline": "The pipeline",
+        "stalled": "What is stalled?",
+        "interviews": "Interviews ahead",
+        "funnel": "How are we doing?",
+        "arrivals": "New arrivals",
+        "drafts": "Drafts to publish",
+        "outbox": "What was sent?",
+        "digest": "Today's digest",
+        "letters": "Emails to approve",
+        "calendar": "Calendar"
+      },
+      "greeting": {
+        "loading": "Reading what needs you…",
+        "unknown": "I could not read what needs you right now. The questions below still work.",
+        "clear": "All clear. Nothing is waiting on you.",
+        "status": "{areas, plural, one {One area needs you.} other {# areas need you.}}",
+        "first": {
+          "decisions": "{count, plural, one {# candidate is} other {# candidates are}} waiting on your decision.",
+          "pipeline": "{count, plural, one {# candidate has} other {# candidates have}} sat in a step past its limit.",
+          "channels": "{count, plural, one {# new application waits} other {# new applications wait}} for a first look.",
+          "schedule": "{count, plural, one {# interview is} other {# interviews are}} on the calendar ahead.",
+          "jobs": "{count, plural, one {# role is} other {# roles are}} still a draft."
+        },
+        "show": "Show me"
+      },
+      "change": {
+        "shown": "Showing {panel}.",
+        "replaced": "Showing {panel} in place of {previous}.",
+        "focused": "Brought {panel} forward.",
+        "closed": "Closed {panel}.",
+        "pinned": "Pinned {panel}. It stays when new views arrive.",
+        "unpinned": "Unpinned {panel}.",
+        "undone": "Put the previous screen back.",
+        "dropped": "You acted first, so the pending change was dropped.",
+        "droppedSuffix": "The change One had pending was dropped.",
+        "stopped": "Stopped. The screen is as it was before that question.",
+        "pinLimit": "Two views are pinned already. Unpin one to pin {panel}.",
+        "stepped": "Showing answer {answer} of {of}.",
+        "undo": "Undo",
+        "dismiss": "Dismiss"
+      },
+      "panels": {
+        "openInConsole": "Open in Console",
+        "pin": "Pin",
+        "unpin": "Unpin",
+        "close": "Close",
+        "focus": "Bring forward",
+        "loadFailed": "This view could not load.",
+        "notReturned": "This read did not return it.",
+        "noScore": "No score yet.",
+        "firstOf": "Showing the first {shown} of {total}.",
+        "needs": {
+          "title": "What needs you",
+          "empty": "Nothing is waiting on you.",
+          "rows": {
+            "decisions": "Decisions waiting",
+            "pipeline": "Past their step's limit",
+            "channels": "New arrivals",
+            "schedule": "Interviews ahead",
+            "jobs": "Draft roles",
+            "companion": "Candi's open proposals"
+          },
+          "companionWhere": "Answered in Candi's dock in the Console"
+        },
+        "pipelineSlice": {
+          "title": "Pipeline",
+          "titleAging": "Stalled candidates",
+          "titleNew": "New arrivals",
+          "titleName": "Candidates named “{name}”",
+          "forRole": "For “{role}”",
+          "empty": "No active candidates on the board.",
+          "emptyRole": "No active candidates match “{role}”.",
+          "emptyAging": "Nobody has sat in a step past its limit.",
+          "emptyNew": "No new arrivals are waiting.",
+          "emptyName": "No active candidate answers to “{name}”."
+        },
+        "scheduleAhead": {
+          "title": "Interviews ahead",
+          "empty": "No interviews are on the calendar ahead.",
+          "zone": "Times in {zone}",
+          "truncated": "Only the most recent invitations were read; there may be more."
+        },
+        "funnel": {
+          "title": "Funnel",
+          "window": "Last 30 days",
+          "empty": "No candidates entered in this window.",
+          "noConversion": "The first step has nothing before it to convert from."
+        },
+        "jobDrafts": {
+          "title": "Drafts to publish",
+          "empty": "No draft roles are waiting to be published."
+        },
+        "outbox": {
+          "title": "Sent lately",
+          "empty": "Nothing has been sent to candidates yet.",
+          "relayOff": "No delivery relay is set up: messages are recorded here, and nothing reaches candidates.",
+          "verdict": {
+            "sent": "Sent",
+            "queued": "Queued",
+            "failed": "Failed",
+            "bounced": "Bounced",
+            "recovered": "Recovered",
+            "orphaned": "Unmatched receipt"
+          }
+        },
+        "decisionsQueue": {
+          "title": "Decisions waiting",
+          "empty": "No candidate is waiting on a decision.",
+          "advance": "Advance",
+          "reject": "Reject",
+          "advanceWho": "Advance {label}",
+          "rejectWho": "Reject {label}",
+          "keys": "↑↓ move · A advance · R reject"
+        },
+        "roleCard": {
+          "title": "Role",
+          "needRole": "Name a role to see it, like “the role backend”.",
+          "notFound": "No role matches “{role}”.",
+          "more": "{count, plural, one {# more role matches} other {# more roles match}}; showing the first.",
+          "company": "Company",
+          "location": "Location",
+          "seniority": "Seniority",
+          "status": "Status",
+          "hired": "Hired",
+          "target": "Target",
+          "statuses": {
+            "open": "Open",
+            "draft": "Draft",
+            "closed": "Closed"
+          },
+          "pipeline": "Its pipeline"
+        },
+        "letters": {
+          "title": "Letters to approve",
+          "empty": "No outreach letter is waiting for approval.",
+          "revision": "Revision {revision}",
+          "noSubject": "No subject",
+          "truncated": "There may be more letters than shown.",
+          "oldest": "Waiting longest",
+          "since": "Drafted {date}",
+          "perRole": "Letters per role",
+          "open": "Open the letter to {label}",
+          "approveWho": "Approve the letter to {label}",
+          "keys": "↑↓ move · Enter open · A approve"
+        },
+        "calendar": {
+          "title": "Interview calendar",
+          "empty": "Nothing on the calendar and nobody waiting.",
+          "week": "Week of {date}",
+          "prevWeek": "Previous week",
+          "nextWeek": "Next week",
+          "zone": "Times in {zone}",
+          "free": "free",
+          "confirmed": "booked",
+          "pending": "awaiting the candidate",
+          "noDay": "Nothing booked",
+          "waitingTitle": "Waiting for a slot",
+          "noneWaiting": "Nobody is waiting for an interview slot.",
+          "truncated": "The schedule read hit its limit; some interviews may be missing.",
+          "slotsFailed": "Free times could not be read.",
+          "notConnected": "No calendar is connected, so free times are kp's own offer list.",
+          "unavailable": "The connected calendar did not answer; free times are kp's own offer list.",
+          "agendaFree": "Free · {time}",
+          "thisWeek": "This week",
+          "interviews": "Interviews",
+          "freeSlots": "Free times",
+          "longest": "Waiting longest",
+          "waitingFor": "{days} on the calendar step",
+          "waitingForUnknown": "On the calendar step (no date recorded)",
+          "suggest": "Book {label}",
+          "suggestHint": "{when}, the first free time",
+          "cols": {
+            "when": "When",
+            "who": "Candidate",
+            "status": "Status"
+          }
+        },
+        "profile": {
+          "title": "Profile",
+          "titleFor": "Profile · {label}",
+          "pick": "Pick a candidate from a list to see their profile.",
+          "none": "No analysis on record for {label}.",
+          "cv": "CV",
+          "cvNone": "The analysis holds no CV text.",
+          "cvNote": "The text the analysis read. The CV file itself is not stored.",
+          "score": "Score",
+          "unscored": "Unscored",
+          "jobFit": "Job fit",
+          "jobFitNone": "Not scored against a job.",
+          "overall": "Overall",
+          "partOf": "{value} of {max}",
+          "meter": "{label}: {value} of {max}",
+          "parts": {
+            "experience": "Experience",
+            "skills": "Skills",
+            "roleSeniority": "Role and seniority",
+            "education": "Education",
+            "traits": "Traits"
+          },
+          "matching": "Matching",
+          "missing": "Missing",
+          "unproven": "Unproven",
+          "strengths": "Strengths",
+          "gaps": "Gaps",
+          "signals": "Soft signals",
+          "signalStrength": "Strength",
+          "signalWatch": "Watch",
+          "labelOnly": "Matched by name only. This analysis may belong to someone else with the same name.",
+          "engine": {
+            "llm": "Model analysis",
+            "deterministic": "Deterministic analysis",
+            "unknown": "Engine not recorded"
+          },
+          "analysed": "Analysed {date}"
+        },
+        "letter": {
+          "title": "Email",
+          "titleFor": "Email · {label}",
+          "pick": "Pick a candidate from a list to see their email.",
+          "none": "No outreach letter is held for {label}.",
+          "heldOnly": "Only the first-contact outreach letter is held for approval today.",
+          "subject": "Subject",
+          "to": "To",
+          "noRecipient": "No deliverable address",
+          "noSubject": "No subject",
+          "erased": "The text was erased.",
+          "revision": "Revision {revision}",
+          "sends": "What a release would send",
+          "forecast": {
+            "refused": "Would not be sent: no deliverable recipient.",
+            "simulation": "A simulation candidate: nothing leaves.",
+            "suppressed": "Would be held back by the send gate (consent or a halted sequence).",
+            "relay": "Would leave through the configured relay.",
+            "local": "No relay is configured: it would wait in the local outbox.",
+            "unknown": "Delivery forecast not returned."
+          },
+          "state": {
+            "drafted": "Draft",
+            "approved": "Approved",
+            "released": "Sent",
+            "delivery_failed": "Delivery failed",
+            "suppressed": "Held back",
+            "discarded": "Discarded"
+          },
+          "approve": "Approve",
+          "send": "Send",
+          "thread": "Sent to them",
+          "threadEmpty": "Nothing has been sent to them yet."
+        },
+        "interview": {
+          "title": "Interview",
+          "titleFor": "Interview · {label}",
+          "pick": "Pick a candidate from a list to schedule their interview.",
+          "gone": "This candidate is no longer active on the board.",
+          "waiting": "Waiting for an interview slot for {days}.",
+          "waitingUnknown": "Waiting for an interview slot.",
+          "notWaiting": "Not on the calendar step.",
+          "booked": "Booked {when}",
+          "proposed": "Link sent, no time picked yet",
+          "invites": "Their invitations",
+          "slots": "Free times",
+          "noSlots": "No free time in the next three weeks.",
+          "book": "Book",
+          "bookAt": "Book {when}",
+          "link": "Send a link to pick a time",
+          "zone": "Times in {zone}"
+        },
+        "retry": "Try again",
+        "seeAll": "See all",
+        "refreshFailed": "Couldn't refresh",
+        "cols": {
+          "candidate": "Candidate",
+          "stage": "Stage",
+          "score": "Score",
+          "inStage": "In stage",
+          "when": "When",
+          "role": "Role",
+          "area": "Area",
+          "waiting": "Waiting",
+          "company": "Company",
+          "status": "Status",
+          "sent": "Sent",
+          "reached": "Reached",
+          "conversion": "Conversion",
+          "field": "Field",
+          "value": "Value",
+          "revision": "Revision",
+          "drafted": "Drafted"
+        },
+        "stalled": "Past its step's limit",
+        "withRole": "{title} · {role}",
+        "group": {
+          "stalled": "{count} stalled",
+          "none": "No role"
+        },
+        "keysLabel": "Keys",
+        "insight": {
+          "stages": "Where they stand",
+          "other": "Other",
+          "scores": "Score spread",
+          "unscored": "{count, plural, one {# not scored yet} other {# not scored yet}}",
+          "bins": {
+            "40": "40–49",
+            "50": "50–64",
+            "65": "65–74",
+            "75": "75+",
+            "lt40": "<40"
+          },
+          "oldest": "Waiting longest",
+          "inStage": "{stage} · {days}",
+          "topRole": "Most from one role",
+          "candidates": "{count, plural, one {# candidate} other {# candidates}}",
+          "suggestAdvance": "Advance {label}",
+          "reasonScore": "{score}, the highest score here",
+          "reasonScoreDays": "{score}, the highest score here · {days} waiting",
+          "reasonStalled": "{days} in {stage}, past its limit",
+          "reachedPerStep": "Reached per step",
+          "biggestDrop": "Biggest drop",
+          "dropValue": "{from} → {to}",
+          "lost": "{pct} lost",
+          "overall": "Overall",
+          "overallSub": "of entrants reach {stage}",
+          "horizon": "How soon",
+          "ahead": {
+            "today": "24 hours",
+            "week": "7 days",
+            "month": "30 days",
+            "later": "Later"
+          },
+          "next": "Next interview",
+          "delivery": "{count, plural, one {Delivery of the newest message} other {Delivery of the # newest}}",
+          "latest": "Latest",
+          "trouble": "Needs a look",
+          "troubleCount": "{count, plural, one {# failed or bounced} other {# failed or bounced}}",
+          "troubleNone": "Nothing failed",
+          "oldestDraft": "Oldest draft",
+          "topCompany": "Most drafts at",
+          "drafts": "{count, plural, one {# draft} other {# drafts}}",
+          "waiting": "What is waiting",
+          "biggest": "Biggest"
+        }
+      },
+      "consent": {
+        "heading": "Needs your OK",
+        "notNow": "Not now",
+        "working": "Working…",
+        "final": "This is final from here; there is no undo on this screen.",
+        "finalTag": "Final: no undo here",
+        "undoTag": "Undo available",
+        "details": "Details",
+        "forRole": "Role: {role}",
+        "stale": "This candidate moved since you looked. Refresh the view and decide again.",
+        "failed": "That did not go through.",
+        "cost": "Costs one model call when it runs.",
+        "disarmed": "This cannot be armed: {reason}",
+        "reasons": {
+          "badParams": "it arrived incomplete.",
+          "badThreshold": "the score line must be between 1 and 100.",
+          "badCount": "the number must be between 1 and 50.",
+          "unknownAction": "it names an action that does not exist."
+        },
+        "emails": {
+          "rejection": "Emails the candidate a rejection letter.",
+          "rejectionMany": "Emails each of them a rejection letter.",
+          "nextStep": "Kann der Kandidatin bzw. dem Kandidaten die Einladung zum nächsten Schritt per E-Mail senden (zum Beispiel eine Arbeitsprobe), je nach Schritt."
+        },
+        "entryAdvance": {
+          "title": "Advance {label}",
+          "body": "Moves them on from {stage} to the next step.",
+          "press": "Advance",
+          "done": "{label} moved on."
+        },
+        "entryReject": {
+          "title": "Reject {label}",
+          "body": "Closes them out of {stage}.",
+          "press": "Reject",
+          "done": "{label} is rejected.",
+          "commsFailed": "The rejection letter could not be queued; follow up by hand."
+        },
+        "routedToHumanRound": "Their next round needs a person; it is waiting in Decisions.",
+        "wave": {
+          "rejectTitle": "Reject everyone below {threshold}%",
+          "rejectTitleRole": "Reject everyone below {threshold}% on “{role}”",
+          "advanceTitle": "Advance the top {count} by score",
+          "advanceBody": "Candidates at the offer step wait for the offer flow instead.",
+          "advanceLine": "Moves the highest-scoring active candidates on a step.",
+          "undoBody": "Once it runs, the rejections can be undone here; a letter already sent cannot be recalled.",
+          "scope": "Counts every active candidate on the board, not only the rows in view.",
+          "preview": "Show who it touches",
+          "previewing": "Reading who it touches…",
+          "touches": "{total, plural, =0 {Nobody matches, so nothing would change.} one {Touches # candidate:} other {Touches # candidates:}}",
+          "moreRows": "{count, plural, one {and # more} other {and # more}}",
+          "pressReject": "Reject and notify",
+          "pressAdvance": "Advance them",
+          "done": "{count, plural, one {# candidate done.} other {# candidates done.}}",
+          "failedSome": "{count, plural, one {# could not be changed.} other {# could not be changed.}}",
+          "commsFailed": "{count, plural, one {# rejection letter could not be queued.} other {# rejection letters could not be queued.}}",
+          "heldAtOffer": "{count, plural, one {# held at the offer step.} other {# held at the offer step.}}",
+          "droppedOut": "{count, plural, one {# no longer matched and was left alone.} other {# no longer matched and were left alone.}}",
+          "undo": "Undo the rejections",
+          "undoTooMany": "Too many to undo from here; reverse them from the Console.",
+          "undone": "{restored, plural, one {# candidate is back.} other {# candidates are back.}}",
+          "undoneNotified": "{notified, plural, one {# had already been sent a letter; follow up by hand.} other {# had already been sent a letter; follow up by hand.}}",
+          "undoneSkipped": "{skipped, plural, one {# had moved since and was left alone.} other {# had moved since and were left alone.}}"
+        },
+        "companion": {
+          "title": {
+            "run_analysis": "Re-run a candidate's screening",
+            "draft_jd": "Draft a job description",
+            "draft_outreach": "Draft outreach to a candidate",
+            "generate_digest": "Write today's digest"
+          },
+          "body": "Candi runs this from the Console. One cannot start it from here yet, because the only way to create Candi's proposal is inside her own conversation.",
+          "press": "Open in Console"
+        },
+        "preview": "Wired after the pick",
+        "previewActs": {
+          "someone": "this candidate",
+          "letterApprove": {
+            "title": "Approve the letter to {label}",
+            "line": "Approves the letter to {label} (revision {revision}). Nothing is sent yet.",
+            "press": "Approve",
+            "details": "Approval binds this exact revision; an edit after it needs a new approval. The letter leaves only on Send."
+          },
+          "letterSend": {
+            "title": "Send the letter to {label}",
+            "line": "Sends the approved letter to {label}.",
+            "press": "Send",
+            "details": "The release re-checks consent and the halt rules first; with no relay configured it waits in the local outbox."
+          },
+          "interviewBook": {
+            "title": "Book {label}",
+            "line": "Books {label} on {when}.",
+            "lineZone": "Books {label} on {when} ({zone}).",
+            "press": "Book",
+            "details": "The booking emails the candidate a confirmation with the time."
+          },
+          "interviewLink": {
+            "title": "Send {label} a scheduling link",
+            "line": "Emails {label} a link to pick a time.",
+            "press": "Send link",
+            "details": "The link offers the free times and expires after seven days."
+          }
+        }
+      },
+      "sample": {
+        "note": "Sample letter: this database holds no drafted letters, so this one was made up for the prototype (?sample=letters). Nothing is stored or sent.",
+        "subject": "Your profile and our {role} role",
+        "body": "Hi {name},\n\nI came across your profile while looking for someone for our {role} role, and your experience stood out. The team is small and the work is hands-on, and I think it could be a good fit.\n\nWould you have 20 minutes this week or next for a short call? If the timing is wrong, just say so and I will not follow up.\n\nBest regards"
+      }
     }
   }
 }

@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentUser, requireCapability } from "@/app/_lib/auth/current-user";
 import { startJdBuild } from "@/app/_lib/jd-build-start";
 import { readJdBuildOptions } from "@/app/_lib/jd-build-run";
 import { getTemplate } from "@/app/_lib/templates-store";
 import { validateJdBuildInput } from "@/app/_lib/jd-limits";
+import { effectiveOrgName } from "@/app/_lib/org-name-server";
+import { companyOrDefault } from "@/app/_lib/org-settings";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 
@@ -25,7 +27,7 @@ const GENERATE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 // shows in the Ledger immediately and completes even if the user navigates away.
 // The handler (runJdBuild) owns writing the body/artifacts back onto the row.
 
-export async function POST(request: Request) {
+export const POST = withWorkspace(async (ws: string, request: Request) => {
   // A Generate spawns a 1–2 minute PAID AI build the moment it's accepted, so the
   // gate must run before any body read or DB write — a demo/non-operator session
   // the proxy waved through can't burn tokens here. Open mode (no
@@ -78,7 +80,6 @@ export async function POST(request: Request) {
   // discarding a non-default team's private choice AND letting any team read a
   // default-team private template by id. A non-empty id that no longer resolves is
   // an explicit-choice-gone-missing, so 400 rather than silently using AI-default.
-  const ws = await currentWorkspace();
   const templateId = typeof record.templateId === "string" ? record.templateId : "";
   let templateBody: string | undefined = undefined;
   if (templateId) {
@@ -90,9 +91,13 @@ export async function POST(request: Request) {
   // The recruiter's original intent, persisted on the JD row so Duplicate re-seeds
   // the PROMPT (not the rendered markdown) and Retry can replay even after the task
   // row is pruned. templateId (stable) is stored, not the resolved templateBody.
+  // A blank company is the owner's own role: resolved HERE, in the request, because
+  // the build runs detached with no cookie to read (org-name-server.ts). Persisted on
+  // the intent too, so a Retry replays the same name. A typed company always wins.
+  const company = companyOrDefault(record.company, await effectiveOrgName());
   const buildInput = {
     needText,
-    company: typeof record.company === "string" ? record.company : undefined,
+    company,
     seniority: typeof record.seniority === "string" ? record.seniority : undefined,
     roleFamily: typeof record.roleFamily === "string" ? record.roleFamily : undefined,
     repoUrl: typeof record.repoUrl === "string" ? record.repoUrl : undefined,
@@ -119,7 +124,7 @@ export async function POST(request: Request) {
       workspaceId: ws,
       createdBy: (await currentUser()).userId,
       params: {
-        company: typeof record.company === "string" ? record.company : undefined,
+        company,
         seniority: typeof record.seniority === "string" ? record.seniority : undefined,
         roleFamily: typeof record.roleFamily === "string" ? record.roleFamily : undefined,
         needText,
@@ -132,4 +137,4 @@ export async function POST(request: Request) {
   } catch (error) {
     return safeJsonError(error, "api:jds/generate", "JD_GENERATE_FAILED");
   }
-}
+});

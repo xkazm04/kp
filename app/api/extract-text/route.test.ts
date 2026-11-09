@@ -22,6 +22,7 @@ import { registerHooks } from "node:module";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readApiResponseSource } from "../../_lib/api-errors/read-source.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(path.join(HERE, "route.ts"), "utf8").replace(/\r\n/g, "\n");
@@ -229,7 +230,7 @@ test("a spawn refused at the admission door stays ENGINE_BUSY at 503", async () 
 });
 
 test("every code this route answers with is declared, so useErrorMessage can resolve it", () => {
-  const responses = readFileSync(path.join(HERE, "..", "..", "_lib", "api-response.ts"), "utf8");
+  const responses = readApiResponseSource(path.join(HERE, "..", "..", "_lib", "api-response.ts"));
   for (const code of [
     "EXTRACT_FILE_REQUIRED",
     "EXTRACT_TEXT_UNREADABLE",

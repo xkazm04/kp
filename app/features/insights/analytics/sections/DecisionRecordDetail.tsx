@@ -28,7 +28,7 @@ import { useTranslations } from "next-intl";
 import type { DecisionRecord } from "@/app/_lib/decision-record-store";
 import { parseSealTraceability } from "@/app/_lib/decision-attribution";
 import { META_LABEL } from "@/app/_components/ui/recipes";
-import { formatAuditTime } from "../analyticsDecisionLogTypes";
+import { formatAuditTime } from "@/app/_lib/analytics-decision-types";
 
 // The record kinds a group evaluation seals (group_eval_lead / group_eval_advisory) —
 // the only ones an AI Act Art. 12 question can be asked of, because they are the only

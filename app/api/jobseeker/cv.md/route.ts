@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { currentSession } from "@/app/_lib/auth/current-user";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentUserId } from "@/app/_lib/auth/session";
 import { getJobseekerProfile } from "@/app/_lib/db/jobseeker-profiles";
@@ -15,14 +15,14 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 // document per hit on a gate that is a no-op in open mode — 60/10min per IP.
 const EXPORT_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 
-export async function GET(request: Request): Promise<NextResponse> {
+export const GET = withWorkspace(async (ws: string, request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   if (!rateLimit(`jobseeker-cv-export:${clientIpFrom(request.headers)}`, EXPORT_RATE_LIMIT)) {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   try {
-    const [session, ws] = await Promise.all([currentSession(), currentWorkspace()]);
+    const session = await currentSession();
     const profile = getJobseekerProfile(currentUserId(session), ws);
     if (!profile?.cvPolishedMd) return jsonRefusal("JOBSEEKER_PROFILE_MISSING", 404);
     return new NextResponse(profile.cvPolishedMd, {
@@ -36,4 +36,4 @@ export async function GET(request: Request): Promise<NextResponse> {
   } catch (err) {
     return safeJsonError(err, "api:jobseeker/cv.md", "JOBSEEKER_STORE_FAILED");
   }
-}
+});

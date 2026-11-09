@@ -1,5 +1,5 @@
 import { listAnalysesPage, listAnalysisFacets } from "@/app/_lib/db/analyses";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonOk, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 
@@ -26,7 +26,7 @@ function clampLimit(raw: string | null): number {
   return Math.min(MAX_LIMIT, Math.max(1, Math.floor(n)));
 }
 
-export async function GET(request: Request) {
+export const GET = withWorkspace(async (workspaceId: string, request: Request) => {
   // Defense in depth: /api/analyses is not on the public allow-list, so middleware already
   // requires a session — but presence is not authorization, and this door serves every
   // analyzed candidate's full summary row in the workspace. `read` is the capability every
@@ -37,7 +37,6 @@ export async function GET(request: Request) {
   try {
     const params = new URL(request.url).searchParams;
     const limit = clampLimit(params.get("limit"));
-    const workspaceId = await currentWorkspace();
     // History's query (challenge-r09 cv-analyze-workspace/A): the filters run in the
     // store, after the newest-per-(cv_hash, jd_slug) collapse and BEFORE the window, so
     // a search or a filter answers over the whole workspace rather than the newest 200.
@@ -71,4 +70,4 @@ export async function GET(request: Request) {
     // the code and resolves `errors.ANALYSES_LIST_FAILED` in its own language.
     return safeJsonError(error, "api:analyses", "ANALYSES_LIST_FAILED");
   }
-}
+});

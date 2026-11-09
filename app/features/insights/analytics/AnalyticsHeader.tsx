@@ -71,7 +71,7 @@ export function AnalyticsHeader({
   return (
     <header className="flex flex-col gap-5 border-b border-stone-200 pb-4 lg:flex-row lg:items-start lg:justify-between">
       <div>
-        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+        <p className="text-meta uppercase text-coral-ink">{t("eyebrow")}</p>
         <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
         <p className="mt-2 max-w-3xl text-body text-steel">{t("intro")}</p>
         {/* ANA2: cohort window — the windowed figures scope to entries created in
@@ -92,7 +92,7 @@ export function AnalyticsHeader({
               onClick={() => setDays(w)}
               aria-pressed={days === w}
               className={`focus-ring rounded-full border px-3 py-1 text-sm font-semibold transition-colors ${
-                days === w ? "border-coral bg-coral/10 text-coral" : "border-stone-200 text-steel hover:border-coral/40"
+                days === w ? "border-coral bg-coral/10 text-coral-ink" : "border-stone-200 text-steel hover:border-coral/40"
               }`}
             >
               {w == null ? t("windowAll") : t("windowDays", { days: w })}
@@ -182,7 +182,7 @@ export function AnalyticsHeader({
             type="button"
             onClick={() => setPackOpen(true)}
             aria-haspopup="dialog"
-            className="focus-ring inline-flex items-center gap-1.5 rounded-full border border-stone-200 px-3 py-1 text-sm font-semibold text-steel transition-colors hover:border-coral/40 hover:text-coral"
+            className="focus-ring inline-flex items-center gap-1.5 rounded-full border border-stone-200 px-3 py-1 text-sm font-semibold text-steel transition-colors hover:border-coral/40 hover:text-coral-ink"
           >
             {job ? t("metricPack.preview.openWorkspace") : t("metricPack.preview.open")}
           </button>

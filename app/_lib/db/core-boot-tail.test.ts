@@ -207,7 +207,17 @@ test("fixture seeding runs before the PK rebuilds and the NULL backfills, with t
 
   const seeding = at("if (fixtureSeedEnabled()) {");
   const stageMigration = at("migratePipelineStages(db);");
-  const backfill = at("UPDATE analyses SET workspace_id = ? WHERE workspace_id IS NULL");
+  // The backfill statements live in backfillTenantScope() since the demo also seeds on
+  // demand (seedDemoCorpus runs the same seeders, then the same backfill) — so pin both
+  // the CALL in the boot body and that the on-demand path ends with it too.
+  at("UPDATE analyses SET workspace_id = ? WHERE workspace_id IS NULL");
+  const backfill = at("backfillTenantScope(db); // after all seeders");
+  const onDemand = source.slice(at("export function seedDemoCorpus("));
+  assert.ok(
+    onDemand.indexOf("runDemoSeeders(db);") !== -1 &&
+      onDemand.indexOf("runDemoSeeders(db);") < onDemand.indexOf("backfillTenantScope(db);"),
+    "the on-demand seed runs the backfill AFTER the seeders, so no seeded row keeps a NULL workspace_id"
+  );
   const rebuild = at("const rebuildTable = (scratch: string, ddl: string)");
 
   assert.ok(seeding < stageMigration, "seeding runs before the stage remap");

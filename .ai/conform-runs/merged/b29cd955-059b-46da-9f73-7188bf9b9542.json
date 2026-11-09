@@ -1,0 +1,27 @@
+{
+ "schema": "conform-run/1",
+ "worker": "b29cd955-059b-46da-9f73-7188bf9b9542",
+ "subject": "untrusted-extension-host",
+ "evaluatedAt": "2026-10-19T01:12:42.262973+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [],
+ "declined": [
+  {
+   "subject": "untrusted-extension-host",
+   "context": "db-core-migrations",
+   "reason": "Preconditions for untrusted-extension-host do not hold: db-core-migrations provides the SQLite database boot sequence, WAL mode configuration, sequential migrations runner, index integrity checks, and seed marks for internal tables, with no untrusted third-party extension hosting, sandbox isolation, or foreign code execution. Per the seat rule that not-applicable is not accepted, this pair is declined."
+  },
+  {
+   "subject": "untrusted-extension-host",
+   "context": "tests-llm-eval",
+   "reason": "Preconditions for untrusted-extension-host do not hold: tests-llm-eval tests the pipeline's internal multi-provider LLM abstraction layer, prompt fencing/guardrails, offline fallbacks, and eval benchmarks, without any untrusted third-party extension code execution or runtime sandboxing. Per the seat rule that not-applicable is not accepted, this pair is declined."
+  },
+  {
+   "subject": "untrusted-extension-host",
+   "context": "jd-library-core",
+   "reason": "Preconditions for untrusted-extension-host do not hold: jd-library-core implements the Job Description library frontend tab, routing, linting panel, and edit client in Next.js/React, with no third-party extension or plugin runtime. Per the seat rule that not-applicable is not accepted, this pair is declined."
+  }
+ ],
+ "consults": []
+}

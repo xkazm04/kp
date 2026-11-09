@@ -18,6 +18,7 @@ import { compareCells } from "@/app/_components/table/useTableSort";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { ROLE_FAMILY_SLUGS } from "@/app/_lib/role-families";
 import { readClientOrgName } from "@/app/_lib/org-settings";
+import { useOrgNameFallback } from "@/app/_components/BrandProvider";
 import { generateSuccessHref, readGenerateSlug } from "./jdsBuilderGenerate";
 
 export const SENIORITIES = ["junior", "medior", "senior", "lead"];
@@ -48,8 +49,13 @@ export function useJdBuilderLogic({ onSaved, prefill }: { onSaved: () => void; p
   const [title, setTitle] = useState(prefill?.title ?? sp.get("jdTitle") ?? "");
   // Company defaults to the Duplicate source, then a deep-link prefill (?jdCompany),
   // then the organization name (Settings → Organization). Lazy init reads the org
-  // cookie once on first render; the user's edits win after.
-  const [company, setCompany] = useState(() => prefill?.company ?? sp.get("jdCompany") ?? readClientOrgName());
+  // cookie once on first render; the user's edits win after. An org that never set
+  // a name falls back to the demo's company ONLY on a fixture-seeded install
+  // (useOrgNameFallback); an unseeded workspace leaves the field empty for the
+  // recruiter to fill — an empty company is composed honestly downstream (no "at …"
+  // in the hiring line, jd-build-run.ts), never invented.
+  const orgFallback = useOrgNameFallback();
+  const [company, setCompany] = useState(() => prefill?.company ?? sp.get("jdCompany") ?? readClientOrgName(orgFallback));
   const [seniority, setSeniority] = useState(prefill?.seniority ?? sp.get("jdSeniority") ?? "medior");
   const [roleFamily, setRoleFamily] = useState(prefill?.roleFamily ?? sp.get("jdFamily") ?? "software_engineering");
   const [needText, setNeedText] = useState(prefill?.need ?? sp.get("jdNeed") ?? "");

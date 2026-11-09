@@ -74,7 +74,7 @@ export function IntegrationsAtsRow({
             type="button"
             onClick={() => onRemove(forgetLinks)}
             disabled={busy}
-            className={`${BTN_SECONDARY} mt-3 h-8 px-3 text-sm text-coral`}
+            className={`${BTN_SECONDARY} mt-3 h-8 px-3 text-sm text-coral-ink`}
           >
             {busy ? t("removing") : t("removeConfirmAction")}
           </button>

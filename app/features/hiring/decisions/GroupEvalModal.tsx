@@ -116,7 +116,7 @@ export function GroupEvalModal({
     >
       {loading && !evaluation ? (
         <p className="flex items-center gap-2 text-base text-steel">
-          <Loader2 size={16} className="animate-spin text-coral" /> {t("generatingFull")}
+          <Loader2 size={16} className="animate-spin text-coral-ink" /> {t("generatingFull")}
         </p>
       ) : error && !evaluation ? (
         <Notice>

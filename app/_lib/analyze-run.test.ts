@@ -18,7 +18,7 @@
 // MUST be the first project import (it sets KP_DB_PATH before any db-path import).
 // Run: node scripts/run-unit-tests.mjs "app/_lib/analyze-run.test.ts"
 import { cleanupUnitDb } from "./testing/unit-db.ts";
-import { removeTempDirs } from "./testing/tmp-cleanup.ts";
+import { removeTempDirsInHook } from "./testing/tmp-cleanup.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
@@ -26,6 +26,7 @@ import { readFileSync, writeFileSync, mkdtempSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import os from "node:os";
 import path from "node:path";
+import { readApiResponseSource } from "./api-errors/read-source.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -113,7 +114,7 @@ const { currentPeriod } = await import("./billing/plans.ts");
 const { ensureDb } = await import("./db/core.ts");
 
 after(() => cleanupUnitDb());
-after(() => removeTempDirs(...tempBaseDirs));
+after(() => removeTempDirsInHook(tempBaseDirs));
 
 // A minimal payload that clears analysisSchema. Deliberately thin: this file is about
 // ordering and deadlines, not about the analysis shape.
@@ -320,7 +321,7 @@ test("ANALYZE_TIMEOUT is a declared refusal whose sentence matches the copy held
   // copies agree: an undeclared code resolves to no errors.<CODE> key in any of the four
   // catalogs and reaches the recruiter as the client's generic fallback in every
   // language, and a drifted sentence means the task row and the client disagree.
-  const responsesSrc = readFileSync(path.join(HERE, "api-response.ts"), "utf8").replace(/\r\n/g, "\n");
+  const responsesSrc = readApiResponseSource(path.join(HERE, "api-response.ts")).replace(/\r\n/g, "\n");
   const declared = responsesSrc.match(/\n\s*ANALYZE_TIMEOUT:\s*\n?\s*"([^"]+)"/);
   assert.ok(declared, "ANALYZE_TIMEOUT must exist in REFUSAL_ERRORS");
   assert.equal(declared[1], ANALYZE_TIMEOUT_MESSAGE, "the literal here and REFUSAL_ERRORS must stay equal");

@@ -15,6 +15,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readApiResponseSource } from "../../../../_lib/api-errors/read-source.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -33,6 +34,6 @@ test("the public inbound webhook answers its 500 through safeJsonError", () => {
 });
 
 test("CHANNEL_INBOUND_FAILED is a generic, client-safe message in the shared catalog", () => {
-  const src = readFileSync(path.join(HERE, "..", "..", "..", "..", "_lib", "api-response.ts"), "utf8");
+  const src = readApiResponseSource(path.join(HERE, "..", "..", "..", "..", "_lib", "api-response.ts"));
   assert.match(src, /CHANNEL_INBOUND_FAILED: "[^"]+"/, "the code must exist with a generic message");
 });

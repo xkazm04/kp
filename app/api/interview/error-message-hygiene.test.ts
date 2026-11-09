@@ -99,7 +99,7 @@ test("every interview route routes its catch path through safeJsonError", () => 
 });
 
 test("the stable-code catalogue covers every interview failure path", () => {
-  const src = read("../../_lib/api-response.ts");
+  const src = read("../../_lib/api-response.ts") + read("../../_lib/api-errors/store-errors.ts") + read("../../_lib/api-errors/refusal-errors.ts");
   for (const code of [
     "INTERVIEW_CREATE_FAILED",
     "INTERVIEW_CONNECT_FAILED",

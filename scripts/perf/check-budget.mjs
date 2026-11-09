@@ -115,13 +115,22 @@ const DYNAMIC_RE = /\bimport[ \t]*\([ \t]*['"]([^'"]+)['"][ \t]*\)/g;
 /** `import type ... from 'x'` / `export type ... from 'x'` — free, never counted. */
 const TYPE_ONLY_RE = /^[ \t]*(?:import|export)[ \t]+type[ \t][\s\S]*?from[ \t]*['"]([^'"]+)['"]/gm;
 
-/** Every module specifier this source depends on at RUNTIME. */
-export function parseImports(source) {
+/** Specifiers loaded EAGERLY: static imports and re-exports, which are bundled with the importer. */
+export function parseStaticImports(source) {
   const specs = [];
   for (const m of source.matchAll(VALUE_FROM_RE)) specs.push(m[1]);
   for (const m of source.matchAll(SIDE_EFFECT_RE)) specs.push(m[1]);
-  for (const m of source.matchAll(DYNAMIC_RE)) specs.push(m[1]);
   return specs;
+}
+
+/** Specifiers loaded DEFERRED: `import('x')`, which `next/dynamic` and `React.lazy` compile to. */
+export function parseDynamicImports(source) {
+  return [...source.matchAll(DYNAMIC_RE)].map((m) => m[1]);
+}
+
+/** Every module specifier this source depends on at RUNTIME, eager and deferred. */
+export function parseImports(source) {
+  return [...parseStaticImports(source), ...parseDynamicImports(source)];
 }
 
 /** The type-only specifiers — the ones that are free, and so are never counted. */
@@ -173,23 +182,27 @@ function readModule(file, root) {
   } catch {
     return null; // unreadable = not part of the graph
   }
-  const deps = file.endsWith('.json')
-    ? [] // data, not code: no imports to follow
-    : [...new Set(parseImports(source))].map((s) => resolveSpecifier(s, file, root)).filter(Boolean);
-  const entry = { bytes: Buffer.byteLength(source), deps };
+  const resolve = (specs) => [...new Set(specs)].map((s) => resolveSpecifier(s, file, root)).filter(Boolean);
+  const json = file.endsWith('.json'); // data, not code: no imports to follow
+  const staticDeps = json ? [] : resolve(parseStaticImports(source));
+  const lazyDeps = json ? [] : resolve(parseDynamicImports(source));
+  // `deps` is the union (the barrel rule counts any value importer); the walk uses the split.
+  const entry = { bytes: Buffer.byteLength(source), deps: [...new Set([...staticDeps, ...lazyDeps])], staticDeps, lazyDeps };
   fileCache.set(file, entry);
   return entry;
 }
 
 /**
- * The transitive first-party graph reachable from one entry, following static
- * AND dynamic imports — the same union app-structure.md counts when it says
- * `app/page.tsx` reaches 983 modules, 749 of them only via `next/dynamic`.
+ * The transitive first-party EAGER graph reachable from one entry: static
+ * imports only (ADR 0032). A dynamic `import()` is a deferred edge — it is not
+ * followed, so a module reachable only through one is not counted. A module that
+ * is ALSO reached statically somewhere on the path still counts, via that edge.
+ * `{ deferred: true }` follows both, for `--explain` and for comparing to the old union.
  *
  * The entry itself is counted: a route IS one of the modules that has to be
  * compiled and shipped.
  */
-export function walkGraph(entryAbs, root = REPO_ROOT) {
+export function walkGraph(entryAbs, root = REPO_ROOT, { deferred = false } = {}) {
   const seen = new Set();
   const queue = [entryAbs];
   let bytes = 0;
@@ -200,7 +213,7 @@ export function walkGraph(entryAbs, root = REPO_ROOT) {
     if (!mod) continue;
     seen.add(file);
     bytes += mod.bytes;
-    for (const dep of mod.deps) if (!seen.has(dep)) queue.push(dep);
+    for (const dep of deferred ? mod.deps : mod.staticDeps) if (!seen.has(dep)) queue.push(dep);
   }
   return { modules: seen.size, bytes, files: seen };
 }
@@ -515,10 +528,6 @@ const percentile = (sorted, p) => sorted[Math.min(sorted.length - 1, Math.floor(
  */
 export function record(root = REPO_ROOT, slackPercent = 15) {
   const file = path.join(root, BUDGET_FILE);
-  if (fs.existsSync(file)) {
-    console.error(`perf:budget --record: ${BUDGET_FILE} already exists. Use --tighten to lower ceilings, or edit it to raise one.`);
-    return 1;
-  }
   const budget = { version: 1, slackPercent, entries: {}, groups: {}, barrels: {} };
 
   for (const [rel, why] of Object.entries(DEFAULT_TARGETS.entries)) {
@@ -553,7 +562,17 @@ export function record(root = REPO_ROOT, slackPercent = 15) {
     budget.barrels[rel] = { maxValueImporters: findValueImporters(rel, root).length, why };
   }
 
-  fs.writeFileSync(file, JSON.stringify(budget, null, 2) + '\n');
+  // 'wx' is an exclusive create: the refusal to overwrite a signed budget is made by the
+  // write itself, not by an existsSync check that a concurrent --record could slip past.
+  try {
+    fs.writeFileSync(file, JSON.stringify(budget, null, 2) + '\n', { flag: 'wx' });
+  } catch (err) {
+    if (err && err.code === 'EEXIST') {
+      console.error(`perf:budget --record: ${BUDGET_FILE} already exists. Use --tighten to lower ceilings, or edit it to raise one.`);
+      return 1;
+    }
+    throw err;
+  }
   console.log(`perf:budget --record: wrote ${BUDGET_FILE} from the current tree. Read every ceiling before committing it.`);
   return 0;
 }

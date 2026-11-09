@@ -102,7 +102,7 @@ function Chapter({
 }
 
 /** The header's text actions (architecture link, tour, stop-all). */
-const HEADER_ACTION = "focus-ring inline-flex items-center gap-1.5 text-base font-medium text-coral hover:underline";
+const HEADER_ACTION = "focus-ring inline-flex items-center gap-1.5 text-base font-medium text-coral-ink hover:underline";
 
 /**
  * Per-viewer memory of the deck-wide stop. Every storage touch is guarded: a

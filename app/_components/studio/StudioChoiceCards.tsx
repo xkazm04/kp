@@ -103,7 +103,7 @@ export function StudioChoiceCards({ set, disabled, onPick, onDecline, ns }: Stud
               }`}
             >
               <span className="flex items-start gap-1.5">
-                {on ? <Check size={14} className="mt-0.5 shrink-0 text-coral" aria-hidden /> : null}
+                {on ? <Check size={14} className="mt-0.5 shrink-0 text-coral-ink" aria-hidden /> : null}
                 <span className="min-w-0">
                   <span className="block text-body font-medium text-ink">{option.label}</span>
                   {option.detail ? <span className="mt-0.5 block text-meta leading-5 text-steel">{option.detail}</span> : null}

@@ -1,0 +1,98 @@
+{
+ "schema": "conform-run/1",
+ "worker": "74564dcc-ce20-4085-a28d-7f39fae8a9e9",
+ "subject": "ai-interviewer-brief-authoring",
+ "evaluatedAt": "2026-10-25T22:08:03.073560+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "voice-interview-session",
+   "subject": "ai-interviewer-brief-authoring",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/voice/candidate-brief.ts:169 For ElevenLabs sessions the engine gets only this client-sent candidate brief. The sanitizer correctly removes the coachability phase's scripted hint, but composeCandidateBrief (lines 251-270) adds no hint rule in its place: NON_NEGOTIABLES from student-interview.ts:208 is never composed in, and director.ts has no hint stage direction. So an early-career EL interview is never told to give its guaranteed hint, and the Coachability axis that the scorer reads (hintText, interview-run.ts:809) goes unobserved.",
+   "techniques": [
+    {
+     "technique": "mandatory-coachability-hint",
+     "verdict": "deviation",
+     "evidence": "app/_lib/voice/candidate-brief.ts:169 Keeping the hint text in an internal field is done right (allow-list). But the guarantee is lost: the candidate-safe brief keeps only the 'Coachability injection' topic label and has no 'offer ONE hint, never skip' rule."
+    },
+    {
+     "technique": "rule-ordering-adjacency-and-form",
+     "verdict": "deviation",
+     "evidence": "app/_lib/voice/candidate-brief.ts:255 The lock is adjacent to the gender-grammar rule, but it is not last in the brief. Lines 258-269 put the intro, leadership frame, case intro, agenda listing, director protocol (with up to 1500 chars of posting plus FAQ) and the close after it, so the lock sits mid-document. A search of director.ts for 'language' found no per-turn or stage-note restatement. The 'outranks every other instruction' rank sentence is in the lock (student-interview.ts:158), and the technique says that is not a lever."
+    },
+    {
+     "technique": "one-question-per-turn-and-wait",
+     "verdict": "conformant",
+     "evidence": "app/_lib/voice/candidate-brief.ts:253 Imports the shared constant 'Ask exactly ONE question per turn and wait for the answer\u2026' (student-interview.ts:162). Interrupting a rambling candidate is authorised in the craft paragraph."
+    },
+    {
+     "technique": "narrowing-follow-up-not-repetition",
+     "verdict": "conformant",
+     "evidence": "app/_lib/student-interview.ts:176 This is the constant composed in at candidate-brief.ts:254. It covers narrowing, no verbatim repeat, no preamble, coverage over count and not announcing what remains. Caveats: rungs are improvised live rather than planned per item, and claim verification is triggered by 'strong or quantitative' claims rather than asked uniformly."
+    },
+    {
+     "technique": "closing-read-back",
+     "verdict": "conformant",
+     "evidence": "app/_lib/voice/candidate-brief.ts:254 Composes the craft paragraph, which says 'Just before closing\u2026 read back the key ones in one short turn and let them confirm or correct you; if none came up, skip that'. It does not state numbers-with-basis or per-item confirmation."
+    },
+    {
+     "technique": "praise-and-verdict-suppression",
+     "verdict": "conformant",
+     "evidence": "app/_lib/voice/candidate-brief.ts:269 Enumerated forbidden list, including praise of thinking or instinct, and a permitted list, plus a process explanation at the close. It does not say the permitted tokens must not be rationed."
+    }
+   ],
+   "registryProposal": "mandatory-coachability-hint's 'hint scripting lives in a structurally internal field' rule can, applied correctly, delete the guarantee itself when the engine's ONLY brief is the candidate-facing derivation (a client-sent prompt). The technique should say the guarantee must still reach the engine in that case: as a content-free rule ('offer one concrete hint mid-problem, never skip') that is allow-listed separately from the hint text, or as a server-delivered stage direction."
+  },
+  {
+   "context": "jd-intake-brief-logic",
+   "subject": "ai-interviewer-brief-authoring",
+   "bundle": "recruiting",
+   "state": "not-applicable",
+   "evidence": "app/features/library/jds/intake/jdsIntakeBriefModel.ts:16 Here 'brief' means the structured hiring-need RoleBrief that the intake panel shapes, de-duplicates and reveals, not instructions that drive a candidate interviewer. A grep of app/features/library/jds/intake/ for coachability, praise, PERSONA_ and narrow found no hits; 'interviewer' appears only as a transcript role label (jdsIntakeLogic.ts:14).",
+   "techniques": [],
+   "absenceTerms": [
+    "coachability",
+    "praise",
+    "PERSONA_",
+    "narrow"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-25T22:08:03.073560+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "ai-interviewer-brief-authoring"
+   ],
+   "techniques": [
+    "closing-read-back",
+    "mandatory-coachability-hint",
+    "narrowing-follow-up-not-repetition",
+    "one-question-per-turn-and-wait",
+    "praise-and-verdict-suppression",
+    "rule-ordering-adjacency-and-form"
+   ],
+   "deviations": 1,
+   "context": "voice-interview-session",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-25T22:08:03.073560+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "ai-interviewer-brief-authoring"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "jd-intake-brief-logic",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

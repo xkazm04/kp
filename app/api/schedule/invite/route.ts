@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { getPipelineEntry } from "@/app/_lib/db/pipeline";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { createScheduleInvite } from "@/app/_lib/schedule-store";
@@ -26,7 +26,7 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 // The workspace is then threaded into getPipelineEntry: relying on its DEFAULT made
 // this route 404 for every non-default team and reachable across tenants for the
 // default one.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION, in lock-step with the bulk sibling (write-routes-check-a-capability).
@@ -37,7 +37,6 @@ export async function POST(request: NextRequest) {
   // refuse a read-only member with a code instead of sending the invitation.
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (under) return under;
-  const ws = await currentWorkspace();
   try {
     // Throttle per-IP so link-minting can't be used to flood the comms provider
     // (idea-3e49abaf); generous enough for any human recruiter, and a second line
@@ -128,4 +127,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:schedule:invite", "SCHEDULE_INVITE_FAILED");
   }
-}
+});

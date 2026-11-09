@@ -107,7 +107,7 @@ export function BookedCard({
             href={invite.meetingUrl}
             target="_blank"
             rel="noreferrer"
-            className="focus-ring inline-flex items-center gap-1.5 rounded-md bg-coral px-3 py-1.5 text-base font-semibold text-white transition-opacity hover:opacity-90"
+            className="focus-ring inline-flex items-center gap-1.5 rounded-md bg-coral-solid px-3 py-1.5 text-base font-semibold text-white transition-opacity hover:opacity-90"
           >
             <Video size={15} aria-hidden /> {t("joinInterview")}
           </a>
@@ -125,7 +125,7 @@ export function BookedCard({
             onClick={onReschedule}
             className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:border-coral/50"
           >
-            <CalendarClock size={15} className="text-coral" /> {t("differentTime")}
+            <CalendarClock size={15} className="text-coral-ink" /> {t("differentTime")}
           </button>
         ) : null}
         <span className="self-center text-meta text-steel">
@@ -166,7 +166,7 @@ export function BookedCard({
           type="button"
           disabled={rsvpPending !== null}
           onClick={onWithdraw}
-          className="focus-ring mt-2 inline-flex text-meta text-steel underline underline-offset-2 hover:text-coral disabled:opacity-50"
+          className="focus-ring mt-2 inline-flex text-meta text-steel underline underline-offset-2 hover:text-coral-ink disabled:opacity-50"
         >
           {t("withdraw")}
         </button>

@@ -191,7 +191,7 @@ export function KeysPanel() {
   return (
     <div className={`${PANEL} p-5`}>
       <h3 className="flex items-center gap-2 font-serif text-h3 text-ink">
-        <KeyRound size={16} className="text-coral" aria-hidden /> {t("title")}
+        <KeyRound size={16} className="text-coral-ink" aria-hidden /> {t("title")}
       </h3>
       <p className="mt-1 max-w-3xl text-sm text-steel">{t("intro")}</p>
       {/* The store's real boundary, stated once. Without it the scope selector's
@@ -200,7 +200,7 @@ export function KeysPanel() {
 
       {loadFailed ? (
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <p className="text-base text-coral">{t("loadFailed")}</p>
+          <p className="text-base text-coral-ink">{t("loadFailed")}</p>
           <button
             type="button"
             onClick={() => {

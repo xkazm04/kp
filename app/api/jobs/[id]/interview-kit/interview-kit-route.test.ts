@@ -234,8 +234,8 @@ test("the GENERATE door gates and throttles BEFORE it enqueues the model call", 
     .replace(/\r\n/g, "\n")
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/(^|[^:])\/\/.*$/gm, "$1");
-  const start = src.indexOf("export async function POST(");
-  const body = src.slice(start, src.indexOf("export async function PUT("));
+  const start = src.search(/export (?:async function|const) POST\b/);
+  const body = src.slice(start, src.search(/export (?:async function|const) PUT\b/));
   assert.ok(start > 0 && body.length > 0, "the generate door must still be a POST in this file");
 
   const capabilityAt = body.indexOf('requireCapabilityCoded("pipeline:write"');

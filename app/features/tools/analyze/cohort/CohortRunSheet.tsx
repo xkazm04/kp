@@ -19,7 +19,7 @@ import { freshEstimate, runRequest, runVerdict, type Tray } from "./cohortPropos
 import { useCohortMetered, useCohortRun } from "./useCohortRun";
 import { useWalkthroughSource } from "./cohortWalkthroughSource";
 
-const MORE_BTN = "focus-ring rounded-md font-semibold text-coral underline-offset-2 hover:underline";
+const MORE_BTN = "focus-ring rounded-md font-semibold text-coral-ink underline-offset-2 hover:underline";
 
 export function CohortRunSheet({
   proposal,
@@ -113,7 +113,7 @@ export function CohortRunSheet({
         </p>
       ) : null}
       {failure ? (
-        <p role="alert" className="text-body text-coral">
+        <p role="alert" className="text-body text-coral-ink">
           {errorMessage(failure, t("failed"), failure.values)}
         </p>
       ) : null}

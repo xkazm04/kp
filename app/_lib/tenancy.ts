@@ -230,9 +230,18 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // Holds candidate personal data, so the erasure scrub blanks it
   // (interview-letters-tenancy.test.ts, exemption list empty).
   "interview_letters",
+  // First-contact outreach held for a human (db/outreach-letters.ts, comms scope C2): the
+  // draft, the approved revision and who approved it. NO by-id carve-out — the letter id
+  // travels through the approve/release routes, and an unscoped read would hand one team
+  // another team's letter to a named person. Unique key (workspace_id, entry_id). Holds
+  // candidate personal data, so the erasure scrub blanks it (outreach-letters-tenancy.test.ts).
+  "outreach_letters",
   // Cohort Studio (db/analysis-cohorts.ts): NO by-id carve-out — every statement binds
   // workspace_id (analysis-cohorts-tenancy.test.ts); erasure masks member labels.
   "analysis_cohorts",
+  // The role shortlist (db/role-shortlist.ts, ADR 0030): every statement binds workspace_id;
+  // human-set only; deleted with the candidate (role-shortlist-tenancy.test.ts).
+  "role_shortlist",
   // Phase 1 — tasks (background-task queue): the recruiter poll/history reads + dedup +
   // create filter/stamp workspace_id; the by-id runner ops and the `-- tenancy:global`
   // boot-recovery / readiness probes stay cross-tenant by design (tasks-tenancy.test.ts).
@@ -452,6 +461,15 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   // NULL owner reads as the default org, so a pre-upgrade row and a single-org install are
   // unchanged. The env relay (COMMS_WEBHOOK_URL) is host-level and is not org-checked.
   "comms_relay_config",
+  // T6 — the org's built-in SMTP sender (comms-smtp-store.ts), the relay's sibling
+  // transport and exempt for the same reason: a singleton (`CHECK (id = 1)`) of org-level
+  // integration config with an encrypted mailbox password, recording the org that saved it
+  // (`owner_org_id`); the delivery boundary refuses another organization's messages
+  // (comms.ts SmtpChannel). Its two bounded lists (suppressed addresses, the last few
+  // attempts) are only ever written for the owner org's own sends. Lazy-store table.
+  // Also in ORG_CONFIG_NOT_PORTABLE and scripts/db-dump.mjs ORG_CONFIG_TABLES (the two
+  // must be equal: rollback-drill.test.ts), so a --redact dump blanks the whole row.
+  "comms_smtp_config",
   // The local half of the edge pairing (edge-config.ts, docs/concepts/local-first-edge.md):
   // where the edge lives, the shared HMAC secret, this INSTALL's sealing keypair and the
   // drain cursor. Its own header says it is "modeled on comms-relay-store.ts down to the
@@ -548,6 +566,7 @@ export const TENANCY_LAZY_TABLES: ReadonlySet<string> = new Set([
   "brand_settings",
   "calendar_connections",
   "comms_relay_config",
+  "comms_smtp_config",
   "decision_config",
   "decision_records",
   "dev_audit",
@@ -746,6 +765,7 @@ export const ORG_CONFIG_NOT_PORTABLE: ReadonlySet<string> = new Set([
   "ats_connections",
   "ats_delivery",
   "comms_relay_config",
+  "comms_smtp_config",
   "personas_bridge",
   "edge_config", // the edge pairing: URL + HMAC secret + this install's sealing keypair
 ]);

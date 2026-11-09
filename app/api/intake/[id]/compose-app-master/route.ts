@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getIntake, updateIntakeAppMaster, type AppMasterCompose } from "@/app/_lib/db/intakes";
 import { briefToAppMasterSpec } from "@/app/_lib/intake-brief";
 import { runIntakeAppMasterSync } from "@/app/_lib/intake-run";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
@@ -22,12 +22,11 @@ import { intakeLang } from "@/app/_lib/intake-lang";
 // Composing does NOT hire anything. The human population promotes through the
 // existing JD build (`/api/intake/[id]/promote`); the agent population's
 // dispatch to Personas is P4 and the UI says so on a disabled control.
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: Request, { params }: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { id } = await params;
-    const ws = await currentWorkspace();
     const intake = getIntake(id, ws);
     // Four DIFFERENT next actions, and the card used to render all four (plus a
     // throttle) as one English "compose failed" line: wait for the scan, answer
@@ -90,4 +89,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (request.signal.aborted) return new NextResponse(null, { status: 499 });
     return safeJsonError(error, "api:intake/compose-app-master", "INTAKE_COMPOSE_APP_MASTER_FAILED");
   }
-}
+});

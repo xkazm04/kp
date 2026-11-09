@@ -1,0 +1,191 @@
+{
+ "schema": "conform-run/1",
+ "worker": "e2bdedbe-bbdd-4618-8f96-6f2b3488b914",
+ "subject": "selection-score-calibration",
+ "evaluatedAt": "2026-10-15T22:31:14.634270+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "analytics-calibration",
+   "subject": "selection-score-calibration",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/insights/analytics/calibrationVerdict.ts:79 After excluding high leakage, the verdict permits medium or missing leakage provenance to reach trustworthy, exceeding the standard's ceilings.",
+   "techniques": [
+    {
+     "technique": "base-rate-skill-score",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/AnalyticsCalibrationPanel.tsx:213 The cohort baseline and signed arithmetic are implemented, but small-sample skill renders without an uncertainty interval or the required indicative qualification."
+    },
+    {
+     "technique": "label-leakage-taxonomy",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/calibrationVerdict.ts:79 Only high leakage is barred on the preceding line; medium and missing provenance can reach trustworthy."
+    },
+    {
+     "technique": "outcome-axis-selection-advance-versus-hire",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/AnalyticsCalibrationHeader.tsx:117 The selector duplicates narrowing instead of calling the shared asCalibrationOutcome function required for every producer and consumer."
+    },
+    {
+     "technique": "reliability-bins-and-proper-scoring",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/AnalyticsReliabilityDiagram.tsx:61 Every nonempty bin becomes a plotted point, including bins below the required per-bin sample floor."
+    }
+   ]
+  },
+  {
+   "context": "cv-analysis-archetypes",
+   "subject": "selection-score-calibration",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/calibration.ts:97 The calibration engine computes and returns Brier error for any nonempty cohort, including cohorts below its global outcome floor.",
+   "techniques": [
+    {
+     "technique": "deterministic-holdout-clean-arm",
+     "verdict": "conformant",
+     "evidence": "app/_lib/calibration-holdout-arm.test.ts:89 The inspected store subtracts automated rejection records from sealed sparings, and this context explicitly covers that integration."
+    },
+    {
+     "technique": "label-leakage-taxonomy",
+     "verdict": "deviation",
+     "evidence": "app/_lib/calibration.ts:497 The holdout branch assigns low leakage even though its own ceiling text explicitly says the human reviewer still saw the score; the standard requires medium until score-blind review exists."
+    },
+    {
+     "technique": "outcome-axis-selection-advance-versus-hire",
+     "verdict": "conformant",
+     "evidence": "app/_lib/calibration.ts:435 This module defines the closed axis vocabulary and shared narrowing function; the traced pipeline producer distinguishes historical advancement from current hire position."
+    },
+    {
+     "technique": "reliability-bins-and-proper-scoring",
+     "verdict": "deviation",
+     "evidence": "app/_lib/calibration.ts:97 The global floor only changes calibrated; it does not prevent computation or return of below-floor error statistics."
+    }
+   ]
+  },
+  {
+   "context": "analytics-api",
+   "subject": "selection-score-calibration",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/api/analytics/calibration/route.ts:147 The endpoint publishes the engine's below-floor Brier values and bins alongside a false calibrated flag instead of withholding unsupported statistics.",
+   "techniques": [
+    {
+     "technique": "deterministic-holdout-clean-arm",
+     "verdict": "conformant",
+     "evidence": "app/api/analytics/calibration/route.ts:83 The holdout endpoint restricts the same workspace-scoped label producer using recorded sparings rather than recomputing membership from today's threshold."
+    },
+    {
+     "technique": "outcome-axis-selection-advance-versus-hire",
+     "verdict": "conformant",
+     "evidence": "app/api/analytics/calibration/route.ts:62 The route uses the shared normalizer, limits analysis dispositions to advancement, and echoes the axis actually applied."
+    },
+    {
+     "technique": "reliability-bins-and-proper-scoring",
+     "verdict": "deviation",
+     "evidence": "app/api/analytics/calibration/route.ts:147 The serialized response includes numerical calibration statistics even when n is below minOutcomes."
+    }
+   ]
+  },
+  {
+   "context": "screening-fairness",
+   "subject": "selection-score-calibration",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/screen-wave.ts:267 Reviewer exclusions are applied after holdout sampling, so an explicitly spared ID that also enters the draw remains classified as holdout rather than being excluded before sampling.",
+   "techniques": [
+    {
+     "technique": "base-rate-skill-score",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/adverse-impact.ts:129 This fairness instrument compares supplied group selection counts, not screening predictions against a no-model baseline."
+    },
+    {
+     "technique": "deterministic-holdout-clean-arm",
+     "verdict": "deviation",
+     "evidence": "app/_lib/screen-wave.ts:267 Sampling and removal of held-out IDs occur at lines 258\u2013259 before this reviewer-exclusion step, contrary to the required exclusion-before-draw order."
+    },
+    {
+     "technique": "reliability-bins-and-proper-scoring",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/adverse-impact.ts:308 This is a group selection-rate ratio, which the standard explicitly separates from reliability curves and proper prediction scoring."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "selection-score-calibration",
+   "context": "pipeline-actions-commands",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-15T22:31:14.634270+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "selection-score-calibration"
+   ],
+   "techniques": [
+    "base-rate-skill-score",
+    "label-leakage-taxonomy",
+    "outcome-axis-selection-advance-versus-hire",
+    "reliability-bins-and-proper-scoring"
+   ],
+   "deviations": 1,
+   "context": "analytics-calibration",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-15T22:31:14.634270+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "selection-score-calibration"
+   ],
+   "techniques": [
+    "deterministic-holdout-clean-arm",
+    "label-leakage-taxonomy",
+    "outcome-axis-selection-advance-versus-hire",
+    "reliability-bins-and-proper-scoring"
+   ],
+   "deviations": 1,
+   "context": "cv-analysis-archetypes",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-15T22:31:14.634270+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "selection-score-calibration"
+   ],
+   "techniques": [
+    "deterministic-holdout-clean-arm",
+    "outcome-axis-selection-advance-versus-hire",
+    "reliability-bins-and-proper-scoring"
+   ],
+   "deviations": 1,
+   "context": "analytics-api",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-15T22:31:14.634270+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "selection-score-calibration"
+   ],
+   "techniques": [
+    "base-rate-skill-score",
+    "deterministic-holdout-clean-arm",
+    "reliability-bins-and-proper-scoring"
+   ],
+   "deviations": 1,
+   "context": "screening-fairness",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

@@ -97,7 +97,7 @@ function CaseDetailById({ caseId, version, onBack, children }: {
         >
           <ArrowLeft size={14} aria-hidden /> {tDetail("back")}
         </button>
-        <p role="alert" className="rounded-md border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">
+        <p role="alert" className="rounded-md border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral-ink">
           {current.error}
         </p>
       </div>

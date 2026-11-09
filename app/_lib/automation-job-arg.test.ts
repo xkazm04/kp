@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computeAutomationCacheKey, type AutomationKeyInput } from "./automation-cache-key.ts";
-import { buildAutomationArgv } from "./automation-run.ts";
+import { buildAutomationArgv, entryHasDevCase } from "./automation-run.ts";
 
 test("Case 6: computeAutomationCacheKey folds jobJson axis for non-rematch tasks", () => {
   const base: AutomationKeyInput = {
@@ -82,4 +82,17 @@ test("Case 7: buildAutomationArgv produces correct argv for all tasks", () => {
   assert.ok(rematchArgv.includes("--current-job-id") && rematchArgv[rematchArgv.indexOf("--current-job-id") + 1] === "jd-current");
   assert.ok(rematchArgv.includes("--jobs") && rematchArgv[rematchArgv.indexOf("--jobs") + 1] === "/tmp/jobs.json");
   assert.ok(!rematchArgv.includes("--job-json"), "rematch must never push --job-json");
+});
+
+test("S1: --dev-case rides the scorecard argv only for an entry with a case", () => {
+  const argv = (task: string, devCase?: boolean) =>
+    buildAutomationArgv({ task, profilePath: "p.json", jobId: "j", devCase });
+  assert.ok(argv("scorecard", true).includes("--dev-case"));
+  assert.ok(!argv("scorecard", false).includes("--dev-case"));
+  assert.deepEqual(argv("scorecard"), argv("scorecard", false));
+  assert.ok(!argv("prep", true).includes("--dev-case"));
+  assert.equal(entryHasDevCase({ devCaseId: "c1" }), true);
+  assert.equal(entryHasDevCase({ devSubmissionId: "s1" }), true);
+  assert.equal(entryHasDevCase({ devCaseId: null, devSubmissionId: null }), false);
+  assert.equal(entryHasDevCase({}), false);
 });

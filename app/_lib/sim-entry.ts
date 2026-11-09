@@ -21,7 +21,7 @@ import { getPipelineEntry, setApproval } from "@/app/_lib/db/pipeline";
 import type { PipelineEntry } from "@/app/_lib/db/core";
 import { getOpenOfferForEntry } from "@/app/_lib/offers-store";
 import type { ApprovalKind } from "@/app/_lib/approval-kinds";
-import { isSimTitle } from "@/app/features/shell/simulation/constants";
+import { isSimTitle } from "@/app/_lib/sim-marker";
 
 declare const SIM_ENTRY: unique symbol;
 /** A pipeline entry proven to be (SIM)-marked AND in the caller's team. Only

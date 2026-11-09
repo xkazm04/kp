@@ -1,0 +1,146 @@
+{
+  "schema": "conform-run/1",
+  "worker": "280a6fd7-74d0-46d4-bd67-5a0c21d954bd",
+  "subject": "cost-metering",
+  "evaluatedAt": "2026-10-16T23:44:02.732191+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [
+    {
+      "context": "security-agent-gates",
+      "subject": "cost-metering",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "scripts/agent/dispatch.mjs:609 A provider exception exits before meter.record runs, leaving a potentially billable failed attempt without a ledger row.",
+      "techniques": [
+        {
+          "technique": "preflight-estimation",
+          "verdict": "deviation",
+          "evidence": "scripts/agent/budget.mjs:256 Admission estimates only the visible prompt using a fixed characters-per-token ratio; it omits the separately supplied system prompt and prospective output, and no estimate-versus-provider-actual calibration is recorded."
+        },
+        {
+          "technique": "price-tables",
+          "verdict": "deviation",
+          "evidence": "scripts/agent/budget.mjs:113 A missing cache-read rate prices reported cache consumption at zero instead of using a declared conservative price or marking the class unpriced."
+        },
+        {
+          "technique": "usage-ledgers",
+          "verdict": "deviation",
+          "evidence": "scripts/agent/dispatch.mjs:609 Recording occurs only after this await succeeds; the exception branches terminate without recording the failed attempt, its reason or unknown usage."
+        }
+      ]
+    },
+    {
+      "context": "billing-subscriptions",
+      "subject": "cost-metering",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/_lib/billing/entitlements.ts:343 Credit consumption has no returned reversal handle even though the lifecycle route debits before creating and starting work, so a pre-start failure can leave prepaid units consumed.",
+      "techniques": [
+        {
+          "technique": "reversible-debit-and-settle",
+          "verdict": "deviation",
+          "evidence": "app/_lib/billing/entitlements.ts:316 The debit returns void rather than an identity-bound undo handle; /api/devcase/lifecycle calls it before locale resolution, lifecycle creation and task start, and its catch returns an error without reversing the debit."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "cost-metering",
+      "context": "billing-plan-and-spend",
+      "reason": "withdrawn after review: reviewer (sonnet): The code claim holds (BillingSpendPanel.tsx:208 never renders failedCalls), but neither BillingSpendPanel.tsx nor spendUsageFold.ts is among the 12 paths registry-map.json lists for billing-plan-and-spend, so the verdict is about a different context."
+    },
+    {
+      "subject": "cost-metering",
+      "context": "voice-provider-io",
+      "reason": "withdrawn after review: reviewer (sonnet): The main anchor app/_lib/tts-prices.ts, and app/_lib/stt-prices.ts, are not among the 12 paths registry-map.json lists for voice-provider-io. The tts-prices.ts:88 comment does confirm that a failed synthesis has no ledger row, but that code belongs to another context."
+    },
+    {
+      "subject": "cost-metering",
+      "context": "db-analytics-billing-llm",
+      "reason": "withdrawn after review: reviewer (sonnet): The cited llm.ts:352 (new Date() at ingest) and llm-usage-ledger.ts are not among the 12 paths registry-map.json lists for db-analytics-billing-llm. Only analytics.ts is in the context, and the evidence rests on llm.ts, so the verdict is about code outside it."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-16T23:44:02.732191+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "cost-metering"
+      ],
+      "techniques": [
+        "spend-observability"
+      ],
+      "deviations": 1,
+      "context": "billing-plan-and-spend",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-16T23:44:02.732191+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "cost-metering"
+      ],
+      "techniques": [
+        "preflight-estimation",
+        "price-tables",
+        "usage-ledgers"
+      ],
+      "deviations": 1,
+      "context": "security-agent-gates",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-16T23:44:02.732191+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "cost-metering"
+      ],
+      "techniques": [
+        "price-tables",
+        "spend-attribution",
+        "unit-classes-are-open",
+        "usage-ledgers"
+      ],
+      "deviations": 1,
+      "context": "voice-provider-io",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-16T23:44:02.732191+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "cost-metering"
+      ],
+      "techniques": [
+        "price-tables",
+        "spend-attribution",
+        "spend-observability",
+        "unit-classes-are-open",
+        "usage-ledgers"
+      ],
+      "deviations": 1,
+      "context": "db-analytics-billing-llm",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-16T23:44:02.732191+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "cost-metering"
+      ],
+      "techniques": [
+        "reversible-debit-and-settle"
+      ],
+      "deviations": 1,
+      "context": "billing-subscriptions",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}

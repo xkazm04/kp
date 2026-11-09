@@ -2,11 +2,18 @@ import type { RoleBrief } from "./rolespec";
 // Explicit ".ts" like schemas.ts: this is a VALUE import (the schema is parsed
 // at runtime), and node:test's type-stripping loader resolves specifiers
 // literally — an extensionless one breaks `npm run test:unit`.
+// Value import of the rubric constant (backbone.ts has type-only imports, so this stays
+// DB-free); the explicit ".ts" is for the same loader reason as above.
+import { APP_MASTER_RUBRIC_VERSION } from "./app-master/backbone.ts";
 import { appMasterSpecSchema, type AppMasterSpec, type RepoDossier } from "./schemas.generated.ts";
 
 // Pure projection of a RoleBrief onto the JD builder's inputs (promote step,
 // docs/concepts/role-intake-dialog.md). No imports beyond the type so the
 // contract is unit-testable without a DB (intake-brief.test.ts).
+
+// Mirror of pipeline/jobfit/appmaster.py APP_MASTER_PROMPT_VERSION; pinned by
+// pipeline/jobfit/tests/test_prompt_version_sync.py (AppMasterVersionLockstepTest).
+export const APP_MASTER_PROMPT_VERSION = "app-master-v1";
 
 export function briefMustSkills(brief: RoleBrief): string[] {
   return (brief.requirements ?? []).filter((r) => r.kind === "must_have").map((r) => r.skill);
@@ -356,7 +363,7 @@ export function briefToAppMasterSpec(brief: RoleBrief, dossier: RepoDossier | nu
       // "A step past senior" (§2.1) — only a seniority the requestor actually
       // stated overrides it; a schema default must not read as a decision.
       seniority: brief.spineProvenance?.seniority === "stated" && brief.seniority ? brief.seniority : "senior",
-      rubricVersion: "app-master-rubric-v1",
+      rubricVersion: APP_MASTER_RUBRIC_VERSION,
     },
     app: {
       name: repoName(repo) || title.slice(0, 120),
@@ -417,7 +424,7 @@ export function briefToAppMasterSpec(brief: RoleBrief, dossier: RepoDossier | nu
           }
         : null,
     coercionNotes: notes,
-    promptVersion: "app-master-v1",
+    promptVersion: APP_MASTER_PROMPT_VERSION,
   };
 
   // Parse, not cast: the schema is the contract, and a spec that cannot satisfy

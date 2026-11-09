@@ -1,0 +1,17 @@
+{
+ "schema": "conform-run/1",
+ "worker": "d6478f1d-d74c-4954-8b40-82f42ba46340",
+ "subject": "retry-backoff",
+ "evaluatedAt": "2026-10-23T21:27:06.604699+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [],
+ "declined": [
+  {
+   "subject": "retry-backoff",
+   "context": "ops-observability",
+   "reason": "The context ops-observability covers Sentry client-side exception capture and PII scrubbing (sentry-client.ts), read-only JSONL ops telemetry tail reading and local warning logging (ops-telemetry.ts), UI status-tone classification (status-tone.ts), and inbound request-level webhook deduplication (webhook-idempotency.ts). None of the context's files implement or configure outbound retry loops, backoff ladders, circuit breakers, durable retry tables, or retry error classification. Because the preconditions for the retry-backoff subject do not hold and not-applicable verdicts are not accepted from this seat, the pair is declined."
+  }
+ ],
+ "consults": []
+}

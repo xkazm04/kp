@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createThread, listProposalsForThread, listThreads, listTurns } from "@/app/_lib/db/companion";
 import { companionMemoryEnabled } from "@/app/_lib/companion-brain";
 import { COMPANION_THREAD_TURNS } from "@/app/_lib/companion-turn";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
@@ -20,11 +20,10 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 // Operator-gated like /api/intake. Both handlers are workspace-scoped; the store
 // has no by-id exemptions (companion-tenancy.test.ts).
 
-export async function GET(request: NextRequest) {
+export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
-    const ws = await currentWorkspace();
     const threads = listThreads(ws);
     const requested = request.nextUrl.searchParams.get("thread");
     // Must belong to this workspace's list; ignore unknown rather than 404 the
@@ -49,9 +48,9 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:companion/threads", "COMPANION_THREADS_FAILED");
   }
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withWorkspace(async (ws: string, request: Request) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
@@ -64,11 +63,10 @@ export async function POST(request: Request) {
       // code in the reader's language rather than painting the server's English.
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
-    const ws = await currentWorkspace();
     // Titles are DERIVED, never typed (the store's contract) — the first
     // exchange renames the thread. It starts empty rather than "Untitled".
     return NextResponse.json(createThread("", ws));
   } catch (error) {
     return safeJsonError(error, "api:companion/threads", "COMPANION_THREAD_CREATE_FAILED");
   }
-}
+});

@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { getOutboxEntry, getPostingByToken, listOutboxFiltered } from "@/app/_lib/db/devcase";
 import { getPipelineEntry, recordAutomationEvent } from "@/app/_lib/db/pipeline";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
-import { CommsSuppressedError, sendComm } from "@/app/_lib/comms";
+import { CommsBodyRejectedError, CommsSuppressedError, sendComm } from "@/app/_lib/comms";
 import { SIM_COMMS_CHANNEL } from "@/app/_lib/comms-dispatch";
 import { isDeliverableAddress } from "@/app/_lib/comms-recipient";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
@@ -49,7 +49,7 @@ function caseInviteLinkIsDead(body: string, workspaceId: string): boolean {
 // message re-dispatches through the live channel as a NEW outbox row (the
 // original row is untouched, the trail stays append-only), and the resend is
 // stamped on the candidate's history when the ref resolves to an entry.
-export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: Request, context: { params: Promise<{ id: string }> }) => {
   // Identity first: a demo cookie is a valid session the proxy accepts, and
   // comms_relay_config is a single global row — without this, an anonymous demo
   // workspace dead-letter POSTs a real candidate-shaped envelope at the install's
@@ -78,9 +78,13 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         ? overrideBody.recipient.trim()
         : null;
 
-    const ws = await currentWorkspace();
     const original = getOutboxEntry(id, ws);
-    if (!original) return NextResponse.json({ error: "Message not found." }, { status: 404 });
+    // A `bounced` row is a delivery RECEIPT the relay wrote (comms-receipt.ts), not a
+    // message: its body is the relay's own detail text and its messageId is whatever the
+    // relay echoed. Re-sending it mailed relay-authored text to the candidate (or to a
+    // corrected address) under an identity kp never minted. A bounced SEND is resent by
+    // its own `sent` row, which this does not touch.
+    if (!original || original.status === "bounced") return NextResponse.json({ error: "Message not found." }, { status: 404 });
     if (!original.recipient || !original.subject || !original.body || !original.kind) {
       return NextResponse.json({ error: "Message is missing fields and can't be resent." }, { status: 422 });
     }
@@ -138,6 +142,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       // an entry-less comm (a KO decline) would otherwise resend into the default
       // team's Comms Center and vanish from the one that triggered it.
       workspaceId: ws,
+      // ONE identity per logical message: the original's id is both the envelope
+      // `messageId` and the Idempotency-Key, so a receiver that already accepted the
+      // first attempt drops this one, and a receipt echoing the id still names this
+      // message. A legacy row has none — sendComm mints a fresh one for it.
+      messageId: original.messageId ?? undefined,
     });
     if (original.ref && getPipelineEntry(original.ref, ws)) {
       recordAutomationEvent(original.ref, "comm_resent", `${original.kind}: ${resent.status}`, ws);
@@ -152,8 +161,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     // decision as a 500 the recruiter would retry. 409: the door works, the state
     // forbids it.
     if (error instanceof CommsSuppressedError) return jsonRefusal("COMMS_SUPPRESSED", 409);
+    // A letter over the length cap is refused deterministically in sendComm; a 500 would read as retryable.
+    if (error instanceof CommsBodyRejectedError) return jsonRefusal("OUTREACH_BODY_TOO_LONG", 422);
     return safeJsonError(error, "api:comms:resend", "OUTREACH_FAILED");
   } finally {
     resendInFlight.delete(id);
   }
-}
+});

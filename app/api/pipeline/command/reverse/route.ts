@@ -1,6 +1,8 @@
 // Undo a command-bar reject wave (challenge-r05 pipeline-actions-commands/B).
 //   POST /api/pipeline/command/reverse  { ids: string[] (<= 200), threshold?: 1..100, text?: string }
-//        -> { restored, notified, skipped }   (see ../reverse.ts)
+//        -> { restored, notified, skipped, unsealed }   (see ../reverse.ts)
+//        -> 503 PIPELINE_DECISION_NOT_SEALED when nothing restored and at least one
+//           entry could not be sealed (each reversal is sealed BEFORE its restore)
 // `text` is the command the recruiter typed, parsed by the SAME parser the command
 // route used, so the client never re-derives the threshold.
 //
@@ -11,7 +13,7 @@
 // bounded by WAVE_REVERSAL_CAP and the caller's own workspace.
 
 import { NextRequest, NextResponse } from "next/server";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
@@ -19,13 +21,12 @@ import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/a
 import { parseCommand } from "@/app/_lib/pipeline-command";
 import { reverseCommandWave, WAVE_REVERSAL_CAP } from "../reverse";
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (under) return under;
   try {
-    const ws = await currentWorkspace();
     const body = (await request.json().catch(() => ({}))) as { ids?: unknown; threshold?: unknown; text?: unknown };
     const ids = Array.isArray(body.ids) ? body.ids.filter((x): x is string => typeof x === "string" && x.length > 0) : [];
     if (ids.length === 0) return jsonRefusal("PIPELINE_BATCH_PAYLOAD_INVALID", 400);
@@ -42,8 +43,12 @@ export async function POST(request: NextRequest) {
 
     const actor = await humanActor();
     const counts = reverseCommandWave({ ids, threshold, workspaceId: ws, actor });
+    // Every restorable entry failed its seal and none was restored: nothing changed
+    // and a retry can succeed, so answer the coded 503 (the other seal-first doors).
+    // A partial wave answers 200 with the counts; `unsealed` says how many stayed rejected.
+    if (counts.restored === 0 && counts.unsealed > 0) return jsonRefusal("PIPELINE_DECISION_NOT_SEALED", 503);
     return NextResponse.json(counts);
   } catch (error) {
     return safeJsonError(error, "api:pipeline:command:reverse", "COMMAND_FAILED");
   }
-}
+});

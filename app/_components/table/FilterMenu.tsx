@@ -15,7 +15,7 @@ export type Option = { value: string; label: string };
 
 const optionRow = (isActive: boolean, isSelected: boolean) =>
   `focus-ring flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm ${
-    isActive ? "bg-coral/10 text-coral" : isSelected ? "font-semibold text-ink" : "text-ink hover:bg-paper"
+    isActive ? "bg-coral/10 text-coral-ink" : isSelected ? "font-semibold text-ink" : "text-ink hover:bg-paper"
   }`;
 
 // The menu body: an optional search box over a scrollable single-select list, with

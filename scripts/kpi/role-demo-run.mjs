@@ -5,11 +5,17 @@
 // is the instrument that PRODUCES a run to read, because no role has ever been run end to end
 // outside a test.
 //
-//   node --import ./scripts/test-alias-loader.mjs --experimental-transform-types --disable-warning=ExperimentalWarning scripts/kpi/role-demo-run.mjs [--job <id>] [--json] [--approve-gates [--sim-interviews <n>] | --approve-all]
+//   node --import ./scripts/test-alias-loader.mjs --experimental-transform-types --disable-warning=ExperimentalWarning scripts/kpi/role-demo-run.mjs [--job <id>] [--json] [--live] [--seed] [--approve-gates [--sim-interviews <n>] | --approve-all]
 //
 //   --job <id>          which job to run (default job-001)
 //   --workspace <id>    which workspace's board (default: the default workspace)
 //   --json              the whole record: the reading, every stage produced, coverage, dwell, source
+//   --live              pass liveRoleRunRunners() (the producers over the keyless floor) instead of
+//                       DEFAULT_STAGE_RUNNERS. Each producer degrades to the floor by itself under
+//                       KP_OFFLINE=1 / KP_ROLE_RUN_LLM=0. The reading names the runner set
+//   --seed              build the scratch database from an EMPTY temp file under KP_SEED_DEMO=1
+//                       instead of copying data/kp.sqlite: the seed is the denominator, the reading
+//                       reproduces on any clone, and the operator's database is never opened
 //   --approve-gates     opt in: after each pass, a labelled stand-in ("demo-stand-in") carries out
 //                       the engine's own recorded proposal at each parked gate — see below. The
 //                       only mode whose reading can count for goal 1
@@ -94,6 +100,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { MAX_PASSES, runDemoOnCopy } from "./role-demo-run-child.mjs";
 import {
+  INTERVENTION_CODES,
   STAND_IN_APPROVER,
   branchesByFurthest,
   formatCoverage,
@@ -108,6 +115,7 @@ import {
   simulatedOfferCount,
   stagesReached,
   stoppedAt,
+  summarizeInterventions,
   summarizeRoleDemoRun,
   tallyStandIn,
 } from "./role-demo-run-reading.mjs";
@@ -122,6 +130,8 @@ if (args.includes("--approve-gates") && args.includes("--approve-all")) {
 }
 /** null: nobody passes gates; "policy": --approve-gates; "all": --approve-all (mechanics only). */
 const standInMode = args.includes("--approve-gates") ? "policy" : args.includes("--approve-all") ? "all" : null;
+const live = args.includes("--live");
+const seedMode = args.includes("--seed");
 const RESULT_MARK = "KP_ROLE_DEMO_RESULT ";
 
 function flagValue(name) {
@@ -156,14 +166,15 @@ const workspaceId = flagValue("--workspace");
 // with the simulator's doubles); the result goes out as one marked line so a store's own
 // logging cannot be mistaken for it.
 if (args.includes("--run-copy")) {
-  const record = await runDemoOnCopy({ jobId, workspaceId, standInMode, simCap });
+  const record = await runDemoOnCopy({ jobId, workspaceId, standInMode, simCap, live });
   console.log(RESULT_MARK + JSON.stringify(record));
   process.exit(0);
 }
 
-const sourceDb = path.resolve(process.env.KP_DB_PATH ?? path.join(REPO_ROOT, "data", "kp.sqlite"));
+// --seed never reads the operator's database, so no source path is resolved for it.
+const sourceDb = seedMode ? null : path.resolve(process.env.KP_DB_PATH ?? path.join(REPO_ROOT, "data", "kp.sqlite"));
 
-if (!existsSync(sourceDb)) {
+if (sourceDb !== null && !existsSync(sourceDb)) {
   if (asJson) {
     console.log(JSON.stringify({ measured: false, headline: "not measured: no database", source: { db: null } }, null, 2));
   } else {
@@ -176,7 +187,7 @@ const scratch = mkdtempSync(path.join(tmpdir(), "kp-role-demo-run-"));
 let record;
 try {
   const copy = path.join(scratch, "kp.sqlite");
-  for (const suffix of ["", "-wal", "-shm"]) {
+  for (const suffix of seedMode ? [] : ["", "-wal", "-shm"]) {
     if (existsSync(sourceDb + suffix)) copyFileSync(sourceDb + suffix, copy + suffix);
   }
   // KP_DB_PATH reaches the child through its environment, before it imports anything under
@@ -193,9 +204,11 @@ try {
   // standing between an approved invite and a real candidate's address was the absence
   // of a send call. With the flag the relay resolves to nothing and every message would
   // queue in the copy's own outbox, which dies with it.
+  // --seed: the empty scratch file boots with the demo corpus the way a fresh install does.
+  const seedEnv = seedMode ? { KP_SEED_DEMO: "1" } : {};
   const child = spawnSync(process.execPath, [...process.execArgv, SELF, ...args, "--run-copy"], {
     cwd: REPO_ROOT,
-    env: { ...process.env, KP_DB_PATH: copy, KP_ROLE_DEMO_SCRATCH_DB: copy, KP_NO_COMMS_EGRESS: "1" },
+    env: { ...process.env, ...seedEnv, KP_DB_PATH: copy, KP_ROLE_DEMO_SCRATCH_DB: copy, KP_NO_COMMS_EGRESS: "1" },
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
   });
@@ -214,6 +227,16 @@ try {
   }
 }
 if (!record) process.exit(1);
+
+// The head sha the reading was taken at, so a history of readings says which tree each was.
+const headSha = (() => {
+  const r = spawnSync("git", ["rev-parse", "HEAD"], { cwd: REPO_ROOT, encoding: "utf8" });
+  return r.status === 0 ? r.stdout.trim() : null;
+})();
+const runnerSet = record.runnerSet ?? "default";
+const interventionLog = record.interventions ?? [];
+const interventions = summarizeInterventions(interventionLog);
+const sourceLabel = seedMode ? "seed (empty file under KP_SEED_DEMO=1)" : null;
 
 const reading = summarizeRoleDemoRun({
   runStatus: record.status,
@@ -234,19 +257,22 @@ if (asJson) {
   const standInFields = standIn
     ? { approvedBy: STAND_IN_APPROVER, standInMode: standIn.mode, mechanicsOnly: standIn.mode === "all", standInTally: standIn.tally, standInDecisions: record.standInDecisions, ...(simulatedInterviews ? { simulatedInterviews, simulatedInterviewCap: record.simulatedInterviewCap, simulatedInterviewProvider: SIM_PROVIDER_LINE, refusedNotSeedData: notSeedRefusalCount(simulatedInterviews) } : {}), stagesReached: stagesReached(record.artifacts), furthestPerBranch: furthestPerBranch(record.artifacts), stoppedAt: stoppedAt({ runStatus: record.status, parkedByGate: reading.parkedByGate, failure: record.failure, capped: record.capped }) }
     : {};
-  console.log(JSON.stringify({ ...reading, run: record.run, status: record.status, passes: record.passes, coverage: record.coverage, dwell: record.dwell, goalOne: record.goalOne, goalOneHeadline: goalOneHeadline(record.goalOne, reading, standIn), ...(endState ? { simulatedAgenda: endState.simulatedAgenda, simulatedAgendaBlocks: endState.simulatedAgendaBlocks, runEndState: endState.runEndState, protocolEndedBases: endState.protocolEndedBases, harnessEndedBases: endState.harnessEndedBases, cappedSeedBranches: endState.cappedSeedBranches, heldForPerson: endState.heldForPerson, openBranches: endState.openBranches, goalOneClauses: endState.clauses } : {}), ...standInFields, artifacts: record.artifacts, source: { db: sourceDb } }, null, 2));
+  console.log(JSON.stringify({ ...reading, run: record.run, status: record.status, passes: record.passes, coverage: record.coverage, dwell: record.dwell, goalOne: record.goalOne, goalOneHeadline: goalOneHeadline(record.goalOne, reading, standIn), ...(endState ? { simulatedAgenda: endState.simulatedAgenda, simulatedAgendaBlocks: endState.simulatedAgendaBlocks, runEndState: endState.runEndState, protocolEndedBases: endState.protocolEndedBases, harnessEndedBases: endState.harnessEndedBases, cappedSeedBranches: endState.cappedSeedBranches, heldForPerson: endState.heldForPerson, openBranches: endState.openBranches, goalOneClauses: endState.clauses } : {}), ...standInFields, artifacts: record.artifacts, runnerSet, headSha, interventions: { ...interventions, log: interventionLog }, source: seedMode ? { kind: "seed", db: null } : { kind: "copy", db: sourceDb } }, null, 2));
   process.exit(0);
 }
 
-const rel = path.relative(REPO_ROOT, sourceDb);
+const rel = sourceDb === null ? "" : path.relative(REPO_ROOT, sourceDb);
+const runnerLabel = runnerSet === "live" ? "live runners (producers over the keyless floor)" : "default runners";
 console.log(
   standInMode === "all"
-    ? "Role demo run — MECHANICS ONLY: default runners, every gate approved by the demo stand-in with no policy (not a person), on a copy"
+    ? `Role demo run — MECHANICS ONLY: ${runnerLabel}, every gate approved by the demo stand-in with no policy (not a person), on a ${seedMode ? "seed" : "copy"}`
     : standInMode === "policy"
-      ? "Role demo run — default runners, gates passed by the demo stand-in under its policy (not a person), on a copy"
-      : "Role demo run — default runners, no human step, on a copy"
+      ? `Role demo run — ${runnerLabel}, gates passed by the demo stand-in under its policy (not a person), on a ${seedMode ? "seed" : "copy"}`
+      : `Role demo run — ${runnerLabel}, no human step, on a ${seedMode ? "seed" : "copy"}`
 );
-console.log(`  source: ${rel.startsWith("..") ? sourceDb : rel} (read from a copy; the run was deleted with it)`);
+console.log(seedMode ? `  source: ${sourceLabel} (the operator's database was not opened; the run was deleted with the scratch file)` : `  source: ${rel.startsWith("..") ? sourceDb : rel} (read from a copy; the run was deleted with it)`);
+console.log(`  runner set: ${runnerSet} · head: ${headSha ?? "unknown"}`);
+console.log(`  interventions: ${interventions.total} (${INTERVENTION_CODES.map((c) => `${c} ${interventions.counts[c]}`).join(" · ")}) · outside allowed: ${interventions.interventionsOutsideAllowed}`);
 console.log(`  job: ${record.run.jobId} · workspace: ${record.run.workspaceId} · cycle: ${record.run.cycle}`);
 console.log(`  passes: ${record.passes} · final run status: ${record.status}`);
 if (reading.produced.length === 0) {

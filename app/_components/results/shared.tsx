@@ -253,7 +253,7 @@ export function ListBlock({
             type="button"
             onClick={copy}
             title={t("copyList")}
-            className="focus-ring ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-sm font-semibold text-steel hover:text-coral print:hidden"
+            className="focus-ring ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-sm font-semibold text-steel hover:text-coral-ink print:hidden"
           >
             {copied ? <Check size={14} className="text-moss" /> : <Copy size={14} />}
             {copied ? t("copied") : t("copy")}

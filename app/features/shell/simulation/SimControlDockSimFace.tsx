@@ -40,7 +40,7 @@ function PrimaryAction({ sim, isPublicDemo }: { sim: ReturnType<typeof useSimula
   if (sim.running) {
     if (sim.awaitingNext) {
       return (
-        <button type="button" onClick={sim.next} className={`${ctrlBase} bg-coral text-white shadow-sticker-xs hover:bg-coral/90`}>
+        <button type="button" onClick={sim.next} className={`${ctrlBase} bg-coral-solid text-white shadow-sticker-xs hover:bg-coral-solid/90`}>
           {t("next")} <ChevronRight size={14} />
         </button>
       );
@@ -82,7 +82,7 @@ function PrimaryAction({ sim, isPublicDemo }: { sim: ReturnType<typeof useSimula
     );
   }
   return isPublicDemo ? (
-    <button type="button" onClick={() => void enterWorkspace()} className={`${ctrlBase} bg-coral text-white shadow-sticker-xs hover:bg-coral/90`}>
+    <button type="button" onClick={() => void enterWorkspace()} className={`${ctrlBase} bg-coral-solid text-white shadow-sticker-xs hover:bg-coral-solid/90`}>
       <Sparkles size={14} /> {t("getStarted")}
     </button>
   ) : (
@@ -134,7 +134,7 @@ export function SimControlDockSimFace({
                 title={t("goToPhase", { label })}
                 className={`focus-ring inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm transition-colors ${
                   active
-                    ? "bg-coral font-semibold text-white shadow-sticker-xs"
+                    ? "bg-coral-solid font-semibold text-white shadow-sticker-xs"
                     : done
                       ? "bg-moss/15 font-medium text-moss"
                       : "bg-stone-100 font-medium text-steel hover:bg-stone-200"
@@ -161,7 +161,7 @@ export function SimControlDockSimFace({
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <PrimaryAction sim={sim} isPublicDemo={isPublicDemo} />
           {sim.running ? (
-            <button type="button" onClick={sim.stop} className={`${ctrlBase} border border-stone-200 px-2.5 text-coral hover:bg-coral/5`}>
+            <button type="button" onClick={sim.stop} className={`${ctrlBase} border border-stone-200 px-2.5 text-coral-ink hover:bg-coral/5`}>
               <Square size={13} /> {t("stop")}
             </button>
           ) : null}

@@ -66,7 +66,7 @@ from . import registry
 from .llm import degradation as _vocabulary
 from .jobs import Job
 from .market_config import ACTIVE_MARKET, MarketConfig, gross_period_phrase
-from .matching import MatchCandidate, ko_filter, score_job
+from .matching import FIT_PROMISING_THRESHOLD, MatchCandidate, ko_filter, score_job
 from .match_reasoning import generate as generate_reasoning
 from .match_reasoning import (
     ASPIRATION_MAX_CHARS,
@@ -140,7 +140,13 @@ POLICY: dict[str, int] = {
     "screening_auto_days": 2,
     "stale_days": 21,
     "aging_days": 30,
-    "rematch_floor": 55,
+    # The promising-fit floor, not a number of its own: rematch asks the same
+    # question as the rediscovery admission gate (app/_lib/rediscover.ts, at/above
+    # FIT_PROMISING_FLOOR) and the scorer's own band, so it reads the band's
+    # constant and admits at/above it. A free 55 here sat outside
+    # test_fit_threshold_sync.py, and its `<=` refused a total of exactly 55 that
+    # fit_tier_for calls "promising" and the TS sweep admits.
+    "rematch_floor": FIT_PROMISING_THRESHOLD,
     "rematch_max": 2,
     "screen_advance_conf": 80,
     # --- AI-screening strictness by pipeline VOLUME (the one place the thresholds
@@ -964,6 +970,7 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
     """Decide one entry's automated move. Pure; operates on the entry snapshot.
 
     entry keys used: stage, archetype, matchScore, daysInStage, approvalKind, recentScreening,
+    advanceDeclined (optional; a person declined a queued advance in this stint),
     agingTier (optional; see aging_alerts), stageRole + advanceTo (optional; see
     stage_facts — absent = the shipped board's name -> role map).
     Returns {action: advance|reject|hold|none, toStage, alerts:[...], reason}.
@@ -984,6 +991,7 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
     days = int(entry.get("daysInStage") or 0)
     approval = entry.get("approvalKind")
     recent_screening = bool(entry.get("recentScreening"))
+    advance_declined = bool(entry.get("advanceDeclined"))
     early = archetype in _EARLY_CAREER
     # The column as a reason names it: the shipped name alone on the shipped board (so
     # every default-board reason is byte-identical to the name-keyed engine), the
@@ -1004,10 +1012,19 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
 
     if role == "entry":
         # CV received (inbound application or proactively sourced), waiting for
-        # screening. Once a match score exists it has cleared first-wave matching →
-        # advance into the board's next column, where the archetype-aware gate
-        # decides. This move is fair — archetype-neutral and never a reject — so
-        # intake doesn't stall on the entry column. No score yet → hold for matching.
+        # screening. Once a match score exists it has cleared first-wave matching, and
+        # the policy PROPOSES the move into the board's next column. The proposal is
+        # queued for a person by the TS pass (Q2, owner ruling 2026-11-09), never
+        # applied by it. No score yet -> hold for matching.
+        #
+        # A pending approval holds: the pass queues the advance as an approval on the
+        # entry, so without this check the same entry would be re-proposed every tick
+        # (the screening branch below has always had it). That also keeps a knockout
+        # hold (a `decision` approval) out of the policy's hands.
+        if approval:
+            return out("hold", None, "approval already pending")
+        if advance_declined:
+            return out("hold", None, "advance declined by a person; not proposed again while the entry stays in this stage")
         if not scored:
             return out("hold", None, "accepted; awaiting match score")
         if not advance_to:
@@ -1018,9 +1035,12 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
         # column gets the same thresholds — roles repeat freely on a composed board.
         # Early-career is NEVER auto-advanced/rejected (human screening gate); a
         # pending approval holds; weak BAU is screened out (queued for a human by the
-        # TS pass, never applied); strong BAU advances once it has settled; mid → human.
+        # TS pass, never applied); strong BAU is PROPOSED for advance once it has settled (queued for a person by
+        # the TS pass, never applied); mid → human.
         if approval:
             return out("hold", None, "approval already pending")
+        if advance_declined:
+            return out("hold", None, "advance declined by a person; not proposed again while the entry stays in this stage")
         if early:
             return out("hold", None, "early-career: human screening gate (never auto-advance/reject)")
         if not scored:
@@ -1951,6 +1971,8 @@ def _rubric_competency_names() -> list[str]:
         names.extend(str(c["competency"]) for c in rubric)
     for axes in INDUSTRY_AXES.values():
         names.extend(str(c["competency"]) for c in axes)
+    for axes in OPTIONAL_AXES.values():
+        names.extend(str(c["competency"]) for c in axes)
     return list(dict.fromkeys(names))
 
 
@@ -2199,6 +2221,11 @@ INTERVIEW_RUBRIC = INTERVIEW_RUBRICS["experienced"]
 # rubric so a nurse is scored on clinical judgment, a tradesperson on safety, etc.
 # Mirrors the TS INDUSTRY_AXES (same JSON). Additive: an unmapped family adds none.
 INDUSTRY_AXES: dict[str, list[dict]] = _RUBRIC_DATA.get("industryAxes", {})
+# S1 — OPTIONAL axes, appended only when a condition holds ("dev_case": the candidate
+# has a work sample attached). Never part of a base list, and never a rating the
+# interviewer did not give: an uncovered optional axis is "not assessed", not a 3.
+# Mirrors the TS OPTIONAL_AXES (same JSON).
+OPTIONAL_AXES: dict[str, list[dict]] = _RUBRIC_DATA.get("optionalAxes", {})
 
 
 def scoring_model_for_archetype(archetype: str | None) -> str:
@@ -2222,11 +2249,14 @@ def industry_axes_for(role_family: str | None) -> list[dict]:
     return INDUSTRY_AXES.get((role_family or "").strip(), [])
 
 
-def rubric_for_candidate(archetype: str | None, role_family: str | None) -> list[dict]:
+def rubric_for_candidate(archetype: str | None, role_family: str | None, dev_case: bool = False) -> list[dict]:
     """The full rubric scored for a candidate: the base (scoringModel) rubric PLUS
-    any industry axes for their role-family (P2-3), appended. Mirrors the TS
-    `rubricForArchetype(archetype, roleFamily)`."""
-    return [*rubric_for_archetype(archetype), *industry_axes_for(role_family)]
+    any industry axes for their role-family (P2-3), appended, PLUS the optional
+    dev-case axes (S1) when `dev_case` is true. Without a dev case the result is
+    exactly the pre-S1 rubric. Mirrors the TS `rubricForArchetype(archetype,
+    roleFamily, devCase)`."""
+    optional = OPTIONAL_AXES.get("dev_case", []) if dev_case else []
+    return [*rubric_for_archetype(archetype), *industry_axes_for(role_family), *optional]
 
 
 def rubric_version_hash(rubric: list[dict]) -> str:
@@ -2429,7 +2459,7 @@ def sample_scorecard_notes(notes: str | None, limit: int = MAX_SCORECARD_NOTES_C
     return f"{text[:head]}{marker}{text[len(text) - tail:]}"
 
 
-def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang: str = "en", provider: Any | None = None, github: Any | None = None):
+def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang: str = "en", provider: Any | None = None, github: Any | None = None, dev_case: bool = False):
     from .i18n import language_directive
 
     # `model` is the base scoring model (experienced / early_career) — still the
@@ -2439,7 +2469,11 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
     # a tradesperson on safety. Additive — an unmapped family leaves the prompt
     # exactly as it was pre-P2-3.
     model = scoring_model_for_archetype(candidate.archetype)
-    rubric = rubric_for_candidate(candidate.archetype, candidate.role_family)
+    rubric = rubric_for_candidate(candidate.archetype, candidate.role_family, dev_case)
+    # S1 — optional axes are scored only on evidence; the rest of the rubric keeps its
+    # "rate it 3 (not assessed)" convention. `required` is what totals/averages see.
+    optional_names = {c["competency"] for c in OPTIONAL_AXES.get("dev_case", [])} if dev_case else set()
+    required = [c for c in rubric if c["competency"] not in optional_names]
     anchors = ", ".join(f"{k}={v}" for k, v in RATING_ANCHORS.items())
 
     def _rubric_line(competency: dict) -> str:
@@ -2494,12 +2528,19 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
         "Ground every rating in the transcript: the evidence MUST be a short, near-verbatim quote of the "
         "candidate's own words that justifies the score — do not paraphrase or invent. If the transcript "
         "does not cover a competency, set its evidence to an empty string and rate it 3 (not assessed).\n"
+        + (
+            "Exception: " + ", ".join(sorted(optional_names)) + " is scored on behaviour only, never on which "
+            "tool is named. If the transcript does not cover it, set its rating to null and its evidence to an "
+            "empty string — never 3.\n"
+            if optional_names
+            else ""
+        )
         # scorecard-v7 — the SAME fairness clause the interviewer brief carries
         # (NON_NEGOTIABLES in app/_lib/student-interview.ts). The brief told the agent not to
         # penalise nerves; nothing told the SCORER, which is the half that produces
         # the number a hiring decision is made on. Delivery is not a competency here
         # unless a rubric axis names one.
-        "Rate substance, not delivery: never lower a rating for nerves, hesitation, filler words, "
+        + "Rate substance, not delivery: never lower a rating for nerves, hesitation, filler words, "
         "silences, a slow start, or imperfect grammar/accent in a language that is not the candidate's "
         "first. An honest \"I don't know\" is not a negative signal. Score only what a competency's "
         "description and its level anchors actually ask for.\n"
@@ -2537,7 +2578,7 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
         return {
             "ratings": [
                 {"competency": c["competency"], "rating": 3, "evidence": "Not assessed (auto-synthesis unavailable)."}
-                for c in rubric
+                for c in required
             ],
             "summary": "Auto-synthesis unavailable; review the transcript and rate against the rubric manually. " + snippet,
             "recommendation": "hold",
@@ -2561,12 +2602,19 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
             try:
                 rating = max(1, min(5, int(r.get("rating"))))
             except (TypeError, ValueError):
+                if norm(r["competency"]) in {norm(n) for n in optional_names}:
+                    continue  # an optional axis with no usable number is not assessed
                 rating = 3
             by_comp[norm(r["competency"])] = {"rating": rating, "evidence": str(r.get("evidence") or "")}
         # Always emit every rubric competency, in rubric order, filling gaps.
         ratings = []
         for c in rubric:
             got = by_comp.get(norm(c["competency"]))
+            if c["competency"] in optional_names:
+                # No number unless the model gave one with a quote behind it.
+                if got and got["evidence"].strip():
+                    ratings.append({"competency": c["competency"], **got})
+                continue
             ratings.append(
                 {
                     "competency": c["competency"],
@@ -2607,7 +2655,20 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
     # Self-describe which rubric this was scored on (the compare grid renders the
     # matching axes per cohort) and how far to trust it given the transcript.
     result["scoringModel"] = model
-    result["confidence"] = _scorecard_confidence(notes, result["ratings"], len(rubric), ungrounded)
+    if optional_names:
+        # An optional axis whose quote did not survive grounding is not assessed either:
+        # a number with no evidence behind it must not stand. It is dropped, never midpointed.
+        result["ratings"] = [
+            r
+            for r in result["ratings"]
+            if r["competency"] not in optional_names
+            or (str(r.get("evidence") or "").strip() and r.get("evidence") != UNGROUNDED_EVIDENCE)
+        ]
+        have = {r["competency"] for r in result["ratings"]}
+        result["notAssessed"] = [c["competency"] for c in rubric if c["competency"] in optional_names and c["competency"] not in have]
+    result["confidence"] = _scorecard_confidence(
+        notes, [r for r in result["ratings"] if r["competency"] not in optional_names], len(required), ungrounded
+    )
     # WHICH LANGUAGE the recruiter-facing prose is actually in. The summary and the
     # recommendation rationale follow `language_directive(lang)` on the LLM path, but
     # the deterministic template is English whatever was asked for — so a cs/de/fr
@@ -2637,7 +2698,7 @@ def rematch_candidate(
     lang: str = "en",
     provider: Any | None = None,
 ) -> dict:
-    """Find the best ALTERNATIVE open role for a candidate (top-1, >floor).
+    """Find the best ALTERNATIVE open role for a candidate (top-1, >=floor).
 
     Pure ranking — this proposes the alternative; it does NOT touch pipeline state.
     What rematch does to the SOURCE entry (close the current entry so the candidate
@@ -2674,8 +2735,8 @@ def rematch_candidate(
         scored.append((result.total, job, result))
     scored.sort(key=lambda x: x[0], reverse=True)
 
-    if not scored or scored[0][0] <= POLICY["rematch_floor"]:
-        return {"found": False, "reason": f"no alternative above the {POLICY['rematch_floor']} floor"}
+    if not scored or scored[0][0] < POLICY["rematch_floor"]:
+        return {"found": False, "reason": f"no alternative at or above the {POLICY['rematch_floor']} floor"}
 
     total, job, result = scored[0]
     # `_note_degradation` is the same thread-local `_generate` writes, so a rematch

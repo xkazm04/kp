@@ -24,13 +24,34 @@ edit is not discarded.
 - **Settings → Workspaces** (`app/features/settings/workspace/WorkspaceTab.tsx`) —
   the console for teams **and** the people on them. See *Surface* below.
 - **Settings → Organization** (`app/features/settings/organization/OrganizationTab.tsx`)
-  — company identity only: org name, app language, backup/restore. There is **no
+  — company identity only: org name, app language, backup/restore. The org name is
+  the per-browser `kp_org_name` cookie; when it was never set, the effective name is
+  the demo's company (`DEFAULT_ORG_NAME`) **only on a fixture-seeded install** and
+  empty everywhere else (`orgNameFallback`, resolved in `app/layout.tsx` from
+  `fixtureSeedEnabled()` — the boot-seed env, so `KP_SEED_DEMO=1` — and handed down by
+  `BrandProvider`; a demo seeded from the first-run choice does not flip it yet), so an unseeded owner
+  workspace (`npm run up`) never presents the bank as its company. The first-run
+  wizard also writes the typed company into the brand display name while that is
+  still the default (`persistSetupBrand`). A role created with its company blank takes
+that name server-side (`effectiveOrgName`, `app/_lib/org-name-server.ts`; see the jobs
+doc). There is **no
   domain row**: `organizations.domain` exists in the schema but nothing in the app
   ever writes it (`createOrganization` is called once, from `signup-service.ts`,
   with no domain), so every install has it NULL and the panel was rendering a
   hardcoded `"csas.cz"` behind a padlock — a demo string presented as a locked
   company fact. It is gone until a surface actually sets the column.
 - `/api/auth/switch-workspace` — re-mints the session for a different team.
+- First-run data choice (`app/setup/FirstRunDataChoice.tsx`, rendered by `app/page.tsx`)
+  — since 2026-10-22 a fresh install no longer seeds the demo corpus at boot (ADR 0002's
+  amendment), so the first entry into the default workspace asks "start empty, or
+  explore with demo data?". It shows only while the default workspace has no roles,
+  candidates, analyses, JDs or board entries, the demo was never seeded, the wizard was
+  never completed or skipped, and neither `KP_EMPTY=1` nor `KP_SEED_DEMO=1` has answered
+  it already. Both answers go to `POST /api/setup/first-run` (operator session +
+  `team:manage`) and are stored in `workspaces.demo_choice`, so it never comes back.
+  *Start empty* lands in the empty app, where the wizard below fires; *Explore with demo
+  data* runs `seedDemoCorpus()` (idempotent; a workspace that already holds data answers
+  409 `refused-has-data`) and lands on the seeded pipeline (`app/_lib/db/demo-seed.ts`).
 - Onboarding wizard (`app/features/shell/setup/`) — first-run org setup.
 - **Self-serve signup** (`/signup` + `POST /api/auth/register`) — public
   registration that provisions a brand-new org → team → owner in one
@@ -523,7 +544,7 @@ routes below. The switch route now refuses on the workspace the session came fro
 | Workspace switch | `app/api/auth/switch-workspace/route.ts` — membership + org required; a `demo`-workspace session is refused outright (403); a disabled account **and a revoked one** are refused the renewal (401, cookie cleared) — both refusals come from the issuer, which the route hands `renewing: session` |
 | Session issuer | `app/_lib/auth/session-issuer.ts` — `issueSession` / `clearSession` / `landingWorkspaceFor`; the only mint site (source ratchet in its test) |
 | Org backup/restore | `app/api/workspace/export/route.ts`, `app/api/workspace/import/route.ts`, `app/_lib/db-portability.ts` (`dumpOrg`, `restoreOrg`, `planOrgRestore`) |
-| DB — identity | `app/_lib/db/organizations.ts`, `app/_lib/db/users.ts`, `app/_lib/db/memberships.ts`, `app/_lib/db/invites.ts`, `app/_lib/db/workspaces.ts` (`listWorkspacesForUser`, `renameWorkspace`) |
+| DB — identity | `app/_lib/db/organizations.ts` (its unnamed-org placeholder comes from the leaf `app/_lib/org-name-placeholder.ts`, so the db core does not pull `org-settings.ts` into every route graph), `app/_lib/db/users.ts`, `app/_lib/db/memberships.ts`, `app/_lib/db/invites.ts`, `app/_lib/db/workspaces.ts` (`listWorkspacesForUser`, `renameWorkspace`) |
 | RBAC | `app/_lib/auth/roles.ts`, `app/_lib/auth/org-authority.ts` |
 | Tenancy manifest | `app/_lib/tenancy.ts`, `app/_lib/workspace-lock.ts` |
 | Rate limits | `POST /api/org/invites` — `org-invite:<ip>`, 30/10min; `GET /api/workspace/export` — `org-export:<ip>`, 10/10min (both on the in-process limiter, `app/_lib/rate-limit.ts`). `GET`/`POST /api/invite/[token]` — `invite-view:<ip>:<token>` / `invite-redeem:<ip>:<token>`, 10/min each, on the **persisted** store (`app/_lib/auth/login-throttle.ts`) that `/api/auth/login` and `/api/auth/register` use: kp can run as several workers over one `kp.sqlite`, and a per-process Map would hand a flood one full budget per worker on the door that mints a user, a membership and a session. Every attempt counts, success included. A tripped login or invite bucket answers `Retry-After` (delta-seconds from `throttleRetryAfterMs`, capped at the window). All pinned in `app/api/rate-limit-contract.test.ts` |
@@ -957,3 +978,27 @@ live for real multi-team customers (see `app/_lib/tenancy.ts` comments and
 - *(closed 2026-09-02)* `POST /api/org/invites` used to emit no error `code` on
   any of its three refusals, so the panel always painted the localized generic.
   All three now answer through `jsonRefusal` — see **Refusal codes** below.
+
+## Logo upload
+
+The company logo can be **uploaded** (PNG or SVG) as an alternative to an https URL
+(Settings → Branding and the first-run Company step; the URL field stays).
+
+- **Storage: the database, not disk.** Three additive columns on `brand_settings`
+  (`logo_data` BLOB, `logo_mime`, `logo_hash`), added by `brand-store.ts`'s lazy
+  `PRAGMA table_info` + `ALTER` guard. The logo therefore has exactly the scope of the
+  brand row it belongs to, adds no table to the tenancy manifest, and needs no
+  gitignored file under `data/` — a self-host backs up one SQLite file as before.
+  `brand_settings` is still org config and not portable across a restore.
+- **Door:** `app/api/brand/logo/route.ts`. `POST` takes the raw file body (org:manage,
+  per-IP limit, 512 KB cap measured on the bytes read → `BRAND_LOGO_TOO_LARGE`);
+  `DELETE` clears it; `GET` serves it **publicly** (exact path in `PUBLIC_API_EXACT`;
+  candidate pages have no session) with `nosniff`, a sandboxing CSP, and an `ETag`.
+  The write handlers re-verify the operator themselves.
+- **Validation:** `app/_lib/brand-logo.ts`. PNG by magic bytes. SVG through an allow-list
+  tokenizer: drawing elements only, no `on*`, every `href` a `#fragment`, no DOCTYPE,
+  CDATA, `@import` or external `url()`; refusals are `BRAND_LOGO_TYPE` /
+  `BRAND_LOGO_UNSAFE` / `BRAND_LOGO_EMPTY`.
+- **Wiring:** an upload sets `logoUrl` to `/api/brand/logo?v=<content hash>`, so the
+  existing renderers need no change and a replaced logo busts caches. Saving any other
+  logo URL through `PUT /api/brand` drops the stored bytes.

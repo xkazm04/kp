@@ -189,7 +189,7 @@ export function SalaryGauge({ minimum, maximum, midpoint, confidence, target: ta
           {t("salary.mid")}
         </span>
         <span
-          className="absolute -translate-x-1/2 text-coral"
+          className="absolute -translate-x-1/2 text-coral-ink"
           style={{ left: `${targetPct}%` }}
         >
           {growthLabel}

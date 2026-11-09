@@ -1,0 +1,38 @@
+{
+  "schema": "conform-run/1",
+  "worker": "2a4a5b5e-a31e-4806-a049-5c3a6b3e9c16",
+  "subject": "candidate-outreach-and-halt-rules",
+  "evaluatedAt": "2026-10-19T21:33:49.815594+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "candidate-outreach-and-halt-rules",
+      "context": "comms-locale-optout",
+      "reason": "withdrawn after review: reviewer (sonnet): The fail-open halt read at outreach-state-store.ts:157 is real, but I could not confirm the other claims. comms.ts:426 is sendComm, not dispatchOutreach, and I found no check for the missing refusal audit on the resend 409 path. The 'none' consent-policy claim is not shown by rediscovery-alert-store"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-19T21:33:49.815594+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "candidate-outreach-and-halt-rules"
+      ],
+      "techniques": [
+        "audit-the-non-send",
+        "consent-gate-before-the-first-touch",
+        "distinguish-a-reply-from-a-re-application",
+        "grounded-personalisation-never-fabricated",
+        "halt-state-scoped-per-role-not-per-person",
+        "halt-the-sequence-on-any-reply",
+        "the-first-touch-carries-the-notice"
+      ],
+      "deviations": 1,
+      "context": "comms-locale-optout",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}

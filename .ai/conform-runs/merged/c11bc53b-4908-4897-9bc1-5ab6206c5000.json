@@ -1,0 +1,60 @@
+{
+ "schema": "conform-run/1",
+ "worker": "c11bc53b-4908-4897-9bc1-5ab6206c5000",
+ "subject": "cv-presentation-and-parseability",
+ "evaluatedAt": "2026-10-25T23:44:27.490385+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "spark-trust-market",
+   "subject": "cv-presentation-and-parseability",
+   "bundle": "recruiting",
+   "state": "not-applicable",
+   "evidence": "app/landing/spark/market/data.ts:2 This context is a landing-page visualisation of Czech labour-market data. It produces no CV layout, export or parse path; a search of app/landing/spark/market/ for curriculum, r\u00e9sum\u00e9, resume, docx, photo and \\bcv\\b returned no hits.",
+   "techniques": [
+    {
+     "technique": "export-format-and-round-trip-verification",
+     "verdict": "not-applicable",
+     "evidence": "app/landing/spark/market/data.ts:4 It reads a committed market snapshot. No CV file is generated."
+    },
+    {
+     "technique": "scan-path-hierarchy",
+     "verdict": "not-applicable",
+     "evidence": "app/landing/spark/market/MarketPulseAtlas.tsx:4 The layout hierarchy belongs to a landing data page, not a CV."
+    }
+   ],
+   "absenceTerms": [
+    "curriculum",
+    "r\u00e9sum\u00e9",
+    "docx",
+    "photo",
+    "two-column"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "cv-presentation-and-parseability",
+   "context": "jd-template-engine",
+   "reason": "pair anchor refused: placeholder evidence at app/features/shared/renderTemplate.ts:2"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-25T23:44:27.490385+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "cv-presentation-and-parseability"
+   ],
+   "techniques": [
+    "export-format-and-round-trip-verification",
+    "scan-path-hierarchy"
+   ],
+   "deviations": 0,
+   "context": "spark-trust-market",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

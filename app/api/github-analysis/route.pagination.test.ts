@@ -23,7 +23,7 @@ import { mkdtempSync } from "node:fs";
 // Side-effect import: sets KP_DB_PATH to a throwaway file BEFORE ./route.ts pulls in the
 // db layer. Keep it first (ESM evaluates imports in source order).
 import "../../_lib/testing/unit-db.ts";
-import { removeTempDirs } from "../../_lib/testing/tmp-cleanup.ts";
+import { removeTempDirsInHook } from "../../_lib/testing/tmp-cleanup.ts";
 import type { GithubNote } from "../../_lib/github-evidence.ts";
 import { POST } from "./route.ts";
 
@@ -105,7 +105,7 @@ before(() => {
 
 after(() => {
   globalThis.fetch = realFetch;
-  if (logDir) removeTempDirs(logDir);
+  if (logDir) removeTempDirsInHook([logDir]);
 });
 
 function post(body: unknown): Request {

@@ -134,6 +134,7 @@ const PRODUCER_CLASSIFICATION: Record<string, Classification> = {
   "sealed:screen_wave_holdout": { exempt: "a would-be rejection the wave SPARED to form the calibration clean arm — no adverse outcome reaches the candidate" },
   "sealed:auto_advanced": { exempt: "a positive routing decision; the goal's measure is scorecard / ranking / rejection" },
   "sealed:advanced": { exempt: "a positive routing decision; the goal's measure is scorecard / ranking / rejection" },
+  "sealed:advance_declined": { exempt: "a person keeping a queued policy advance in place; it is neither a verdict about the candidate nor a rejection" },
   "sealed:reinstated": { exempt: "the reversal of a rejection — it overturns a verdict rather than producing one" },
   "sealed:offer_terms": { exempt: "the terms of an offer a human sets; not an AI verdict about the candidate" },
   "sealed:group_eval_lead": { exempt: "a group-level advisory over several candidates, recorded as an advisory" },
@@ -143,6 +144,8 @@ const PRODUCER_CLASSIFICATION: Record<string, Classification> = {
   "sealed:interview_cancelled": { exempt: "scheduling bookkeeping" },
   "sealed:interview_no_show": { exempt: "scheduling bookkeeping" },
   "sealed:interview_proposal_declined": { exempt: "scheduling bookkeeping" },
+  "sealed:debrief_findings": { exempt: "an interviewer's recorded findings per follow-up; they release a hold, they are not an automated verdict" },
+  "sealed:authorship_verified": { exempt: "a human attestation that releases a hold; the band and score it leaves untouched are the verdicts" },
   "column:gig_outcomes.verdict": { exempt: "the external judge's verdict on a freelance gig deliverable, not on a candidate" },
   "column:gig_lessons.verdict": { exempt: "what a gig outcome teaches a recipe, not a verdict on a candidate" },
 };

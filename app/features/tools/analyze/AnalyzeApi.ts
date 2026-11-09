@@ -1,5 +1,5 @@
 import { analysisSchema, type Analysis, type GithubAnalysis } from "@/app/_lib/schemas";
-import type { StageStatus } from "@/app/_components/AnalysisProgress";
+import type { StageStatus } from "@/app/_components/analysis-progress-logic";
 import { asAnalyzePhase } from "@/app/_lib/analyze-phases";
 import type { AnalyzeErrorCode, AnalyzeErrorInfo, GithubStatus, ProgressEmitter } from "./AnalyzeTypes";
 

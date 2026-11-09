@@ -54,7 +54,7 @@ export function SchedulerRunHistory({
                     })()}
                   </span>
                   {run.status === "error" ? (
-                    <span className="inline-flex items-center gap-1 text-sm font-semibold text-coral">
+                    <span className="inline-flex items-center gap-1 text-sm font-semibold text-coral-ink">
                       {/* Localize the sentence, carry the raw (uncoded) server
                           detail inside it — see SchedulerJobRow. */}
                       <XCircle size={12} aria-hidden /> {run.error ? t("runFailedMsg", { msg: run.error }) : t("runFailed")}
@@ -86,7 +86,7 @@ export function SchedulerRunHistory({
                             <span
                               className={`mr-1 rounded px-1 py-0.5 font-semibold ${
                                 d.action === "reject"
-                                  ? "bg-coral/10 text-coral"
+                                  ? "bg-coral/10 text-coral-ink"
                                   : d.action === "advance"
                                     ? "bg-moss/10 text-moss"
                                     : "bg-stone-100 text-steel"

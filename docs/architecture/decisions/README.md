@@ -33,6 +33,15 @@ to be true for it to change?*
 - add a decision reason to the ATS record, or change what the ATS POST re-checks before it sends → [0020](0020-an-ats-decision-releases-a-reason-only-when-the-server-built-it.md)
 - add a table keyed by a candidate capability token, or change what an erasure does to an offer or schedule link → [0021](0021-an-erasure-revokes-every-live-capability-link-the-candidate-holds.md)
 - import a value into a `"use client"` file, or add a helper to `app/_lib/db/` that client code needs → [0022](0022-a-client-module-never-reaches-the-database.md)
+- add an estimated cost to a failed/unpriced LLM call, or drop the `outcome = 'ok'` filter from a spend query → [0024](0024-llm-usage-ledger-never-guesses.md)
+- write a read -> compute -> write transaction, or call a DEFERRED transaction a bug → [0025](0025-read-modify-write-locks-at-begin-or-rechecks.md)
+- add an API route, or put a gate / rate limit / meter on one → [0026](0026-route-chain-refusal-order.md)
+- change how a candidate's AI collaboration is scored, or add AI-keyword or tool-noun weight to a match → [0027](0027-candidates-are-scored-on-proof-of-how-they-work-with-ai.md)
+- add an outbound connector or channel, change how a receipt is matched to a send, or let a message reach a candidate without a named approver → [0028](0028-one-message-identity-and-one-egress-seal-for-every-channel.md)
+- run a unit-test launcher beside another suite, or treat a gate failure that only appears beside another lane as a flake → [0029](0029-one-unit-suite-per-machine.md)
+- store or change who was shortlisted or chosen on a role, or let anything but a signed-in person write it → [0030](0030-the-role-shortlist-is-a-workspace-table-set-by-people.md)
+- make a test `after()` hook fail on a temp folder it could not remove, or swallow that failure in a script → [0031](0031-tmp-cleanup-logs-in-after-hooks.md)
+- change what the import-graph budget counts, or how a `next/dynamic` / `import()` edge is measured → [0032](0032-import-budget-counts-eager-edges.md)
 
 ## Index
 
@@ -61,6 +70,15 @@ to be true for it to change?*
 | [0021](0021-an-erasure-revokes-every-live-capability-link-the-candidate-holds.md) | An erasure revokes every live capability link the candidate holds | accepted | 2026-10-08 |
 | [0022](0022-a-client-module-never-reaches-the-database.md) | A client module never reaches the database | accepted | 2026-10-08 |
 | [0023](0023-the-allowance-is-keyed-on-the-subscription-anchor.md) | The allowance is keyed on the subscription anchor, not the calendar month | accepted | 2026-10-09 |
+| [0024](0024-llm-usage-ledger-never-guesses.md) | The usage ledger never guesses a number it cannot measure | accepted | 2026-09-07 |
+| [0025](0025-read-modify-write-locks-at-begin-or-rechecks.md) | A read-modify-write takes the write lock at BEGIN or re-checks its precondition in the UPDATE | accepted | 2026-10-16 |
+| [0026](0026-route-chain-refusal-order.md) | Every workspace-scoped route enters through route(...); the session is the first refusal, guards come next, the handler's own gates last | accepted | 2026-10-16 |
+| [0027](0027-candidates-are-scored-on-proof-of-how-they-work-with-ai.md) | Candidates are scored on proof of how they work with AI, through one channel-neutral evidence ladder, with a human at every gate | accepted | 2026-10-17 |
+| [0028](0028-one-message-identity-and-one-egress-seal-for-every-channel.md) | Every channel shares one message identity and one egress seal, and a person releases what reaches a candidate | accepted | 2026-10-17 |
+| [0029](0029-one-unit-suite-per-machine.md) | The unit-test launcher runs one suite per machine at a time | accepted | 2026-10-18 |
+| [0030](0030-the-role-shortlist-is-a-workspace-table-set-by-people.md) | The role shortlist is a workspace-scoped table, set only by a person | accepted | 2026-10-22 |
+| [0031](0031-tmp-cleanup-logs-in-after-hooks.md) | Temp-dir cleanup logs a leak in a test after() hook and throws everywhere else | accepted | 2026-10-23 |
+| [0032](0032-import-budget-counts-eager-edges.md) | The import-graph budget counts eager edges; a dynamic import() is deferred | accepted | 2026-10-28 |
 
 ## Writing a new one
 
@@ -94,6 +112,22 @@ that `supersedes` / `superseded-by` are reciprocal.
 
 Run it locally with `npm run docs:check`. Fixtures:
 `node scripts/docs/__tests__/check-adrs.test.mjs`.
+
+## Numbering: assign the number at merge, not at authoring
+
+Two design runs in flight both read this directory, both took the next free
+id, and both filed a `0009` (renumbered to 0011/0012 after the fact). A number
+allocated by reading a branch's directory collides whenever two ADRs are
+authored in parallel, which this project does by policy. So:
+
+- On a branch, author the record as `draft-<slug>.md` with `id: "unassigned"`
+  and no index row.
+- When it merges, the docs lane takes the next free id from `main`, renames the
+  file, sets `id:`, and adds the README guide line and index row in the same
+  commit. `npm run docs:check` only validates numbered records, so keep drafts
+  out of `main`.
+- Cross-references to a draft cite its slug until the number exists.
+
 
 ## Status vocabulary
 

@@ -565,7 +565,7 @@ by `ScheduleTabPendingList.tsx`):
 | State | When | The card's first action |
 | --- | --- | --- |
 | `no_link` | no invite for the entry | **Send scheduling link** (`POST /api/schedule/invite`) |
-| `awaiting` | a pending link, not expired | "Link sent 2 days ago" + copy the link |
+| `awaiting` | a pending link, not expired | "Link sent 2 days ago" + copy the link (with `LinkReachNotice` under it when the `publicBaseUrl` base is not public: "Candidates can't open this link: it points to this computer.") |
 | `expired` | the pending link aged out | send a new link |
 | `closed` | the last invite was declined or a no-show | send a new link |
 | `proposals` | the candidate proposed times | one **Accept** per proposed time (`accept_proposal`) |
@@ -648,6 +648,8 @@ returns a bare English `{ error }` any more:
 | `SCHEDULE_MEETING_URL_INVALID` | 400 | The join link is not http(s) |
 | `SCHEDULE_SLOT_TAKEN` · `SCHEDULE_SLOT_NOT_OFFERED` · `SCHEDULE_BOOK_FAILED` · `SCHEDULE_CANDIDATE_INACTIVE` · `SCHEDULE_CALENDAR_BUSY` | 400/409 | Reused from the book path and the candidate door — one vocabulary, not two spellings of the same refusal. `reschedule` and `accept_proposal` re-check free/busy the same way `book` does |
 | `TOO_MANY_REQUESTS` | 429 | The per-IP limiter on both handlers |
+
+**Seal-first doors.** `cancel`, `no_show` and `decline_proposals` seal their decision record BEFORE the write and answer 503 `PIPELINE_DECISION_NOT_SEALED` with nothing changed (the invite keeps its state, so a retry works). `book` and `accept_proposal` still answer 200 when their seal fails: open, awaiting an operator decision.
 
 Why it mattered: `useScheduleInviteLifecycle.runAction` resolves failures through
 `useErrorMessage()`, which reads the CODE and correctly ignores the server's prose.
@@ -765,7 +767,8 @@ candidate read a Czech invitation and landed on an English booking page. The
 `rescheduleLink` inside the confirmation email is pinned the same way. The
 recruiter-facing `url` in the response stays **bare** — `?lang=` on a link the
 recruiter opens would rewrite their own cookie and flip the console's language.
-`/schedule/[token]` also renders the shared `LanguageSwitcher`, the escape hatch
+`/schedule/[token]` also renders `EmployerBrand` (the owner's logo + name, nothing on a
+default brand) and the shared `LanguageSwitcher`, the escape hatch
 for a forwarded link or a stale cookie, like every other public candidate page.
 Pinned by `app/schedule/[token]/schedule-link-locale.test.ts`.
 
@@ -801,6 +804,8 @@ event (`interview_reminder_sent`) keeps it rather than the per-reader letter tex
 The reminder sweep's old bare-English `"your scheduled time"` substitution is the
 catalog key `comms.interviewReminder.slotFallback` in all four locales. Pinned
 across cs/de/fr by `app/_lib/comms-dispatch-locale.test.ts`.
+
+**Book-your-interview nudge (pending links).** The reminder sweep only serves confirmed invites, so a link nobody opened used to age out in silence. `sendDueScheduleNudges` (`interview-reminders.ts`, same heartbeat job) sends ONE `schedule_nudge` letter (`comms.interviewNudge.*`, four locales) to a still-`pending` invite once it has sat un-booked for `SCHEDULE_NUDGE_AFTER_MS` (2 days, from the link's expiry anchor) and before it expires. It has its own `nudge_sent_at` / `nudge_attempts` / `nudge_last_attempt_at` columns (a nudge must never mark the later interview reminder as sent) and reuses the reminder retry cap and backoff. No automation event is written; the Outbox row is the record.
 
 **The interviewer's calendar hold is the length of the interview.**
 `dispatchInterviewerBrief`'s inline `.ics` inlined `30` minutes while the
@@ -881,8 +886,10 @@ with zero links minted, workspace B cannot invite workspace A's entry, and a
 non-default workspace can invite its own cohort — the last of which was broken
 outright while the routes relied on `getPipelineEntry`'s default workspace.
 
-The calendar integration is entirely optional. Without
-`GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET`, or with no connected
+The calendar integration is entirely optional. Without an OAuth client (saved
+through the guided setup in Settings > Integrations, or
+`GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` in env; see
+`docs/features/integrations/README.md`), or with no connected
 account, every offer reports `not_connected` and the pre-integration slot list
 is served unchanged. Every booking then records `not_connected` and no event is written — the `.ics`
 and "add to calendar" links remain the whole story, exactly as before the

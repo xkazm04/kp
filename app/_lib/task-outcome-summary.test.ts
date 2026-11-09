@@ -84,6 +84,16 @@ test("mappers pick the fact, defensively", () => {
       { labelKey: "failures", value: 1 },
     ]
   );
+  // A halted sequence reads as ITS reason, not as an expired consent.
+  assert.deepEqual(taskOutcomeSummary("automation", { applied: "suppressed_replied" }), [
+    { labelKey: "outcome", valueKey: "suppressed_replied" },
+  ]);
+  for (const reason of ["replied", "manual", "candidate"]) {
+    assert.deepEqual(
+      taskOutcomeSummary("batch_outreach", { ok: 1, total: 1, results: [{ id: "a", ok: true, applied: `suppressed_${reason}` }] }),
+      [{ labelKey: "sent", value: 0 }, { labelKey: "notContacted", value: 1 }]
+    );
+  }
   assert.deepEqual(taskOutcomeSummary("analyze", { persistence: { slug: "ada-l" }, servedFromCache: true }), [
     { labelKey: "savedAs", value: "ada-l" },
     { labelKey: "freshness", valueKey: "cached" },

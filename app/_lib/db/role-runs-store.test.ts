@@ -18,6 +18,7 @@ import {
 } from "./role-runs.ts";
 import { ensureDb } from "./core.ts";
 import { RoleRunPiiError } from "../role-run-stages.ts";
+import { RoleRunGateMissingError, mintGateReceipt } from "../role-run-gate-receipt.ts";
 
 const OTHER_WS = "ws-other";
 
@@ -77,7 +78,7 @@ test("latest reads resolve the run-wide artifact and the per-branch artifact sep
   const { run } = getOrCreateRoleRun({ jobId: "jd-role-latest" });
   appendStageArtifact({ runId: run.id, kind: "slate", status: "complete", payload: { candidates: [], truncated: false } });
   appendStageArtifact({ runId: run.id, kind: "screen", branchRef: "m-one", status: "awaiting_approval", payload: { policyVersion: "p1" } });
-  appendStageArtifact({ runId: run.id, kind: "screen", branchRef: "m-one", status: "complete", payload: { policyVersion: "p1", decision: "approved" } });
+  appendStageArtifact({ runId: run.id, kind: "screen", branchRef: "m-one", status: "complete", gateReceipt: mintGateReceipt(run.id, "screen"), payload: { policyVersion: "p1", gate: "rejection", decision: "approved", approverRef: "h1" } });
 
   // branchRef null must match IS NULL, not `= NULL` — SQLite answers "no rows" to the
   // latter without complaining, which would make every run-wide read silently empty.
@@ -95,11 +96,50 @@ test("latest reads resolve the run-wide artifact and the per-branch artifact sep
 test("the parked artifact survives its own resolution — the question is not erased by the answer", () => {
   const { run } = getOrCreateRoleRun({ jobId: "jd-role-append-only" });
   appendStageArtifact({ runId: run.id, kind: "interview", branchRef: "m-x", status: "awaiting_approval", payload: { invites: [] } });
-  appendStageArtifact({ runId: run.id, kind: "interview", branchRef: "m-x", status: "complete", payload: { invites: [], decision: "approved" } });
+  appendStageArtifact({ runId: run.id, kind: "interview", branchRef: "m-x", status: "complete", gateReceipt: mintGateReceipt(run.id, "interview"), payload: { invites: [], gate: "interview_invite", decision: "approved", approverRef: "h1" } });
 
   const history = listStageArtifacts(run.id).filter((a) => a.branchRef === "m-x");
   assert.equal(history.length, 2, "both the ask and the answer are in the ledger");
   assert.deepEqual(history.map((a) => a.status), ["awaiting_approval", "complete"]);
+});
+
+test("a gated resolution row without approval evidence is refused, and nothing is written", () => {
+  const { run } = getOrCreateRoleRun({ jobId: "jd-role-gate-evidence" });
+  appendStageArtifact({ runId: run.id, kind: "screen", branchRef: "m-g", status: "awaiting_approval", payload: { policyVersion: "p1" } });
+  const resolution = { gate: "rejection", decision: "approved", approverRef: "h1" };
+  const before = listStageArtifacts(run.id).length;
+
+  // No receipt at all: the direct-append bypass the engine's gate could not see.
+  assert.throws(
+    () => appendStageArtifact({ runId: run.id, kind: "screen", branchRef: "m-g", status: "complete", payload: resolution }),
+    RoleRunGateMissingError
+  );
+  // A look-alike object is not a receipt (identity is held privately).
+  assert.throws(
+    () => appendStageArtifact({ runId: run.id, kind: "screen", branchRef: "m-g", status: "terminal", payload: resolution, gateReceipt: { runId: run.id, kind: "screen" } }),
+    RoleRunGateMissingError
+  );
+  // A real receipt for another gate or another run is refused too.
+  assert.throws(
+    () => appendStageArtifact({ runId: run.id, kind: "screen", branchRef: "m-g", status: "complete", payload: resolution, gateReceipt: mintGateReceipt(run.id, "offer_draft") }),
+    RoleRunGateMissingError
+  );
+  assert.throws(
+    () => appendStageArtifact({ runId: run.id, kind: "screen", branchRef: "m-g", status: "complete", payload: resolution, gateReceipt: mintGateReceipt("other-run", "screen") }),
+    RoleRunGateMissingError
+  );
+  // A receipt without a named approver in the payload is refused.
+  assert.throws(
+    () => appendStageArtifact({ runId: run.id, kind: "screen", branchRef: "m-g", status: "complete", payload: { gate: "rejection", decision: "approved" }, gateReceipt: mintGateReceipt(run.id, "screen") }),
+    RoleRunGateMissingError
+  );
+  assert.equal(listStageArtifacts(run.id).length, before, "every refusal left the ledger untouched");
+
+  // Positive control: the committed-approval path writes as before.
+  const ok = appendStageArtifact({ runId: run.id, kind: "screen", branchRef: "m-g", status: "complete", payload: resolution, gateReceipt: mintGateReceipt(run.id, "screen") });
+  assert.equal(ok.status, "complete");
+  // The gated stage's QUESTION (awaiting_approval) never needs a receipt.
+  assert.equal(listStageArtifacts(run.id).length, before + 1);
 });
 
 test("PII is refused at the write door, and nothing is written", () => {

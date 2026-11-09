@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { getGigAttempt } from "@/app/_lib/db/gigs-attempts";
@@ -22,18 +22,18 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, { params }: Params): Promise<NextResponse> {
+export const GET = withWorkspace(async (ws: string, _request: Request, { params }: Params): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { id } = await params;
-    const attempt = getGigAttempt(await currentWorkspace(), id);
+    const attempt = getGigAttempt(ws, id);
     if (!attempt) return jsonRefusal("GIG_ATTEMPT_NOT_FOUND", 404);
     return NextResponse.json({ attempt });
   } catch (error) {
     return safeJsonError(error, "api:gigs/attempts/[id]", "GIG_STORE_FAILED");
   }
-}
+});
 
 const REFUSAL_STATUS = {
   GIG_ATTEMPT_NOT_FOUND: 404,
@@ -43,7 +43,7 @@ const REFUSAL_STATUS = {
   GIG_REVISION_NOTE_REQUIRED: 400,
 } as const;
 
-export async function POST(request: Request, { params }: Params): Promise<NextResponse> {
+export const POST = withWorkspace(async (ws: string, request: Request, { params }: Params): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -58,7 +58,6 @@ export async function POST(request: Request, { params }: Params): Promise<NextRe
     if (body.review !== undefined && body.review !== null && (typeof body.review !== "object" || Array.isArray(body.review))) {
       return jsonRefusal("GIG_INPUT_INVALID", 400, { field: "review" });
     }
-    const ws = await currentWorkspace();
     const res = await applyGigReview(ws, id, body.action, body.review ?? null);
     if (!res.ok) return jsonRefusal(res.code, REFUSAL_STATUS[res.code], res.detail ? { detail: res.detail } : undefined);
     const d = res.dispatch;
@@ -79,4 +78,4 @@ export async function POST(request: Request, { params }: Params): Promise<NextRe
   } catch (error) {
     return safeJsonError(error, "api:gigs/attempts/[id]", "GIG_STORE_FAILED");
   }
-}
+});

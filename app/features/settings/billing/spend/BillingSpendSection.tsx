@@ -31,7 +31,7 @@ export function BillingSpendSection({
   if (spend.failed) {
     return (
       <div className={`${PANEL_SUNKEN} flex flex-wrap items-center gap-3 p-4`}>
-        <p className="text-base text-coral">{tUsage("loadFailed")}</p>
+        <p className="text-base text-coral-ink">{tUsage("loadFailed")}</p>
         <button type="button" onClick={spend.reload} className={`${BTN_SECONDARY} h-8 px-3 text-sm`}>
           {tUsage("retry")}
         </button>

@@ -66,7 +66,7 @@ function SetLane({ label, slot, entry }: { label: string; slot: string; entry: b
   return (
     <li className="min-w-0 flex-1 border-r border-stone-200 px-3 py-3 text-center last:border-r-0">
       <p className={`truncate ${META_LABEL}`}>{label}</p>
-      <p className={`mt-1.5 truncate text-sm ${entry ? "font-medium text-coral" : "text-stone-400"}`}>
+      <p className={`mt-1.5 truncate text-sm ${entry ? "font-medium text-coral-ink" : "text-stone-400"}`}>
         {entry ? <UserPlus size={13} className="mr-1 inline align-[-2px]" aria-hidden /> : null}
         {"<"}
         {slot}
@@ -156,7 +156,7 @@ export function PipelineEmptyState({
           <button
             type="button"
             onClick={onStartTour}
-            className="focus-ring rounded text-sm font-semibold text-coral hover:underline"
+            className="focus-ring rounded text-sm font-semibold text-coral-ink hover:underline"
           >
             {t("tour")}
           </button>

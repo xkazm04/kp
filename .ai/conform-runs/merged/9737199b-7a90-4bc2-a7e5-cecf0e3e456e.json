@@ -1,0 +1,88 @@
+{
+  "schema": "conform-run/1",
+  "worker": "9737199b-7a90-4bc2-a7e5-cecf0e3e456e",
+  "subject": "usage-pricing-models",
+  "evaluatedAt": "2026-10-19T12:04:57.004906+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [
+    {
+      "context": "models-keys-and-routing",
+      "subject": "usage-pricing-models",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/settings/models/ModelsTab.tsx:45 Context and repository searches for graduated, groupingKey, unitPrice and arrears found no usage-pricing implementation in this context, whose sections manage routing, model quality and credentials.",
+      "techniques": [
+        {
+          "technique": "advance-billing-refuses-retroactive-models",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/modelsRoutingActions.ts:37 The action saves provider/model routing configuration rather than selecting a usage-charge model and billing timing."
+        },
+        {
+          "technique": "exact-money-with-one-rounding-boundary",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/ModelsQualityOverview.tsx:278 This formats model-cost recommendations; provider spending is explicitly outside the standard's seller-side scope."
+        },
+        {
+          "technique": "grouping-key-reruns-the-ladder",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/modelsRoutingSections.ts:83 Sections organize routing use cases for presentation, without dimensioning a priced charge."
+        },
+        {
+          "technique": "inferred-tier-boundary-convention",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/modelsRoutingActions.ts:43 The configured model is an LLM identifier, not a pricing ladder with numeric ranges."
+        }
+      ],
+      "absenceTerms": [
+        "graduated",
+        "groupingKey",
+        "unitPrice",
+        "arrears"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "usage-pricing-models",
+      "context": "billing-plan-and-spend",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor BillingTab.tsx:48 is a blank line, so it shows nothing, and the claim leaves out usage-pricing material that is in the context: included allowances, 'billed as overage' for hires (meterForecast.ts, BillingUsageMeterRow.tsx), and per-minute billing facts (SpendVoiceFacts.tsx). The seat nev"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-19T12:04:57.004906+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "usage-pricing-models"
+      ],
+      "techniques": [
+        "advance-billing-refuses-retroactive-models",
+        "exact-money-with-one-rounding-boundary",
+        "grouping-key-reruns-the-ladder",
+        "inferred-tier-boundary-convention"
+      ],
+      "deviations": 0,
+      "context": "models-keys-and-routing",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-19T12:04:57.004906+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "usage-pricing-models"
+      ],
+      "techniques": [
+        "advance-billing-refuses-retroactive-models",
+        "exact-money-with-one-rounding-boundary",
+        "grouping-key-reruns-the-ladder",
+        "inferred-tier-boundary-convention"
+      ],
+      "deviations": 0,
+      "context": "billing-plan-and-spend",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}

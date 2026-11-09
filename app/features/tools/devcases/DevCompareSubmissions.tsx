@@ -43,8 +43,8 @@ export function CompareSubmissions({
   return (
     <section>
       <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
-        <Columns3 size={13} className="text-coral" /> {t("title")}
-        <span className="text-coral">
+        <Columns3 size={13} className="text-coral-ink" /> {t("title")}
+        <span className="text-coral-ink">
           · {hidden > 0 ? t("topOf", { shown: columns.length, total: evaluatedTotal }) : columns.length}
         </span>
       </h3>
@@ -81,7 +81,7 @@ export function CompareSubmissions({
                 const label = t((band ? `band.${band}` : "band.unscored") as Parameters<typeof t>[0]);
                 const tone =
                   band === "suspect"
-                    ? "font-semibold text-coral"
+                    ? "font-semibold text-coral-ink"
                     : band === "mixed"
                       ? "font-semibold text-amber-700"
                       : band === "authentic"

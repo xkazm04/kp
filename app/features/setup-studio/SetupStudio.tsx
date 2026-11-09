@@ -133,6 +133,7 @@ function EmptyState({
       <p className={EYEBROW}>{COPY.emptyEyebrow}</p>
       <h1 className="mt-1 font-serif text-display text-ink">{title}</h1>
       <p className="mt-2 text-body text-steel">{body}</p>
+      {kind === "none" ? <p className="mt-2 text-body text-steel">{COPY.emptyOptional}</p> : null}
       <div className={`${DIVIDER} mt-4 pt-4`}>
         <p className={META_LABEL}>{COPY.emptyHowTitle}</p>
         <div className="mt-2">
@@ -294,7 +295,7 @@ export function SetupStudio() {
                   busy ? "animate-pulse bg-coral motion-reduce:animate-none" : "bg-stone-300"
                 }`}
               />
-              <p role="status" aria-live="polite" className={`text-body ${state.statusIsError ? "text-coral" : "text-steel"}`}>
+              <p role="status" aria-live="polite" className={`text-body ${state.statusIsError ? "text-coral-ink" : "text-steel"}`}>
                 {state.status}
               </p>
             </div>

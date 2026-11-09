@@ -1,0 +1,111 @@
+{
+ "schema": "conform-run/1",
+ "worker": "294ced5f-4455-4b60-97a7-413d3694aa46",
+ "subject": "presenting-a-score-to-a-recruiter",
+ "evaluatedAt": "2026-10-19T10:57:12.942893+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "match-score-shared-types",
+   "subject": "presenting-a-score-to-a-recruiter",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/shared/matchLabels.ts:72 A shorter non-empty assumption-code array silently drops trailing fallback assumptions, hiding part of the score's basis.",
+   "techniques": [
+    {
+     "technique": "absent-score-is-its-own-tier",
+     "verdict": "conformant",
+     "evidence": "app/features/shared/matchTypes.ts:198 The pipeline publication helper preserves absent and non-finite totals as null rather than inventing zero."
+    },
+    {
+     "technique": "component-sum-is-authoritative",
+     "verdict": "deviation",
+     "evidence": "app/features/shared/matchTypes.ts:28 The contract permits approximate equality; the inspected producer independently rounds contributions and total without allocating the rounding remainder."
+    },
+    {
+     "technique": "knockout-reason-categorised-at-birth",
+     "verdict": "conformant",
+     "evidence": "app/features/shared/matchLabels.ts:82 The consumer localizes the producer's category key without classifying its prose; the inspected Python producer supplies a closed category vocabulary."
+    },
+    {
+     "technique": "surface-the-assumptions-behind-the-number",
+     "verdict": "deviation",
+     "evidence": "app/features/shared/matchLabels.ts:72 With one code and two fallback assumptions, this returns only one assumption; unlike the confidence-driver resolver, it does not protect against unequal array lengths."
+    }
+   ]
+  },
+  {
+   "context": "score-metric-display",
+   "subject": "presenting-a-score-to-a-recruiter",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_components/ScoreDial.tsx:64 The dial converts an invalid score into a visible zero and lowest-band verdict instead of preserving an unassessed state.",
+   "techniques": [
+    {
+     "technique": "absent-score-is-its-own-tier",
+     "verdict": "deviation",
+     "evidence": "app/_components/ScoreDial.tsx:64 Non-finite input becomes a numeric floor score, although ScoreBadge separately supports a neutral unscored state."
+    },
+    {
+     "technique": "component-sum-is-authoritative",
+     "verdict": "conformant",
+     "evidence": "app/_components/results/extraction/ExtractionTab.tsx:60 The direct caller supplies the component sum to the dial; the inspected ResultPanel also runs reconciliation on load, and FactorChart uses fixed ceilings and a pinned axis."
+    },
+    {
+     "technique": "one-canonical-score-with-provenance",
+     "verdict": "deviation",
+     "evidence": "app/_components/ScoreProvenanceLabel.tsx:21 The label exposes producer/date or snapshot/transfer captions, but its provenance contract carries no rubric version or degraded-run status to surface."
+    },
+    {
+     "technique": "score-bands-locked-across-surfaces",
+     "verdict": "deviation",
+     "evidence": "app/_components/scoreDial.logic.ts:20 A score of 72 receives the dial's strong word while its shared scoreTone readout and ScoreBadge use the mid colour, whose strong boundary is 75."
+    },
+    {
+     "technique": "surface-the-assumptions-behind-the-number",
+     "verdict": "deviation",
+     "evidence": "app/_components/PotentialBadge.tsx:30 The display does not guard its documented fraction domain: an input of 85 becomes 8500 instead of being refused as a unit violation."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-19T10:57:12.942893+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "presenting-a-score-to-a-recruiter"
+   ],
+   "techniques": [
+    "absent-score-is-its-own-tier",
+    "component-sum-is-authoritative",
+    "knockout-reason-categorised-at-birth",
+    "surface-the-assumptions-behind-the-number"
+   ],
+   "deviations": 1,
+   "context": "match-score-shared-types",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-19T10:57:12.942893+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "presenting-a-score-to-a-recruiter"
+   ],
+   "techniques": [
+    "absent-score-is-its-own-tier",
+    "component-sum-is-authoritative",
+    "one-canonical-score-with-provenance",
+    "score-bands-locked-across-surfaces",
+    "surface-the-assumptions-behind-the-number"
+   ],
+   "deviations": 1,
+   "context": "score-metric-display",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

@@ -56,7 +56,7 @@ export function DevSubmissionRowSkillProfile({
         </a>
       ) : null}
       {dsp.status === "error" ? (
-        <span role="alert" className="text-coral">
+        <span role="alert" className="text-coral-ink">
           {errMsg({ code: dsp.code }, t("failed"))}
         </span>
       ) : null}

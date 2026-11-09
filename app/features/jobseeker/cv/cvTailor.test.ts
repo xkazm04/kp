@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildCvDocument, CV_OBJECTIVE } from "./cvDocument";
 import { demandFor, tailorCvDocument, tailorTargetsOf, targetKindOf } from "./cvTailor";
+import { REFERENCE_CVS } from "./__fixtures__/referenceCvs";
+import { checkRoundTrip, cvReadingLines } from "./cvRoundTrip";
 
 // A SYNTHETIC career changer, nobody real: eight years of analyst and QA work, then an AI
 // consultancy. The CV is written the way they lived it — the past first everywhere — and
@@ -152,6 +154,8 @@ test("a demanded term inside a bullet is marked for bold, only a demanded term, 
   let marks = 0;
   for (const r of TAILORED.doc.experience) {
     assert.ok(r.bullets.flatMap((b) => b.emphasis).length <= 2, r.role);
+    // One bold phrase per bullet (registry scan-path-hierarchy): two terms in one bullet is a keyword highlight.
+    assert.ok(r.bullets.every((b) => b.emphasis.length <= 1), r.role);
     for (const b of r.bullets) {
       for (const term of b.emphasis) {
         marks++;
@@ -257,4 +261,46 @@ test("tailoring re-ranks every bullet a role holds: a relevant line the budget h
   assert.equal(role.bullets.length + role.trimmed!.length, 7);
   // The questions follow the tailored sheet.
   assert.ok(out.doc.questions.some((q) => q.kind === "no_outcome" && q.text === "Tried an LLM prototype."));
+});
+
+// career-change-framing: the projects lead when the bridge is outside paid work - no role's
+// TITLE speaks to the target, and no role's bullets beat the best project. The history stays
+// whole and in date order below them.
+const TEACHER = REFERENCE_CVS.find((r) => r.id === "career-change")!.doc;
+const ANALYST_DEMAND = { source: "postings" as const, postings: 3, skills: [{ skill: "SQL", count: 3 }, { skill: "Power BI", count: 2 }, { skill: "Python", count: 2 }] };
+// The same teacher whose paid role is only teaching: the SQL and Python work is a project.
+const TEACHING_ONLY = {
+  ...TEACHER,
+  experience: TEACHER.experience.map((r, i) => (i === 0 ? { ...r, bullets: r.bullets.slice(2), trimmed: [] } : r)),
+  projects: [
+    { ...TEACHER.projects[0]!, bullets: [{ ...TEACHER.projects[0]!.bullets[0]!, text: "Joined two years of open bus-arrival data with weather records in SQL and Python and published the analysis." }] },
+    TEACHER.projects[1]!,
+  ],
+};
+
+test("no role title on target and the bridge is a project: the projects print above the experience", () => {
+  const out = tailorCvDocument(TEACHING_ONLY, { target: "Data Analyst", demand: ANALYST_DEMAND });
+  assert.equal(out.doc.projectsFirst, true);
+  assert.ok(out.moves.some((m) => m.move === "projectsFirst"));
+  const lines = cvReadingLines(out.doc);
+  assert.ok(lines.indexOf("Projects") < lines.indexOf("Experience"), lines.join("\n"));
+  assert.deepEqual(out.doc.experience.map((r) => r.role), TEACHER.experience.map((r) => r.role));
+  // The exported sheet still checks against its model in the new order.
+  assert.deepEqual(checkRoundTrip(out.doc, lines.join("\n")).findings, []);
+});
+
+test("a title on target, a paid role holding the stronger bridge, or no project: the experience leads", () => {
+  const onTarget = tailorCvDocument(DOC, { target: "AI Engineer", postings: POSTINGS });
+  assert.ok(!onTarget.doc.projectsFirst);
+  // The reference teacher's SQL and Power BI dashboards are paid work: they lead that role.
+  const paidBridge = tailorCvDocument(TEACHER, { target: "Data Analyst", demand: ANALYST_DEMAND });
+  assert.ok(!paidBridge.doc.projectsFirst);
+  assert.match(paidBridge.doc.experience[0]!.bullets[0]!.text, /Power BI/);
+  const noBridge = tailorCvDocument({ ...TEACHING_ONLY, projects: [] }, { target: "Data Analyst", demand: ANALYST_DEMAND });
+  assert.ok(!noBridge.doc.projectsFirst);
+  assert.ok(!noBridge.moves.some((m) => m.move === "projectsFirst"));
+  // The pass owns the flag: re-tailoring a projects-first sheet where the experience should
+  // lead clears it.
+  const reTailored = tailorCvDocument({ ...TEACHER, projectsFirst: true }, { target: "Data Analyst", demand: ANALYST_DEMAND });
+  assert.ok(!reTailored.doc.projectsFirst);
 });

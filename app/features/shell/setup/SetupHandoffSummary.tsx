@@ -58,7 +58,7 @@ function SeekHandoff({ ctrl }: { ctrl: OnboardingCtrl }) {
         </div>
       </div>
       <div className="flex items-start gap-3 rounded-lg border border-stone-200 bg-white p-4">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-coral/10 text-coral">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-coral/10 text-coral-ink">
           <FileText size={18} aria-hidden />
         </span>
         <div className="min-w-0 text-sm">
@@ -72,14 +72,14 @@ function SeekHandoff({ ctrl }: { ctrl: OnboardingCtrl }) {
         onClick={() => ctrl.finish()}
         className="focus-ring group flex w-full items-center gap-3 rounded-lg border-2 border-ink bg-paper p-4 text-left shadow-sticker-sm transition-all hover:-translate-y-0.5 hover:shadow-pop motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:-rotate-1 dark:hover:rotate-0 sm:w-auto sm:min-w-[50%]"
       >
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-coral text-white shadow-sticker-xs">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-coral-solid text-white shadow-sticker-xs">
           <Rocket size={18} aria-hidden />
         </span>
         <span className="min-w-0 flex-1 text-sm">
           <span className="block font-semibold text-ink">{t("goTitle")}</span>
           <span className="text-steel">{t("goBody")}</span>
         </span>
-        <ArrowRight size={16} aria-hidden className="shrink-0 text-coral transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" />
+        <ArrowRight size={16} aria-hidden className="shrink-0 text-coral-ink transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" />
       </button>
     </div>
   );
@@ -125,7 +125,7 @@ function HireHandoff({ ctrl }: { ctrl: OnboardingCtrl }) {
           of closing the wizard, and recognising it there is the point. */}
       {pipeline ? (
         <div className="flex items-start gap-3 rounded-lg border border-stone-200 bg-white p-4">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-coral/10 text-coral">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-coral/10 text-coral-ink">
             <Columns3 size={18} aria-hidden />
           </span>
           <div className="min-w-0 text-sm">
@@ -158,7 +158,7 @@ function HireHandoff({ ctrl }: { ctrl: OnboardingCtrl }) {
             onClick={() => ctrl.finish(() => sim.start())}
             className="focus-ring group flex items-center gap-3 rounded-lg border-2 border-ink bg-paper p-4 text-left shadow-sticker-sm transition-all hover:-translate-y-0.5 hover:shadow-pop motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:-rotate-1 dark:hover:rotate-0"
           >
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-coral text-white shadow-sticker-xs">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-coral-solid text-white shadow-sticker-xs">
               <Play size={18} aria-hidden className="translate-x-px" />
             </span>
             <span className="min-w-0 flex-1 text-sm">
@@ -174,7 +174,7 @@ function HireHandoff({ ctrl }: { ctrl: OnboardingCtrl }) {
               </span>
               <span className="text-steel">{t("tourBody")}</span>
             </span>
-            <ArrowRight size={16} aria-hidden className="shrink-0 text-coral transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" />
+            <ArrowRight size={16} aria-hidden className="shrink-0 text-coral-ink transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" />
           </button>
         ) : null}
         <button
@@ -182,14 +182,14 @@ function HireHandoff({ ctrl }: { ctrl: OnboardingCtrl }) {
           onClick={() => ctrl.finish()}
           className="focus-ring group flex items-center gap-3 rounded-lg border-2 border-stone-300 bg-white p-4 text-left transition-all hover:border-ink hover:shadow-sticker-sm motion-reduce:transition-none"
         >
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-steel/10 text-steel transition-colors group-hover:bg-coral/10 group-hover:text-coral">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-steel/10 text-steel transition-colors group-hover:bg-coral/10 group-hover:text-coral-ink">
             <Rocket size={18} aria-hidden />
           </span>
           <span className="min-w-0 flex-1 text-sm">
             <span className="block font-semibold text-ink">{t("soloTitle")}</span>
             <span className="text-steel">{t("soloBody")}</span>
           </span>
-          <ArrowRight size={16} aria-hidden className="shrink-0 text-steel transition-transform group-hover:translate-x-0.5 group-hover:text-coral motion-reduce:transition-none" />
+          <ArrowRight size={16} aria-hidden className="shrink-0 text-steel transition-transform group-hover:translate-x-0.5 group-hover:text-coral-ink motion-reduce:transition-none" />
         </button>
       </div>
     </div>

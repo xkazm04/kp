@@ -1,0 +1,113 @@
+{
+ "schema": "conform-run/1",
+ "worker": "bf8d577d-2854-489c-92b2-b3877ef5493d",
+ "subject": "agent-cli-transport",
+ "evaluatedAt": "2026-11-07T05:18:06.139952+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "channels-comms-api",
+   "subject": "agent-cli-transport",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/channels/inbound/[token]/route.ts:19 The only child process these comms/channels routes reach is a Python CV extractor; a search of app/api/comms and app/api/channels found no claude, child_process, permission-mode or allowedTools, so none of these routes spawns a coding-agent CLI as an LLM transport.",
+   "techniques": [],
+   "absenceTerms": [
+    "claude",
+    "child_process",
+    "permission-mode",
+    "allowedTools"
+   ]
+  },
+  {
+   "context": "companion-appmaster",
+   "subject": "agent-cli-transport",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "pipeline/jobfit/repo_scan.py:1271 The repo scan gets its read-only, in-repo Claude CLI session only through the provider's with_repo_access factory, narrows it further with secret-file deny rules, records which CLI version the fence was verified against, and falls back to the heuristic walk with a classified reason.",
+   "techniques": [
+    {
+     "technique": "permission-stance-enforcement",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/repo_scan.py:1271 The stance is composed behind one door (with_repo_access applies plan mode, the allowlist and the write denylist), and the scan only appends a deny-only --settings that narrows it further."
+    },
+    {
+     "technique": "dated-capability-matrix",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/repo_scan.py:296 The deny-rule behaviour is pinned to a version that was checked live (the comment dates it v2.1.258, 2026-09-02); any other version renders as unverified_version or version_unknown, never silently as verified."
+    },
+    {
+     "technique": "fallback-ladder",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/repo_scan.py:1322 The deterministic heuristic walk is the floor; source=heuristic|llm is stamped, the descent reason is classified into the closed FALLBACK_CLASSES, and the probe is the shared provider_availability predicate."
+    },
+    {
+     "technique": "host-routed-approval-round-trip",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/companion_cli.py:372 The companion chat surface makes a plain text completion; no wrapped agent emits tool approvals mid-turn."
+    },
+    {
+     "technique": "thread-custody-across-resume",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/companion_cli.py:7 session_id belongs to the host and the host sends the whole transcript on each turn; no child thread id is stored or resumed."
+    },
+    {
+     "technique": "derived-bash-allowlist",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/repo_scan.py:1260 The only agent session here is a read-only scan; no unattended editing agent runs project checks."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "agent-cli-transport",
+   "context": "devcase-orchestration",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "agent-cli-transport",
+   "context": "devcase-session-api",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "agent-cli-transport",
+   "context": "devcase-workspace",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-07T05:18:06.139952+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-cli-transport"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "channels-comms-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T05:18:06.139952+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-cli-transport"
+   ],
+   "techniques": [
+    "dated-capability-matrix",
+    "derived-bash-allowlist",
+    "fallback-ladder",
+    "host-routed-approval-round-trip",
+    "permission-stance-enforcement",
+    "thread-custody-across-resume"
+   ],
+   "deviations": 0,
+   "context": "companion-appmaster",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

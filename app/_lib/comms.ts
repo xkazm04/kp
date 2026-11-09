@@ -1,7 +1,12 @@
 import { recordOutbox, type OutboxEntry } from "./db/devcase";
 import { getEntryWorkspace, getPipelineEntry } from "./db/pipeline";
 import { COMMS_RELAY_RETRY, isRetryableHttpStatus, type OutboxStatus } from "./comms-status";
-import { resolveRelay } from "./comms-relay";
+import { resolveTransport } from "./comms-relay";
+import type { SmtpPrivateConfig } from "./comms-smtp-store";
+import { recordSmtpAttempt, smtpSuppressionFor, suppressSmtpAddress } from "./comms-smtp-store";
+import { describeSmtpOutcome, isPermanentRecipientRejection, redactSecrets, type SmtpMessage, type SmtpOutcome } from "./comms-smtp";
+import { deliverOverSmtp } from "./comms-smtp-delivery";
+import { isDeliverableAddress } from "./comms-recipient";
 import { buildCommEnvelope, IDEMPOTENCY_HEADER, type CommEnvelope } from "./comms-envelope";
 import { randomId } from "./random-id";
 import { SIGNATURE_HEADER, signWebhookBody, TIMESTAMP_HEADER } from "./ats-webhook";
@@ -10,6 +15,7 @@ import { candidateOutreachSuppression } from "./rediscovery-alert-store";
 import { outreachHaltFor } from "./outreach-state-store";
 import { cleanOutreachBody, outreachBodyRefusal } from "./outreach-body";
 import { assertPublicHttpsEndpointResolved, type HostLookup } from "./ats-egress-guard";
+import { pinnedRequest } from "./pinned-request";
 import { orgIdForWorkspace } from "./db/org-benchmarks";
 import { DEFAULT_ORG_ID } from "./db/organizations";
 
@@ -101,6 +107,9 @@ class OutboxChannel implements CommsChannel {
       status: "queued",
       ref: msg.ref,
       workspaceId: msg.workspaceId,
+      // Minted here too: the keyless local outbox is the same message identity, so a row
+      // that is later relayed (or re-sent) is one thing, not two.
+      messageId: msg.messageId?.trim() || randomId("msg"),
     });
   }
 }
@@ -130,6 +139,14 @@ let relayHostLookup: HostLookup | undefined;
  *  delivery guard uses. Never called by production code. */
 export function setRelayHostLookupForTests(fn: HostLookup | undefined): void {
   relayHostLookup = fn;
+}
+
+/** The delivery-time vet of a relay URL — https, public NAME, and every address it
+ *  resolves to public. Shared with the relay probe (POST /api/comms/relay/test) so the
+ *  probe cannot reach a host the delivery would refuse: a rebinding name used to pass
+ *  the probe's string-only check and earn a signed POST plus its HTTP status back. */
+export async function assertRelayEndpointResolved(url: string): Promise<string> {
+  return assertPublicHttpsEndpointResolved(url, "relay url", relayHostLookup);
 }
 
 // E8 — the wire payload is the versioned kp.comm.v1 envelope (comms-envelope.ts,
@@ -181,17 +198,16 @@ class WebhookChannel implements CommsChannel {
    *  two org ids and nothing else: operator vocabulary, no candidate data. */
   private crossOrgRefusal(msg: OutboundMessage): string | null {
     if (!this.orgScoped) return null;
-    const owner = this.ownerOrgId ?? DEFAULT_ORG_ID;
-    const tenant = msg.ref ? getEntryWorkspace(msg.ref) : (msg.workspaceId ?? undefined);
-    const messageOrg = orgIdForWorkspace(tenant ?? undefined) ?? DEFAULT_ORG_ID;
-    if (owner === messageOrg) return null;
-    return (
-      `the configured comms relay belongs to organization "${owner}", but this message belongs to ` +
-      `organization "${messageOrg}" — a candidate message is never relayed to another organization's endpoint`
-    );
+    return crossOrgRefusalFor(this.ownerOrgId, msg, "comms relay", "relayed to another organization's endpoint");
   }
 
   async send(msg: OutboundMessage): Promise<OutboxEntry> {
+    // Minted ONCE per logical message, before ANY outcome — a refusal row carries it too,
+    // so every outbox write names the message it concerns — and persisted on the row
+    // (dev_outbox.message_id) so a relay receipt can echo it back. Every attempt of the
+    // ladder below carries the same identity. A caller re-sending an already recorded
+    // message passes its id in and the receiver sees the repeat.
+    const messageId = msg.messageId?.trim() || randomId("msg");
     // The ORG boundary, checked before the envelope is BUILT (it enriches with the
     // candidate's own data) and long before any fetch. A refusal is a DEAD LETTER, not a
     // silent return: the alert fires and the reason rides the row, because "why did org
@@ -209,6 +225,7 @@ class WebhookChannel implements CommsChannel {
         ref: msg.ref,
         failureDetail: crossOrg,
         workspaceId: msg.workspaceId,
+        messageId,
       });
     }
     // `ref` is the pipeline entry id for every pipeline dispatcher; dev-case and
@@ -220,10 +237,6 @@ class WebhookChannel implements CommsChannel {
     // for every ordinary candidate comm, so on any other workspace the lookup missed
     // and EVERY relayed message shipped an envelope with no candidate, role or stage —
     // leaving the receiving ATS unable to map it back to a person.
-    // Minted ONCE per logical message, before the first attempt, so every attempt of
-    // the ladder below carries the same identity. A caller re-sending an already
-    // recorded message passes its id in and the receiver sees the repeat.
-    const messageId = msg.messageId?.trim() || randomId("msg");
     const envelope = buildCommEnvelope(
       msg,
       msg.ref ? getPipelineEntry(msg.ref, getEntryWorkspace(msg.ref)) : null,
@@ -247,6 +260,7 @@ class WebhookChannel implements CommsChannel {
       ref: msg.ref,
       failureDetail: detail,
       workspaceId: msg.workspaceId,
+      messageId,
     });
   }
 
@@ -260,7 +274,7 @@ class WebhookChannel implements CommsChannel {
     // A refusal here is a dead letter, not a silent drop — `send` escalates every
     // `failed` through alertDeadLetter, and the reason rides the outbox row.
     try {
-      await assertPublicHttpsEndpointResolved(this.url, "relay url", relayHostLookup);
+      await assertRelayEndpointResolved(this.url);
     } catch (err) {
       return {
         status: "failed",
@@ -287,8 +301,24 @@ class WebhookChannel implements CommsChannel {
       try {
         // A FRESH signal per attempt: AbortSignal.timeout starts counting when it is
         // created, so one hoisted signal would give attempt 3 no budget at all.
-        const r = await fetch(this.url, { method: "POST", headers, body, signal: AbortSignal.timeout(timeoutMs) });
+        // No redirect plus a pinned address is the SSRF boundary. `pinnedRequest`
+        // resolves the host ONCE inside the request, refuses any private answer and
+        // dials that address — fetch's own second lookup was a gap a rebinding name
+        // could win after the vet above. It never follows a redirect: a followed
+        // 307/308 would re-POST the signed envelope (candidate PII) to an unvetted,
+        // possibly internal host — on every attempt of the ladder.
+        const r = await pinnedRequest(this.url, { method: "POST", headers, body, signal: AbortSignal.timeout(timeoutMs) }, { resolve: relayHostLookup });
         if (r.ok) return { status: "sent", attempts: attempt, detail: "" };
+        // A redirect surfaces as a 3xx (status 0 is kept as a refusal too: it is never a
+        // real HTTP answer). Permanent: retrying only repeats it, so dead-letter at once
+        // with no backoff.
+        if (r.status === 0 || (r.status >= 300 && r.status < 400)) {
+          return {
+            status: "failed",
+            attempts: attempt,
+            detail: `relay answered with a redirect (http ${r.status}); redirects are refused`,
+          };
+        }
         detail = `http ${r.status}`;
         // Permanent (caller/config) error — retrying changes nothing, dead-letter now.
         if (!isRetryableHttpStatus(r.status)) return { status: "failed", attempts: attempt, detail };
@@ -315,19 +345,156 @@ class WebhookChannel implements CommsChannel {
   // not reach the relay. Loud (console.error) + durable (comms.log) so a dropped offer
   // or rejection is visible, not quietly swallowed.
   private async alertDeadLetter(msg: OutboundMessage, attempts: number, detail: string): Promise<void> {
-    console.error(`[comms] DEAD-LETTER: ${msg.kind} to "${msg.to}" (ref=${msg.ref ?? "—"}) failed after ${attempts} attempt(s): ${detail}`);
+    // One log line per event: a recipient, ref or relay detail carrying a line break must not forge a second.
+    const oneLine = (v: string) => v.replace(/\r|\n/g, " ");
+    console.error(`[comms] DEAD-LETTER: ${oneLine(String(msg.kind))} to "${oneLine(msg.to)}" (ref=${oneLine(msg.ref ?? "—")}) failed after ${oneLine(String(attempts))} attempt(s): ${oneLine(detail)}`);
     await logComms({ kind: msg.kind, recipient: msg.to, ref: msg.ref ?? null, channel: this.name, status: "failed", attempts, detail });
   }
 }
 
+/** F-2's rule, shared by every org-owned destination: the message's org (resolved the way
+ *  its outbox row is filed: `ref` first, `workspaceId` only for an entry-less comm) must be
+ *  the org that saved the destination. NULL on either side is the default org. Returns the
+ *  dead-letter reason, or null when the send is allowed. */
+function crossOrgRefusalFor(ownerOrgId: string | null, msg: OutboundMessage, destination: string, never: string): string | null {
+  const owner = ownerOrgId ?? DEFAULT_ORG_ID;
+  const tenant = msg.ref ? getEntryWorkspace(msg.ref) : (msg.workspaceId ?? undefined);
+  const messageOrg = orgIdForWorkspace(tenant ?? undefined) ?? DEFAULT_ORG_ID;
+  if (owner === messageOrg) return null;
+  return (
+    `the configured ${destination} belongs to organization "${owner}", but this message belongs to ` +
+    `organization "${messageOrg}" — a candidate message is never ${never}`
+  );
+}
+
+// T6 — the built-in SMTP sender (comms-smtp*.ts): a mailbox the owner already has. Same
+// contract as the relay, said in SMTP:
+//   • sent   — ONLY when the server answered 250 after the end-of-data dot.
+//   • failed — refused before any connection (another org's message, no address on
+//              record, a suppressed address, a host that resolves privately), a permanent
+//              5xx, or a transient failure (4xx, network, timeout) that survived
+//              COMMS_RELAY_RETRY. The reason, with the reply code and text, rides the row.
+//              A 5xx at RCPT/DATA is the recipient's address refused for good: the address
+//              joins the sender's suppression list and the next letter to it is refused
+//              by name. That is a synchronous rejection, so it is `failed`, not the async
+//              `bounced` receipt a relay files later (comms-status.ts).
+// The password never reaches a row, a log or an alert: the client redacts every text.
+class SmtpChannel implements CommsChannel {
+  readonly name = "smtp";
+  constructor(private readonly cfg: SmtpPrivateConfig) {}
+
+  async send(msg: OutboundMessage): Promise<OutboxEntry> {
+    const messageId = msg.messageId?.trim() || randomId("msg");
+    const record = (status: OutboxStatus, failureDetail: string | null) =>
+      recordOutbox({
+        recipient: msg.to,
+        subject: msg.subject,
+        body: msg.body,
+        kind: msg.kind,
+        channel: this.name,
+        status,
+        ref: msg.ref,
+        failureDetail,
+        workspaceId: msg.workspaceId,
+        messageId,
+      });
+    const refuse = async (detail: string, log = true): Promise<OutboxEntry> => {
+      if (log) recordSmtpAttemptSafe({ kind: msg.kind, to: msg.to, messageId, outcome: "refused", stage: null, code: null, text: detail });
+      await this.alertDeadLetter(msg, 0, detail);
+      return record("failed", detail);
+    };
+    // Not logged on the sender's attempt list: that list is the OWNER org's to read, and
+    // this message belongs to another one.
+    const crossOrg = crossOrgRefusalFor(this.cfg.ownerOrgId, msg, "SMTP sender", "sent from another organization's mailbox");
+    if (crossOrg) return refuse(crossOrg, false);
+    const to = msg.to.trim();
+    if (!isDeliverableAddress(to)) {
+      return refuse("refused: no_address — this candidate has no email address on record; nothing was handed to the SMTP server");
+    }
+    const suppressed = smtpSuppressionFor(to);
+    if (suppressed) {
+      return refuse(
+        `refused: suppressed — ${suppressed.address} was permanently rejected by the mail server on ${suppressed.at.slice(0, 10)} ` +
+          `(smtp ${suppressed.code ?? "?"}); remove it from the suppression list on the Channels tab to send again`
+      );
+    }
+    // The unsubscribe headers come from the one place that formats them for the relay.
+    const envelope = buildCommEnvelope(msg, null, new Date().toISOString(), messageId);
+    const message: SmtpMessage = {
+      from: this.cfg.address,
+      fromName: this.cfg.fromName,
+      to,
+      subject: msg.subject,
+      body: msg.body,
+      messageId,
+      listUnsubscribe: envelope.listUnsubscribe,
+      listUnsubscribePost: envelope.listUnsubscribePost,
+    };
+    let last: SmtpOutcome | null = null;
+    let attempts = 0;
+    for (let attempt = 1; attempt <= COMMS_RELAY_RETRY.maxAttempts; attempt++) {
+      attempts = attempt;
+      const raw = await deliverOverSmtp(this.cfg, message);
+      // Defense in depth: the client already redacts, and nothing below may depend on it.
+      last = { ...raw, text: redactSecrets(raw.text, [this.cfg.password]) };
+      const final = last.ok || last.permanent || attempt === COMMS_RELAY_RETRY.maxAttempts;
+      recordSmtpAttemptSafe({
+        kind: msg.kind,
+        to,
+        messageId,
+        outcome: last.ok ? "sent" : final ? "failed" : "retry",
+        stage: last.ok ? null : last.stage,
+        code: last.code,
+        text: last.text,
+      });
+      if (final) break;
+      await delay(COMMS_RELAY_RETRY.baseDelayMs * 2 ** (attempt - 1));
+    }
+    if (last?.ok) return record("sent", null);
+    let detail = last ? describeSmtpOutcome(last) : "smtp: no attempt ran";
+    if (last && isPermanentRecipientRejection(last)) {
+      try {
+        suppressSmtpAddress(to, last.code, last.text);
+        detail = `bounced: ${detail}; ${to.toLowerCase()} is now on the suppression list`;
+      } catch (err) {
+        console.error(`[comms] could not add a rejected address to the SMTP suppression list:`, err);
+      }
+    }
+    await this.alertDeadLetter(msg, attempts, detail);
+    return record("failed", detail);
+  }
+
+  private async alertDeadLetter(msg: OutboundMessage, attempts: number, detail: string): Promise<void> {
+    const oneLine = (v: string) => v.replace(/\r|\n/g, " ");
+    console.error(`[comms] DEAD-LETTER: ${oneLine(String(msg.kind))} to "${oneLine(msg.to)}" (ref=${oneLine(msg.ref ?? "—")}) failed after ${oneLine(String(attempts))} attempt(s) over smtp: ${oneLine(detail)}`);
+    await logComms({ kind: msg.kind, recipient: msg.to, ref: msg.ref ?? null, channel: this.name, status: "failed", attempts, detail });
+  }
+}
+
+/** The attempt list is operator telemetry: a broken store must never fail a send. */
+function recordSmtpAttemptSafe(attempt: Parameters<typeof recordSmtpAttempt>[0]): void {
+  try {
+    recordSmtpAttempt(attempt);
+  } catch (err) {
+    console.error(`[comms] could not record an SMTP attempt:`, err);
+  }
+}
+
 export function getCommsChannel(): CommsChannel {
-  // Capability resolved through the shared resolver (comms-relay.ts: env →
-  // stored config → nothing) so channel selection and every UI "sent" claim key
-  // off the SAME bit.
-  const relay = resolveRelay();
+  // Capability resolved through the shared resolver (comms-relay.ts: relay env → relay
+  // stored config → SMTP sender → nothing) so channel selection and every UI "sent" claim
+  // key off the SAME bit. With both a relay and SMTP configured the RELAY wins: see the
+  // PRECEDENCE note in comms-relay.ts.
+  const transport = resolveTransport();
   // F-2: a STORED relay belongs to the org that saved it and is org-checked at delivery;
-  // an env relay is host-level and is not (WebhookChannel.crossOrgRefusal).
-  return relay ? new WebhookChannel(relay.url, relay.secret, relay.ownerOrgId, relay.source === "config") : new OutboxChannel();
+  // an env relay is host-level and is not (WebhookChannel.crossOrgRefusal). The SMTP
+  // sender is always stored, so always org-checked.
+  if (transport.kind === "relay") {
+    const r = transport.relay;
+    return new WebhookChannel(r.url, r.secret, r.ownerOrgId, r.source === "config");
+  }
+  if (transport.kind === "smtp") return new SmtpChannel(transport.smtp);
+  return new OutboxChannel();
 }
 
 // ---- THE SEND PRECONDITION -----------------------------------------------------

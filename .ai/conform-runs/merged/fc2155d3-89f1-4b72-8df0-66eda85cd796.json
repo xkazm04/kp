@@ -1,0 +1,76 @@
+{
+ "schema": "conform-run/1",
+ "worker": "fc2155d3-89f1-4b72-8df0-66eda85cd796",
+ "subject": "public-work-evidence-bounding",
+ "evaluatedAt": "2026-10-23T21:21:50.453709+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "skill-profile-public-page",
+   "subject": "public-work-evidence-bounding",
+   "bundle": "recruiting",
+   "state": "not-applicable",
+   "evidence": "app/_lib/skill-profile.ts:46 Searches found no public-work terms in app/skill, while repository-wide matches exist elsewhere; this page presents a credential derived from a graded assessment rather than reviewing public output.",
+   "techniques": [
+    {
+     "technique": "absent-signal-versus-unavailable-source",
+     "verdict": "not-applicable",
+     "evidence": "app/skill/[token]/page.tsx:43 Reads an issued credential; the page's throttle concerns incoming requests, not fetching public work."
+    },
+    {
+     "technique": "corroborate-a-claim-never-replace-it",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/skill-profiles.ts:278 Credential content comes from the submission evaluation, without combining candidate claims with public output."
+    },
+    {
+     "technique": "declare-the-evidence-budget-in-the-artifact",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/skill-profile.ts:46 Uses assessment dimension scores rather than selecting and inspecting public artifacts."
+    },
+    {
+     "technique": "organisation-output-is-not-one-persons-work",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/skill-profiles.ts:242 Mints from an evaluated process submission; this surface performs no attribution of collective public output."
+    },
+    {
+     "technique": "public-work-is-optional-evidence-not-a-requirement",
+     "verdict": "not-applicable",
+     "evidence": "app/skill/[token]/page.tsx:89 Displays existing credential axes without requesting public links or weighting public-work availability."
+    },
+    {
+     "technique": "verify-identity-before-crediting-work",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/skill-profiles.ts:376 Verifies credential integrity, not ownership of an external public account; the technique explicitly excludes general identity proofing."
+    }
+   ],
+   "absenceTerms": [
+    "github",
+    "portfolio",
+    "publication"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-23T21:21:50.453709+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "public-work-evidence-bounding"
+   ],
+   "techniques": [
+    "absent-signal-versus-unavailable-source",
+    "corroborate-a-claim-never-replace-it",
+    "declare-the-evidence-budget-in-the-artifact",
+    "organisation-output-is-not-one-persons-work",
+    "public-work-is-optional-evidence-not-a-requirement",
+    "verify-identity-before-crediting-work"
+   ],
+   "deviations": 0,
+   "context": "skill-profile-public-page",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

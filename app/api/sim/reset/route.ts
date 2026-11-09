@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { beginSimRun, endSimRun, renewSimRun, resetSim, simResidue, simRunActive, simRunOwnedBy } from "@/app/_lib/sim-store";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { SIM_RUN_TOKEN_HEADER } from "@/app/features/shell/simulation/simRunLease";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 
 /** The lease token a claimant presents to release or renew its own run. A header, not the URL:
  *  it keeps the token out of access logs and lets DELETE stay bodyless. */
@@ -28,9 +28,8 @@ function leaseToken(request: NextRequest): string | null {
 //   residue              what a previous walk left behind, so an idle console can
 //                        offer the Reset that clears it instead of hiding until
 //                        someone starts a run they did not want
-export async function GET(request: NextRequest) {
+export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
   try {
-    const ws = await currentWorkspace();
     const run = simRunActive(ws);
     const token = leaseToken(request);
     return NextResponse.json({
@@ -46,7 +45,7 @@ export async function GET(request: NextRequest) {
     // resolves it in the reader's language either way.
     return safeJsonError(error, "api:sim/reset", "SIM_RESET_FAILED");
   }
-}
+});
 
 // Clear all artifacts from prior simulation runs so the demo re-runs cleanly, and
 // hold the workspace's RUN LOCK while a walk is live.
@@ -91,9 +90,8 @@ export async function GET(request: NextRequest) {
 // from the other side, and it carries the same `retryAfterSeconds`.
 //
 // The lock is in-process and TTL-bounded (SIM_RUN_TTL_MS).
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   try {
-    const ws = await currentWorkspace();
     const body = (await request.json().catch(() => null)) as { hold?: boolean; renew?: boolean; keep?: boolean } | null;
 
     // Renew first: it neither claims nor purges, so it must not fall through to the
@@ -151,7 +149,7 @@ export async function POST(request: NextRequest) {
     // is what clears it.
     return safeJsonError(error, "api:sim/reset", "SIM_RESET_FAILED");
   }
-}
+});
 
 // The run ended. Idempotent for the OWNER: a walk that failed, was stopped or
 // finished all release the same way, and releasing a lease that already expired (or
@@ -160,11 +158,10 @@ export async function POST(request: NextRequest) {
 // What it is no longer is unconditional. A caller with no token, or another run's
 // token, cannot free a LIVE lease — that request comes from a tab whose own start
 // was refused, and honouring it is the wave-22 regression restored.
-export async function DELETE(request: NextRequest) {
-  const ws = await currentWorkspace();
+export const DELETE = withWorkspace(async (ws: string, request: NextRequest) => {
   const released = endSimRun(ws, leaseToken(request));
   if (!released.released) {
     return jsonRefusal("SIM_RUN_NOT_OWNER", 409, { retryAfterSeconds: Math.ceil(released.retryAfterMs / 1000) });
   }
   return NextResponse.json({ ok: true, released: true });
-}
+});

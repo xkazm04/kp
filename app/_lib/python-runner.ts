@@ -1,10 +1,10 @@
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { positiveNumericEnv } from "./env";
-import { currentLlmRequestId, currentSpawnLane, type SpawnLane } from "./llm-request-context";
+import { currentLlmRequestId, currentLlmRoleRunId, currentSpawnLane, type SpawnLane } from "./llm-request-context";
 import { opsLog } from "./ops-telemetry";
 
 // Fold a finished spawn's LLM-usage sidecar (NDJSON written by Python's
@@ -12,18 +12,115 @@ import { opsLog } from "./ops-telemetry";
 // import so the generic process runner doesn't eagerly pull in the DB layer, and
 // non-blocking — the metering ledger is telemetry and must never affect the
 // spawn it rides on. A spawn with no LLM call leaves no file (a harmless no-op).
-async function ingestUsageLog(logPath: string): Promise<void> {
+async function ingestUsageLog(logPath: string, roleRunId: string | null = null): Promise<void> {
   try {
     const { ingestLlmUsageLog } = await import("./db/llm");
-    ingestLlmUsageLog(logPath);
+    ingestLlmUsageLog(logPath, roleRunId);
   } catch (err) {
     opsLog("warn", "ledger:write:failed", { err: String(err) });
   }
 }
 
-// Read per spawn, so a test's stand-in applies without re-importing the runner.
-function pythonCmd(): string {
-  return process.env.PYTHON_CMD ?? (process.platform === "win32" ? "python" : "python3");
+// ── Interpreter resolution ─────────────────────────────────────────────────────
+// Mirrors scripts/schemas-gen.mjs so the build and the runtime agree on which Python
+// they mean. A NAMED interpreter wins outright and is NOT probed: PYTHON_CMD (the
+// runtime's historical name, and the stand-in ~10 tests set) first, then KP_PYTHON (the
+// name AGENTS.md documents). The order is the REVERSE of schemas-gen.mjs on purpose: a
+// developer who exported KP_PYTHON for the build must not override a test's PYTHON_CMD
+// stand-in. It is read
+// per spawn, so a test's stand-in (`node`, a bogus binary) applies without
+// re-importing the runner. Otherwise the platform's candidates are probed with
+// `--version` ONCE and the winner is cached for the process lifetime — the runner
+// spawns per request, and a probe per request would double every spawn. A miss is
+// not cached, so an owner who installs Python mid-session is picked up on the next
+// request without a restart. The probe is what skips the Windows Store `python`
+// placeholder: it exists on PATH, exits non-zero and prints a Store message.
+
+/** One way to invoke an interpreter: the binary plus any argv it needs first (`py -3`). */
+export interface PythonCandidate {
+  cmd: string;
+  prefixArgs: string[];
+}
+
+/** A `--version` probe's outcome, shaped like spawnSync's result. */
+export interface PythonProbeResult {
+  status: number | null;
+  stdout?: string | null;
+  stderr?: string | null;
+  error?: unknown;
+}
+export type PythonProbe = (cmd: string, args: string[]) => PythonProbeResult;
+
+/** The floor CI pins above (3.12) and every hint names: 3.11+. */
+const PYTHON_MIN_VERSION = 311;
+
+export const PYTHON_NOT_FOUND_SENTENCE =
+  "Python 3.11+ was not found on PATH; install it from python.org or set KP_PYTHON.";
+
+export function pythonAutoCandidates(platform: NodeJS.Platform = process.platform): PythonCandidate[] {
+  return platform === "win32"
+    ? [
+        { cmd: "python", prefixArgs: [] },
+        { cmd: "python3", prefixArgs: [] },
+        { cmd: "py", prefixArgs: ["-3"] },
+      ]
+    : [
+        { cmd: "python3", prefixArgs: [] },
+        { cmd: "python", prefixArgs: [] },
+      ];
+}
+
+/** `major*100 + minor` from a `Python x.y.z` banner; `null` when there is none. */
+export function parsePythonVersion(text: string | null | undefined): number | null {
+  const m = /Python\s+(\d+)\.(\d+)/.exec(String(text ?? ""));
+  return m ? Number(m[1]) * 100 + Number(m[2]) : null;
+}
+
+/** Process-lifetime memo of the auto-discovered interpreter. Only a hit is stored. */
+export interface PythonResolutionCache {
+  winner?: PythonCandidate;
+}
+
+/** Pure resolver: the named override, else the cached winner, else the first candidate
+ *  whose `--version` probe exits 0 at 3.11+. `null` when nothing qualifies. */
+export function resolvePythonCandidate(deps: {
+  env: Record<string, string | undefined>;
+  platform: NodeJS.Platform;
+  probe: PythonProbe;
+  cache: PythonResolutionCache;
+}): PythonCandidate | null {
+  const named = deps.env.PYTHON_CMD?.trim() || deps.env.KP_PYTHON?.trim();
+  if (named) return { cmd: named, prefixArgs: [] };
+  if (deps.cache.winner) return deps.cache.winner;
+  for (const candidate of pythonAutoCandidates(deps.platform)) {
+    let res: PythonProbeResult;
+    try {
+      res = deps.probe(candidate.cmd, [...candidate.prefixArgs, "--version"]);
+    } catch {
+      continue; // a probe that throws is a candidate that is not there
+    }
+    // ENOENT is res.error; the Store placeholder answers non-zero with no banner.
+    if (res.error || res.status !== 0) continue;
+    // Python < 3.4 printed the banner on stderr; read both.
+    const version = parsePythonVersion(`${res.stdout ?? ""}\n${res.stderr ?? ""}`);
+    if (version == null || version < PYTHON_MIN_VERSION) continue;
+    deps.cache.winner = candidate;
+    return candidate;
+  }
+  return null;
+}
+
+const runtimePythonCache: PythonResolutionCache = {};
+const runtimePythonProbe: PythonProbe = (cmd, args) =>
+  spawnSync(cmd, args, { encoding: "utf8", timeout: 10_000, windowsHide: true, shell: false });
+
+function pythonCmd(): PythonCandidate | null {
+  return resolvePythonCandidate({
+    env: process.env,
+    platform: process.platform,
+    probe: runtimePythonProbe,
+    cache: runtimePythonCache,
+  });
 }
 
 // LLM-usage metering is ON BY DEFAULT: every spawn gets a per-call sidecar path so
@@ -137,7 +234,10 @@ export async function cleanupWorkdir(workdir: string): Promise<void> {
     console.warn("[python-runner] refused to delete a path that is not a jobfit workdir");
     return;
   }
-  await rm(workdir, { recursive: true, force: true });
+  // Retries: on Windows a just-exited child's handles release a beat late (EBUSY/EPERM),
+  // and this runs in runJobfitCli's `finally` — a throw here would REPLACE the
+  // PipelineError the caller is meant to see.
+  await rm(workdir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 }
 
 export async function persistFile(workdir: string, file: File, baseName: string): Promise<string> {
@@ -481,6 +581,9 @@ export function spawnPython(
   const llmRequestId = currentLlmRequestId();
   // The admission lane, read at the same synchronous moment for the same reason.
   const lane = currentSpawnLane();
+  // The role run these metered calls belong to, read at the same synchronous moment
+  // (llm-request-context.ts, "The role run"); null outside a run.
+  const roleRunId = currentLlmRoleRunId();
   // Admission first, fork second (see the semaphore header): the interpreter is not
   // started until a slot is held, which is the whole point — counting spawns after
   // starting them would bound nothing.
@@ -502,7 +605,7 @@ export function spawnPython(
   // sidecar, and ingestUsageLog treats a missing file as a no-op.
   // Skip ingest entirely when the operator opted out — usageLogPath is their token
   // (e.g. "0"), not a real sidecar, so there is nothing to fold in.
-  if (!optOut) void result.finally(() => ingestUsageLog(usageLogPath)).catch(() => {});
+  if (!optOut) void result.finally(() => ingestUsageLog(usageLogPath, roleRunId)).catch(() => {});
   return { result };
 }
 
@@ -526,7 +629,16 @@ function runPythonChild(
   usageLogPath: string,
   llmRequestId: string | null,
 ): Promise<SpawnResult> {
-  const child = spawn(pythonCmd(), args, {
+  const python = pythonCmd();
+  if (!python) {
+    // No interpreter qualified: say WHAT is missing, once, in plain words — to the
+    // terminal the owner is watching and to ops-warn.log. The caller still gets the
+    // same spawn_failed kind (ENGINE_FAILED on the wire); no new client code.
+    console.error(`[python-runner] ${PYTHON_NOT_FOUND_SENTENCE}`);
+    logSpawnFailure("spawn_failed", args, PYTHON_NOT_FOUND_SENTENCE);
+    return Promise.reject(new SpawnFailure("spawn_failed", "Python process could not be started"));
+  }
+  const child = spawn(python.cmd, [...python.prefixArgs, ...args], {
     // cwd defaults to the parent's process.cwd() (the project root, where the
     // `pipeline` package is importable for `python -m`); passing it explicitly is
     // redundant and made Turbopack's file tracer over-include the project root.
@@ -720,4 +832,53 @@ export function parseStderrError(stderr: string, exitCode: number | null): Pytho
     status,
     code: codeForStatus(status),
   };
+}
+
+// ── runJobfitCli: the one spawn envelope ──────────────────────────────────────
+// Every jobfit CLI runner used to hand-copy createWorkdir → write JSON args →
+// spawnPython → exit check → parse → cleanup, and the copies drifted: 14 runners
+// passed no timeoutMs and so inherited the 10-minute DEFAULT_TIMEOUT_MS hang
+// backstop (analyze-run.ts documents the defect that caused). `timeoutMs` is REQUIRED
+// here, so a missing deadline is a type error instead of a review finding.
+
+export type RunJobfitCliOptions<T> = {
+  /** JSON files to write into the workdir, keyed by name (`job` → `job.json`). Their
+   *  absolute paths reach `args` when it is a function. */
+  inputs?: Record<string, unknown>;
+  /** REQUIRED wall-clock deadline in ms (a deadline, not the default hang backstop). */
+  timeoutMs: number;
+  signal?: AbortSignal;
+  env?: Record<string, string | undefined>;
+  /** Narrow the parsed stdout JSON into the caller's type. Defaults to a plain assertion
+   *  of `T`, which is only as safe as the CLI's contract; pass a guard at a data boundary. */
+  parse?: (raw: unknown) => T;
+};
+
+/** Run a jobfit CLI to completion: fresh workdir, JSON input files, spawn with the
+ *  required deadline, non-zero exit => PipelineError(parseStderrError), parse stdout,
+ *  and the workdir is removed on success AND failure. `args` is the argv, or a function
+ *  of the input file paths (and the workdir) when flags need them. */
+export async function runJobfitCli<T>(
+  args: string[] | ((paths: Record<string, string>, workdir: string) => string[]),
+  opts: RunJobfitCliOptions<T>,
+): Promise<T> {
+  const workdir = await createWorkdir();
+  try {
+    const paths: Record<string, string> = {};
+    for (const [name, value] of Object.entries(opts.inputs ?? {})) {
+      const file = path.join(workdir, `${name}.json`);
+      await writeFile(file, JSON.stringify(value), "utf-8");
+      paths[name] = file;
+    }
+    const argv = typeof args === "function" ? args(paths, workdir) : args;
+    const { result } = spawnPython(argv, { timeoutMs: opts.timeoutMs, signal: opts.signal, env: opts.env });
+    const { stdout, stderr, exitCode } = await result;
+    if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
+    const raw = parsePythonJson<unknown>(stdout, stderr);
+    // Boundary: stdout is the CLI's JSON envelope; without a `parse` guard the caller
+    // vouches for its shape via T.
+    return opts.parse ? opts.parse(raw) : (raw as T);
+  } finally {
+    await cleanupWorkdir(workdir);
+  }
 }

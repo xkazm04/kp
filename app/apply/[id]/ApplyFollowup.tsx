@@ -73,7 +73,7 @@ export function ApplyFollowup({
             })}
           </div>
           {error ? (
-            <p role="alert" className="mt-2 text-sm text-coral">
+            <p role="alert" className="mt-2 text-sm text-coral-ink">
               {error}
             </p>
           ) : null}

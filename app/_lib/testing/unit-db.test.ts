@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, utimesSync, rmSync, readFileSync, readdirSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { mkdirSync, mkdtempSync, writeFileSync, utimesSync, rmSync, readFileSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -120,4 +121,109 @@ test("no test file derives a temp DB path from process.pid (pid recycling — 7c
       "as the FIRST project import (DB_PATH freezes at db-path.ts module-eval).\n" +
       offenders.join("\n")
   );
+});
+
+// --- One suite per machine: concurrent launchers take turns -------------------------
+//
+// The python-runner, templates-isolation and devcase comms flakes of 2026-10-17/18 each
+// passed alone and failed only in a gate that ran beside another lane's gate. Reproduced
+// on the 16-core dev box: three full suites started together failed 3/3 (python-runner
+// wall-clock bounds: "Python process timed out after 4s", the 80 ms background bound);
+// one or two at a time never did. The isolation fixtures above were all clean - nothing
+// was shared but the CPU. scripts/run-unit-tests.mjs now holds a machine-wide slot for
+// the whole run, and this pins it from the outside: two launchers started together must
+// run one after the other.
+//
+// RED-FIRST: on the launcher without the slot, both fixture runs overlap and the
+// first test fails on the overlap assertion.
+const REPO_ROOT = path.resolve(TESTING_DIR, "..", "..", "..");
+
+type LauncherRun = { code: number | null; out: string };
+
+/** Start the real launcher on one file, contending for the slot at `slotDir` (never the
+ *  machine's real slot, which the suite running this file holds). */
+function launch(file: string, slotDir: string, extraEnv: Record<string, string> = {}): Promise<LauncherRun> {
+  const env: NodeJS.ProcessEnv = { ...process.env, KP_TEST_SLOT_DIR: slotDir, KP_FLAKE_RERUN: "0", ...extraEnv };
+  // This file runs inside a launcher that holds its own slot; a child that inherited
+  // the marker would skip the slot and prove nothing.
+  if (!("KP_TEST_SLOT_HELD" in extraEnv)) delete env.KP_TEST_SLOT_HELD;
+  delete env.KP_TEST_SLOT;
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, ["scripts/run-unit-tests.mjs", file], { cwd: REPO_ROOT, env });
+    let out = "";
+    child.stdout.on("data", (d) => (out += d));
+    child.stderr.on("data", (d) => (out += d));
+    child.on("close", (code) => resolve({ code, out }));
+  });
+}
+
+/** A test file that records the wall-clock window it ran in, one `start end` line. */
+function windowFixture(dir: string, log: string): string {
+  const file = path.join(dir, "slot-window.test.mjs");
+  writeFileSync(
+    file,
+    'import { test } from "node:test";\n' +
+      'import { appendFileSync } from "node:fs";\n' +
+      'test("holds the machine for a while", async () => {\n' +
+      "  const start = Date.now();\n" +
+      "  await new Promise((r) => setTimeout(r, 1500));\n" +
+      `  appendFileSync(${JSON.stringify(log)}, start + " " + Date.now() + "\\n");\n` +
+      "});\n"
+  );
+  return file;
+}
+
+test("two launchers started together run one after the other, and the second says why it waits", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "kp-slot-test-"));
+  try {
+    const log = path.join(dir, "windows.log");
+    const file = windowFixture(dir, log);
+    const slot = path.join(dir, "slot");
+    const runs = await Promise.all([launch(file, slot), launch(file, slot)]);
+    for (const r of runs) assert.equal(r.code, 0, `the launcher run passed:\n${r.out}`);
+
+    const windows = readFileSync(log, "utf8").trim().split("\n").map((l) => l.split(" ").map(Number)).sort((a, b) => a[0] - b[0]);
+    assert.equal(windows.length, 2, "both runs executed the fixture");
+    const [[, firstEnd], [secondStart]] = windows;
+    assert.ok(
+      secondStart >= firstEnd,
+      `the second suite started ${firstEnd - secondStart} ms before the first finished: two suites shared the machine`
+    );
+    assert.equal(runs.filter((r) => r.out.includes("another suite is running on this machine")).length, 1, "exactly one run waited, and said so");
+    assert.throws(() => readdirSync(slot), "the slot is released when the holder ends");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a launcher started by a test of the holding suite does not wait on its own parent", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "kp-slot-test-"));
+  try {
+    const file = windowFixture(dir, path.join(dir, "windows.log"));
+    const slot = path.join(dir, "slot");
+    mkdirSync(slot);
+    writeFileSync(path.join(slot, "owner.json"), JSON.stringify({ pid: process.pid, cwd: REPO_ROOT, at: Date.now() }));
+    const run = await launch(file, slot, { KP_TEST_SLOT_HELD: String(process.pid) });
+    assert.equal(run.code, 0, run.out);
+    assert.ok(!run.out.includes("another suite is running"), "a nested launcher never waits");
+    assert.deepEqual(readdirSync(slot), ["owner.json"], "and never releases the slot it does not own");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a slot left by a dead launcher is taken over, not waited on", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "kp-slot-test-"));
+  try {
+    const file = windowFixture(dir, path.join(dir, "windows.log"));
+    const slot = path.join(dir, "slot");
+    mkdirSync(slot);
+    writeFileSync(path.join(slot, "owner.json"), JSON.stringify({ pid: 1073741824, cwd: "gone", at: Date.now() }));
+    const run = await launch(file, slot);
+    assert.equal(run.code, 0, run.out);
+    assert.ok(!run.out.includes("another suite is running"), "a dead owner is not waited on");
+    assert.throws(() => readdirSync(slot), "the taken-over slot is released at the end");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

@@ -46,7 +46,7 @@ export function JdBody({ markdown, lang }: { markdown: string; lang?: string }) 
           onClick={copy}
           aria-label={copied ? t("copiedToClipboard") : t("copyMarkdown")}
           title={copied ? t("copied") : t("copyMarkdown")}
-          className="focus-ring absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-md border border-stone-200 bg-white text-steel hover:border-coral/40 hover:text-coral"
+          className="focus-ring absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-md border border-stone-200 bg-white text-steel hover:border-coral/40 hover:text-coral-ink"
         >
           {copied ? <Check size={15} className="text-moss" /> : <Copy size={15} />}
         </button>

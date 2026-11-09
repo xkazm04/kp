@@ -1,0 +1,97 @@
+{
+  "schema": "conform-run/1",
+  "worker": "99bcf29c-df80-48a2-9fdd-6f6b901fd102",
+  "subject": "draft-editing",
+  "evaluatedAt": "2026-10-19T08:33:00.895511+00:00",
+  "provider": "agy",
+  "model": "gemini-3.8-flash-high",
+  "pairs": [
+    {
+      "context": "profile-editor",
+      "subject": "draft-editing",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/features/tools/profile/ProfileEditor.tsx:209 Leaving the profile editor drops the backup copy and navigates away immediately without intercepting unsaved dirty state or offering save/discard/stay options.",
+      "techniques": [
+        {
+          "technique": "completeness-derivation",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/profile/ProfileResultPanel.tsx:120 Unmet completeness gaps are derived dynamically and rendered as actionable buttons navigating to the specific editor fields."
+        },
+        {
+          "technique": "debounced-save-groups",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/ProfileEditor.tsx:187 The editor saves only via manual submission of the whole profile rather than debounced saves scoped to region groups."
+        },
+        {
+          "technique": "dirty-tracking",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/ProfileEditor.tsx:189 Dirtiness is tracked solely via reference comparison of the full form against the last saved form rather than per-region derivation."
+        },
+        {
+          "technique": "draft-model",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/useProfileEditorSubmit.ts:88 Submissions send the complete entity payload rather than computing and applying a diff of edited fields against the baseline."
+        },
+        {
+          "technique": "field-defaults-and-bounds",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/profileEditorHelpers.ts:33 Numeric range bounds are validated externally in rendering helpers rather than clamped at a unified draft patch door."
+        },
+        {
+          "technique": "navigation-guards",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/ProfileEditor.tsx:209 Exiting via the Back button clears the safety backup and unmounts without checking dirty state or prompting the user."
+        }
+      ],
+      "registryProposal": "Consider clarifying when discrete draft entities with crash recovery (sessionStorage backup envelopes) are an acceptable alternative to continuous debounced background saves to the remote server."
+    }
+  ],
+  "declined": [
+    {
+      "subject": "draft-editing",
+      "context": "candidate-profile",
+      "reason": "withdrawn after review: reviewer (sonnet): The claims hold in the code, but I could not confirm the verdict belongs to this context. ArchetypeManagerEditPanel.tsx, the evidence anchor, and ArchetypeManager.tsx, which defines `cancel`, are not among the context's listed files. The technique anchor profileCompletenessFields.ts is also missing "
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-19T08:33:00.895511+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "draft-editing"
+      ],
+      "techniques": [
+        "completeness-derivation",
+        "debounced-save-groups",
+        "dirty-tracking",
+        "draft-model",
+        "field-defaults-and-bounds",
+        "navigation-guards"
+      ],
+      "deviations": 1,
+      "context": "profile-editor",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-19T08:33:00.895511+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "draft-editing"
+      ],
+      "techniques": [
+        "completeness-derivation",
+        "debounced-save-groups",
+        "dirty-tracking",
+        "draft-model",
+        "field-defaults-and-bounds",
+        "navigation-guards"
+      ],
+      "deviations": 1,
+      "context": "candidate-profile",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    }
+  ]
+}

@@ -100,13 +100,13 @@ const read = (p: string) => readFileSync(path.join(here, p), "utf8");
 
 test("the automation schedule + run routes scope their decision reads to the caller's workspace", () => {
   const schedule = read("../api/automation/schedule/route.ts");
-  assert.match(schedule, /currentWorkspace\(\)/, "the schedule route must resolve currentWorkspace()");
+  assert.match(schedule, /withWorkspace\(async \(chainWs: string/, "the schedule route must receive the caller's workspace from withWorkspace");
   assert.match(schedule, /listRuns\(10,\s*POLICY_JOB,\s*\{\s*workspace\s*\}\)/, "policy runs must be workspace-scoped");
   assert.match(schedule, /listRuns\(5,\s*REMINDERS_JOB,\s*\{\s*workspace\s*\}\)/, "reminder runs must be workspace-scoped");
   assert.doesNotMatch(schedule, /listRuns\(10\)/, "no unscoped listRuns may remain");
 
   const run = read("../api/automation/run/route.ts");
-  assert.match(run, /currentWorkspace\(\)/, "the run route must resolve currentWorkspace()");
+  assert.match(run, /withWorkspace\(async \(workspace: string/, "the run route must receive the caller's workspace from withWorkspace");
   assert.match(run, /decisionsForWorkspace\(decisions,\s*workspace\)/, "the response decisions must be tenant-filtered");
   assert.doesNotMatch(run, /NextResponse\.json\(\{\s*summary,\s*decisions,/, "the raw global decision list must not be returned");
 });

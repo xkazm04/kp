@@ -37,34 +37,38 @@ test("tsconfig keeps incremental builds on, so a stale cache is possible", () =>
   assert.match(tsconfig, /"incremental"\s*:\s*true/);
 });
 
-test("typecheck still type-checks the tree with tsc --noEmit", () => {
-  assert.match(typecheck, /tsc\b[^&|]*--noEmit/, "typecheck must still run tsc --noEmit");
-});
-
 // Resolve the sequence of shell steps `npm run typecheck` actually runs,
-// expanding any `npm run <name>` reference one level into its own script body.
-// The stale-cache fix is expressed as a dedicated `clean:tsbuildinfo` step, so a
-// naive substring test on `typecheck` alone would miss it — this follows the
-// indirection instead of assuming the deletion is inlined.
-function expandNpmRun(script: string): string {
+// expanding every `npm run <name>` reference, recursively, into its own script
+// body. `typecheck` is a machine-slot wrapper (`node scripts/test-slot.mjs
+// typecheck npm run typecheck:run`) and the stale-cache fix is a dedicated
+// `clean:tsbuildinfo` step inside `typecheck:run`, so a substring test on the
+// top-level string would miss both — this follows the indirection instead of
+// assuming the steps are inlined.
+function expandNpmRun(script: string, depth = 0): string {
+  if (depth > 6) return script;
   return script.replace(/npm run ([\w:-]+)/g, (whole, name) => {
     const body = pkg.scripts?.[name];
-    return typeof body === "string" ? `${whole} { ${body} }` : whole;
+    return typeof body === "string" ? `${whole} { ${expandNpmRun(body, depth + 1)} }` : whole;
   });
 }
 
+const expanded = expandNpmRun(typecheck);
+
+test("typecheck still type-checks the tree with tsc --noEmit", () => {
+  assert.match(expanded, /tsc\b[^&|]*--noEmit/, "typecheck must still run tsc --noEmit");
+});
+
 test("typecheck clears tsconfig.tsbuildinfo BEFORE running tsc", () => {
-  const expanded = expandNpmRun(typecheck);
   assert.match(
     expanded,
     /tsconfig\.tsbuildinfo/,
     "typecheck (or a step it invokes) must delete the incremental cache (tsconfig.tsbuildinfo)",
   );
-  // Ordering is asserted on the top-level typecheck string: whatever step clears
-  // the cache must be sequenced before tsc, so `&&` short-circuit can't skip it
-  // and tsc always sees a fresh evaluation.
-  const clearStepIdx = typecheck.search(/clean:tsbuildinfo|tsconfig\.tsbuildinfo/);
-  const tscIdx = typecheck.search(/tsc\b/);
+  // Ordering is asserted on the fully expanded step sequence: whatever step
+  // clears the cache must be sequenced before tsc, so `&&` short-circuit can't
+  // skip it and tsc always sees a fresh evaluation.
+  const clearStepIdx = expanded.search(/clean:tsbuildinfo|tsconfig\.tsbuildinfo/);
+  const tscIdx = expanded.search(/tsc\b/);
   assert.ok(
     clearStepIdx !== -1 && tscIdx !== -1 && clearStepIdx < tscIdx,
     "the cache-clear step must be sequenced BEFORE tsc --noEmit",

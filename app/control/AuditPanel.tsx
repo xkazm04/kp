@@ -6,7 +6,7 @@ import { META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import type { Audit, LC } from "./types";
 
 const ACTOR: Record<string, string> = {
-  auto: "bg-coral/15 text-coral",
+  auto: "bg-coral/15 text-coral-ink",
   human: "bg-moss/15 text-moss",
   system: "bg-stone-200 text-steel",
 };

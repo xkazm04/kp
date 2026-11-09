@@ -72,7 +72,9 @@ Backend shipped and in production use:
   the repo's own `CLAUDE.md`/`AGENTS.md` as grounding — but only `claude_cli` can
   actually run *inside* the checkout and read the files
   (`ClaudeCliProvider.with_repo_access` → `--permission-mode plan`, a read-only
-  `--allowedTools` list and a write `--disallowedTools` list). That is a quality
+  `--allowedTools` list and a write `--disallowedTools` list, and
+  `--setting-sources user` so the scanned repo's own hooks and `CLAUDE.md` are not
+  loaded; measured 2026-11-03, see the app-master README). That is a quality
   difference, not a capability the matrix can gate — there is no "runs in your
   checkout" capability, and inventing one would refuse a perfectly valid grounded
   refinement — so `capabilities.py` declares it `{json}` like `agent_fit`, and the
@@ -151,7 +153,16 @@ reserved for multi-tenancy, see the organization doc):
 
 - `llm_config(use_case, provider, model, params_json, updated_at)`
 - `provider_keys(provider, scope['platform'|'byom'], key_ciphertext, meta_json, updated_at)`
-- `llm_usage(id, ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, outcome, reason, request_id, ingest_key)`
+- `llm_usage(id, ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, outcome, reason, request_id, ingest_key, role_run_id)`
+
+**Role-run attribution** (2026-10-16). `role_run_id` is nullable and names the
+`role_runs.id` a metered call was made for. It is stamped from an ambient
+`withLlmRoleRun()` scope (`llm-request-context.ts`) that the role-run engine opens around a
+stage runner: `spawnPython` reads it synchronously at spawn and the sidecar fold writes it
+on every line of that spawn; `insertLlmUsage` takes an explicit `roleRunId` (no ambient
+lookup: `db/llm.ts` stays off `llm-request-context`). NULL means "not part of a role run" (every earlier row, and every call
+outside one). The Claude CLI path has no dollar cost: such rows keep `cost_usd` NULL
+(unpriced, counted beside the sum) and a run's budget is read in calls and tokens.
 
 **A failed attempt is visible without being billable** (2026-09-05). `outcome` is
 `'ok'` (a meterable attempt — a real completion, or a deterministic template serve

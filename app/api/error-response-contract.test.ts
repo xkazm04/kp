@@ -276,10 +276,8 @@ const LEAK_CEILING = new Map<string, number>([
   // billing/webhook's single leak was FIXED, not ceilinged: the 500 answers safeJsonError(..., "BILLING_WEBHOOK_FAILED"). The row is deleted so the win is locked.
   ["comms/relay/route.ts", 1],
   ["jobs/[id]/campaign/route.ts", 1],
-  ["jobs/[id]/candidates/outreach/route.ts", 1],
   ["jobs/[id]/candidates/route.ts", 1],
   ["repo-scan/route.ts", 1],
-  ["analytics/route.ts", 1],
   // archetypes/route.ts (2) and archetypes/[id]/route.ts (2) were FIXED, not
   // ceilinged (scan-sweep w4-cv-intel): the four 500s answer
   // safeJsonError(..., "ARCHETYPES_{READ,WRITE}_FAILED") and the input 400s
@@ -428,9 +426,6 @@ const LEAK_CEILING = new Map<string, number>([
 // `return safeJsonError(error, "api:<route>", "<CODE>")` plus a STORE_ERRORS code and
 // its four catalogue entries. Do NOT add a row here to make a build green.
 const FORWARD_CEILING = new Map<string, number>([
-  ["analytics/calibration/band/route.ts", 1],
-  ["analytics/calibration/route.ts", 1],
-  ["analytics/calibration/threshold-history/route.ts", 1],
   ["auth/switch-workspace/route.ts", 1],
   // skill-profile/[token]/verify/route.ts stood here at 1 and is FIXED, not ceilinged
   // (scan-sweep w6-rest): the catch answers safeJsonError(..., "SKILL_PROFILE_VERIFY_FAILED")

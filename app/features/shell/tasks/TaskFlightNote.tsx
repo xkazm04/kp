@@ -28,7 +28,7 @@ export function TaskFlightNote({
   if (!watch.active && !watch.loading) return null;
   return (
     <p role="status" className={`flex items-start gap-1.5 text-sm text-steel ${className}`}>
-      <Loader2 size={13} className="mt-0.5 shrink-0 animate-spin text-coral" aria-hidden />
+      <Loader2 size={13} className="mt-0.5 shrink-0 animate-spin text-coral-ink" aria-hidden />
       <span>
         <span className="font-medium text-ink">
           {watch.progressMsg || (watch.status === "queued" ? t("queued") : t("running"))}

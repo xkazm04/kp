@@ -24,9 +24,9 @@ export function JdsModalEditorStagedBanner({
         : "coachStageMustHave";
   return (
     <div className="flex items-start gap-2 rounded-lg border border-coral/40 bg-coral/5 px-3 py-2.5">
-      <Lightbulb size={16} className="mt-0.5 shrink-0 text-coral" aria-hidden />
+      <Lightbulb size={16} className="mt-0.5 shrink-0 text-coral-ink" aria-hidden />
       <div className="flex-1 space-y-1">
-        <p className="text-meta uppercase tracking-wide text-coral">{t("coachStageEyebrow")}</p>
+        <p className="text-meta uppercase tracking-wide text-coral-ink">{t("coachStageEyebrow")}</p>
         <p className="text-base text-ink">
           {t.rich(bannerKey, {
             value: suggestion.value,

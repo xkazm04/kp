@@ -160,7 +160,7 @@ export function DevLifecycleReviewPanel({ lc, onApprove, onChanged }: { lc: Life
           {/* The refusal, stated where the draft that caused it is. Silently keeping
               the stored tasks is what this replaces. */}
           {blocked === "tasksCleared" ? (
-            <p role="alert" className="text-micro text-coral">{t("tasksRequired")}</p>
+            <p role="alert" className="text-micro text-coral-ink">{t("tasksRequired")}</p>
           ) : null}
           <label className="block text-micro font-semibold text-steel">
             {t("fieldTimebox")}
@@ -217,7 +217,7 @@ export function DevLifecycleReviewPanel({ lc, onApprove, onChanged }: { lc: Life
             onClick={redesign}
             disabled={busy !== null || !feedback.trim()}
             title={t("redesignTitle")}
-            className="focus-ring inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-stone-200 bg-white px-2.5 text-micro font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
+            className="focus-ring inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-stone-200 bg-white px-2.5 text-micro font-semibold text-coral-ink hover:bg-coral/5 disabled:opacity-50"
           >
             <RefreshCw size={12} className={busy === "redesign" ? "animate-spin" : ""} />
             {busy === "redesign" ? t("redesigning") : t("redesign")}

@@ -45,6 +45,7 @@ import { recordDeliveryReceipt, receiptOrgId } from "./comms-receipt";
 import { DEFAULT_ORG_ID } from "./db/organizations";
 import { publicBaseUrl } from "./public-base-url";
 import { assertPublicHttpsEndpointResolved, type HostLookup } from "./ats-egress-guard";
+import { egressSealed, SEALED } from "./egress-seal";
 
 /** Events applied per PAGE. The edge caps its own answer at 200; 50 keeps one HTTP
  *  round-trip small and the unseal/apply work per response bounded. */
@@ -100,6 +101,9 @@ export type DrainSummary = {
   error: string | null;
   /** The CLASS of the failure, which is what the card can say in four languages. */
   errorKind: EdgeErrorKind | null;
+  /** True when KP_NO_COMMS_EGRESS sealed this pass: nothing was fetched or acked and
+   *  the ledger was not written. Absent on every unsealed pass. */
+  sealed?: true;
 };
 
 // SSRF at the EDGE boundary. The edge URL is operator-supplied and stored;
@@ -264,6 +268,27 @@ async function applyEvent(event: EdgeEvent, edge: ResolvedEdge, origin: string):
  */
 export async function drainEdge(): Promise<DrainSummary> {
   const resolution = resolveEdgeDetailed();
+  // THE EGRESS SEAL. A process on a COPY of a real database holds the operator's real
+  // pairing; draining would GET /drain and POST /ack against their real edge, and the
+  // acked events would land in the scratch DB and never reach the real one. Read per
+  // call, before any lookup or fetch, and answer the "no information" shape: no ack, no
+  // recordDrain (so no error class either), cursor as it stands. Checked ahead of the
+  // unreadable-secret branch because that one writes the ledger.
+  if (egressSealed()) {
+    const sealedEdge = resolution.ok ? resolution.edge : null;
+    return {
+      configured: !!sealedEdge,
+      fetched: 0,
+      applied: 0,
+      skipped: 0,
+      cursor: sealedEdge ? sealedEdge.cursor : 0,
+      pending: null,
+      pages: 0,
+      error: null,
+      errorKind: null,
+      sealed: true,
+    };
+  }
   const edge = resolution.ok ? resolution.edge : null;
   const summary: DrainSummary = {
     configured: !!edge,
@@ -383,6 +408,8 @@ export async function drainEdge(): Promise<DrainSummary> {
  * have already been at rest unsealed.
  */
 export async function pairEdge(): Promise<{ ok: boolean; error: string | null }> {
+  // Sealed: no keypair is minted or published, nothing is looked up.
+  if (egressSealed()) return { ok: false, error: SEALED };
   const resolution = resolveEdgeDetailed();
   // Same refusal, said plainly: publishing a key over a link we cannot sign is not a
   // thing that can succeed, and the route answers EDGE_PAIR_REFUSED for it.
@@ -411,6 +438,7 @@ export async function pairEdge(): Promise<{ ok: boolean; error: string | null }>
  * is switched off, which was the entire flaw in doing this locally.
  */
 export async function sendEdgeHeartbeat(): Promise<boolean> {
+  if (egressSealed()) return false; // sealed: no beat, and recordHeartbeat stays untouched
   const edge = resolveEdge();
   if (!edge) return false;
   try {

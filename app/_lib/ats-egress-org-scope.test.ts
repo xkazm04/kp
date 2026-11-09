@@ -25,25 +25,30 @@ import { finalizeAtsDelivery, listAtsDeliveries, recordAtsDeliveryStart } from "
 import { createPipelineEntry } from "./db/pipeline.ts";
 import { createOrganization, DEFAULT_ORG_ID } from "./db/organizations.ts";
 import { createWorkspace } from "./db/workspaces.ts";
+import { setEgressTransportForTests, type EgressTransport } from "./pinned-request.ts";
 
 after(() => cleanupUnitDb());
 
-/** Swap global fetch and COUNT the calls: "it must never POST" is only proven by a
- *  counter that would have moved. */
+/** Swap the egress transport (and global fetch, so nothing can leave around it) and
+ *  COUNT the calls: "it must never POST" is only proven by a counter that would have
+ *  moved. */
 async function withCountedFetch<T>(
   impl: typeof fetch,
   fn: (calls: { n: number }) => Promise<T>
 ): Promise<T> {
   const real = globalThis.fetch;
   const calls = { n: 0 };
-  globalThis.fetch = (async (...args: Parameters<typeof fetch>) => {
+  const counted = (async (...args: Parameters<typeof fetch>) => {
     calls.n += 1;
     return (impl as (...a: Parameters<typeof fetch>) => unknown)(...args);
   }) as unknown as typeof fetch;
+  globalThis.fetch = counted;
+  setEgressTransportForTests(counted as unknown as EgressTransport);
   try {
     return await fn(calls);
   } finally {
     globalThis.fetch = real;
+    setEgressTransportForTests(undefined);
   }
 }
 

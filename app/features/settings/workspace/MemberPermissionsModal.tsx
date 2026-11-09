@@ -99,7 +99,7 @@ export function MemberPermissionsModal({
                 <p className="flex items-center gap-2 text-sm font-medium text-ink">
                   {label}
                   {on !== isDefault ? (
-                    <span className={`${CHIP_QUIET} bg-coral/10 text-micro font-semibold text-coral`}>
+                    <span className={`${CHIP_QUIET} bg-coral/10 text-micro font-semibold text-coral-ink`}>
                       {on ? t("granted") : t("revoked")}
                     </span>
                   ) : null}

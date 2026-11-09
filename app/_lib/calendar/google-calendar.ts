@@ -1,14 +1,13 @@
-import { publicBaseUrl } from "../public-base-url";
 import type { BusyInterval } from "./free-busy";
 import {
   accessTokenExpired,
-  googleOAuthConfig,
   GoogleOAuthError,
   refreshAccessToken,
   type GoogleOAuthConfig,
 } from "./google-oauth";
 import { getCachedAccessToken, getCalendarConnection, getRefreshToken, markCalendarHealth, updateAccessToken } from "./token-store";
 import { calendarFetch, CalendarOfflineError } from "./edge-fetch";
+import { googleOAuthConfigFor } from "./google-client-store";
 
 // W1.4 — the Google Calendar calls themselves. Everything that decides anything lives in
 // free-busy.ts (pure) and google-oauth.ts (pure); this file is the network edge.
@@ -59,7 +58,7 @@ function readStoredToken<T>(workspaceId: string, read: (id: string) => T | null)
  *  the integration is not usable, for ANY reason — unconfigured, never connected, revoked,
  *  a credential that no longer decrypts, or a refresh that failed. */
 async function accessTokenFor(workspaceId: string): Promise<{ token: string; config: GoogleOAuthConfig } | null> {
-  const config = googleOAuthConfig(publicBaseUrl(null));
+  const config = googleOAuthConfigFor(workspaceId);
   if (!config) return null;
   const connection = getCalendarConnection(workspaceId);
   if (!connection?.connected) return null;
@@ -112,7 +111,7 @@ function healed<T>(workspaceId: string, was: string, auth: T): T {
  * below is what tells it apart from an outage.
  */
 export function isCalendarConnected(workspaceId: string): boolean {
-  if (!googleOAuthConfig(publicBaseUrl(null))) return false;
+  if (!googleOAuthConfigFor(workspaceId)) return false;
   return !!getCalendarConnection(workspaceId)?.connected;
 }
 
@@ -131,7 +130,7 @@ export function calendarNeedsReconnect(workspaceId: string): boolean {
  *  no request, no error log, and nothing for an operator to go and fix. */
 function offlineIsUnknown(err: unknown): boolean {
   if (!(err instanceof CalendarOfflineError)) return false;
-  console.info("[calendar] KP_OFFLINE — the calendar was not consulted (no egress attempted).");
+  console.info(`[calendar] ${err.message.split(":")[0]} — the calendar was not consulted (no egress attempted).`);
   return true;
 }
 
@@ -175,10 +174,18 @@ export async function fetchBusy(
   const entry = calendars?.[calendarId];
   // A per-calendar error (deleted calendar, lost access) is "we do not know", not "free".
   if (!entry || (Array.isArray(entry.errors) && entry.errors.length > 0)) return null;
-  const busy = Array.isArray(entry.busy) ? entry.busy : [];
-  return busy
-    .filter((b): b is { start: string; end: string } => !!b && typeof b === "object" && typeof (b as BusyInterval).start === "string" && typeof (b as BusyInterval).end === "string")
-    .map((b) => ({ start: b.start, end: b.end }));
+  // A missing or non-array `busy` is a malformed answer, not an empty calendar; only a
+  // well-formed [] means free. One malformed entry makes the WHOLE answer unknown — dropping
+  // it would shorten the list and overstate free time.
+  if (!Array.isArray(entry.busy)) return null;
+  const out: BusyInterval[] = [];
+  for (const b of entry.busy as unknown[]) {
+    if (!b || typeof b !== "object") return null;
+    const { start, end } = b as Partial<BusyInterval>;
+    if (typeof start !== "string" || typeof end !== "string") return null;
+    out.push({ start, end });
+  }
+  return out;
 }
 
 /** A bodiless request (DELETE). Returns the HTTP status, or 0 when the request never

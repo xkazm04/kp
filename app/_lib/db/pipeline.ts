@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import type { ApprovalKind } from "../approval-kinds";
+import { ADVANCE_DECLINED_DETAIL, parsePolicyAdvance, type ApprovalKind } from "../approval-kinds";
 // Type-only: calibration.ts is deliberately pure/import-free, so this is erased.
 import type { CalibrationOutcomeAxis } from "../calibration";
 import { isTerminalEntryStatus, TERMINAL_ENTRY_STATUSES } from "../pipeline-status";
@@ -1523,9 +1523,12 @@ export type CreatePipelineInput = {
   // after the fact, never at creation. Omitted (the default) leaves the entry
   // ungated — every non-Match add path is byte-identical to before.
   approvalKind?: "decision" | null;
-  // (No approval_detail input: an add files no gate payload. A Match add's reasons used
-  // to ride here as prose and were cleared by the first transition; the route now seals
-  // them as a `match_verdict` decision record before this insert — ADR 0018.)
+  // The gate's payload, written only WITH `approvalKind` (ignored without it). A Match add
+  // files none: its reasons used to ride here as prose and were cleared by the first
+  // transition; the route now seals them as a `match_verdict` decision record before this
+  // insert — ADR 0018. The knockout hold (knockout-hold.ts) is the one caller that files
+  // one: the must-haves the applicant answered no to, so the reviewer can read them.
+  approvalDetail?: string | null;
   // Applicant's locale from inbound apply (SIM3); drives downstream comm
   // language. Omitted by recruiter/Match adds ⇒ NULL ⇒ "en" at dispatch.
   locale?: string | null;
@@ -1724,12 +1727,12 @@ export function createPipelineEntry(input: CreatePipelineInput): CreatePipelineR
       db.prepare(
         `INSERT INTO pipeline_entries
            (id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
-            stage, match_score, status, approval_kind, created_at, stage_changed_at, updated_at,
+            stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at, updated_at,
             intake_degraded, intake_degraded_reason, contact, locale, github_json, github_handle, source_channel,
             source_campaign, source_variant, dev_case_id, dev_submission_id, workspace_id, applicant_key,
             population, rubric_version)
          VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
-            @stage, @match_score, 'active', @approval_kind, @now, @now, @now,
+            @stage, @match_score, 'active', @approval_kind, @approval_detail, @now, @now, @now,
             @intake_degraded, @intake_degraded_reason, @contact, @locale, @github_json, @github_handle, @source_channel,
             @source_campaign, @source_variant, @dev_case_id, @dev_submission_id, @workspace_id, @applicant_key,
             @population, @rubric_version)`
@@ -1744,6 +1747,7 @@ export function createPipelineEntry(input: CreatePipelineInput): CreatePipelineR
         stage,
         match_score: input.matchScore ?? null,
         approval_kind: input.approvalKind ?? null,
+        approval_detail: input.approvalKind ? input.approvalDetail ?? null : null,
         now,
         intake_degraded: intakeDegraded,
         intake_degraded_reason: intakeDegradedReason,
@@ -2286,7 +2290,7 @@ export function recordEntryConsent(
     const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(entryId, workspaceId) as PipelineRow;
     return rowToEntry(row);
   });
-  return tx();
+  return tx.immediate(); // write lock at BEGIN: the consent_given_at read below must not go stale before the UPDATE
 }
 
 /** Mint (or return) the entry's opaque self-service erasure token — the
@@ -2493,6 +2497,11 @@ function scrubEntryLinkedPii(
   if (tables.has("pipeline_entry_notes")) {
     db.prepare(`DELETE FROM pipeline_entry_notes WHERE entry_id = ?`).run(entryId);
   }
+  // The role shortlist (db/role-shortlist.ts): who was shortlisted or chosen, and by whom,
+  // is a record about this person; DELETED with them, nothing of it is retained.
+  if (tables.has("role_shortlist")) {
+    db.prepare(`DELETE FROM role_shortlist WHERE entry_id = ?`).run(entryId);
+  }
   // Voice interview: transcript_json is the candidate's verbatim spoken answers (raw
   // PII → dropped to []) and scorecard_json is a free-text synthesis quoting them (→
   // NULL). The assessment DECISION survives on the entry/events, not on this row.
@@ -2592,6 +2601,18 @@ function scrubEntryLinkedPii(
   if (tables.has("interview_letters")) {
     db.prepare(
       `UPDATE interview_letters SET draft_text = NULL, final_text = NULL, erased_at = COALESCE(erased_at, ?) WHERE entry_id = ?`
+    ).run(new Date().toISOString(), entryId);
+  }
+  // The held first-contact outreach (db/outreach-letters.ts, comms scope C2): subject and
+  // body are written TO this person by name, so both are blanked, the same way the
+  // dev_outbox block above blanks a letter that already left. The row stays — state,
+  // revision, message id, language, dates and the approver's actor token are the record
+  // that a letter was drafted and what became of it, and they name nobody. `erased_at`
+  // closes the row to every later write: a draft still being generated cannot write the
+  // text back, an approval cannot land, and the release refuses a letter with no body.
+  if (tables.has("outreach_letters")) {
+    db.prepare(
+      `UPDATE outreach_letters SET subject = NULL, body = NULL, erased_at = COALESCE(erased_at, ?) WHERE entry_id = ?`
     ).run(new Date().toISOString(), entryId);
   }
   // --- The DEV-CASE family, reached through the entry's work-sample link. ---
@@ -3053,7 +3074,10 @@ export const AUTOMATION_PASS_ENTRY_CAP = 2000;
 /** `agingTier` is resolved in TS from the board's stage-role SLA on the entry's OWN
  *  workspace axis (aging-policy.ts) — the policy pass writes its feed alerts from it
  *  instead of re-deriving a flat, stage-blind cut in Python. */
-export type AutomationEntry = PipelineEntry & { daysInStage: number; recentScreening: boolean; agingTier: AgingTier };
+/** `advanceDeclined`: a person declined a queued policy advance during this stage stint
+ *  (approval-kinds.ts ADVANCE_DECLINED_DETAIL). The policy then holds instead of proposing
+ *  the same move again; a stage move starts a new stint and clears it. */
+export type AutomationEntry = PipelineEntry & { daysInStage: number; recentScreening: boolean; agingTier: AgingTier; advanceDeclined?: boolean };
 
 export function getPipelineEntry(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEntry | null {
   const db = ensureDb();
@@ -3203,6 +3227,17 @@ export function listActiveEntriesForAutomation(limit: number = AUTOMATION_PASS_E
         .all(cutoff) as { entry_id: string }[]
     ).map((r) => r.entry_id)
   );
+  // Entries whose last event of this kind is a person's decline of a queued advance; the
+  // per-row comparison against stage_changed_at below scopes it to the CURRENT stint.
+  const declinedAt = new Map(
+    (
+      db
+        .prepare(
+          `SELECT entry_id, MAX(created_at) AS at FROM pipeline_events WHERE kind = 'screening_hold' AND detail LIKE ? AND entry_id IS NOT NULL GROUP BY entry_id -- tenancy:global`
+        )
+        .all(`${ADVANCE_DECLINED_DETAIL}%`) as { entry_id: string; at: string }[]
+    ).map((r) => [r.entry_id, r.at] as const)
+  );
   // One aging clock: each entry's tier is resolved on ITS OWN workspace's axis (the
   // sweep is cross-tenant, so a composed "Tech round" column in one team must age at
   // the interview SLA there and nowhere else). One axis read per workspace per pass.
@@ -3220,7 +3255,9 @@ export function listActiveEntriesForAutomation(limit: number = AUTOMATION_PASS_E
     // workspaceId comes from rowToEntry now — it used to be re-read here because
     // PipelineEntry didn't carry it.
     const tier = agingTier(r.stage, r.stage_changed_at ? days : null, axisFor(r.workspace_id));
-    return { ...rowToEntry(r), daysInStage: days, recentScreening: recent.has(r.id), agingTier: tier };
+    const declined = declinedAt.get(r.id);
+    const advanceDeclined = declined !== undefined && (!r.stage_changed_at || declined >= r.stage_changed_at);
+    return { ...rowToEntry(r), daysInStage: days, recentScreening: recent.has(r.id), agingTier: tier, advanceDeclined };
   });
 }
 
@@ -3233,6 +3270,35 @@ export function setEntryMatchScore(entryId: string, score: number, workspaceId: 
     .prepare(`UPDATE pipeline_entries SET match_score=?, updated_at=? WHERE id=? AND match_score IS NULL AND workspace_id=?`)
     .run(score, new Date().toISOString(), entryId, workspaceId);
   return res.changes > 0;
+}
+
+/** The score-provenance lookup's SQL for `n` entry ids (exported so the index test
+ *  plans the real statement, not a copy). `+workspace_id` keeps the planner off the
+ *  workspace index (it would walk every event the tenant wrote) and on
+ *  idx_pipeline_events_entry; the tenant filter still applies, row by row. */
+export function scoredAtSql(n: number): string {
+  return `SELECT entry_id, MIN(created_at) AS at FROM pipeline_events
+          WHERE kind = 'scored' AND +workspace_id = ? AND entry_id IN (${new Array(n).fill("?").join(",")})
+          GROUP BY entry_id`;
+}
+
+/** When each named entry's stored match score was filled AFTER the add: the
+ *  earliest `scored` event per entry (entry-scoring.ts logs one beside every
+ *  setEntryMatchScore write that wins; nothing else writes match_score after the
+ *  insert). An entry absent from the map had its score stamped at add time, or has
+ *  none. One chunked read per call, workspace-scoped. */
+export function scoredAtByEntryIds(ids: readonly string[], workspaceId: string = DEFAULT_WORKSPACE_ID): Map<string, string> {
+  const out = new Map<string, string>();
+  const unique = [...new Set(ids.filter((id) => typeof id === "string" && id !== ""))];
+  if (unique.length === 0) return out;
+  const db = ensureDb();
+  for (const part of chunk(unique, SQL_IN_CHUNK)) {
+    const rows = db
+      .prepare(scoredAtSql(part.length))
+      .all(workspaceId, ...part) as Array<{ entry_id: string; at: string | null }>;
+    for (const r of rows) if (r.at) out.set(r.entry_id, r.at);
+  }
+  return out;
 }
 
 /** Set/clear a pending approval without a stage change (Task 1 hold, Task 5 scorecard gate). */
@@ -3273,12 +3339,16 @@ export function setApproval(
   approvalKind: ApprovalKind | null,
   approvalDetail: string,
   workspaceId: string = DEFAULT_WORKSPACE_ID,
-  opts?: { expectedApprovalKind?: ApprovalKind | null }
+  // `expectedStage` is the stage half of the same compare-and-swap, for a caller whose
+  // decision is older than the write (the policy pass queuing an advance it decided
+  // against a snapshot): a moved entry gets no approval claiming a move from a stage it left.
+  opts?: { expectedApprovalKind?: ApprovalKind | null; expectedStage?: string }
 ): boolean {
   const db = ensureDb();
   // `IS` rather than `=`: the expectation is legitimately NULL ("no approval was
   // pending"), and `approval_kind = NULL` is never true in SQL.
   const guarded = opts?.expectedApprovalKind !== undefined;
+  const stageGuarded = opts?.expectedStage !== undefined;
   // read → write in ONE transaction, taken with `.immediate()` (the write lock at
   // BEGIN) exactly as setPipelineEntryStage does: the SELECT below feeds the event
   // row, and a deferred tx would let another connection move the entry between the
@@ -3294,7 +3364,7 @@ export function setApproval(
       .prepare(
         `UPDATE pipeline_entries SET approval_kind=?, approval_detail=?, updated_at=? WHERE id=? AND workspace_id=?${
           guarded ? ` AND approval_kind IS ?` : ``
-        }`
+        }${stageGuarded ? ` AND stage = ?` : ``}`
       )
       .run(
         approvalKind,
@@ -3302,10 +3372,11 @@ export function setApproval(
         new Date().toISOString(),
         entryId,
         workspaceId,
-        ...(guarded ? [opts?.expectedApprovalKind ?? null] : [])
+        ...(guarded ? [opts?.expectedApprovalKind ?? null] : []),
+        ...(stageGuarded ? [opts?.expectedStage] : [])
       );
     if (res.changes === 0) {
-      if (guarded) {
+      if (guarded || stageGuarded) {
         console.warn(
           `[pipeline:approval] skipped approval write for entry ${entryId}: approval changed under a stale decision (decided at '${opts?.expectedApprovalKind ?? "none"}').`
         );
@@ -3376,6 +3447,13 @@ export function recordAutomationEvent(
   });
 }
 
+// LEGACY WRITER, no door calls it since the Q1 ruling (2026-11-09): a failed must-have now
+// files a HELD entry behind the `decision` approval (knockout-hold.ts, application-filing.ts
+// `hold`) and a person confirms or clears it. Kept because the `ko_declined` rows it wrote
+// before that stay readable (analytics, the activity feed, the 30-day contact sweep below),
+// and its pins (ko-decline-tenancy, ko-decline-retention) still exercise those readers.
+// The text below describes the pre-Q1 design these rows came from.
+//
 // E2 (Erika gap) — auditable knockout discards. A KO-failed application creates
 // NO pipeline entry (deliberate: a mis-tapped eligibility toggle must not mint a
 // terminal row the candidate can never retry past), so without this the discard
@@ -3571,6 +3649,17 @@ export function actOnPipelineEntry(
     console.warn(`[pipeline:act] skipped ${action} for terminal entry ${id} (status '${row.status}').`);
     return null;
   }
+  // A HIRED entry is the exception to "an active row is unaffected": it keeps status
+  // 'active' on the terminal-role stage, so the status guard above never sees it and a
+  // reject ran the full path (seal, rejection letter, ATS candidate.rejected). Refused
+  // here — operator decision on ask 68bb3639: "refuse reject on Hired (409 at both
+  // doors)". Rescinding a hire becomes its own explicit action later. Only `reject` is
+  // refused; a re-accept still reaches the no-op below. The terminal stage is resolved
+  // from this workspace's axis by role, never by the name "Hired".
+  if (action === "reject" && stageHasRole(row.stage, "terminal", axis)) {
+    console.warn(`[pipeline:act] refused reject for entry ${id}: it stands on the terminal stage '${row.stage}' (hired).`);
+    return null;
+  }
   const now = new Date().toISOString();
   fromStage = row.stage;
   const meta = {
@@ -3635,7 +3724,7 @@ export function actOnPipelineEntry(
       ).run(now, id, workspaceId);
     }
     recordEvent(db, { ...meta, kind: "scheduled", toStage, detail: slot });
-  } else if (row.approval_kind === "screening_review") {
+  } else if (row.approval_kind === "screening_review" && !stageHasRole(row.stage, "entry", axis)) {
     // Accepting an AI screening flows the candidate into interview scheduling:
     // advance a stage AND queue them on the calendar (Schedule tab) with a
     // default proposed slot, so the interviewer can pick a time + open the prep.
@@ -3646,7 +3735,10 @@ export function actOnPipelineEntry(
     ).run(next, "Tue 14:00", now, now, id, workspaceId);
     recordEvent(db, { ...meta, kind: auto ? "auto_advanced" : "advanced", toStage: next, detail: decisionNote });
   } else {
-    // accept: advance one stage, clear any pending approval
+    // accept: advance one stage, clear any pending approval. A screening_review queued
+    // on an ENTRY-role stage (a policy advance out of the entry column, Q2) lands here:
+    // the person is moving a candidate into screening, which is not an interview, so it
+    // must not raise the calendar gate the branch above raises for a screened one.
     const next = nextStageOnAxis(row.stage, axis);
     if (guardTerminal(next)) return null;
     if (next !== row.stage) {
@@ -3701,6 +3793,46 @@ export function actOnPipelineEntry(
   // the helper's own from/to comparison covers the approval-clearing no-ops.
   if (action !== "reject") notifyStageEntered(result, fromStage, opts?.actorRef ?? null);
   return result;
+}
+
+/** A person declines a queued policy advance (Q2): the approval is cleared, the entry
+ *  STAYS where it is, and the decline is recorded as a `screening_hold` marker so the
+ *  policy does not propose the same move again while the entry stays in this stage
+ *  (listActiveEntriesForAutomation reads it as `advanceDeclined`). A reject of the
+ *  candidate is a different act and still goes through actOnPipelineEntry.
+ *
+ *  Compare-and-swap: only a `screening_review` that carries the policy-advance mark, on
+ *  the stage the caller read, is cleared; anything else returns null and writes nothing.
+ *  IMMEDIATE like every read->write here. */
+export function declineQueuedAdvance(
+  id: string,
+  opts?: { expectedStage?: string; actorRef?: string | null },
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): PipelineEntry | null {
+  const db = ensureDb();
+  const tx = db.transaction((): PipelineEntry | null => {
+    const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined;
+    if (!row || isTerminalEntryStatus(row.status)) return null;
+    if (opts?.expectedStage !== undefined && row.stage !== opts.expectedStage) return null;
+    const mark = parsePolicyAdvance(row.approval_kind, row.approval_detail);
+    if (!mark) return null;
+    const now = new Date().toISOString();
+    db.prepare(`UPDATE pipeline_entries SET approval_kind=NULL, approval_detail=NULL, updated_at=? WHERE id=? AND workspace_id=?`).run(now, id, workspaceId);
+    recordEvent(db, {
+      entryId: id,
+      candidateLabel: row.candidate_label,
+      jobTitle: row.job_title,
+      archetype: row.archetype,
+      kind: "screening_hold",
+      fromStage: row.stage,
+      toStage: row.stage,
+      detail: ADVANCE_DECLINED_DETAIL,
+      actor: opts?.actorRef ?? null,
+      createdAt: now,
+    });
+    return rowToEntry(db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow);
+  });
+  return tx.immediate();
 }
 
 /** Manually set a pipeline entry's stage — the recruiter override the AI-driven

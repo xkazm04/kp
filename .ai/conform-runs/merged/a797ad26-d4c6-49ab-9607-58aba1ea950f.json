@@ -1,0 +1,34 @@
+{
+  "schema": "conform-run/1",
+  "worker": "a797ad26-d4c6-49ab-9607-58aba1ea950f",
+  "subject": "interview-round-design",
+  "evaluatedAt": "2026-10-22T02:16:22.146889+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "interview-round-design",
+      "context": "schedule-interview-prep",
+      "reason": "withdrawn after review: reviewer (sonnet): The picker at ScheduleInterviewPrepQuestions.tsx:98 does offer every chronology block, but the transcript technique rests on a form-seeding claim I could not find (ScheduleHumanScorecardForm.tsx has no author or seed logic), and line 44 only lists all scorecards; I did not open the PATCH route to co"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-22T02:16:22.146889+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "interview-round-design"
+      ],
+      "techniques": [
+        "one-round-one-purpose",
+        "phase-to-competency-mapping",
+        "shared-material-for-comparability"
+      ],
+      "deviations": 1,
+      "context": "schedule-interview-prep",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "schema": "conform-run/1",
+  "worker": "d8e3a837-d3c2-4868-a202-5f523fba2ce8",
+  "subject": "alerting",
+  "evaluatedAt": "2026-10-19T12:38:20.773548+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "alerting",
+      "context": "schedule-calendar-invites",
+      "reason": "withdrawn after review: reviewer (sonnet): The main anchor, scheduleInviteLifecycleBuckets.ts:89, is only `const live = invites.filter(...)`, which does not show that alert rules, firing or routing are absent. The evidence also admits the context has scheduled reminders and status feedback, and the technique anchors (:49 closedReason, :142 a"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-19T12:38:20.773548+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "alerting"
+      ],
+      "techniques": [
+        "absence-as-a-condition",
+        "alert-lifecycle",
+        "dedup-and-cooldown",
+        "escalation-routing",
+        "evaluation-loop",
+        "flap-control",
+        "periodic-digest",
+        "rule-authoring-validation"
+      ],
+      "deviations": 0,
+      "context": "schedule-calendar-invites",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}

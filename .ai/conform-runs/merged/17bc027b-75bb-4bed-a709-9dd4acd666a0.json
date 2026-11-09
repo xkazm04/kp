@@ -1,0 +1,17 @@
+{
+ "schema": "conform-run/1",
+ "worker": "17bc027b-75bb-4bed-a709-9dd4acd666a0",
+ "subject": "deployment-contract",
+ "evaluatedAt": "2026-10-21T23:55:48.125161+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [],
+ "declined": [
+  {
+   "subject": "deployment-contract",
+   "context": "release-pipeline",
+   "reason": "pair anchor refused: no path:line anchor in 'Dockerfile:71'"
+  }
+ ],
+ "consults": []
+}

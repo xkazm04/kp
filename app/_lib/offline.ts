@@ -11,7 +11,7 @@
 const TRUTHY = new Set(["1", "true", "yes", "on"]);
 
 /** True when KP_OFFLINE is set to a truthy value. */
-export function isOffline(env: NodeJS.ProcessEnv = process.env): boolean {
+export function isOffline(env: Readonly<Record<string, string | undefined>> = process.env): boolean {
   return TRUTHY.has((env.KP_OFFLINE ?? "").trim().toLowerCase());
 }
 

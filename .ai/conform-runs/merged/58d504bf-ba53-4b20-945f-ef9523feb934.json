@@ -1,0 +1,251 @@
+{
+ "schema": "conform-run/1",
+ "worker": "58d504bf-ba53-4b20-945f-ef9523feb934",
+ "subject": "candidate-self-scheduling",
+ "evaluatedAt": "2026-10-16T22:23:03.377549+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "candidate-self-scheduling-page",
+   "subject": "candidate-self-scheduling",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/schedule/[token]/SlotPicker.tsx:101 The candidate slot picker gates the proposal escalation section strictly behind zero available slots rather than rendering it alongside offered times to assist candidates with scheduling conflicts.",
+   "techniques": [
+    {
+     "technique": "adjustments-asked-at-the-booking-step",
+     "verdict": "deviation",
+     "evidence": "app/schedule/[token]/page.tsx:40 The candidate booking page mounts the picker without asking candidates about interview adjustments or accessibility requirements."
+    },
+    {
+     "technique": "propose-your-own-times-escalation",
+     "verdict": "deviation",
+     "evidence": "app/schedule/[token]/ProposeSection.tsx:55 The proposal section only captures structured datetime inputs within business hours, offering no free-text field for candidates to state broader scheduling constraints."
+    },
+    {
+     "technique": "interviewer-timezone-anchoring",
+     "verdict": "deviation",
+     "evidence": "app/schedule/[token]/SlotPicker.tsx:106 The slot picker renders only the candidate's browser timezone and omits dual rendering of the interviewer's anchor timezone."
+    },
+    {
+     "technique": "reschedule-cap-with-a-recruiter-bypass",
+     "verdict": "deviation",
+     "evidence": "app/schedule/[token]/BookedCard.tsx:132 The remaining reschedule count is displayed unconditionally even when zero attempts remain, rather than giving way to the proposal route."
+    },
+    {
+     "technique": "withdraw-is-not-cancel",
+     "verdict": "deviation",
+     "evidence": "app/schedule/[token]/BookedCard.tsx:171 Candidate withdrawal is permanent and terminal with no mechanism to undo while the round remains open and collects no candidate explanation."
+    },
+    {
+     "technique": "server-authored-slot-labels",
+     "verdict": "conformant",
+     "evidence": "app/schedule/[token]/SlotPicker.tsx:43 SlotPicker formats slot labels on the client from the server-supplied ISO timestamp value rather than accepting transported client strings."
+    }
+   ]
+  },
+  {
+   "context": "interview-scheduling-api",
+   "subject": "candidate-self-scheduling",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/api/schedule/[token]/route.ts:287 The scheduling API automatically refuses candidate-proposed times outside standard working hours with an HTTP 400 error rather than escalating them to a human recruiter queue.",
+   "techniques": [
+    {
+     "technique": "propose-your-own-times-escalation",
+     "verdict": "deviation",
+     "evidence": "app/api/schedule/[token]/route.ts:283 The API refuses candidate proposals if open slots remain and automatically rejects off-hours proposals with HTTP 400 without human triage."
+    },
+    {
+     "technique": "server-authored-slot-labels",
+     "verdict": "conformant",
+     "evidence": "app/api/schedule/[token]/route.ts:354 The token scheduling endpoint discards any client-supplied slot string and strictly assigns the server-minted label from offeredSlotFor."
+    },
+    {
+     "technique": "structural-slot-validation-on-submit",
+     "verdict": "conformant",
+     "evidence": "app/api/schedule/[token]/route.ts:350 Booking submissions must pass structural validation against server-offered slots and re-check calendar availability before committing."
+    },
+    {
+     "technique": "adjustments-asked-at-the-booking-step",
+     "verdict": "deviation",
+     "evidence": "app/api/schedule/[token]/route.ts:200 The booking route request body schema and handlers contain no parameters or routing for candidate adjustment requests."
+    },
+    {
+     "technique": "withdraw-is-not-cancel",
+     "verdict": "deviation",
+     "evidence": "app/api/schedule/[token]/route.ts:227 Withdrawing irreversibly sets status 'declined', permanently locking the token against future interaction with HTTP 410."
+    },
+    {
+     "technique": "reschedule-cap-with-a-recruiter-bypass",
+     "verdict": "conformant",
+     "evidence": "app/api/schedule/route.ts:246 Recruiter booking on the week grid explicitly passes { recruiter: true }, bypassing the reschedule count limit and candidate budget."
+    },
+    {
+     "technique": "interviewer-timezone-anchoring",
+     "verdict": "deviation",
+     "evidence": "app/api/schedule/[token]/route.ts:182 The API relies on a global environment fallback rather than storing and anchoring each invitation to its specific interviewer timezone."
+    }
+   ]
+  },
+  {
+   "context": "schedule-calendar-invites",
+   "subject": "candidate-self-scheduling",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/hiring/schedule/ScheduleInviteRecruiterControls.tsx:6 The recruiter controls omit any recruiter-side reschedule capability, eliminating the recruiter bypass path needed to correct scheduling errors without debiting candidate attempts.",
+   "techniques": [
+    {
+     "technique": "reschedule-cap-with-a-recruiter-bypass",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/schedule/ScheduleInviteRecruiterControls.tsx:6 Recruiter controls in the schedule lifecycle panel lack any reschedule affordance to repair mistaken bookings on the recruiter's authority."
+    },
+    {
+     "technique": "propose-your-own-times-escalation",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/schedule/ScheduleInviteAttentionSection.tsx:72 Recruiters are only offered a binary decline button without an affordance to offer alternative dates or negotiate times."
+    },
+    {
+     "technique": "server-authored-slot-labels",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/schedule/ScheduleInviteAttentionSection.tsx:57 Proposal time chips are rendered using server-formatted labels via slotLabel."
+    },
+    {
+     "technique": "withdraw-is-not-cancel",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/schedule/ScheduleInviteRecruiterControls.tsx:65 The recruiter controls cleanly separate company-initiated cancellation from candidate withdrawals."
+    }
+   ]
+  },
+  {
+   "context": "calendar-scheduling",
+   "subject": "candidate-self-scheduling",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/schedule-slots.ts:310 The scheduling engine automatically invalidates candidate-proposed times that fall outside 08:00\u201318:00 business hours, defeating the purpose of the proposal escalation mechanism.",
+   "techniques": [
+    {
+     "technique": "propose-your-own-times-escalation",
+     "verdict": "deviation",
+     "evidence": "app/_lib/schedule-slots.ts:309 The slot validation engine drops candidate-proposed alternative times on weekends, strictly limiting proposals to standard business weekdays."
+    },
+    {
+     "technique": "server-authored-slot-labels",
+     "verdict": "conformant",
+     "evidence": "app/_lib/schedule-slots.ts:197 Slot labels are minted purely on the server from the instant and anchor timezone."
+    },
+    {
+     "technique": "structural-slot-validation-on-submit",
+     "verdict": "conformant",
+     "evidence": "app/_lib/schedule-slots.ts:249 offeredSlotFor enforces structural set membership across time, window, business day, and exact minute without range heuristics."
+    },
+    {
+     "technique": "reschedule-cap-with-a-recruiter-bypass",
+     "verdict": "conformant",
+     "evidence": "app/_lib/schedule-store.ts:641 Recruiter moves bypass incrementing the candidate's reschedule count in the database update transaction."
+    },
+    {
+     "technique": "withdraw-is-not-cancel",
+     "verdict": "deviation",
+     "evidence": "app/_lib/schedule-store.ts:717 Candidate withdrawal sets the terminal state 'declined' irreversibly with no mechanism to undo while the round remains active."
+    },
+    {
+     "technique": "interviewer-timezone-anchoring",
+     "verdict": "deviation",
+     "evidence": "app/_lib/schedule-slots.ts:130 The scheduling engine relies on a global environment variable rather than storing an explicit timezone identifier on the invitation."
+    },
+    {
+     "technique": "adjustments-asked-at-the-booking-step",
+     "verdict": "deviation",
+     "evidence": "app/_lib/schedule-store.ts:191 The schedule store and invitation record lack any schema fields for storing or routing candidate adjustment requests."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "candidate-self-scheduling",
+   "context": "pipeline-scheduler-sla",
+   "reason": "The pipeline-scheduler-sla context manages background pipeline automation schedules, run history, and SLA policies; it does not implement the candidate-facing self-scheduling workflow, slot validation, or invitation lifecycle techniques."
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-16T22:23:03.377549+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-self-scheduling"
+   ],
+   "techniques": [
+    "adjustments-asked-at-the-booking-step",
+    "interviewer-timezone-anchoring",
+    "propose-your-own-times-escalation",
+    "reschedule-cap-with-a-recruiter-bypass",
+    "server-authored-slot-labels",
+    "withdraw-is-not-cancel"
+   ],
+   "deviations": 1,
+   "context": "candidate-self-scheduling-page",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-16T22:23:03.377549+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-self-scheduling"
+   ],
+   "techniques": [
+    "adjustments-asked-at-the-booking-step",
+    "interviewer-timezone-anchoring",
+    "propose-your-own-times-escalation",
+    "reschedule-cap-with-a-recruiter-bypass",
+    "server-authored-slot-labels",
+    "structural-slot-validation-on-submit",
+    "withdraw-is-not-cancel"
+   ],
+   "deviations": 1,
+   "context": "interview-scheduling-api",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-16T22:23:03.377549+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-self-scheduling"
+   ],
+   "techniques": [
+    "propose-your-own-times-escalation",
+    "reschedule-cap-with-a-recruiter-bypass",
+    "server-authored-slot-labels",
+    "withdraw-is-not-cancel"
+   ],
+   "deviations": 1,
+   "context": "schedule-calendar-invites",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-16T22:23:03.377549+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-self-scheduling"
+   ],
+   "techniques": [
+    "adjustments-asked-at-the-booking-step",
+    "interviewer-timezone-anchoring",
+    "propose-your-own-times-escalation",
+    "reschedule-cap-with-a-recruiter-bypass",
+    "server-authored-slot-labels",
+    "structural-slot-validation-on-submit",
+    "withdraw-is-not-cancel"
+   ],
+   "deviations": 1,
+   "context": "calendar-scheduling",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}

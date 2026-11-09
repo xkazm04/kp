@@ -1,4 +1,6 @@
 import { Suspense } from "react";
+import { headers } from "next/headers";
+import { isOpenMode, openEntryOffered } from "@/app/_lib/auth/open-entry";
 import { Workspace } from "@/app/features/shell/Workspace";
 import SparkHome from "@/app/landing/spark/SparkHome";
 import { hasEnteredWorkspace } from "@/app/_lib/auth/home-gate-server";
@@ -10,6 +12,8 @@ import { needsOnboarding } from "@/app/_lib/auth/onboarding-gate";
 import { signupEnabled } from "@/app/_lib/workspace-lock";
 import { jobseekerEnabled } from "@/app/_lib/jobseeker/enabled";
 import { SetupSeekOfferProvider } from "@/app/features/shell/setup/SetupSeekOfferProvider";
+import { demoChoicePending } from "@/app/_lib/db/demo-seed";
+import { FirstRunDataChoice } from "@/app/setup/FirstRunDataChoice";
 
 // '/' is gated SERVER-SIDE between two surfaces: the public landing (SparkHome)
 // for anonymous visitors, and the workspace dashboard once signed in. The gate is
@@ -63,7 +67,26 @@ export default async function Home({
   // so the hero's primary CTA can send a refused (gated-deploy) visitor to a
   // surface where a stranger can actually finish. Pure env read — the anonymous
   // landing stays DB-free.
-  if (!entered) return <SparkHome signupOpen={signupEnabled()} />;
+  if (!entered) {
+    // Local open-mode install: the landing leads into the app (cx T2). Password mode,
+    // hosted and public-link visits keep today's labels and Sign in flow.
+    const openEntry = openEntryOffered({ openMode: isOpenMode(), host: (await headers()).get("host") });
+    return <SparkHome signupOpen={signupEnabled()} openEntry={openEntry} />;
+  }
+  // First-run DATA choice (operator triage T1): a fresh install no longer seeds the demo
+  // corpus at boot, so before anything else the default workspace is asked "start empty,
+  // or explore with demo data?" — once, the answer is recorded in the DB
+  // (app/_lib/db/demo-seed.ts). Demo sessions never see it. A failure to read the state
+  // shows the workspace, exactly as before this screen existed.
+  if (!demoMode) {
+    let pending = false;
+    try {
+      pending = demoChoicePending(await currentWorkspace());
+    } catch {
+      pending = false; // fail open to the workspace: the choice is an offer, never a wall
+    }
+    if (pending) return <FirstRunDataChoice />;
+  }
   // First-run gate: a principal (user, or workspace in open mode) that has never
   // completed/skipped the setup wizard gets it as an overlay on first entry.
   // `?onboarding=1` is the single-load dev escape hatch (KP_FORCE_ONBOARDING=1

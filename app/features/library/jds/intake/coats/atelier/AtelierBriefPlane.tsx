@@ -95,7 +95,7 @@ export function AtelierBriefPlane({
           the panel saying the same thing. */}
       <div className="flex items-center justify-end gap-1">
         {reveal.writing ? (
-          <span className="inline-flex items-center gap-1 text-coral" role="status" aria-label={t("writing")}>
+          <span className="inline-flex items-center gap-1 text-coral-ink" role="status" aria-label={t("writing")}>
             <Pencil size={13} aria-hidden />
             <span className="sr-only">{t("writing")}</span>
           </span>

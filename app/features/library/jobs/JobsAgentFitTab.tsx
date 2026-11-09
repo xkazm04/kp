@@ -32,7 +32,7 @@ export function JobsAgentFitTab({ jobId }: { jobId: string }) {
           <button
             type="button"
             onClick={() => router.push(buildTabSwitchUrl("integrations", search.toString()))}
-            className="focus-ring text-sm font-semibold text-coral hover:underline"
+            className="focus-ring text-sm font-semibold text-coral-ink hover:underline"
           >
             {t("goToIntegrations")}
           </button>
@@ -49,7 +49,7 @@ export function JobsAgentFitTab({ jobId }: { jobId: string }) {
         <button
           type="button"
           onClick={() => router.push(buildTabSwitchUrl("library", search.toString()))}
-          className="focus-ring text-sm font-semibold text-coral hover:underline"
+          className="focus-ring text-sm font-semibold text-coral-ink hover:underline"
         >
           {t("appMasterCta")}
         </button>
@@ -68,7 +68,7 @@ export function JobsAgentFitTab({ jobId }: { jobId: string }) {
 
       {specError ? (
         <div className="flex flex-wrap items-center gap-3">
-          <p className="text-base text-coral">{specError}</p>
+          <p className="text-base text-coral-ink">{specError}</p>
           <button type="button" onClick={reloadSpec} className={`${BTN_SECONDARY} h-8 px-3 text-sm`}>
             {t("retry")}
           </button>
@@ -78,7 +78,7 @@ export function JobsAgentFitTab({ jobId }: { jobId: string }) {
       {running ? (
         <div className={`${PANEL_SUNKEN} p-4`}>
           <p className="flex items-center gap-2 text-base font-semibold text-ink">
-            <Sparkles size={15} className="animate-pulse text-coral" aria-hidden /> {t("running")}
+            <Sparkles size={15} className="animate-pulse text-coral-ink" aria-hidden /> {t("running")}
           </p>
           <p className="mt-1 text-sm text-steel">{logic.progressMsg ?? t("runningHint")}</p>
         </div>
@@ -96,7 +96,7 @@ export function JobsAgentFitTab({ jobId }: { jobId: string }) {
       ) : null}
 
       {(logic.startError || logic.taskError) && !running ? (
-        <p role="alert" className="text-sm text-coral">
+        <p role="alert" className="text-sm text-coral-ink">
           {logic.startError ?? logic.taskError}
         </p>
       ) : null}
@@ -129,7 +129,7 @@ export function JobsAgentFitTab({ jobId }: { jobId: string }) {
             {agentLive ? <p className="text-sm text-steel">{t("existingAgent")}</p> : null}
           </div>
           {logic.dispatchError ? (
-            <p role="alert" className="text-sm text-coral">
+            <p role="alert" className="text-sm text-coral-ink">
               {logic.dispatchError}
             </p>
           ) : null}

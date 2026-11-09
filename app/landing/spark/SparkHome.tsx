@@ -2,6 +2,7 @@ import "../site/land/styles";
 import { Suspense } from "react";
 import { getTranslations } from "next-intl/server";
 import { DemoUnavailableNotice } from "./DemoUnavailableNotice";
+import { OpenEntryProvider } from "../site/chrome/OpenEntry";
 import MkRoot from "../site/chrome/MkRoot";
 import Header from "../site/chrome/Header";
 import Footer from "../site/chrome/Footer";
@@ -20,10 +21,18 @@ import LandingPage from "../site/land/LandingPage";
  * (chrome/Ctas StartCta), which needs it to pick /signup over /login on a gated
  * deploy. A single serializable boolean: the env never crosses to the client.
  */
-export default async function SparkHome({ signupOpen = false }: { signupOpen?: boolean }) {
+export default async function SparkHome({
+  signupOpen = false,
+  openEntry = false,
+}: {
+  signupOpen?: boolean;
+  /** Local open-mode install: the sign-in CTAs read "open your workspace" and a
+   *  returning browser skips this page (app/_lib/auth/open-entry.ts). */
+  openEntry?: boolean;
+}) {
   const t = await getTranslations("siteChrome");
   return (
-    <>
+    <OpenEntryProvider openEntry={openEntry}>
       <MkRoot mode="land">
         <a className="skip" href="#features">
           {t("skip.land")}
@@ -41,6 +50,6 @@ export default async function SparkHome({ signupOpen = false }: { signupOpen?: b
       <Suspense fallback={null}>
         <DemoUnavailableNotice signupOpen={signupOpen} />
       </Suspense>
-    </>
+    </OpenEntryProvider>
   );
 }

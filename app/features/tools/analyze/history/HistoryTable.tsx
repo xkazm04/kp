@@ -47,7 +47,7 @@ export function HistoryTable({
               <Td>
                 <Link
                   href={`/history/${row.slug}`}
-                  className="font-mono text-base font-medium text-coral hover:underline"
+                  className="font-mono text-base font-medium text-coral-ink hover:underline"
                 >
                   {row.slug}
                 </Link>
@@ -124,7 +124,7 @@ export function HistoryTable({
                 {row.jd_slug ? (
                   <Link
                     href={`/?tab=library&jd=${row.jd_slug}`}
-                    className="font-mono text-sm text-coral hover:underline"
+                    className="font-mono text-sm text-coral-ink hover:underline"
                   >
                     {row.jd_slug}
                   </Link>

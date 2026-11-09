@@ -1,0 +1,141 @@
+{
+ "schema": "conform-run/1",
+ "worker": "a692789f-b28f-4fcd-abd1-f9ace89d420b",
+ "subject": "wizard-flows",
+ "evaluatedAt": "2026-10-19T01:27:59.285367+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "conversational-apply-flow",
+   "subject": "wizard-flows",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/apply/[id]/ConversationalApply.tsx:344 Answering the final question submits the application immediately, without a whole-draft review and explicit confirmation.",
+   "techniques": [
+    {
+     "technique": "ai-driven-elicitation",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/apply.ts:112 The pre-commit interview uses a fixed, localized script with declared conditional lanes, rather than generatively chosen questions."
+    },
+    {
+     "technique": "branching-and-skipping",
+     "verdict": "deviation",
+     "evidence": "app/_lib/apply-intake.ts:413 Profile assembly includes student evidence by presence, without checking archetype relevance; branch exclusion is enforced during navigation rather than in the commit assembler."
+    },
+    {
+     "technique": "commit-boundary",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/ConversationalApply.tsx:344 The last answer triggers submission directly; the candidate never reviews the assembled commitment or explicitly confirms it."
+    },
+    {
+     "technique": "frontier-batched-elicitation",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/ConversationalApply.tsx:524 The flow presents one current screening question at a time, following the technique's measurement exception; knockout controls also avoid recommending the passing answer."
+    },
+    {
+     "technique": "progress-communication",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/ConversationalApply.tsx:484 The live log announces transcript messages, while the changing step position is rendered outside it; transitions do not announce both position and question as required."
+    },
+    {
+     "technique": "snapshot-and-resume",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/use-apply-draft.ts:96 A readable draft restores automatically before any resume-or-discard choice; incompatible and corrupt drafts also become quiet fresh starts."
+    },
+    {
+     "technique": "step-state-model",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/ConversationalApply.tsx:326 The transition guards busy and already-answered state, but does not enforce a shared validity predicate; text validation lives separately in submitText."
+    }
+   ]
+  },
+  {
+   "context": "shell-setup-wizard",
+   "subject": "wizard-flows",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/shell/setup/OnboardingExperience.tsx:321 An exception during finish closes the wizard, clears its draft and stamps completion, potentially losing recovery state after earlier writes applied.",
+   "techniques": [
+    {
+     "technique": "ai-driven-elicitation",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shell/setup/SetupWizardStepPane.tsx:79 The companion step renders fixed consent choices from a status probe; it does not run a generative interview."
+    },
+    {
+     "technique": "branching-and-skipping",
+     "verdict": "conformant",
+     "evidence": "app/features/shell/setup/setupOnboardingFinish.ts:46 Finish derives eligible writers from the same relevance filtering as navigation, excluding retained company, invite, pipeline and companion answers on the seeker branch."
+    },
+    {
+     "technique": "commit-boundary",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/setup/OnboardingExperience.tsx:321 Returned partial failures receive receipts and selective retries, but a thrown write instead reaches settle(), discarding the draft without accounting for applied and unattempted parts."
+    },
+    {
+     "technique": "frontier-batched-elicitation",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/setup/OnboardingExperience.tsx:114 After the intent fork, independent company, team, pipeline and companion choices remain separate sequential screens; eligible questions are not batched from an authored dependency frontier."
+    },
+    {
+     "technique": "progress-communication",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/setup/SetupOnboardingWizard.tsx:105 Completion checkmarks depend only on position, ignoring visited status and current validity, and disappear when navigating backward."
+    },
+    {
+     "technique": "snapshot-and-resume",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/setup/useSetupDraft.ts:75 The stored draft restores automatically without an offer; parsing also treats corrupt storage as a missing draft rather than reporting recovery failure."
+    },
+    {
+     "technique": "step-state-model",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/setup/OnboardingExperience.tsx:115 The next() transition advances without checking stepSatisfied; validity is enforced by its UI callers instead of inside the transition."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-19T01:27:59.285367+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "wizard-flows"
+   ],
+   "techniques": [
+    "ai-driven-elicitation",
+    "branching-and-skipping",
+    "commit-boundary",
+    "frontier-batched-elicitation",
+    "progress-communication",
+    "snapshot-and-resume",
+    "step-state-model"
+   ],
+   "deviations": 1,
+   "context": "conversational-apply-flow",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-19T01:27:59.285367+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "wizard-flows"
+   ],
+   "techniques": [
+    "ai-driven-elicitation",
+    "branching-and-skipping",
+    "commit-boundary",
+    "frontier-batched-elicitation",
+    "progress-communication",
+    "snapshot-and-resume",
+    "step-state-model"
+   ],
+   "deviations": 1,
+   "context": "shell-setup-wizard",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

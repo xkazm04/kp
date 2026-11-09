@@ -51,7 +51,7 @@ export function WorkspaceMembersTable({
       {loading ? (
         <div className="reveal-quiet min-h-[14rem]" aria-hidden />
       ) : error ? (
-        <p role="alert" className="px-5 py-6 text-sm text-coral">{t("loadError")}</p>
+        <p role="alert" className="px-5 py-6 text-sm text-coral-ink">{t("loadError")}</p>
       ) : members.length === 0 ? (
         <p className="px-5 py-6 text-sm text-steel">{t("noMembers")}</p>
       ) : (
@@ -139,7 +139,7 @@ export function WorkspaceMembersTable({
                         >
                           <SlidersHorizontal size={14} aria-hidden />
                           {custom ? (
-                            <span className={`${CHIP_QUIET} bg-coral/10 text-micro font-semibold text-coral`}>{t("custom")}</span>
+                            <span className={`${CHIP_QUIET} bg-coral/10 text-micro font-semibold text-coral-ink`}>{t("custom")}</span>
                           ) : (
                             t("edit")
                           )}

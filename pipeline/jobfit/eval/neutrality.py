@@ -356,6 +356,15 @@ def _m(cand, job):
     return score_job(cand, job)
 
 
+def _fold_cv(profile: Any) -> dict[str, Any]:
+    from ..profile import Evidence, fold_cv_detected_skills
+
+    prose = " ".join(f"{e.title} {e.text}" for e in profile.evidence)
+    cv_text = f"{prose} Ran PostgreSQL on Kubernetes in production."
+    profile.evidence = [*profile.evidence, Evidence(kind="cv", title="CV (uploaded at application)", text=cv_text)]
+    return {"added": fold_cv_detected_skills(profile), "profile": profile}
+
+
 def _scorers() -> dict[str, Scorer]:
     from .. import automation, interview, insights, jobseeker, live_case, match_reasoning, matching
     from .. import profile as profile_mod
@@ -389,14 +398,33 @@ def _scorers() -> dict[str, Scorer]:
         "matching.match": Scorer(
             lambda p: matching.match(_mc(p), jobs, limit=25), "total", ("candidate.label",)
         ),
-        "matching.score_job": Scorer(_per_job(lambda c, j: matching.score_job(c, j)), "total"),
+        # Both arithmetics are proven: the proof weights (the product default, ADR 0027) and
+        # the historical ``proof=None`` the C5 harness still measures. A name must move neither.
+        "matching.score_job": Scorer(
+            _per_job(
+                lambda c, j: {
+                    "proof": matching.score_job(c, j, proof=matching.DEFAULT_PROOF_WEIGHTS),
+                    "legacy": matching.score_job(c, j, proof=None),
+                }
+            ),
+            "total",
+        ),
         "matching.ko_filter": Scorer(_per_job(lambda c, j: list(matching.ko_filter(c, j))), "key"),
         "matching.eligibility_flags": Scorer(
             _per_job(lambda c, j: {"flags": matching.eligibility_flags(c, j)}), "flags"
         ),
         "matching.score_skills": Scorer(_per_job(lambda c, j: {"v": matching.score_skills(c, j)}), "v"),
         "matching.score_career": Scorer(_per_job(lambda c, j: {"v": matching.score_career(c, j)}), "v"),
-        "matching.score_personal": Scorer(_per_job(lambda c, j: {"v": matching.score_personal(c, j)}), "v"),
+        # C6b gates the keyword overlap under the proof weights; both arithmetics are proven.
+        "matching.score_personal": Scorer(
+            _per_job(
+                lambda c, j: {
+                    "v": matching.score_personal(c, j),
+                    "proof": matching.score_personal(c, j, proof=matching.DEFAULT_PROOF_WEIGHTS),
+                }
+            ),
+            "v",
+        ),
         "matching.score_motivation": Scorer(_per_job(lambda c, j: {"v": matching.score_motivation(c, j)}), "v"),
         "matching.propose_weights": Scorer(_per_job(lambda c, j: {"v": matching.propose_weights(c, j)}), "v"),
         "matching.embedding_texts_for": Scorer(
@@ -491,6 +519,14 @@ def _scorers() -> dict[str, Scorer]:
         "profile.normalize_profile": Scorer(
             lambda p: {"result": profile_mod.normalize_profile(p), "profile": p},
             "completeness",
+            ("profile.displayName", "profile.evidence.*.title", "profile.evidence.*.text"),
+        ),
+        # The CV read is fed the profile's own evidence prose (where a perturbation's
+        # gendered CV line lands) as the uploaded CV text, so the probe is non-vacuous:
+        # a name or a gendered form must not change which skills are read.
+        "profile.fold_cv_detected_skills": Scorer(
+            lambda p: _fold_cv(p),
+            "added",
             ("profile.displayName", "profile.evidence.*.title", "profile.evidence.*.text"),
         ),
         "soft_signals.build_soft_signal_panel": Scorer(

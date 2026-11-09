@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { billingOrgForWorkspace, BillingProviderTimeoutError, polarGatewayFromEnv } from "@/app/_lib/billing";
 import { getBillingState } from "@/app/_lib/db/billing";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { requireBillingAuthority } from "../authority";
@@ -17,7 +17,7 @@ import { requireBillingAuthority } from "../authority";
 // plus the odd re-open after a popup blocker ate the pre-opened tab.
 const PORTAL_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   // `org:manage` (authority.ts). This URL cancels the subscription and lists
   // invoices — until now any recruiter or viewer with a session could mint one.
   const denied = await requireBillingAuthority();
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     return jsonRefusal("BILLING_NOT_CONFIGURED", 503);
   }
   // Org scope (org-plan Phase 3): mint the portal for the CALLER's org's customer.
-  const customerId = getBillingState(billingOrgForWorkspace(await currentWorkspace()))?.providerCustomerId;
+  const customerId = getBillingState(billingOrgForWorkspace(ws))?.providerCustomerId;
   if (!customerId) {
     // A calm, expected pre-first-purchase state, not a failure — the client renders
     // it as a hint (billingPortalOpen.ts maps this 404 to `kind: "hint"`).
@@ -48,4 +48,4 @@ export async function POST(request: NextRequest) {
     }
     return safeJsonError(error, "api/billing/portal", "BILLING_PORTAL_FAILED", 502);
   }
-}
+});

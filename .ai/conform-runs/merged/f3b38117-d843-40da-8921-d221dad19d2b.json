@@ -1,0 +1,70 @@
+{
+ "schema": "conform-run/1",
+ "worker": "f3b38117-d843-40da-8921-d221dad19d2b",
+ "subject": "agent-browser-control",
+ "evaluatedAt": "2026-10-19T12:30:51.989350+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "login-flow",
+   "subject": "agent-browser-control",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/login/LoginClient.tsx:46 This context submits a user's credentials to the application API; searches found no daemon, locator, or playwright references in app/login, while repository matches concern other contexts and testing.",
+   "techniques": [
+    {
+     "technique": "agent-actionable-errors",
+     "verdict": "not-applicable",
+     "evidence": "app/login/LoginClient.tsx:82 Errors reach the user through translated UI toasts, rather than an agent consuming browser-command failures."
+    },
+    {
+     "technique": "effect-classed-commands",
+     "verdict": "not-applicable",
+     "evidence": "app/login/LoginClient.tsx:49 The request carries login credentials; this context exposes no agent browser-command registry or dispatcher."
+    },
+    {
+     "technique": "persistent-browser-daemon",
+     "verdict": "not-applicable",
+     "evidence": "app/login/LoginClient.tsx:43 The timeout aborts a login fetch; this context does not launch or manage a browser process."
+    },
+    {
+     "technique": "references-over-selectors",
+     "verdict": "not-applicable",
+     "evidence": "app/login/LoginClient.tsx:100 This is application-owned form markup, rather than a runtime that snapshots arbitrary pages and resolves agent element references."
+    },
+    {
+     "technique": "socket-scoped-surface",
+     "verdict": "not-applicable",
+     "evidence": "app/login/page.tsx:35 Request-derived origin information supports a login redirect; it does not classify callers of a browser daemon or expose a tunneled command listener."
+    }
+   ],
+   "absenceTerms": [
+    "daemon",
+    "locator",
+    "playwright"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-19T12:30:51.989350+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-browser-control"
+   ],
+   "techniques": [
+    "agent-actionable-errors",
+    "effect-classed-commands",
+    "persistent-browser-daemon",
+    "references-over-selectors",
+    "socket-scoped-surface"
+   ],
+   "deviations": 0,
+   "context": "login-flow",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

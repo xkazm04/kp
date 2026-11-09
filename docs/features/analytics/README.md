@@ -826,7 +826,7 @@ is disclosed via `subjectScan.capped`, above which the table states which most-r
 of how many were searched.
 
 **One clock, named.** Both tables render through `formatAuditTime(iso, locale, zone)`
-(`analyticsDecisionLogTypes.ts`) where the zone is the reader's resolved time zone, print
+(`app/_lib/analytics-decision-types.ts`) where the zone is the reader's resolved time zone, print
 `Times in {zone}` beside the count, and keep raw ISO in each cell's `title`. The CSV carries
 **both** a rendered `Time ({zone})` matching the screen and `Time (ISO, UTC)` for the machine;
 previously the screen showed an unmarked UTC instant while the export wrote true ISO, so the two
@@ -987,7 +987,7 @@ collided stem in any locale and that the self-report label names the model in al
 | `GET /api/analytics` | The main payload (`AnalyticsTypes.ts` → `Analytics`); `?days=30\|90` scopes the cohort window, absent = all time; `deltas` is `null` all-time; `?job=<jobId>` scopes every figure to one role and names the rest in `jobScope.withheld` (see *One role* above) |
 | `GET /api/analytics/decisions` | The paged decision log. `?kind=` + `?attribution=` **intersect**; `?q=` subject search (diacritic-folded, ≤80 chars); `?locale=` picks the collator; `?sort=`/`?dir=`/`offset`/`limit`; returns `subjectScan` |
 | `GET /api/analytics/calibration` | Band calibration + reliability; `?source=pipeline\|analysis\|holdout`, `?outcome=advance\|hired` (echoed back; `analysis` always falls back to `advance`), `?family=`. Pipeline source also ships `currentThreshold` **and `autoRejectEnabled`** — the floor never travels without the switch |
-| `POST /api/analytics/calibration/apply-threshold` | Commit a suggested threshold (`requireOperator()` + `pipeline:write`; `suggestedThreshold` REQUIRED and compared against the live recommendation) |
+| `POST /api/analytics/calibration/apply-threshold` | Commit a suggested threshold (`requireOperator()` + `pipeline:write`; `suggestedThreshold` REQUIRED and compared against the live recommendation). Seals the change BEFORE it moves the floor and answers 503 `PIPELINE_DECISION_NOT_SEALED` with nothing changed when it cannot |
 | `GET /api/analytics/calibration/floor-preview` | Who on today's board the live suggestion would move, per role (`?roleFamily=` optional). The Apply seat: `requireOperator()` + `pipeline:write` (403 `ANALYTICS_POLICY_FORBIDDEN`); 400 `CALIBRATION_FAMILY_UNKNOWN`; 409 `CALIBRATION_RECOMMENDATION_ABSENT`; `rateLimit` `floor-preview:<ip>` 30/10 min. Dry runs only — writes nothing |
 
 A successful threshold apply bumps the calibration memo version for that
@@ -1110,7 +1110,10 @@ Pure computation lives beside the route, not in it: `analytics-forecast.ts`,
 `calibrationVerdict.ts` and `analyticsFunnelEmptyState.ts` hold the two render decisions that had
 to become executable values (and `metricPackPreviewModel.ts` the pack preview's ordering and
 clearing date). Tables compose `app/_components/table/` (`TablePager`,
-`ColumnFilter`, `ColumnHead` + `useTableSort`, nulls last in both directions).
+`ColumnFilter`, `ColumnHead` + `useTableSort`, nulls last in both directions). Every analytics
+table that sorts or filters also mounts the shared `TableStatus` live region: the acquisition
+economics board, decision log and sealed-decision table announce the localized active column,
+direction and filtered result count instead of changing rows only in the visual channel.
 
 **Filter menus are comboboxes (2026-09-04).** `ColumnFilter mode="select"` and
 `SearchSelect` triggers carry `role="combobox"` + `aria-haspopup="listbox"` +

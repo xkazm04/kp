@@ -7,6 +7,7 @@ import { requireCapability } from "@/app/_lib/auth/current-user";
 import { githubCacheKey, readGithubCache, writeGithubCache } from "@/app/_lib/github/cache";
 import { buildGithubAnalysis, isTransientlyDegraded } from "@/app/_lib/github/analysis";
 import { GITHUB_ERRORS, GithubAnalysisError } from "@/app/_lib/github/client";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // The pasted job description reaches the Gemini prompt, and only the CACHE KEY was
 // ever capped (github/cache.ts normalizes to 4000 chars for hashing) — the prompt
@@ -23,7 +24,7 @@ const GITHUB_JD_MAX_CHARS = 20_000;
 
 export const maxDuration = 60;
 
-export async function POST(request: Request) {
+export const POST = withSession(async (request: Request) => {
   const requestId = newRequestId();
   const startedAt = Date.now();
 
@@ -133,4 +134,4 @@ export async function POST(request: Request) {
     // GithubAnalysisPanel error state.
     return NextResponse.json(retryAfterSec ? { error: message, code, retryAfterSec } : { error: message, code });
   }
-}
+});

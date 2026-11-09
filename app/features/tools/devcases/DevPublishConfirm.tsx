@@ -79,7 +79,7 @@ export function DevPublishConfirm({
       tabIndex={-1}
       className="rounded-lg border border-coral/30 bg-coral/5 p-4"
     >
-      <h3 className="flex items-center gap-1.5 text-meta font-semibold uppercase tracking-wide text-coral">
+      <h3 className="flex items-center gap-1.5 text-meta font-semibold uppercase tracking-wide text-coral-ink">
         <Icon size={12} /> {title}
       </h3>
       <p className="mt-2 max-w-prose text-sm text-steel">{body}</p>
@@ -114,7 +114,7 @@ export function DevPublishConfirm({
           type="button"
           onClick={confirmPublish}
           disabled={!canPublishNow || publishing}
-          className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md bg-coral px-3 text-micro font-semibold text-white hover:bg-coral/90 disabled:opacity-50"
+          className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md bg-coral-solid px-3 text-micro font-semibold text-white hover:bg-coral-solid/90 disabled:opacity-50"
         >
           <Icon size={12} /> {publishing ? busy : cta}
         </button>
@@ -127,7 +127,7 @@ export function DevPublishConfirm({
         </button>
       </div>
       {error ? (
-        <p role="alert" className="mt-2 text-micro text-coral">
+        <p role="alert" className="mt-2 text-micro text-coral-ink">
           {error}
         </p>
       ) : null}

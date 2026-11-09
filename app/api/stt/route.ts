@@ -20,6 +20,7 @@ import { validateAudioUploadServer } from "@/app/_lib/upload-constraints";
 import { getStt, isSttMimeType, SttError, type SttNeeds } from "@/app/_lib/stt";
 import { sttUsageRow } from "@/app/_lib/stt-prices";
 import { insertLlmUsage } from "@/app/_lib/db/llm";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 const STT_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 
@@ -89,7 +90,7 @@ function str(form: FormData, name: string): string | null {
   return typeof v === "string" && v.trim() ? v.trim() : null;
 }
 
-export async function GET() {
+export const GET = withSession(async () => {
   const denied = await requireOperator();
   if (denied) return denied;
   const stt = getStt();
@@ -98,9 +99,9 @@ export async function GET() {
   // renders from this one probe instead of a second round trip per provider.
   const providers = await stt.status();
   return NextResponse.json({ providers, preferred: stt.preference.preferred, allowed: stt.preference.allowed });
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withSession(async (request: Request) => {
   const denied = await requireOperator();
   if (denied) return denied;
   if (!rateLimit(`stt:${clientIpFrom(request.headers)}`, STT_RATE_LIMIT)) {
@@ -220,4 +221,4 @@ export async function POST(request: Request) {
     }
     return safeJsonError(err, "api:stt", "STT_FAILED");
   }
-}
+});

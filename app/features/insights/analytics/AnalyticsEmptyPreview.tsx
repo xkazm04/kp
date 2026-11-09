@@ -82,7 +82,7 @@ export function AnalyticsEmptyPreview({ title, body, links }: AnalyticsEmptyProp
       </div>
 
       <p className="mt-4 max-w-xl text-sm text-steel">
-        <a href={qualityHref} className="focus-ring rounded font-semibold text-coral hover:underline">
+        <a href={qualityHref} className="focus-ring rounded font-semibold text-coral-ink hover:underline">
           {t("metricTrustLink")}
         </a>
       </p>

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ingestJobAd, insertJob, jobContentHash } from "@/app/_lib/job-ingest";
-import { canWriteJobLifecycle } from "@/app/_lib/db/jobs";
+import { canWriteJobLifecycle, getJob } from "@/app/_lib/db/jobs";
+import { effectiveOrgName } from "@/app/_lib/org-name-server";
+import { companyOrDefault } from "@/app/_lib/org-settings";
 import { MIN_AD_CHARS } from "@/app/_lib/split-ads";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
@@ -16,14 +18,13 @@ export const maxDuration = 180;
 // Direction #1: turn a prose job ad into a structured, matchable Job in the
 // corpus. The Claude CLI parses the ad (jobs_cli ingest); the result is upserted
 // and content-hash-guarded so the same ad doesn't pile up duplicate jobs.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   try {
     const body = (await request.json()) as { adText?: string; jobId?: unknown };
     const adText = (body.adText ?? "").trim();
     if (adText.length < MIN_AD_CHARS) {
       return jsonRefusal("JOB_AD_TOO_SHORT", 400);
     }
-    const ws = await currentWorkspace();
 
     // An explicit jobId means "re-parse this ad INTO that existing job", i.e. a content
     // overwrite of a named row — insertJob's ON CONFLICT UPDATE rewrites its title,
@@ -61,11 +62,18 @@ export async function POST(request: NextRequest) {
     //
     // derivedId when the caller named no job: the parser's id is then just a slug of the
     // ad's TITLE, so two different roles that share a title must fork, not overwrite.
-    const { id, created } = insertJob(job, jobContentHash(adText), "draft", ws, {
+    // An ad that names no employer is the owner's own role: fill the blank company
+    // from the org name (org-name-server.ts) so the apply page names who is hiring.
+    // A re-parse INTO a named row keeps that row's company first. Never over a parsed one.
+    const company = companyOrDefault(
+      job.company,
+      (explicitJobId ? getJob(explicitJobId, ws)?.company?.trim() : "") || (await effectiveOrgName())
+    );
+    const { id, created } = insertJob({ ...job, company }, jobContentHash(adText), "draft", ws, {
       derivedId: !explicitJobId,
     });
     return NextResponse.json({ jobId: id, created, source, title: job.title });
   } catch (error) {
     return safeJsonError(error, "api:jobs/ingest", "JOB_INGEST_FAILED");
   }
-}
+});

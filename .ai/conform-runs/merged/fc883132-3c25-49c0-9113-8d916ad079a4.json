@@ -1,0 +1,36 @@
+{
+  "schema": "conform-run/1",
+  "worker": "fc883132-3c25-49c0-9113-8d916ad079a4",
+  "subject": "lazy-section-addressability",
+  "evaluatedAt": "2026-10-22T02:59:42.846473+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "lazy-section-addressability",
+      "context": "analytics-sections",
+      "reason": "withdrawn after review: reviewer (sonnet): QualityInstrument.tsx:283 does show a `<Defer strategy=\"visible\">` with no placeholder, and Defer.tsx renders a zero-height sentinel in that case. But I could not open the standard's text to confirm it has a reserved-space requirement, and the verdict's own technique anchors say this context has no "
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-22T02:59:42.846473+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "lazy-section-addressability"
+      ],
+      "techniques": [
+        "always-present-anchor-wrappers",
+        "anchor-coverage-guard",
+        "external-anchor-vs-internal-id",
+        "scroll-to-hydrate-then-retry",
+        "ssr-gating-decision-tree"
+      ],
+      "deviations": 1,
+      "context": "analytics-sections",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}

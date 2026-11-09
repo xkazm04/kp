@@ -124,7 +124,7 @@ export function OnboardingWizard({ ctrl, draftRestored }: { ctrl: OnboardingCtrl
                         aria-hidden
                         className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-semibold ${
                           active
-                            ? "bg-coral text-white"
+                            ? "bg-coral-solid text-white"
                             : done
                               ? "bg-moss/15 text-moss"
                               : "border border-stone-300 bg-white text-steel"

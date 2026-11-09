@@ -85,12 +85,12 @@ export function StudioVoiceBar({
     micError || speakError ? (
       <>
         {micError ? (
-          <p className="mt-1 text-sm text-coral" role="status">
+          <p className="mt-1 text-sm text-coral-ink" role="status">
             {micError}
           </p>
         ) : null}
         {speakError ? (
-          <p className="mt-1 text-sm text-coral" role="status">
+          <p className="mt-1 text-sm text-coral-ink" role="status">
             {speakError}
           </p>
         ) : null}

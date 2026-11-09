@@ -1,0 +1,274 @@
+{
+ "schema": "conform-run/1",
+ "worker": "276085e2-93f3-41d1-8942-2f9029ee0a9f",
+ "subject": "application-intake-and-conversion",
+ "evaluatedAt": "2026-10-24T06:31:15.754862+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "quick-apply-flow",
+   "subject": "application-intake-and-conversion",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/apply/[id]/quick/QuickApplyForm.tsx:290 The decoy is named and labelled 'company_url' / 'Company URL'. The technique names exactly this kind of field as one autofill and password managers claim. Retry (setDone(null)) also never clears it, so a real person whose browser filled it keeps getting the same result.",
+   "techniques": [
+    {
+     "technique": "eligibility-gate-versus-bot-defence",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/quick/QuickApplyForm.tsx:290 The trap's name and label are company/url, which autofill heuristics claim. The decline-retry path at line 215 does not reset companyUrl."
+    },
+    {
+     "technique": "always-live-submit-that-names-the-blocker",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/quick/QuickApplyForm.tsx:138 Submit is disabled only while in flight. An incomplete tap raises a role=alert hint and moves focus to the first missing control. Minor gap: after a failed POST, focus is not put back on the error or the button."
+    },
+    {
+     "technique": "tonally-neutral-eligibility-questions",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/quick/QuickApplyForm.tsx:358 Styling is symmetric (ink when selected for either answer). But the passing 'Yes' always renders first ([true, false] at line 353), and it is the only control focused when a gate blocks submit, so the passing option is pre-focused."
+    },
+    {
+     "technique": "recoverable-decline-and-no-dead-ends",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/quick/QuickApplyForm.tsx:215 The decline Retry returns to the same form with every answer still in state, so it can be corrected in place. ApplyDeclineDetail names the must-have and the human-review route."
+    },
+    {
+     "technique": "speed-to-lead-acknowledgement",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/quick/QuickApplyForm.tsx:229 The success screen carries the enrichment CTA with the lead token, so the full apply opens prefilled. The page captures campaign/variant attribution on arrival (page.tsx:38)."
+    }
+   ]
+  },
+  {
+   "context": "conversational-apply-flow",
+   "subject": "application-intake-and-conversion",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/apply/[id]/ConversationalApply.tsx:446 The chat uses the same autofill-claimable decoy name, and the server answers a trip with the eligibility-decline copy. A real person whose browser filled the field is told they do not qualify.",
+   "techniques": [
+    {
+     "technique": "eligibility-gate-versus-bot-defence",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/ConversationalApply.tsx:446 The decoy is named company_url and labelled 'Company URL'. autoComplete=off is relied on, which the technique calls a courtesy, not a control."
+    },
+    {
+     "technique": "tonally-neutral-eligibility-questions",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/ConversationalApply.tsx:226 On a knockout step this focuses the first button, which is always the passing Yes, so the passing option is pre-focused. Colour neutrality itself is held."
+    },
+    {
+     "technique": "always-live-submit-that-names-the-blocker",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/ConversationalApply.tsx:350 An empty answer submit does nothing and names no blocker. The Send button is also rendered disabled={!input.trim() || busy} (ApplyStepControls.tsx:163, the same directory but outside the listed files)."
+    },
+    {
+     "technique": "recoverable-decline-and-no-dead-ends",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/ConversationalApply.tsx:281 The decline is recoverable only by a full restart that wipes every answer. The loss is announced (declinedRestartNote), which is the technique's minimum. But this flow can already re-ask a single step (beginFix), so preserving the answers is achievable, and the technique says the gap is a backlog item, not a design."
+    },
+    {
+     "technique": "merge-dont-drop-on-reapplication",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/page.tsx:84 The lead token is shape-gated, must belong to this role, and degrades silently to the first-time flow."
+    },
+    {
+     "technique": "speed-to-lead-acknowledgement",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/page.tsx:128 The enrichment link opens the chat prefilled and drops the steps and knockout gates already answered."
+    }
+   ]
+  },
+  {
+   "context": "candidate-apply-flow",
+   "subject": "application-intake-and-conversion",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/apply-intake.ts:33 The shared honeypot contract defines a trip as a silent, unrecorded drop rather than a quarantine for review. Nobody can see autofill trips, and the false-positive check the technique requires cannot be done.",
+   "techniques": [
+    {
+     "technique": "eligibility-gate-versus-bot-defence",
+     "verdict": "deviation",
+     "evidence": "app/_lib/apply-intake.ts:33 A trip means drop: no record, no quarantine lane, no trip-rate count."
+    },
+    {
+     "technique": "always-live-submit-that-names-the-blocker",
+     "verdict": "conformant",
+     "evidence": "app/_lib/apply-intake.ts:131 The retry-vs-restart failure class is an explicit, named contract. APPLY_EMAIL_RE (line 105) is the one rule shared by client and server."
+    },
+    {
+     "technique": "merge-dont-drop-on-reapplication",
+     "verdict": "conformant",
+     "evidence": "app/_lib/apply-intake.ts:89 Address-first identity with a name fallback. Write authority lives in application-filing.ts, outside this context."
+    },
+    {
+     "technique": "speed-to-lead-acknowledgement",
+     "verdict": "conformant",
+     "evidence": "app/_lib/candidate-link-locale.ts:14 Emailed candidate links pin the language they were written in."
+    },
+    {
+     "technique": "tonally-neutral-eligibility-questions",
+     "verdict": "deviation",
+     "evidence": "app/_lib/apply.ts:243 No knockout prompt states its stakes or that the answer will be checked. The copy reads 'Are you legally authorized\u2026' and 'Does that work for you?', and the consequence appears only after a decline. The one-option guard (MIN_ARCHETYPE_OPTIONS_TO_OFFER, line 58) is held."
+    }
+   ]
+  },
+  {
+   "context": "apply-surface-tests",
+   "subject": "application-intake-and-conversion",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:201 The honeypot pin asserts autocomplete=off as the anti-autofill control and pins the company_url name (line 198), both of which the technique calls ineffective. It does not pin the positioning rule or that a trip is recorded, so the test locks in the fragile construction.",
+   "techniques": [
+    {
+     "technique": "eligibility-gate-versus-bot-defence",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:201 Pins the wrong invariant: autocomplete-off plus a claimable name, with no positioning-rule or trip-recording pin."
+    },
+    {
+     "technique": "tonally-neutral-eligibility-questions",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:32 Pins the success-colour ban and the shared recipe on both knockout buttons. Order, focus and the at-least-two-choices invariant are not pinned."
+    },
+    {
+     "technique": "always-live-submit-that-names-the-blocker",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:158 Pins disabled-only-while-posting, the first-missing-control alert and the focus jump."
+    },
+    {
+     "technique": "recoverable-decline-and-no-dead-ends",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:148 Pins that the decline is not terminal and that the answer loss is announced (the minimum, not answer preservation)."
+    }
+   ]
+  },
+  {
+   "context": "candidate-apply-api",
+   "subject": "application-intake-and-conversion",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/api/apply/[id]/quick/route.ts:94 A filled honeypot is answered with the eligibility-decline message ('this role isn't the right fit'), and nothing is filed or recorded. This is the failure the technique names first: a bot control borrowing the knockout decline tells an autofill-tripped human they do not qualify.",
+   "techniques": [
+    {
+     "technique": "eligibility-gate-versus-bot-defence",
+     "verdict": "deviation",
+     "evidence": "app/api/apply/[id]/quick/route.ts:94 Both doors do this (route.ts:211 is identical). Silent drop, no quarantine, no trip record."
+    },
+    {
+     "technique": "recoverable-decline-and-no-dead-ends",
+     "verdict": "deviation",
+     "evidence": "app/api/apply/[id]/route.ts:267 The decline is audited as an entry-less event (recordKnockoutDecline, line 250), which conforms. But a decline email is also sent after the candidate already saw the decline on screen. The technique calls that a second notification for one event."
+    },
+    {
+     "technique": "merge-dont-drop-on-reapplication",
+     "verdict": "conformant",
+     "evidence": "app/api/apply/[id]/route.ts:412 Only the issued token authorises writes. An unproven repeat is acknowledged, writes nothing, and its links go to the address on file. A failed rebuild touches nothing."
+    },
+    {
+     "technique": "speed-to-lead-acknowledgement",
+     "verdict": "deviation",
+     "evidence": "app/api/apply/[id]/route.ts:385 The quick door is conformant (stub filing, ack deferred). On the conversational door, fileApplication runs the profile_cli build (up to 60s) before the entry is written and the ack is sent (application-filing.ts:297, then :338), so the acknowledgement waits on parsing."
+    },
+    {
+     "technique": "always-live-submit-that-names-the-blocker",
+     "verdict": "conformant",
+     "evidence": "app/api/apply/[id]/route.ts:236 Content refusals name the offending step and its cap as data, so the door can re-ask one question with the typed answer kept."
+    }
+   ],
+   "registryProposal": "The eligibility-gate technique could say outright that a request to the server is 'your own surface' only when that surface's client actually enforces completeness. kp's conversational route is lenient on email for scripted callers but strict on knockout answers, and that mixed case is not named."
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-24T06:31:15.754862+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "application-intake-and-conversion"
+   ],
+   "techniques": [
+    "always-live-submit-that-names-the-blocker",
+    "eligibility-gate-versus-bot-defence",
+    "recoverable-decline-and-no-dead-ends",
+    "speed-to-lead-acknowledgement",
+    "tonally-neutral-eligibility-questions"
+   ],
+   "deviations": 1,
+   "context": "quick-apply-flow",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T06:31:15.754862+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "application-intake-and-conversion"
+   ],
+   "techniques": [
+    "always-live-submit-that-names-the-blocker",
+    "eligibility-gate-versus-bot-defence",
+    "merge-dont-drop-on-reapplication",
+    "recoverable-decline-and-no-dead-ends",
+    "speed-to-lead-acknowledgement",
+    "tonally-neutral-eligibility-questions"
+   ],
+   "deviations": 1,
+   "context": "conversational-apply-flow",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T06:31:15.754862+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "application-intake-and-conversion"
+   ],
+   "techniques": [
+    "always-live-submit-that-names-the-blocker",
+    "eligibility-gate-versus-bot-defence",
+    "merge-dont-drop-on-reapplication",
+    "speed-to-lead-acknowledgement",
+    "tonally-neutral-eligibility-questions"
+   ],
+   "deviations": 1,
+   "context": "candidate-apply-flow",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T06:31:15.754862+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "application-intake-and-conversion"
+   ],
+   "techniques": [
+    "always-live-submit-that-names-the-blocker",
+    "eligibility-gate-versus-bot-defence",
+    "recoverable-decline-and-no-dead-ends",
+    "tonally-neutral-eligibility-questions"
+   ],
+   "deviations": 1,
+   "context": "apply-surface-tests",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T06:31:15.754862+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "application-intake-and-conversion"
+   ],
+   "techniques": [
+    "always-live-submit-that-names-the-blocker",
+    "eligibility-gate-versus-bot-defence",
+    "merge-dont-drop-on-reapplication",
+    "recoverable-decline-and-no-dead-ends",
+    "speed-to-lead-acknowledgement"
+   ],
+   "deviations": 1,
+   "context": "candidate-apply-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

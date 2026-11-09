@@ -46,6 +46,7 @@ const SERVER_KINDS = [
   "jobseeker_scan",
   "lifecycle",
   "repo_scan",
+  "score_entry",
 ];
 
 test("the table decides every kind: a door and a capability for each, no stale extra key", () => {

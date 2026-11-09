@@ -1,0 +1,71 @@
+{
+ "schema": "conform-run/1",
+ "worker": "d96e45b2-6e1c-46ab-bf86-28ee6f5506a9",
+ "subject": "modal-stack",
+ "evaluatedAt": "2026-10-22T04:19:05.531095+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "feedback-status-primitives",
+   "subject": "modal-stack",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_components/Tooltip.tsx:95 Tooltip Escape dismissal does not stop propagation, allowing the containing modal's document listener to close a second layer on the same keypress.",
+   "techniques": [
+    {
+     "technique": "anchored-positioning",
+     "verdict": "deviation",
+     "evidence": "app/_components/Tooltip.tsx:61 Tracks ancestor scrolling, but update only repositions: an off-screen anchor never dismisses its tooltip, and anchor/overlay geometry changes are not observed."
+    },
+    {
+     "technique": "destructive-confirmation",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/IconAction.tsx:64 The supplied primitives delegate actions to callers and define no destructive operation whose reversibility or blast radius can be judged."
+    },
+    {
+     "technique": "dismissal-semantics",
+     "verdict": "deviation",
+     "evidence": "app/_components/Tooltip.tsx:95 The tooltip's Escape handler closes locally without stopping propagation; useDialogA11y's document handler can then close its containing modal."
+    },
+    {
+     "technique": "focus-and-scroll-containment",
+     "verdict": "deviation",
+     "evidence": "app/_components/Modal.tsx:84 Modal claims modality, but its hook supplies Tab handling and scroll locking without making the background inert to assistive traversal or other focus navigation."
+    },
+    {
+     "technique": "layering-and-precedence",
+     "verdict": "deviation",
+     "evidence": "app/_components/Modal.tsx:70 Modal uses a raw layer number; Tooltip independently uses z-50, while Toast uses a named token, violating the requirement for one semantic layer scale."
+    },
+    {
+     "technique": "stack-ownership",
+     "verdict": "deviation",
+     "evidence": "app/_components/useDialogA11y.ts:16 The dialog/drawer registry stores only symbols and excludes independently opened tooltips, so it cannot provide typed, queryable ownership across overlay families."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-22T04:19:05.531095+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "modal-stack"
+   ],
+   "techniques": [
+    "anchored-positioning",
+    "destructive-confirmation",
+    "dismissal-semantics",
+    "focus-and-scroll-containment",
+    "layering-and-precedence",
+    "stack-ownership"
+   ],
+   "deviations": 1,
+   "context": "feedback-status-primitives",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

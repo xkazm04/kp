@@ -37,7 +37,7 @@ const SKIN: Record<PresenceState, { ring: string; halo: string; text: string; Ic
   connecting: { ring: "border-dial-amber", halo: "bg-dial-amber", text: "text-ink", Icon: Loader2 },
   listening: { ring: "border-moss", halo: "bg-moss", text: "text-moss", Icon: Ear },
   thinking: { ring: "border-steel", halo: "bg-steel", text: "text-steel", Icon: Loader2 },
-  speaking: { ring: "border-coral", halo: "bg-coral", text: "text-coral", Icon: Sparkles },
+  speaking: { ring: "border-coral", halo: "bg-coral", text: "text-coral-ink", Icon: Sparkles },
   ended: { ring: "border-stone-300", halo: "bg-stone-200", text: "text-steel", Icon: PhoneOff },
 };
 

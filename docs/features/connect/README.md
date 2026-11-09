@@ -1,0 +1,109 @@
+# Connect — the connector catalog
+
+One server-side catalog of everything kp can talk to, with **one health vocabulary**.
+Code: `app/_lib/connect/` (`catalog.ts`, `probes.ts`); API: `GET /api/connect`,
+`POST /api/connect/[id]/probe`.
+The hub UI is the Night Post's **Connectors deck** (`app/features/hiring/channels/night/connectors/`,
+comms channels C5): it reads `GET /api/connect` and runs `POST /api/connect/[id]/probe` only from an
+owner's press. `?tab=integrations` (the retired Settings tab, and the Google OAuth landing)
+redirects there. The deck is described in `docs/features/comms/README.md`, "Channels tab: the
+Night Post".
+
+## Rows
+
+| id | what | egress class | saved by |
+| --- | --- | --- | --- |
+| `comms_relay` | outbound delivery relay | `candidate_message` | `/api/comms/relay` (or `COMMS_WEBHOOK_URL`) |
+| `smtp` | the stored SMTP mailbox (host, port, address; password write-only) | `candidate_message` | `/api/comms/smtp` |
+| `ats_webhook` | outbound ATS mirror webhook | `candidate_record` | `/api/ats/config` |
+| `calendar` | Google Calendar free/busy (per workspace) | `schedule_read` | the OAuth landing |
+| `ats_inbound:<provider>` | inbound ATS connection (`recruitee`, `recruitis`, `teamio`) | `credentialed_read` | `/api/ats/connections` |
+
+The catalog is **data over existing stores**: each row's fields are read from the store that
+already keeps them. It holds no credential and adds no table. A secret field is write-only
+exactly as in its store: the row carries `hasSecret`, never a value.
+
+```jsonc
+{ "id": "ats_inbound:recruitee", "label": "...", "egress": "credentialed_read",
+  "fields": [ { "key": "baseUrl", "secret": false, "value": "https://…" },
+              { "key": "apiToken", "secret": true, "hasSecret": true } ],
+  "health": "unverified", "lastOkAt": null, "lastFailure": null, "repair": null }
+```
+
+## Health words
+
+Exactly one per row, decided in this order:
+
+1. `sealed` — `egressSealed()` (`KP_NO_COMMS_EGRESS=1`). Every row, whatever is configured.
+2. `not_configured` — nothing saved (keyless: every row).
+3. `failing` — the store itself knows it is broken (revoked or undecryptable calendar grant,
+   unreadable relay signing secret), or the last probe against the current configuration failed.
+4. `unverified` — saved, but no probe has run against this configuration. A re-save, or a
+   process restart, returns a row here.
+5. `connected` — the last probe against the current configuration succeeded.
+
+`repair` is `"reconnect"` when the store knows a failure only a person can fix (today: a calendar
+grant revoked at Google, or a stored token that no longer decrypts); otherwise `null`. The deck turns
+it into a Reconnect door and the Night Post's `calendarReconnect` need.
+
+`lastOkAt` / `lastFailure` come from the probe memory (below) or, for the calendar grant, from
+the health the calendar edge already records (`healthAt`).
+
+## Probe contract
+
+`probe*()` in `probes.ts` returns one of `sealed | not_configured | http{ok,status} | failed{reason}`
+and never throws. Every probe checks the seal first, so a sealed process makes **0 network calls**.
+
+- `probeRelay()` / `probeAtsWebhook()` — the signed test pings that `POST /api/comms/relay/test`
+  and `POST /api/ats/test` used to hold inline; those routes now call them and keep their responses.
+- `probeSmtp()` — the stored sender's own test letter (`sendSmtpTestLetter`, `app/_lib/comms-smtp-probe.ts`):
+  one real message from the mailbox to itself through the delivery boundary. Seal-first, so a sealed
+  process opens no socket; an undecryptable password reads `failing` without a probe.
+- `probeAtsInbound(provider)` — an authenticated, read-only `GET` of the connection's base URL.
+  SSRF-vetted (https, public host, resolved), redirects are not followed, the body is dropped.
+- `probeCalendar(ws)` — a 1-hour free/busy read through the existing calendar edge. `null`
+  (unknown) is a failure, never a free hour.
+
+`probeConnector(id, ws)` runs one and records the verdict. `GET /api/connect` never probes.
+
+### The probe door: `POST /api/connect/[id]/probe`
+
+One connector's probe, run because an owner pressed Probe; it answers `{ health, connector }`
+(the row as `GET /api/connect` serves it, so never a secret value). Operator + `org:manage`, then
+`rateLimit()` (`connect-probe:<ip>`, 20 per 10 minutes, pinned in
+`app/api/rate-limit-contract.test.ts`), then the probe. Under the seal it answers
+`{ health: "sealed" }` and makes 0 fetches. An id outside the catalog is a bare 404.
+
+**`smtp` is never probed through this door** (operator rule, 2026-10-28). Its probe is a real test
+letter, so it runs only as the owner-pressed Send test on the sender level
+(`POST /api/comms/smtp/test`). The door answers `409 { health, connector, door: "send_test" }`
+with the row's config-only health (`not_configured` / `unverified` / `failing` / `sealed`) and
+opens no socket. Nothing that reads the hub, on load or on refresh, can send a letter.
+Pinned by `app/api/connect/[id]/probe/probe-route.test.ts`.
+
+## Probe memory
+
+No schema. Verdicts live in a bounded in-process map (512 entries) keyed by workspace and
+connector and stamped with the configuration version they ran against. After a restart every
+configured row reads `unverified` until probed again.
+
+## Gating
+
+`GET /api/connect` is operator-only (`requireOperator`) inside `withWorkspace`, like the
+settings routes it summarizes.
+
+## The hub (Connectors deck)
+
+- **Health on load is config-only.** The deck reads the catalog on mount, on live refresh and on a
+  return to the plumbing; it never probes, never polls and refreshes nothing in the background.
+- **Probe is a press.** "Check now" calls the probe door for one row. `smtp` has no Check now: its
+  card opens delivery setup, where the Send test is (the probe door refuses it anyway).
+- **Keyless:** every card reads "Not set up"; under the seal every card reads "Sealed", a different
+  word and mark from "Not set up".
+- Pinned by `connectors/connectorsDeckModel.test.ts`, `connectors/connectorsDeckReads.test.ts` and
+  `connectors/calendarReconnect.test.ts` (paths under `app/features/hiring/channels/night/`).
+
+## Known gaps
+
+- Durable `lastOkAt` across restarts needs a column and waits for the operator.
+- Slack, Teams, Greenhouse and Lever rows are not here (S1 excluded; S3 follows S2).

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSubmission } from "@/app/_lib/db/devcase";
 import { issueSkillProfile } from "@/app/_lib/db/skill-profiles";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { requireCapability } from "@/app/_lib/auth/current-user";
@@ -10,7 +10,7 @@ import { requireCapability } from "@/app/_lib/auth/current-user";
 // Durable Skill Profile (moonshot A) — mint a signed credential from an evaluated
 // dev-case submission (recruiter-triggered from the dev studio). Idempotent per
 // submission. Returns the candidate-owned token for the public score-card.
-export async function POST(request: Request) {
+export const POST = withWorkspace(async (ws: string, request: Request) => {
   // OPERATOR-GATED (/perfect wave 23). Minting a Durable Skill Profile is a RECRUITER
   // act — the studio triggers it from the dev tab — and it is not read-only: a re-mint
   // REVOKES the live credential and reissues under a new token, breaking every /skill
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     // new token, breaking every /skill link the candidate had already shared.
     // Same 404 body as a genuinely missing submission — this must not be an oracle.
     const sub = getSubmission(submissionId);
-    if (!sub || sub.workspaceId !== (await currentWorkspace())) {
+    if (!sub || sub.workspaceId !== (ws)) {
       return jsonRefusal("DEVCASE_SUBMISSION_NOT_FOUND", 404);
     }
     const result = issueSkillProfile(submissionId);
@@ -63,4 +63,4 @@ export async function POST(request: Request) {
     // straight to the studio. It is a store path, so it answers with a code.
     return safeJsonError(error, "api:devcase/skill-profile", "DEVCASE_SKILL_PROFILE_FAILED");
   }
-}
+});

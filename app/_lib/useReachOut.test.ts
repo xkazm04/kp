@@ -49,7 +49,7 @@ test("reachOutVerdict only claims a send when the server actually dispatched one
   // An absent/unknown verdict keeps the optimistic reading — only the verdicts we
   // can name change behaviour.
   assert.deepEqual(reachOutVerdict(undefined), { ok: true, note: "sent" });
-  assert.deepEqual(reachOutVerdict("drafted"), { ok: true, note: "sent" });
+  assert.deepEqual(reachOutVerdict("drafted"), { ok: true, note: "held" }, "a held letter is not a sent one");
 });
 
 test("a suppressed dispatch is a failure, not a green reach-out", async () => {

@@ -198,6 +198,10 @@ export type LlmUsageWrite = LlmUsageInput & {
    *  useCase + source + billed unit iff `requestId` is present. NULL keys stay
    *  distinct under the unique index (unkeyed writers and every pre-column row). */
   ingestKey?: string | null;
+  /** The role run this call was made for. Omitted => NULL. (The sidecar fold takes the
+   *  ambient role run from python-runner at spawn; this module stays off that graph so
+   *  llm-config's module budget does not pay for it.) */
+  roleRunId?: string | null;
 };
 
 /** The billed unit that distinguishes two meters of the same request (a cache
@@ -238,8 +242,8 @@ export function insertLlmUsage(input: LlmUsageWrite): LlmUsageIngestResult {
   const ingestKey = llmUsageIngestKey(input);
   const db = ensureDb();
   const written = db.prepare(
-    `INSERT INTO llm_usage (ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, outcome, reason, request_id, ingest_key)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO llm_usage (ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, outcome, reason, request_id, ingest_key, role_run_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(ingest_key) DO NOTHING`
   ).run(
     new Date().toISOString(),
@@ -254,7 +258,8 @@ export function insertLlmUsage(input: LlmUsageWrite): LlmUsageIngestResult {
     input.outcome,
     input.reason ?? null,
     input.requestId ?? null,
-    ingestKey
+    ingestKey,
+    input.roleRunId ?? null
   ).changes;
   const inserted = written;
   const skipped = inserted === 1 ? 0 : ingestKey ? 1 : 0;
@@ -275,8 +280,8 @@ export function insertLlmUsage(input: LlmUsageWrite): LlmUsageIngestResult {
  * operation is wrapped by the caller so ledger I/O can never break a spawn — the
  * ledger is telemetry, off the critical path.
  */
-export function ingestLlmUsageLog(logPath: string): number {
-  return ingestLlmUsageResult(logPath).inserted;
+export function ingestLlmUsageLog(logPath: string, roleRunId: string | null = null): number {
+  return ingestLlmUsageResult(logPath, roleRunId).inserted;
 }
 
 /** What one fold did: rows written, and rows REFUSED because this exact sidecar
@@ -317,7 +322,7 @@ function ingestKeyFor(logPath: string, index: number, line: string): string {
  * COUNTED rather than swallowed: a non-zero `skipped` means a cleanup failed, which
  * is an operator-actionable fact.
  */
-export function ingestLlmUsageResult(logPath: string): LlmUsageIngestResult {
+export function ingestLlmUsageResult(logPath: string, roleRunId: string | null = null): LlmUsageIngestResult {
   let raw: string;
   try {
     raw = readFileSync(logPath, "utf-8");
@@ -338,8 +343,8 @@ export function ingestLlmUsageResult(logPath: string): LlmUsageIngestResult {
     const fold = db.transaction((batch: typeof rows) => {
       const stmt = db.prepare(
         `INSERT OR IGNORE INTO llm_usage
-           (ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, outcome, reason, request_id, ingest_key)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+           (ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, outcome, reason, request_id, ingest_key, role_run_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       );
       let written = 0;
       for (const { row, key } of batch) {
@@ -356,7 +361,8 @@ export function ingestLlmUsageResult(logPath: string): LlmUsageIngestResult {
           row.outcome,
           row.reason ?? null,
           row.requestId ?? null,
-          key
+          key,
+          roleRunId
         ).changes;
       }
       return written;
@@ -415,6 +421,34 @@ export type LlmActivityFilters = {
   outcome?: "ok" | "failed";
   cursor?: { ts: string; id: number };
 };
+
+/** What a role run's own llm_usage rows add up to. `costUsd` sums ONLY the priced calls;
+ *  `unpricedCalls` (the Claude CLI) sits beside the sum, never inside it. */
+export type RoleRunUsage = { calls: number; tokens: number; costUsd: number | null; unpricedCalls: number };
+
+/** What one role run's own llm_usage rows add up to (role_run_id, stamped by the ambient
+ *  withLlmRoleRun scope). Deterministic template serves are not LLM calls and are not
+ *  counted. A failed attempt IS a call (the prompt went out) but reports no tokens. Cost
+ *  sums only priced rows; an unpriced call (the Claude CLI) is counted, never converted
+ *  into a dollar figure. */
+export function sumRoleRunUsage(roleRunId: string): RoleRunUsage {
+  const row = ensureDb()
+    .prepare(
+      `SELECT COUNT(*) AS calls,
+              COALESCE(SUM(COALESCE(input_tokens, 0) + COALESCE(output_tokens, 0)), 0) AS tokens,
+              SUM(cost_usd) AS cost,
+              SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END) AS unpriced
+         FROM llm_usage
+        WHERE role_run_id = ? AND source = 'llm'`
+    )
+    .get(roleRunId) as { calls: number; tokens: number; cost: number | null; unpriced: number | null };
+  return {
+    calls: Number(row.calls),
+    tokens: Number(row.tokens),
+    costUsd: row.cost == null ? null : Number(row.cost),
+    unpricedCalls: Number(row.unpriced ?? 0),
+  };
+}
 
 export function listLlmActivity(limit = LLM_ACTIVITY_WINDOW, filters: LlmActivityFilters = {}): LlmActivityRow[] {
   const db = ensureDb();

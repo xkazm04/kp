@@ -61,20 +61,20 @@ export function JdRevisionList({
             <button
               type="button"
               onClick={() => setExpanded(expanded === rev.id ? null : rev.id)}
-              className="focus-ring font-semibold text-coral hover:underline"
+              className="focus-ring font-semibold text-coral-ink hover:underline"
             >
               {expanded === rev.id ? hideLabel : viewLabel}
             </button>
             {confirmingId === rev.id && reverting === null ? (
               <span className="animate-fade-in ml-auto inline-flex items-center gap-1" role="group" aria-label={t("revertPrompt")}>
-                <span className="text-micro font-semibold text-coral">{t("revertPrompt")}</span>
+                <span className="text-micro font-semibold text-coral-ink">{t("revertPrompt")}</span>
                 <button
                   type="button"
                   onClick={() => {
                     setConfirmingId(null);
                     onRevert(rev.id);
                   }}
-                  className="focus-ring rounded-md border border-coral/40 bg-coral/5 px-2 py-0.5 text-micro font-semibold text-coral hover:bg-coral/10"
+                  className="focus-ring rounded-md border border-coral/40 bg-coral/5 px-2 py-0.5 text-micro font-semibold text-coral-ink hover:bg-coral/10"
                 >
                   {t("revertConfirm")}
                 </button>
@@ -93,7 +93,7 @@ export function JdRevisionList({
                 onClick={() => setConfirmingId(rev.id)}
                 disabled={reverting !== null || gateBlocked}
                 title={gateBlocked ? gateReason : undefined}
-                className="focus-ring ml-auto inline-flex items-center gap-1 rounded-md border border-coral/40 bg-white px-2 py-0.5 font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
+                className="focus-ring ml-auto inline-flex items-center gap-1 rounded-md border border-coral/40 bg-white px-2 py-0.5 font-semibold text-coral-ink hover:bg-coral/5 disabled:opacity-50"
               >
                 <RotateCcw size={12} aria-hidden /> {reverting === rev.id ? revertingLabel : revertLabel}
               </button>

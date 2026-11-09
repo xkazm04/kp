@@ -20,6 +20,8 @@ export function useDevTabData() {
   // a seniority target on top.
   const [jds, setJds] = useState<JdSummary[]>([]);
   const [jd, setJd] = useState<SelectedJd | null>(null);
+  // The picked JD's job-row family (null until the JD route supplies one).
+  const [jobRoleFamily, setJobRoleFamily] = useState<string | null>(null);
   const [jdLoading, setJdLoading] = useState(false);
   // The picker is REQUIRED intake — nothing on the Define tab can run without a JD —
   // so a failed fetch used to leave the entrance looking like an empty library and
@@ -178,6 +180,7 @@ export function useDevTabData() {
   const pickJd = async (slug: string) => {
     if (!slug) {
       setJd(null);
+      setJobRoleFamily(null);
       return;
     }
     setJdLoading(true);
@@ -186,8 +189,9 @@ export function useDevTabData() {
       // (workspace-gated server-side; null when the JD has no intake behind it).
       const r = await fetch(`/api/jds/${encodeURIComponent(slug)}?brief=1`);
       if (r.ok) {
-        const p = (await r.json()) as SelectedJd & { intakeBrief?: SelectedJd["brief"] };
+        const p = (await r.json()) as SelectedJd & { intakeBrief?: SelectedJd["brief"]; jobRoleFamily?: string | null };
         setJd({ slug: p.slug, title: p.title, body: p.body, brief: p.intakeBrief ?? null });
+        setJobRoleFamily(p.jobRoleFamily ?? null);
         // The brief's confirmed seniority seeds the selector (still editable).
         if (p.intakeBrief?.seniority && p.intakeBrief?.spineProvenance?.seniority === "stated") {
           setSeniority(p.intakeBrief.seniority);
@@ -212,7 +216,7 @@ export function useDevTabData() {
   // duplicated what every JD already says).
   // The fold itself lives in buildNeed.ts, pure and tested: everything the analyze
   // and design chain sees is built here, and inside a hook nothing could reach it.
-  const build = () => buildNeed({ jd, repoUrls, seniority });
+  const build = () => buildNeed({ jd, repoUrls, seniority, jobRoleFamily });
 
   return {
     jds, jd, jdLoading, pickJd, jdsError, reloadJds,

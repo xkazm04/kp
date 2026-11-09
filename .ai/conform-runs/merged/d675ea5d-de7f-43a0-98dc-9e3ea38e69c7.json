@@ -1,0 +1,214 @@
+{
+ "schema": "conform-run/1",
+ "worker": "d675ea5d-de7f-43a0-98dc-9e3ea38e69c7",
+ "subject": "candidate-identity-and-staleness",
+ "evaluatedAt": "2026-10-24T23:51:33.807458+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "saved-analysis-report",
+   "subject": "candidate-identity-and-staleness",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/history/[slug]/page.tsx:88 The board chip and the prepEntryId handed to the Interview tab come from an exact (lower-cased) match on the filename-derived candidate_label, so on the very page that warns about a label collision two different 'CV.pdf' people resolve to one board entry, and the question-kit import can write into the other person's prep pack.",
+   "techniques": [
+    {
+     "technique": "content-addressed-document-identity",
+     "verdict": "conformant",
+     "evidence": "app/history/[slug]/page.tsx:114 Cross-job linkage is keyed on cv_hash (SHA-256 of the raw upload bytes, cv-variant.ts:28), not on the label."
+    },
+    {
+     "technique": "label-collision-detection",
+     "verdict": "deviation",
+     "evidence": "app/history/[slug]/page.tsx:88 The detector exists (hasLabelCollision, line 125) but the same page still uses the label as an equality key for the board join that drives a link and a write target (prepEntryId, line 255)."
+    },
+    {
+     "technique": "cross-role-footprint-linking",
+     "verdict": "deviation",
+     "evidence": "app/history/[slug]/page.tsx:225 The footprint is best-effort, workspace-scoped, navigable and shows role and score, but no entry shows WHEN it was analysed or whether that linked analysis is stale, and the presentation rules require both."
+    },
+    {
+     "technique": "requirement-edited-since-scored",
+     "verdict": "conformant",
+     "evidence": "app/history/[slug]/page.tsx:143 Score time is compared with the JD's last revision. The badge ('JD edited {date}', title 'The score reflects the earlier text') describes the record, not the person, and blocks nothing."
+    },
+    {
+     "technique": "shared-artifact-across-claimed-identities",
+     "verdict": "not-applicable",
+     "evidence": "app/history/[slug]/page.tsx:108 The only identity this recruiter-side report holds is a filename-derived label. With no claimed identity outside the bytes, the technique's own precondition is not met."
+    }
+   ]
+  },
+  {
+   "context": "cv-analysis-api",
+   "subject": "candidate-identity-and-staleness",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/api/analyses/[slug]/route.ts:151 Setting an advance/pass on one saved analysis writes a disposition_set event onto EVERY active board entry whose label matches the filename-derived candidate_label (pipeline.ts:1883), so a decision about one 'CV.pdf' lands in a different person's drawer history.",
+   "techniques": [
+    {
+     "technique": "content-addressed-document-identity",
+     "verdict": "conformant",
+     "evidence": "app/api/analyze/route.ts:244 SHA-256 over the raw uploaded bytes at intake, before extraction. Byte clones are deduped (line 234), and same-named distinct files are kept with an (n) suffix."
+    },
+    {
+     "technique": "label-collision-detection",
+     "verdict": "deviation",
+     "evidence": "app/api/analyses/[slug]/route.ts:151 The label is an equality key for a write. The read-time consent gate (line 33, candidateLabelWithholdsPii) is also keyed on the label, though it fails toward withholding."
+    },
+    {
+     "technique": "shared-artifact-across-claimed-identities",
+     "verdict": "not-applicable",
+     "evidence": "app/api/analyze/route.ts:239 Recruiter upload door. The only 'claim' is the file name, so identical bytes cannot carry two external claims, and the technique's 'when not to use it' applies."
+    }
+   ]
+  },
+  {
+   "context": "profile-editor",
+   "subject": "candidate-identity-and-staleness",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/tools/profile/useProfileTabDeepLinks.ts:118 ProfileTab's rebuild path treats an UNPROVABLE divergence (legacy rows with NULL updated_at/lineage_stamped_at report diverged:false, profiles.ts:261-263) as 'unedited' and hydrates the editor wholesale from the newer analysis, with no warning, merge or named fields. A hand-corrected legacy profile is overwritten on save, which breaks the 'never silently / treat pre-existing records as possibly-edited' rule.",
+   "techniques": [
+    {
+     "technique": "rebuild-overwrites-manual-edits-warning",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/profile/useProfileTabDeepLinks.ts:118 Where divergence IS known the path conforms: a field-level merge with merge as the default, contested fields named (ProfileTabRebuildWarnModal.tsx:80), an edit date, keep/replace options, and the AI draft preserving human-typed fields (profileDraftMerge.ts:114). The unknown-baseline legacy case is the gap."
+    }
+   ]
+  },
+  {
+   "context": "cv-analysis-archetypes",
+   "subject": "candidate-identity-and-staleness",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/match-score-resolve.ts:45 The canonical match score stamped on every pipeline entry is joined on (case-folded candidate label, jd slug) and keeps the newest row per key, so two different people uploaded as 'CV.pdf' to one JD share one score. Last write wins on identity, and the board card, drawer and offer card show one person's fit for another.",
+   "techniques": [
+    {
+     "technique": "label-collision-detection",
+     "verdict": "deviation",
+     "evidence": "app/_lib/match-score-resolve.ts:45 The module's own comment (line 19) calls the exact label join strict, but a filename label is not an identity. The newest-per-key fold is the 'prefer the newer record' failure."
+    },
+    {
+     "technique": "content-addressed-document-identity",
+     "verdict": "conformant",
+     "evidence": "app/_lib/analyze-run.ts:373 The analysis key is a length-framed SHA-256 over raw CV bytes plus JD text/bytes, lang, blind mode (line 381), archetype-registry digest (line 383) and LLM route. The saved row's cv_hash is matched to the delivered variant (cvHashForLabel, line 224), not to variants[0]."
+    }
+   ]
+  },
+  {
+   "context": "profile-roster-matrix",
+   "subject": "candidate-identity-and-staleness",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/tools/profile/profileRosterView.ts:58 The roster's closed status vocabulary has no terminal identity state, and anonymizeProfile (profiles.ts:369) keeps the row with only a masked label and no marker, so an erased person's profile is listed as 'current' with a Match action instead of reading as no-one-to-act-on.",
+   "techniques": [
+    {
+     "technique": "retired-outranks-stale-status-precedence",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/profile/profileRosterView.ts:58 The precedence it does have is right: retired over stale in one pure function (line 105), and facets in severity order listing only present values (line 137). But the anonymised state is missing, and the Rebuild button (ProfileRosterRow.tsx:124) is still rendered under a 'Retired' badge."
+    },
+    {
+     "technique": "cross-role-footprint-linking",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/profile/CandidateDetailModal.tsx:125 The modal's 'footprint across the roles' lists each analysis of the CV with score and date, but never the role/JD it was scored against (CandidateAnalysisRef carries only slug/score/createdAt) and no staleness state."
+    },
+    {
+     "technique": "content-addressed-document-identity",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/profile/CandidateDetailModal.tsx:58 Rows are folded by cv_hash (candidate-population.ts), but the surface shows one name for the whole digest group (newest analysis's label). The decision rule says the fold must keep every name the group holds."
+    },
+    {
+     "technique": "rebuild-overwrites-manual-edits-warning",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/profile/ProfileRosterTypes.ts:21 The bulk refresh skips anything not provably unedited and routes it to review, which is the technique's bulk rule."
+    }
+   ],
+   "registryProposal": "In kp, 'retired' means the routed archetype was archived. That state has a remedy (re-route), so it is advisory, not terminal. The technique could warn that a borrowed terminal word on a remediable state turns 'actions follow the displayed state' into a contradiction, as it does here, where a Rebuild button sits under a 'Retired' badge."
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-24T23:51:33.807458+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-identity-and-staleness"
+   ],
+   "techniques": [
+    "content-addressed-document-identity",
+    "cross-role-footprint-linking",
+    "label-collision-detection",
+    "requirement-edited-since-scored",
+    "shared-artifact-across-claimed-identities"
+   ],
+   "deviations": 1,
+   "context": "saved-analysis-report",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T23:51:33.807458+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-identity-and-staleness"
+   ],
+   "techniques": [
+    "content-addressed-document-identity",
+    "label-collision-detection",
+    "shared-artifact-across-claimed-identities"
+   ],
+   "deviations": 1,
+   "context": "cv-analysis-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T23:51:33.807458+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-identity-and-staleness"
+   ],
+   "techniques": [
+    "rebuild-overwrites-manual-edits-warning"
+   ],
+   "deviations": 1,
+   "context": "profile-editor",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T23:51:33.807458+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-identity-and-staleness"
+   ],
+   "techniques": [
+    "content-addressed-document-identity",
+    "label-collision-detection"
+   ],
+   "deviations": 1,
+   "context": "cv-analysis-archetypes",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T23:51:33.807458+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-identity-and-staleness"
+   ],
+   "techniques": [
+    "content-addressed-document-identity",
+    "cross-role-footprint-linking",
+    "rebuild-overwrites-manual-edits-warning",
+    "retired-outranks-stale-status-precedence"
+   ],
+   "deviations": 1,
+   "context": "profile-roster-matrix",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -48,7 +48,7 @@ export function WorkspacePaletteLedger({ inputRef, t, nav, items, active, query,
           {kbdHint}
         </kbd>
       </div>
-      {error ? <p className="px-4 pt-2 text-sm text-coral">{error}</p> : null}
+      {error ? <p className="px-4 pt-2 text-sm text-coral-ink">{error}</p> : null}
 
       <div className="grid min-h-0 flex-1 grid-cols-1 sm:grid-cols-2">
         {/* ── Index (left) ── */}
@@ -69,10 +69,10 @@ export function WorkspacePaletteLedger({ inputRef, t, nav, items, active, query,
                 {groupStart ? (
                   <p className={`flex items-baseline justify-between px-2 pb-1 text-meta uppercase text-steel ${i === 0 ? "pt-1" : "pt-3"}`}>
                     <span>{t(`groups.${item.group}` as Parameters<typeof t>[0])}</span>
-                    <span className="nums text-steel/70">{groupSize}</span>
+                    <span className="nums text-steel">{groupSize}</span>
                   </p>
                 ) : null}
-                {sectionStart ? <p className={`px-2 pb-0.5 text-sm font-semibold text-steel/80 ${groupStart ? "" : "pt-2"}`}>{item.section}</p> : null}
+                {sectionStart ? <p className={`px-2 pb-0.5 text-sm font-semibold text-steel ${groupStart ? "" : "pt-2"}`}>{item.section}</p> : null}
                 <PaletteRow item={item} index={i} isActive={i === active} query={query} go={go} setSelected={setSelected} dense />
               </li>
             );

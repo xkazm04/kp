@@ -48,7 +48,7 @@ export function SoftSignalsSection({ panel }: { panel: Analysis["softSignals"] }
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <AlertOctagon className="h-5 w-5 text-coral" aria-hidden />
+            <AlertOctagon className="h-5 w-5 text-coral-ink" aria-hidden />
             <h3 className="font-serif text-h3 text-ink">{t("title")}</h3>
           </div>
           <p className="mt-1 text-sm text-steel">{t("stance")}</p>
@@ -94,13 +94,13 @@ function SignalGroup({ heading, signals, tone }: { heading: string; signals: Sig
     tone === "risk" ? "border-coral/30 bg-coral/5" : "border-moss/30 bg-moss/5";
   const icon =
     tone === "risk" ? (
-      <AlertOctagon size={14} className="text-coral" aria-hidden />
+      <AlertOctagon size={14} className="text-coral-ink" aria-hidden />
     ) : (
       <Sparkles size={14} className="text-moss" aria-hidden />
     );
   return (
     <div className="mt-4">
-      <p className={`flex items-center gap-1.5 text-meta uppercase tracking-wide ${tone === "risk" ? "text-coral" : "text-moss"}`}>
+      <p className={`flex items-center gap-1.5 text-meta uppercase tracking-wide ${tone === "risk" ? "text-coral-ink" : "text-moss"}`}>
         {icon}
         {heading}
       </p>

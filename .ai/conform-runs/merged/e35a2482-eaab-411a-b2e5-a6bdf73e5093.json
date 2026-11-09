@@ -1,0 +1,140 @@
+{
+  "schema": "conform-run/1",
+  "worker": "e35a2482-eaab-411a-b2e5-a6bdf73e5093",
+  "subject": "mcp-tools",
+  "evaluatedAt": "2026-11-04T05:18:45.314305+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "shared-api-utilities",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/_lib/api-response.ts:72 These are HTTP response, rate-limit, body-parsing and cache helpers for Next route handlers. A case-insensitive search of app/_lib for mcp, modelcontextprotocol, tools/call, tools/list and json-rpc found no hits, so no tool-protocol host, client or server exists here for the subject's techniques to govern.",
+      "techniques": [],
+      "absenceTerms": [
+        "mcp",
+        "modelcontextprotocol",
+        "tools/call",
+        "tools/list",
+        "jsonrpc"
+      ]
+    },
+    {
+      "context": "voice-interview-api",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/api/interview/connect/route.ts:423 The only tools here are director tool definitions sent to the realtime voice vendor in its own function-calling format, which the golden path explicitly excludes. A search of app/api/interview for mcp, modelcontextprotocol, tools/call, tools/list and json-rpc found no hits, so there is no protocol server or host.",
+      "techniques": [],
+      "absenceTerms": [
+        "mcp",
+        "modelcontextprotocol",
+        "tools/call",
+        "tools/list",
+        "jsonrpc"
+      ],
+      "registryProposal": "The golden path excludes vendor function-calling, but a server-side tool vocabulary shared across several transports (here one DIRECTOR_TOOL_DEFS set served to two voice vendors plus a browser relay) still faces tool-schema-design and untrusted-result-handling questions. A short note on whether those techniques apply outside the protocol would stop seats from ruling such pairs inconsistently."
+    },
+    {
+      "context": "devcase-eval",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/tools/devcases/useDevSubmissionRow.ts:68 This is a recruiter UI that renders devcase evaluations and calls the app's own /api/devcase routes over same-origin fetch. A search of app/features/tools/devcases for mcp, modelcontextprotocol, tools/call, tools/list and json-rpc found no hits, so it neither hosts nor consumes a tool protocol.",
+      "techniques": [],
+      "absenceTerms": [
+        "mcp",
+        "modelcontextprotocol",
+        "tools/call",
+        "tools/list",
+        "jsonrpc"
+      ]
+    },
+    {
+      "context": "pipeline-actions-commands",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/_lib/pipeline-entry-action.ts:376 This is the in-process command layer for pipeline advance, reject and hold, guarded by CAS. A search of app/_lib for mcp, modelcontextprotocol, tools/call, tools/list and json-rpc found no hits, so these commands are not published as model-invocable tools on any protocol door.",
+      "techniques": [],
+      "absenceTerms": [
+        "mcp",
+        "modelcontextprotocol",
+        "tools/call",
+        "tools/list",
+        "jsonrpc"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "mcp-tools",
+      "context": "llm-api",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor at app/api/llm/config/route.ts:54 is the closing of a GET handler and the start of PUT (requireOperator), so it is incidental. It does not show that no tool protocol exists. The evidence also cites app/api/automation and app/api/sim, which are outside the listed context files, and I could"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-04T05:18:45.314305+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "mcp-tools"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "shared-api-utilities",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-04T05:18:45.314305+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "mcp-tools"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "llm-api",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-04T05:18:45.314305+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "mcp-tools"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "voice-interview-api",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-04T05:18:45.314305+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "mcp-tools"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "devcase-eval",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-04T05:18:45.314305+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "mcp-tools"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "pipeline-actions-commands",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

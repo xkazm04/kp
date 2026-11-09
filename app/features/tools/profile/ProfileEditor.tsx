@@ -209,7 +209,7 @@ export function ProfileEditor({
             clearBackup();
             onCancel();
           }}
-          className="focus-ring -ml-1 inline-flex items-center gap-1 rounded text-sm font-semibold text-steel hover:text-coral"
+          className="focus-ring -ml-1 inline-flex items-center gap-1 rounded text-sm font-semibold text-steel hover:text-coral-ink"
         >
           <ArrowLeft size={14} /> {t("back")}
         </button>

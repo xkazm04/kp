@@ -87,7 +87,7 @@ export function ImportedQuestionsSection({
                   aria-expanded={picking}
                   className="focus-ring inline-flex shrink-0 items-center gap-1 rounded-md border border-stone-200 px-2 py-1 text-meta font-semibold text-ink hover:border-coral/40"
                 >
-                  <Plus size={12} className="text-coral" /> {t("addToPlan")}
+                  <Plus size={12} className="text-coral-ink" /> {t("addToPlan")}
                 </button>
               </div>
               {/* Block picker: choose which timed block to weave this into.

@@ -1,0 +1,71 @@
+{
+ "schema": "conform-run/1",
+ "worker": "be63aaa7-1bd3-4962-ae78-27b8a4b2d370",
+ "subject": "data-retention",
+ "evaluatedAt": "2026-10-21T23:06:11.688053+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "gdpr-data-erasure-page",
+   "subject": "data-retention",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/data/[token]/DataClient.tsx:122 The irreversible erasure request sends no target echo, so confirmation does not demonstrate comprehension of the specific target.",
+   "techniques": [
+    {
+     "technique": "confirm-by-echo",
+     "verdict": "deviation",
+     "evidence": "app/data/[token]/DataClient.tsx:318 The complete dialog offers Cancel and Confirm buttons without an echo field; the API accepts the token without reading or comparing an echoed identifier."
+    },
+    {
+     "technique": "destructive-override-floor",
+     "verdict": "not-applicable",
+     "evidence": "app/api/data/[token]/route.ts:86 This action erases a token-selected entry immediately; it accepts no configurable deletion window requiring a floor."
+    },
+    {
+     "technique": "dry-run-preview",
+     "verdict": "deviation",
+     "evidence": "app/api/data/[token]/route.ts:43 The displayed inventory is a separate presence-based projection, not a preview mode of anonymizeEntry; it provides no shared scrub selection, preview timestamp, or per-store deletion yield."
+    },
+    {
+     "technique": "erasure-requests",
+     "verdict": "deviation",
+     "evidence": "app/api/data/[token]/route.ts:96 The route ignores calendar-removal outcomes and reports success even when a calendar copy remains; anonymizeEntry also logs recording-deletion failures without propagating them, contrary to the required degraded outcome for incomplete erasure."
+    },
+    {
+     "technique": "per-tenant-retention-policy",
+     "verdict": "not-applicable",
+     "evidence": "app/data/[token]/DataClient.tsx:245 The page displays an existing consent-expiry date and requests targeted erasure; it neither configures nor resolves a tenant retention window."
+    },
+    {
+     "technique": "time-budgeted-batch-purge",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/pipeline.ts:2785 The invoked database scrub is an atomic operation for one entry, rather than a horizon-based purge of expired populations; the technique explicitly excludes operations requiring population-wide atomicity."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-21T23:06:11.688053+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "data-retention"
+   ],
+   "techniques": [
+    "confirm-by-echo",
+    "destructive-override-floor",
+    "dry-run-preview",
+    "erasure-requests",
+    "per-tenant-retention-policy",
+    "time-budgeted-batch-purge"
+   ],
+   "deviations": 1,
+   "context": "gdpr-data-erasure-page",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

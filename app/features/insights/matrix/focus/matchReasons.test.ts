@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { matchScoreForPipeline, type MatchResult } from "../../../shared/matchTypes.ts";
-import { matchReasonFacts, matchReasons, renderMatchReasons, MATCH_SCORER_VERSION, type MatchReasonsTranslator } from "./matchReasons.ts";
+import { matchReasonFacts, matchReasons, renderMatchReasons, MATCH_SCORER_VERSION, type MatchReasonsTranslator, type VersionedMatchResult } from "./matchReasons.ts";
 import { matchCsvRows } from "./matchCsv.ts";
 import { coerceMatchReasonFacts, DIMENSION_LABEL_CODES, FIT_TIERS } from "../../../../_lib/match-verdict.ts";
 
@@ -141,4 +141,17 @@ test("the closed vocabularies match the scorer's source and every code has a cat
     for (const code of DIMENSION_LABEL_CODES) assert.equal(typeof match.dims[code], "string", `${locale} match.dims.${code}`);
     for (const tier of FIT_TIERS) assert.equal(typeof match.fitTier[tier], "string", `${locale} match.fitTier.${tier}`);
   }
+});
+
+test("the facts carry the scorer version the engine stamped (ADR 0027), so an old-arithmetic score is told from a proof score", () => {
+  const proof = "proof-weights.1-lam0.8-sd0.05";
+  assert.equal(matchReasonFacts(base({ scorerVersion: proof } as Partial<VersionedMatchResult>)).scorerVersion, proof);
+  assert.equal(matchReasonFacts(base({ scorerVersion: "match-scorer.v1" } as Partial<VersionedMatchResult>)).scorerVersion, "match-scorer.v1");
+  assert.equal(matchReasonFacts(base()).scorerVersion, MATCH_SCORER_VERSION, "a result with no stamp is the pre-stamp arithmetic");
+  // A stamp the add door would refuse never reaches the facts: the fallback names the old arithmetic.
+  for (const bad of ["Proof Weights", "", "x".repeat(41), "proof/1+lam=0.8"]) {
+    assert.equal(matchReasonFacts(base({ scorerVersion: bad } as Partial<VersionedMatchResult>)).scorerVersion, MATCH_SCORER_VERSION, bad);
+  }
+  const facts = matchReasonFacts(base({ scorerVersion: proof } as Partial<VersionedMatchResult>));
+  assert.deepEqual(coerceMatchReasonFacts(facts), facts);
 });

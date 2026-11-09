@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDevCase } from "@/app/_lib/db/devcase";
 import { rewriteLifecycleOutcomesForCase } from "@/app/_lib/db/devcase-outcome-rewrite";
 import { withoutOutcomeWarning } from "@/app/_lib/devcase-stage-outcome";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
@@ -31,7 +31,7 @@ import { validateCandidateIds } from "@/app/_lib/devcase-source-pick";
 // hand (each click reads a shortlist first) and pins a scripted loop at 3/min.
 const SOURCE_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   // AUTHORITY (/perfect wave 31). Sourcing spawns the Python matcher over the whole
   // candidate pool and WRITES pipeline entries at the Accepted stage - a recruiter
   // operation by any reading - and this door asked nothing about the caller at all.
@@ -47,7 +47,6 @@ export async function POST(request: NextRequest) {
       candidateIds?: unknown;
     };
     if (!body.caseId) return NextResponse.json({ error: "caseId is required." }, { status: 400 });
-    const ws = await currentWorkspace();
     const devCase = getDevCase(body.caseId);
     // getDevCase is a by-id point read (globally-unique id), so ownership is
     // checked here: a known case id from another team must not be sourceable.
@@ -145,4 +144,4 @@ export async function POST(request: NextRequest) {
     // log; the caller gets the code.
     return safeJsonError(error, "api:devcase/source", "DEVCASE_SOURCE_FAILED");
   }
-}
+});

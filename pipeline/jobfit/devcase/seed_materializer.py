@@ -21,12 +21,14 @@ import logging
 import re
 from typing import Any
 
+from .ai_drafts import draft_for
+from .family_cases import case_draft, case_lang, family_case_for
 from .models import CaseScenario, RoleSpec
 from .provenance import generate_with_fallback
 
 _LOG = logging.getLogger(__name__)
 
-SEED_PROMPT_VERSION = "seed-materializer-v2"  # v2: canaries — known-ground-truth planted flaws (LLM-era controls #3)
+SEED_PROMPT_VERSION = "seed-materializer-v3"  # v3: one labelled unreviewed AI draft per case (ADR 0027 S2); v2: canaries
 
 # Canaries (LLM-era controls #3): 2-3 subtle, KNOWN-ground-truth flaws planted in the
 # seed contents (a wrong constant, a doc contradicting the data, a misleading comment).
@@ -67,57 +69,138 @@ def _safe_path(path: str) -> str | None:
     return "/".join(parts)
 
 
-def _decisions_template(case: CaseScenario) -> str:
-    tasks = case.tasks or ["the work"]
-    lines = [
-        "# DECISIONS",
-        "",
-        "Record every significant decision while you work — this log is part of the submission",
-        "and the follow-up conversation builds on it. Using AI tools is expected and never",
-        "penalised; what matters is that the decisions are YOURS.",
-        "",
-        "For each entry: what you decided, the alternative you rejected, and why.",
-        "",
-    ]
+# The scaffolding prose the keyless seed writes around the case, per delivery language.
+# The family case renders in Czech for a Czech-posted role (family_cases.case_lang); its
+# README and decision log follow, so the candidate does not read a Czech brief framed in
+# English headings.
+_SCAFFOLD: dict[str, dict[str, str]] = {
+    "en": {
+        "log_intro": (
+            "Record every significant decision while you work — this log is part of the submission\n"
+            "and the follow-up conversation builds on it. Using AI tools is expected and never\n"
+            "penalised; what matters is that the decisions are YOURS."
+        ),
+        "log_entry": "For each entry: what you decided, the alternative you rejected, and why.",
+        "the_work": "the work",
+        "task": "Task",
+        "decision": "- Decision:",
+        "rejected": "- Rejected alternative:",
+        "why": "- Why:",
+        "no_brief": "See the assignment brief.",
+        "materials": "## Starting materials",
+        "no_materials": "Described in the brief.",
+        "tasks": "## Tasks",
+        "timebox": "Timebox: ~{hours:g}h. Keep `{log}` up to date as you go.",
+        "draft_head": "## Supplied AI draft",
+        "draft_line": "`{path}` is an unreviewed AI-generated draft. You may use it, fix it or discard it.",
+    },
+    "cs": {
+        "log_intro": (
+            "Zapisujte každé podstatné rozhodnutí průběžně — tento log je součástí odevzdané práce\n"
+            "a navazující rozhovor z něj vychází. Používat nástroje AI se čeká a nikdy se netrestá;\n"
+            "jde o to, aby rozhodnutí byla VAŠE."
+        ),
+        "log_entry": "U každého záznamu: co jste rozhodli, jakou alternativu jste zamítli a proč.",
+        "the_work": "práce",
+        "task": "Úkol",
+        "decision": "- Rozhodnutí:",
+        "rejected": "- Zamítnutá alternativa:",
+        "why": "- Proč:",
+        "no_brief": "Viz zadání.",
+        "materials": "## Výchozí materiály",
+        "no_materials": "Popsány v zadání.",
+        "tasks": "## Úkoly",
+        "timebox": "Časový rámec: ~{hours:g} h. Průběžně doplňujte `{log}`.",
+        "draft_head": "## Dodaný návrh od AI",
+        "draft_line": "`{path}` je neověřený návrh vygenerovaný AI. Můžete ho použít, opravit, nebo zahodit.",
+    },
+}
+
+
+def _decisions_template(case: CaseScenario, lang: str = "en") -> str:
+    t = _SCAFFOLD.get(lang, _SCAFFOLD["en"])
+    tasks = case.tasks or [t["the_work"]]
+    lines = ["# DECISIONS", "", t["log_intro"], "", t["log_entry"], ""]
     for i, task in enumerate(tasks[:6], start=1):
-        lines += [f"## Task {i}: {task.strip()}", "", "- Decision:", "- Rejected alternative:", "- Why:", ""]
+        lines += [f"## {t['task']} {i}: {task.strip()}", "", t["decision"], t["rejected"], t["why"], ""]
     return "\n".join(lines)
+
+
+def _family_case(case: CaseScenario, role: RoleSpec) -> dict | None:
+    """The keyless family case this seed belongs to — only for a case carrying the explicit
+    ``familyCase`` marker design_case stamps on it, and only for the family this role
+    resolves to. A title match used to decide this, and a model reply with no title
+    inherited the family title, so the family files shipped beside model tasks (T13)."""
+    fc = family_case_for(role.role_family, role.title) if case.family_case else None
+    return fc if fc is not None and case.family_case == fc["family"] else None
+
+
+def _draft_for_case(case: CaseScenario, role: RoleSpec) -> dict:
+    """The labelled AI draft this case ships: the family case's own draft (authored over its
+    materials, named by one of its tasks), else the curated draft for the role family."""
+    fc = _family_case(case, role)
+    return case_draft(fc["family"]) if fc else draft_for(role.role_family)
 
 
 def deterministic_seed(case: CaseScenario, role: RoleSpec) -> dict:
     """Template seed — never fails, and honest about what it is: the prose
     materials become README context plus the forced decisions log. No fake code
     is fabricated deterministically (a wrong-language stub would be worse than
-    none); the LLM path is what makes the seed concrete."""
+    none); the LLM path is what makes the seed concrete.
+
+    Two exceptions carry real ground truth. A keyless family case (T13, family_cases.py)
+    ships its own starting files and their planted trap. And every seed ships ONE supplied
+    AI draft (S2, ADR 0027), truthfully labelled as unreviewed AI output the candidate may
+    use, fix or discard: for a family case it is the case's own draft, authored over the
+    case's materials and named by one of its tasks (council-lite T13 r2: a family-only
+    draft had nothing to do with the case); otherwise the curated draft for the role family
+    (ai_drafts.py). The README and decision log are written in the case's language."""
+    fc = _family_case(case, role)
+    draft = _draft_for_case(case, role)
+    lang = case_lang(case.title) if fc else "en"
+    t = _SCAFFOLD[lang]
     title = case.title or role.title or "Work sample"
     readme = "\n".join(
         [
             f"# {title}",
             "",
-            (case.brief or "").strip() or "See the assignment brief.",
+            (case.brief or "").strip() or t["no_brief"],
             "",
-            "## Starting materials",
+            t["materials"],
             "",
-            (case.repo_seed or "").strip() or "Described in the brief.",
+            (case.repo_seed or "").strip() or t["no_materials"],
             "",
-            "## Tasks",
+            t["tasks"],
             "",
-            *[f"{i}. {t.strip()}" for i, t in enumerate(case.tasks or [], start=1)],
+            *[f"{i}. {task.strip()}" for i, task in enumerate(case.tasks or [], start=1)],
             "",
-            f"Timebox: ~{case.timebox_hours:g}h. Keep `{DECISIONS_FILE}` up to date as you go.",
+            t["timebox"].format(hours=case.timebox_hours, log=DECISIONS_FILE),
+            "",
+            t["draft_head"],
+            "",
+            t["draft_line"].format(path=draft["path"]),
         ]
     )
+    family_files = [{"path": p, "contents": c} for p, c in (fc["files"] if fc else [])]
+    family_canaries = list(fc["canaries"]) if fc else []
     return {
         "caseId": case.id,
         "promptVersion": SEED_PROMPT_VERSION,
         "files": [
             {"path": "README.md", "contents": readme},
-            {"path": DECISIONS_FILE, "contents": _decisions_template(case)},
+            {"path": DECISIONS_FILE, "contents": _decisions_template(case, lang)},
+            *family_files,
+            {"path": draft["path"], "contents": draft["contents"]},
         ],
-        "note": "deterministic skeleton — starting materials remain prose; the LLM path materializes concrete files",
-        # No fabricated canaries deterministically — a template flaw with no real ground
-        # truth would grade candidates against noise. Empty = "canary check not run".
-        "canaries": [],
+        "note": (
+            "deterministic family case — concrete starting files plus one labelled AI draft"
+            if fc
+            else "deterministic skeleton — starting materials remain prose plus one labelled AI draft; the LLM path materializes concrete files"
+        ),
+        # No TEMPLATE canaries — a template flaw with no real ground truth would grade
+        # candidates against noise. The only canaries here are the family case's trap and
+        # the draft's, each with a single checkable ground truth.
+        "canaries": [*family_canaries, *draft["canaries"]],
     }
 
 
@@ -170,8 +253,10 @@ def _coerce(payload: Any, case: CaseScenario, role: RoleSpec) -> dict:
     out = deterministic_seed(case, role)
     if not isinstance(payload, dict):
         return out
+    draft = _draft_for_case(case, role)
     files: list[dict[str, str]] = []
-    seen: set[str] = set()
+    # The draft path is reserved: a model file there would shadow the labelled draft.
+    seen: set[str] = {draft["path"].casefold()}
     for f in payload.get("files") or []:
         if not isinstance(f, dict):
             continue
@@ -189,6 +274,12 @@ def _coerce(payload: Any, case: CaseScenario, role: RoleSpec) -> dict:
         if len(files) >= MAX_SEED_FILES:
             files = files[: MAX_SEED_FILES - 1]
         files.append({"path": DECISIONS_FILE, "contents": _decisions_template(case)})
+    if len(files) >= MAX_SEED_FILES:
+        # Make room for the draft by dropping the last model file that is not the log.
+        last = max(i for i, f in enumerate(files) if f["path"].casefold() != DECISIONS_FILE.casefold())
+        files.pop(last)
+    # Every case gets exactly one labelled draft (S2), the LLM path included.
+    files.append({"path": draft["path"], "contents": draft["contents"]})
     note = str(payload.get("note") or "").strip()
     # Canaries must point INTO the emitted tree — one whose path didn't survive the
     # per-file clamps above is unverifiable, so it is dropped rather than kept as a
@@ -217,6 +308,10 @@ def _coerce(payload: Any, case: CaseScenario, role: RoleSpec) -> dict:
         )
         if len(canaries) >= MAX_CANARIES:
             break
+    # The model's own canaries are capped above; the draft's ride beside them (a model
+    # canary reusing a draft id yields, so the draft's flaws are always graded).
+    draft_ids = {c["id"] for c in draft["canaries"]}
+    canaries = [c for c in canaries if c["id"] not in draft_ids] + draft["canaries"]
     return {
         "caseId": case.id,
         "promptVersion": SEED_PROMPT_VERSION,

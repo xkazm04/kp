@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getTask } from "@/app/_lib/db/tasks";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { cancelTask } from "@/app/_lib/tasks";
 import { jsonRefusal, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { requireCapability } from "@/app/_lib/auth/current-user";
@@ -17,17 +17,16 @@ import { taskKindCapability } from "@/app/_lib/task-admission";
 // on the box is enumerable from the UI. Without this check, clicking any Activity
 // row returned another team's run output, and DELETE on the same id cancelled
 // their job. Ownership must be proven before cancelling, so the read comes first.
-export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+export const GET = withWorkspace(async (ws: string, _request: Request, context: { params: Promise<{ id: string }> }) => {
   const { id } = await context.params;
-  const task = getTask(id, await currentWorkspace());
+  const task = getTask(id, ws);
   if (!task) return jsonRefusal("TASK_NOT_FOUND", 404);
   return NextResponse.json({ task });
-}
+});
 
 // Cancel a running/queued task.
-export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
+export const DELETE = withWorkspace(async (ws: string, _request: Request, context: { params: Promise<{ id: string }> }) => {
   const { id } = await context.params;
-  const ws = await currentWorkspace();
   // Prove ownership BEFORE aborting: cancelTask works off the id alone (the runner
   // holds one abort registry for the whole process), so the tenant check has to
   // happen here or it does not happen at all.
@@ -38,4 +37,4 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
   if (denied) return denied;
   const ok = cancelTask(id);
   return NextResponse.json({ ok, task: getTask(id, ws) });
-}
+});

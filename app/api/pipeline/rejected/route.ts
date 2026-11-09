@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { boardEntryView, listRejectedForLane } from "@/app/_lib/db/pipeline";
 import { withCanonicalScoresCached } from "@/app/_lib/pipeline-score-cache";
@@ -14,13 +14,12 @@ import { withTransferScores } from "@/app/_lib/pipeline-transfer-score";
 // they were rejected at. The board payload deliberately excludes rejected rows, so the
 // Subway's first-column count opens this on demand. Operator-gated like every other
 // per-candidate pipeline read — these are named people and closed decisions.
-export async function GET(request: NextRequest) {
+export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const lane = request.nextUrl.searchParams.get("lane")?.trim() ?? "";
   if (!lane) return jsonRefusal("PIPELINE_LANE_REQUIRED", 400);
   try {
-    const ws = await currentWorkspace();
     // Same score stamps the board rows carry, so a rejected ticket shows the score the
     // candidate was judged on rather than a bare snapshot.
     const items = listRejectedForLane(lane, ws);
@@ -30,4 +29,4 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:pipeline/rejected", "PIPELINE_LIST_FAILED");
   }
-}
+});

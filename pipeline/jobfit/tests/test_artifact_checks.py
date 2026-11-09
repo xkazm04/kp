@@ -134,3 +134,18 @@ class BaselineSimilarity(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SubmissionExcerptOrderTest(unittest.TestCase):
+    """The decision log is a SEQUENCE the candidate wrote; the evaluator must read it
+    in that order, not alphabetised (the excerpt used to sort the added-line set)."""
+
+    def test_decisions_reach_the_evaluator_in_written_order(self):
+        from pipeline.jobfit.devcase.artifact_checks import submission_excerpts
+
+        log = "# D\n- zeta: chose a queue\n- alpha: rejected polling\n- mid: kept the rate\n"
+        out = submission_excerpts(SEED, [{"path": "DECISIONS.md", "contents": log}])
+        self.assertEqual(
+            out[0]["addedLines"],
+            ["- zeta: chose a queue", "- alpha: rejected polling", "- mid: kept the rate"],
+        )

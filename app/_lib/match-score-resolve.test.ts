@@ -22,6 +22,7 @@ import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { saveAnalysis } from "./db/analyses.ts";
+import { ensureDb, recordEvent } from "./db/core.ts";
 import { buildFreshestFits, fitKey, withCanonicalScores } from "./match-score-resolve.ts";
 
 after(() => cleanupUnitDb());
@@ -147,4 +148,33 @@ test("the map key joins on a separator that cannot occur in either axis", () => 
   // one key. The axes are joined with a NUL, which neither a label nor a slug holds.
   assert.notEqual(fitKey("Ann Lee", "role-x"), fitKey("Ann", "Lee role-x"));
   assert.equal(fitKey(" ANN LEE ", "role-x"), fitKey("ann lee", "role-x"));
+});
+
+test("who wrote a stored score: a `scored` event marks a fill AFTER the add, its absence a snapshot at add", () => {
+  // entry-scoring.ts (arrival scorer + automation sweep) logs `scored` beside every
+  // fill-only write that wins; nothing else writes match_score after the insert.
+  const db = ensureDb();
+  recordEvent(db, { entryId: "msr-scored-later", kind: "scored", detail: "61 vs Role", createdAt: "2026-10-22T09:00:00.000Z", workspaceId: WS_A });
+  // The same event in ANOTHER workspace must not relabel this tenant's entry.
+  recordEvent(db, { entryId: "msr-at-add", kind: "scored", detail: "70 vs Role", createdAt: "2026-10-22T09:00:00.000Z", workspaceId: WS_B });
+  const [later, atAdd, unscored] = withCanonicalScores(
+    [
+      { id: "msr-scored-later", ...entry("Later Person", "job-corpus-9", 61) },
+      { id: "msr-at-add", ...entry("Add Person", "job-corpus-9", 70) },
+      { id: "msr-unscored", ...entry("Empty Person", "job-corpus-9", null) },
+    ],
+    WS_A
+  );
+  assert.equal(later.canonicalScore, 61);
+  assert.deepEqual(later.scoreProvenance, { source: "scored", at: "2026-10-22T09:00:00.000Z" });
+  assert.deepEqual(atAdd.scoreProvenance, { source: "snapshot" });
+  assert.equal(unscored.scoreProvenance, null, "no number, no provenance");
+});
+
+test("an analysis fit still outranks a score the rule-based scorer filled later", () => {
+  fit("Fit Over Scored", "fos-role", 83, WS_A);
+  recordEvent(ensureDb(), { entryId: "msr-fos", kind: "scored", detail: "40 vs Role", workspaceId: WS_A });
+  const [e] = withCanonicalScores([{ id: "msr-fos", ...entry("Fit Over Scored", "jd-fos-role", 40) }], WS_A);
+  assert.equal(e.canonicalScore, 83);
+  assert.equal(e.scoreProvenance?.source, "analysis");
 });

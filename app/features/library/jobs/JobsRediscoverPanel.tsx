@@ -29,7 +29,7 @@ const KIND_LABEL: Record<RediscoverKind, "filterRejected" | "filterClosed" | "fi
 };
 
 const PRIOR_STYLE: Record<string, string> = {
-  rejected: "bg-coral/10 text-coral",
+  rejected: "bg-coral/10 text-coral-ink",
   closed: "bg-dial-amber/20 text-ink",
   elsewhere: "bg-steel/10 text-steel",
 };
@@ -76,7 +76,7 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
 
   if (error) {
     return (
-      <div className="text-base text-coral">
+      <div className="text-base text-coral-ink">
         {error}{" "}
         <button type="button" onClick={reload} className="focus-ring cursor-pointer underline hover:text-ink">
           {t("retry")}
@@ -185,7 +185,7 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
                       disabled={reaching(c.candidateId)}
                       title={reachErr ?? t("reachTitle")}
                       className={`focus-ring inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm font-semibold disabled:opacity-50 ${
-                        reachErr ? "border-coral/60 bg-coral/10 text-coral" : "border-coral/40 bg-coral/5 text-coral hover:bg-coral/10"
+                        reachErr ? "border-coral/60 bg-coral/10 text-coral-ink" : "border-coral/40 bg-coral/5 text-coral-ink hover:bg-coral/10"
                       }`}
                     >
                       {reachErr ? <RotateCcw size={14} /> : <Send size={14} />}{" "}
@@ -203,20 +203,20 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
                         title={err ?? undefined}
                         className={`focus-ring inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm font-semibold disabled:opacity-50 ${
                           err
-                            ? "border-coral/50 bg-coral/5 text-coral hover:border-coral/70"
+                            ? "border-coral/50 bg-coral/5 text-coral-ink hover:border-coral/70"
                             : "border-stone-200 text-ink hover:border-coral/40"
                         }`}
                       >
-                        {err ? <RotateCcw size={14} className="text-coral" /> : <UserPlus size={14} className="text-coral" />}{" "}
+                        {err ? <RotateCcw size={14} className="text-coral-ink" /> : <UserPlus size={14} className="text-coral-ink" />}{" "}
                         {adding(c.candidateId) ? t("adding") : err ? t("tryAgain") : t("addToPipeline")}
                       </button>
                     )}
                   </div>
                   {err ? (
-                    <span className="max-w-[12rem] text-right text-meta text-coral">{t("couldntAdd", { error: err })}</span>
+                    <span className="max-w-[12rem] text-right text-meta text-coral-ink">{t("couldntAdd", { error: err })}</span>
                   ) : null}
                   {reachErr ? (
-                    <span className="max-w-[12rem] text-right text-meta text-coral">{t("couldntReach", { error: reachErr })}</span>
+                    <span className="max-w-[12rem] text-right text-meta text-coral-ink">{t("couldntReach", { error: reachErr })}</span>
                   ) : null}
                 </div>
               )}

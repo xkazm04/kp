@@ -22,6 +22,7 @@ import { WorkspaceDocumentTitle } from "./WorkspaceDocumentTitle";
 import { SimSurfaces, FirstRunOnboarding } from "./WorkspaceSimSurfaces";
 import { useOnboardingReopen } from "./setup/onboardingReopen";
 import { SessionLapseDialog } from "./session/SessionLapseDialog";
+import { redirectedTab, redirectParams, tabRedirectUrl } from "./tabRedirects";
 import {
   AGENTS_TAB_IN_NAV,
   buildUrl,
@@ -122,10 +123,25 @@ export function Workspace({
       const requested = resolveTabParam(raw);
       if (requested == null) return null;
       if ((requested === "agents" || requested === "gigs") && !AGENTS_TAB_IN_NAV) return null;
-      return requested;
+      // A tab whose surface moved (tabRedirects.ts) renders its new home on the FIRST frame; the
+      // effect below writes the home's own inbox param. A seat the old tab was locked for keeps
+      // the locked door, which names who can grant it.
+      if (lockedCapability(requested, capabilities)) return requested;
+      return redirectedTab(requested);
     },
     DEFAULT_TAB
   );
+  // …and the rest of the move: `?tab=integrations&calendar=<code>` becomes
+  // `?tab=channels&sec=connectors:calendar&calendar=<code>`, every other param kept. Declared
+  // AFTER useUrlInboxState on purpose: effects run in declaration order, so this write lands
+  // after the inbox's own `{ tab: null }` cleanup of the same arrival instead of being undone
+  // by it; the rewritten `?tab=` is then an arrival of its own, adopted and emptied as usual.
+  const arrivalRedirect = tabRedirectUrl(search);
+  const arrivalTab = params.get("tab");
+  const arrivalLocked = arrivalTab !== null && lockedCapability(resolveTabParam(arrivalTab) ?? DEFAULT_TAB, capabilities);
+  useEffect(() => {
+    if (arrivalRedirect && !arrivalLocked) nav.replace(arrivalRedirect);
+  }, [arrivalRedirect, arrivalLocked, nav]);
   // History is consolidated into Analyze; ?tab=history opens Analyze in history mode.
   const navActive: WorkspaceTabId = active === "history" ? "analyze" : active;
 
@@ -151,8 +167,17 @@ export function Workspace({
       // overlaps it instead of following it. A no-op once warm. Not for a tab this
       // seat cannot open: every door (this one, a g-chord, a ?tab= arrival) lands
       // on the locked-door panel instead (panelFor), and that chunk never renders.
-      if (!lockedCapability(id, capabilities)) prefetchTabChunk(id);
-      setActive(id);
+      const locked = lockedCapability(id, capabilities);
+      // A moved tab (tabRedirects.ts): the pick lands on its new home and hands that home its
+      // inbox param, so Settings > Integrations and its `g` chord open the Connectors deck.
+      const moved = locked ? null : redirectParams(id, "");
+      const dest = moved ? redirectedTab(id) : id;
+      if (!lockedCapability(dest, capabilities)) prefetchTabChunk(dest);
+      setActive(dest);
+      if (moved) {
+        nav.replace(buildUrl({ ...clearedTabScopedParams(), ...moved }, search));
+        return;
+      }
       // The switch itself writes nothing to the URL. The ONE thing that still
       // must: tab-scoped deep-link params (?profile=, ?job=, ?edit=, ?jd*) are
       // still read from the URL by their tabs, so a leftover selection would be
@@ -224,7 +249,7 @@ export function Workspace({
     <div className="min-h-screen bg-paper md:flex">
       <a
         href="#main"
-        className="focus-ring sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-coral focus:px-3 focus:py-2 focus:text-base focus:font-semibold focus:text-white"
+        className="focus-ring sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-coral-solid focus:px-3 focus:py-2 focus:text-base focus:font-semibold focus:text-white"
       >
         {t("skipToContent")}
       </a>

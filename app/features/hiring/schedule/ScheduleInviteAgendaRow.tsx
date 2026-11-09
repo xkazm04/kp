@@ -50,7 +50,7 @@ export function AgendaRow({
           reads slotLine() (their local time) knowing where the candidate is. */}
       {i.candidateTz ? <span className="text-micro text-steel" title={i.candidateTz}>· {i.candidateTz}</span> : null}
       {inProgress ? (
-        <span className="rounded-full bg-coral/15 px-1.5 py-0.5 text-meta normal-case text-coral">{t("inProgress")}</span>
+        <span className="rounded-full bg-coral/15 px-1.5 py-0.5 text-meta normal-case text-coral-ink">{t("inProgress")}</span>
       ) : null}
       {i.rescheduleCount > 0 ? (
         <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-meta normal-case text-amber-800">

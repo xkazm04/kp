@@ -1,0 +1,105 @@
+{
+ "schema": "conform-run/1",
+ "worker": "b142996e-2b28-481c-9b56-a9c48aa643b9",
+ "subject": "prompt-assembly",
+ "evaluatedAt": "2026-11-03T17:46:19.583795+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "llm-api",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/llm/test/route.ts:57 The routes in this context hand typed arguments (use-case ids, entry ids) to the Python pipeline or to deterministic builders (sim/offer-draft is labelled NO LLM at line 14) and render no prompt text themselves. Searching app/api/llm, app/api/automation and app/api/sim for systemPrompt, compaction, max_tokens, buildPrompt and assemblePrompt found 0 hits. The only 'prompt' token is promptCacheStats in the read-only usage rollup.",
+   "techniques": [],
+   "absenceTerms": [
+    "systemPrompt",
+    "compaction",
+    "max_tokens",
+    "buildPrompt",
+    "assemblePrompt"
+   ]
+  },
+  {
+   "context": "analytics-metrics",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/insights/analytics/AnalyticsComputeCostPanel.tsx:8 These are client UI controls for metrics. The closest they come to a model is displaying the usage ledger read-only, so nothing here assembles, budgets or compacts a prompt. A recursive search of app/features/insights/analytics for systemPrompt, compaction, max_tokens, buildPrompt and assemblePrompt found 0 hits.",
+   "techniques": [],
+   "absenceTerms": [
+    "systemPrompt",
+    "compaction",
+    "max_tokens",
+    "buildPrompt",
+    "assemblePrompt"
+   ]
+  },
+  {
+   "context": "workspace-config-api",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/profile/draft/route.ts:47 The only model-spending door here passes typed inputs (text, lang) to runProfileDraft, which is outside this context, and the prompt is built downstream in the Python CLI. A search of app/api/{me,brand,palette,demo,templates,tasks,profile,compliance} for prompt, systemPrompt, compaction, max_tokens and buildPrompt found 0 hits.",
+   "techniques": [],
+   "absenceTerms": [
+    "prompt",
+    "systemPrompt",
+    "compaction",
+    "max_tokens",
+    "buildPrompt"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "prompt-assembly",
+   "context": "shared-api-utilities",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "prompt-assembly",
+   "context": "llm-config-provider",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-03T17:46:19.583795+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "llm-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-03T17:46:19.583795+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "analytics-metrics",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-03T17:46:19.583795+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "workspace-config-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

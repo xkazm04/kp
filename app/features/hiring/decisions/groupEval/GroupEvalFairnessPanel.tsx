@@ -141,7 +141,7 @@ export function FairnessPanel({
                     <span
                       className={`inline-flex h-7 w-9 items-center justify-center rounded-md font-semibold nums ${
                         i === j
-                          ? "bg-coral/10 text-coral ring-1 ring-coral/30 underline decoration-dotted decoration-2 underline-offset-2"
+                          ? "bg-coral/10 text-coral-ink ring-1 ring-coral/30 underline decoration-dotted decoration-2 underline-offset-2"
                           : "bg-stone-100 text-ink"
                       }`}
                       title={i === j ? t("ownWeighting") : t("crossWeighting", { label: l, other })}

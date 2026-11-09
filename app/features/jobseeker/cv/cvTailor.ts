@@ -12,6 +12,8 @@
 //     marked for the template to set in bold;
 //   - with `compactOffTarget` (the caller's choice, for a CV that runs over one page), a
 //     role with nothing relevant in it stays in its place as one line;
+//   - when no role's title speaks to the target and the strongest bridge is a project, the
+//     relevant projects print above the experience (the history whole and in order below);
 //   - skill groups and the items inside them go relevant-first, nothing removed;
 //   - the CV's own headline stays; an optional objective line states the seeker's own
 //     target, labelled as what they are looking for (CV_OBJECTIVE) — a preference, never a
@@ -318,7 +320,7 @@ function byScore<T>(items: T[], score: (t: T) => number): T[] {
 }
 
 /** Up to EMPHASIS_PER_ROLE demanded terms across a role's printed bullets, heaviest
- *  first, each term once per role, each the verbatim word(s) of the bullet it sits in. */
+ *  first, at most one per bullet, each term once per role, each the verbatim word(s) of the bullet it sits in. */
 function emphasiseRole(bullets: CvBullet[], skills: Term[]): CvBullet[] {
   const picked = bullets.map(() => [] as [number, number][]);
   const used = new Set<string>();
@@ -326,6 +328,7 @@ function emphasiseRole(bullets: CvBullet[], skills: Term[]): CvBullet[] {
   for (const term of [...skills].sort((a, b) => b.weight - a.weight || b.toks.length - a.toks.length)) {
     if (n >= EMPHASIS_PER_ROLE) break;
     for (let i = 0; i < bullets.length && !used.has(term.key); i++) {
+      if (picked[i]!.length) continue; // one bold phrase per bullet (registry scan-path-hierarchy)
       const run = runsOf(tokensOf(bullets[i]!.text), term).find(([s, e]) => !picked[i]!.some(([ps, pe]) => s < pe && e > ps));
       if (!run) continue;
       picked[i]!.push(run);
@@ -420,6 +423,17 @@ export function tailorCvDocument(
   const scoredProjects = doc.projects.map((p) => ({ p, s: Math.max(scoreOf(p.role, terms), ...[...p.bullets, ...(p.trimmed ?? [])].map((b) => scoreOf(bulletText(b), terms))) }));
   const projects = byScore(scoredProjects.filter((x) => x.s > 0), (x) => x.s).map((x) => x.p);
   if (projects.length < doc.projects.length) move({ move: "projects", before: "", after: "", where: null, n: doc.projects.length - projects.length });
+  // When no paid role's TITLE speaks to the target, a reader skimming the entry heads meets
+  // the past career first and the bridge last. If the strongest bridge is also outside paid
+  // work (the best project scores at least as high as the best role, bullets included), the
+  // relevant projects print above the experience (career-change-framing: hybrid, a relevant
+  // section above the main history); the experience keeps its date order. A title on
+  // target, or a role whose bullets hold the stronger bridge, means the bridge is inside
+  // paid work: the projects stay below, and that role's relevant bullets already lead it.
+  const bestProject = Math.max(0, ...scoredProjects.filter((x) => x.s > 0).map((x) => x.s));
+  const bestRole = Math.max(0, ...roles.map((r) => relevance.get(r) ?? 0));
+  const projectsFirst = projects.length > 0 && !roles.some((r) => scoreOf(r.role, terms) > 0) && bestProject >= bestRole;
+  if (projectsFirst) move({ move: "projectsFirst", before: "", after: projects[0]!.role, where: null });
 
   // Skills: groups and the items inside them relevant-first, over every item a group holds
   // (the ones the cap held back included); each group keeps its printed count. No bold.
@@ -476,7 +490,7 @@ export function tailorCvDocument(
   ];
 
   return {
-    doc: { ...doc, summary, objective, experience: roles, projects, skills: groups, improvements: [...doc.improvements, ...moves], questions },
+    doc: { ...doc, summary, objective, experience: roles, projects, projectsFirst: projectsFirst || undefined, skills: groups, improvements: [...doc.improvements, ...moves], questions },
     moves,
     coverage: { target, source: demand.source, postings: demand.postings, asOf: demand.asOf ?? null, shown, missing },
     offTargetRoles: fullOnTarget ? offTarget.length : 0,

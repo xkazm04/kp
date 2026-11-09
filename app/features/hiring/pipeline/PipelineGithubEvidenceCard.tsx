@@ -42,7 +42,7 @@ export function PipelineGithubEvidenceCard({
             href={github.profileUrl}
             target="_blank"
             rel="noreferrer"
-            className="focus-ring font-mono text-sm text-coral hover:underline"
+            className="focus-ring font-mono text-sm text-coral-ink hover:underline"
           >
             @{github.username}
           </a>
@@ -101,7 +101,7 @@ export function PipelineGithubEvidenceCard({
           href={`https://github.com/${githubHandle}`}
           target="_blank"
           rel="noreferrer"
-          className="focus-ring font-mono text-sm text-coral hover:underline"
+          className="focus-ring font-mono text-sm text-coral-ink hover:underline"
         >
           @{githubHandle}
         </a>
@@ -113,7 +113,7 @@ export function PipelineGithubEvidenceCard({
         disabled={ghBusy}
         className="focus-ring mt-2 inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
       >
-        <GitBranch size={13} className="text-coral" /> {ghBusy ? t("githubRunning") : t("githubRun")}
+        <GitBranch size={13} className="text-coral-ink" /> {ghBusy ? t("githubRunning") : t("githubRun")}
       </button>
       {ghErr ? <p role="alert" className="mt-1.5 text-sm text-red-700">{ghErr}</p> : null}
     </div>

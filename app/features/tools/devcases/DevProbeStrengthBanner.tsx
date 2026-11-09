@@ -41,7 +41,7 @@ export function ProbeStrengthBanner({ probes }: { probes: CoverProbe[] }) {
         {audit.verdict === "strong" ? (
           <ShieldCheck size={12} className="text-moss" />
         ) : (
-          <ShieldAlert size={12} className={audit.verdict === "none" ? "text-coral" : "text-amber-700"} />
+          <ShieldAlert size={12} className={audit.verdict === "none" ? "text-coral-ink" : "text-amber-700"} />
         )}
         {t("label")} · {headline}
       </p>

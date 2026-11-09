@@ -181,7 +181,7 @@ export default async function HistoryDetailPage({
       />
       <header className="flex flex-col gap-3 border-b border-stone-200 pb-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <p className="text-meta uppercase text-coral">{t("histEyebrow", { slug })}</p>
+          <p className="text-meta uppercase text-coral-ink">{t("histEyebrow", { slug })}</p>
           {/* idea-0832ec48 — pass the parsed analysis so the report can export an
               evidence-linked provenance dossier alongside copy-link / print. */}
           <ReportActions
@@ -196,7 +196,7 @@ export default async function HistoryDetailPage({
           {found.row.jd_slug ? (
             <>
               {" · "}
-              <Link href={`/jds/${found.row.jd_slug}`} className="font-mono text-coral hover:underline">
+              <Link href={`/jds/${found.row.jd_slug}`} className="font-mono text-coral-ink hover:underline">
                 JD {found.row.jd_slug}
               </Link>
             </>
@@ -206,7 +206,7 @@ export default async function HistoryDetailPage({
               {" · "}
               <Link
                 href={`/?tab=pipeline&q=${encodeURIComponent(found.row.candidate_label)}`}
-                className="font-semibold text-coral hover:underline"
+                className="font-semibold text-coral-ink hover:underline"
               >
                 {t("histOnBoard", { job: onBoard[0].jobTitle ?? "—", stage: stageLabel(onBoard[0].stage) })}
               </Link>
@@ -219,7 +219,7 @@ export default async function HistoryDetailPage({
             {alsoAnalyzed.map((entry, i) => (
               <span key={entry.slug}>
                 {i > 0 ? ", " : ""}
-                <Link href={`/history/${encodeURIComponent(entry.slug)}`} className="text-coral hover:underline">
+                <Link href={`/history/${encodeURIComponent(entry.slug)}`} className="text-coral-ink hover:underline">
                   {entry.jdTitle ?? `JD ${entry.jdSlug}`}
                 </Link>
                 {` · ${t("histScore", { score: entry.score ?? "—" })}`}

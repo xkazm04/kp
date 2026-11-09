@@ -13,6 +13,7 @@ import {
   promoteAuditReasons,
   promoteReasonMessage,
   promoteVerdict,
+  promoteVerdictInputOf,
   type PromoteReason,
 } from "./devcase-promote-verdict.ts";
 
@@ -87,10 +88,12 @@ const SAMPLE: Record<(typeof PROMOTE_REASON_CODES)[number], PromoteReason[]> = {
     { code: "authenticity_suspect", params: { score: 28 } },
     { code: "authenticity_suspect", params: {} },
   ],
+  debrief_cleared: [{ code: "debrief_cleared" }],
   low_confidence: [{ code: "low_confidence", params: { confidence: 0.3 } }],
   not_scored: [{ code: "not_scored" }],
   score_below_floor: [{ code: "score_below_floor", params: { score: 61, floor: 70 } }],
   score_clears_floor: [{ code: "score_clears_floor", params: { score: 82, floor: 70 } }],
+  trace_unwitnessed: [{ code: "trace_unwitnessed" }],
 };
 
 test("every reason code renders in en/cs/de/fr with its params: no raw key, no missing ICU argument", () => {
@@ -113,4 +116,35 @@ test("every reason code renders in en/cs/de/fr with its params: no raw key, no m
       }
     }
   }
+});
+
+test("C2/C4: the unwitnessed hold and the debrief clearance are inputs of the one rule, each with its code", () => {
+  const base = { transferScore: 88, floor: 70, authenticityBand: "authentic", confidence: 0.9 };
+  const held = promoteVerdict({ ...base, unwitnessedTrace: true });
+  assert.equal(held.recommendation, "hold");
+  assert.ok(held.reasons.some((r) => r.code === "trace_unwitnessed"));
+  const cleared = promoteVerdict({ ...base, unwitnessedTrace: true, debriefCleared: true });
+  assert.equal(cleared.recommendation, "advance");
+  assert.ok(cleared.reasons.some((r) => r.code === "debrief_cleared"));
+  assert.ok(!cleared.reasons.some((r) => r.code === "trace_unwitnessed"));
+  // A clearance lifts the authorship holds ONLY: floor, absent score and thin evidence still hold.
+  const below = promoteVerdict({ ...base, transferScore: 40, unwitnessedTrace: true, debriefCleared: true });
+  assert.equal(below.recommendation, "hold");
+  assert.ok(below.reasons.some((r) => r.code === "score_below_floor"));
+  assert.equal(promoteVerdict({ ...base, transferScore: null, debriefCleared: true, unwitnessedTrace: true }).recommendation, "hold");
+  assert.equal(promoteVerdict({ ...base, confidence: 0.2, debriefCleared: true, unwitnessedTrace: true }).recommendation, "hold");
+  // Nothing to lift = no clearance reason; a clearance never turns a hold into an advance on its own.
+  assert.ok(!promoteVerdict({ ...base, debriefCleared: true }).reasons.some((r) => r.code === "debrief_cleared"));
+});
+
+test("promoteVerdictInputOf reads the unwitnessed trace and asks for the clearance only when a hold exists", () => {
+  let asked = 0;
+  const isCleared = () => (asked += 1, true);
+  const plain = promoteVerdictInputOf({ transfer: { transferScore: 80 }, integrity: { witness: { verdict: "witnessed" } } }, null, 70, isCleared);
+  assert.equal(plain.unwitnessedTrace, false);
+  assert.equal(plain.debriefCleared, false);
+  assert.equal(asked, 0, "no hold, no clearance read");
+  const unw = promoteVerdictInputOf({ transfer: { transferScore: 80 }, integrity: { witness: { verdict: "unwitnessed" } } }, null, 70, isCleared);
+  assert.equal(unw.unwitnessedTrace, true);
+  assert.equal(unw.debriefCleared, true);
 });

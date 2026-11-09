@@ -5,13 +5,18 @@ import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { listDecisionRecordsForRefs, sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { sealedMatchVerdictOf, type SealedMatchVerdict } from "@/app/_lib/decision-attribution";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError, type RefusalErrorCode } from "@/app/_lib/api-response";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 import { currentUser, requireCapability } from "@/app/_lib/auth/current-user";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { withCanonicalScores } from "@/app/_lib/match-score-resolve";
+import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
+import { screenedLandingStage } from "@/app/_lib/pipeline-stages";
 import { runPipelineEntryAction } from "@/app/_lib/pipeline-entry-action";
+import { draftManualOffer } from "@/app/_lib/offer-manual-draft";
+import { isSimTitle } from "@/app/_lib/sim-marker";
 import { ENTRY_ACTIONS, engineClaimOf, entryActionOf } from "./entry-actions";
 
 
@@ -58,19 +63,18 @@ const MOVE_RATE_LIMIT = { limit: 300, windowMs: 10 * 60_000 };
 // sealedMatchVerdictOf — or null (not a Match add, or filed before the seal). The
 // Decisions cohort's analysis modal renders it in the reader's language; codes and
 // numbers only, so nothing here is locale-bound.
-export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const GET = withWorkspace(async (ws: string, _request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { id } = await context.params;
-    const ws = await currentWorkspace();
     const entry = getPipelineEntry(id, ws);
     if (!entry) return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
     return NextResponse.json({ entry: withCanonicalScores([entry], ws)[0], matchVerdict: matchVerdictFor(id, ws) });
   } catch (error) {
     return safeJsonError(error, "api:pipeline:entry", "PIPELINE_LIST_FAILED");
   }
-}
+});
 
 /** The entry's sealed Match verdict, or null. The chain is a separate store: a read that
  *  fails there must not take the entry (and the drawer that refreshes through this GET)
@@ -85,13 +89,17 @@ function matchVerdictFor(id: string, ws: string): SealedMatchVerdict | null {
   }
 }
 
-export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+// A card action carries an action name and a few short fields: 64 KB is generous.
+const MAX_ACTION_BODY_BYTES = 64 * 1024;
+
+export const POST = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const { id } = await context.params;
-  const ws = await currentWorkspace();
   try {
-    const body = (await request.json()) as { action?: string; detail?: string; expectedStage?: string; toStage?: string; github?: unknown; notes?: unknown; note?: unknown; ttlDays?: unknown; actor?: unknown };
+    const parsedBody = await readJsonWithLimit<Record<string, unknown>>(request, MAX_ACTION_BODY_BYTES, {});
+    if (parsedBody === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_ACTION_BODY_BYTES });
+    const body = parsedBody as { action?: string; detail?: string; expectedStage?: string; toStage?: string; github?: unknown; notes?: unknown; note?: unknown; ttlDays?: unknown; actor?: unknown; salary?: unknown };
 
     // The door's DECLARED actions (entry-actions.ts). An action the table does not name
     // is refused here, before any branch runs, and the seat each action requires is read
@@ -182,27 +190,37 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // needs a name. Identity-less deployments resolve to the same
       // "human:recruiter" role token as before.
       const actor = await humanActor();
-      const restored = reinstatePipelineEntry(id, ws, actor);
-      if (!restored) {
+      // SEAL FIRST. The store commits the reinstate and only then could this door
+      // seal: a seal failure after that point answered 503 while the entry was no
+      // longer rejected, so the retry got 409 PIPELINE_NOT_REINSTATABLE and the
+      // reversal was never sealed (council robustness-1). Sealing before the commit
+      // keeps a failed seal retryable: nothing has moved, the entry stays rejected.
+      // The reinstatable check is repeated here (status 'rejected', as the store
+      // reads it) so a record is not sealed over an entry the store will refuse.
+      const current = getPipelineEntry(id, ws);
+      if (!current || current.status !== "rejected") {
         return jsonRefusal("PIPELINE_NOT_REINSTATABLE", 409);
       }
-      // Seal the REVERSAL into the tamper-evident decision chain too. The auto-reject
-      // is sealed by screen-wave; recording only a pipeline event for the reinstate
-      // left the chain showing a rejection with no record it was overturned — an
-      // incomplete audit trail. Best-effort (sealDecisionSafe never throws): a seal
-      // failure must not fail the reinstate the recruiter already committed.
-      sealDecisionSafe({
+      // The stage the store will land the candidate on: the same expression
+      // reinstatePipelineEntry evaluates (db/pipeline.ts), built from the same
+      // exports, so the record names the stage the candidate will stand on.
+      const restoredStage = screenedLandingStage(getPipelineAxis(ws).stages) || "Screened";
+      const sealed = sealDecisionSafe({
         kind: "reinstated",
         actor,
         policyVersion: "manual",
         candidateRef: id,
         rationale: "Auto-rejection reversed for re-review.",
         reasonCode: "reinstate",
-        // The stage the store ACTUALLY landed the candidate on (this workspace's
-        // screened column), not the shipped literal — a renamed board used to get a
-        // sealed record naming a stage the candidate never stood on.
-        inputs: { previousStatus: "rejected", restoredStage: restored.stage },
+        inputs: { previousStatus: "rejected", restoredStage },
       });
+      if (!sealed) return jsonRefusal("PIPELINE_DECISION_NOT_SEALED", 503);
+      const restored = reinstatePipelineEntry(id, ws, actor);
+      if (!restored) {
+        // Lost a race between the check above and the commit: the record is sealed
+        // for a reversal that did not happen. Rare, and the 409 tells the caller so.
+        return jsonRefusal("PIPELINE_NOT_REINSTATABLE", 409);
+      }
       return NextResponse.json({ entry: restored });
     }
 
@@ -219,6 +237,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (!rateLimit(`pipeline-entry-move:${clientIpFrom(request.headers)}`, MOVE_RATE_LIMIT)) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
+    // A recruiter's own offer draft: no model, no profile needed. It stops at the same
+    // offer_review approval as the AI draft, so extendDraftedOffer still decides.
+    if (action === "draft_offer") {
+      const drafted = await draftManualOffer({ id, workspaceId: ws, salary: body.salary });
+      return NextResponse.json(drafted.body, { status: drafted.status });
+    }
+
     // The three board move/decide actions (set_stage / accept / reject / approve_event)
     // run through the shared runPipelineEntryAction so the single route and the batch
     // route (/api/pipeline/batch) can never diverge on the expectedStage CAS, the
@@ -232,8 +257,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       ttlDays: body.ttlDays,
       // The engine claim survives only where the action declares one (accept — the
       // guided sim's only use). Forwarded on every action, a body `actor: "sim"` let
-      // any operator file a human reject as a machine auto-rejection.
-      actor: engineClaimOf(action, body.actor),
+      // any operator file a human reject as a machine auto-rejection. And only on the
+      // simulation's own (SIM) entry: on a real candidate it would seal the caller's
+      // advance or extended offer as "auto:sim", with no name on it.
+      actor: engineClaimOf(action, body.actor, isSimTitle(getPipelineEntry(id, ws)?.jobTitle)),
       origin: new URL(request.url).origin,
       workspaceId: ws,
     });
@@ -241,4 +268,4 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   } catch (error) {
     return safeJsonError(error, "api:pipeline:action", "PIPELINE_ACTION_FAILED");
   }
-}
+});

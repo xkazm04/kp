@@ -9,6 +9,8 @@ import { BrandStyle } from "./_components/BrandStyle";
 import { BrandProvider } from "./_components/BrandProvider";
 import { getBrand } from "./_lib/brand-store";
 import { DEFAULT_BRAND } from "./_lib/brand-config";
+import { orgNameFallback } from "./_lib/org-settings";
+import { fixtureSeedEnabled } from "./_lib/db/seed-gate";
 import { DARK, PAPER } from "./_lib/brand";
 import { siteUrl } from "./_lib/site-url";
 import { LOCALES } from "@/i18n/locales";
@@ -200,6 +202,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   } catch (error) {
     console.error("[layout] brand read failed", error);
   }
+  // The org name an unset organization reads as — the ČS demo name ONLY where the
+  // demo fixtures are seeded; an unseeded owner install gets empty, never a bank.
+  // Resolved HERE because the seed gate is a server env read (db/seed-gate.ts).
+  const orgFallback = orgNameFallback(fixtureSeedEnabled());
   // suppressHydrationWarning: the theme script mutates <html data-theme> before
   // React hydrates, so the server/client attribute mismatch is expected.
   return (
@@ -214,7 +220,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         {/* White-label accent override (E3) — after globals.css so it wins by source order. */}
         <BrandStyle accent={brand.accentColor} />
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <BrandProvider brand={brand}>
+          <BrandProvider brand={brand} orgNameFallback={orgFallback}>
             {children}
             {/* Feedback layer — one portal stack for the whole app (workspace AND
                 the public token pages), inside the intl provider so the dismiss

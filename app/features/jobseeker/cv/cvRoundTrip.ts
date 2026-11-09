@@ -43,8 +43,9 @@ export function cvReadingLines(doc: CvDocument): string[] {
       if (!r.compact) for (const b of r.bullets) out.push(`- ${b.lead ? `${b.lead}: ` : ""}${b.text}`);
     }
   };
+  if (doc.projectsFirst) entries(h.projects, doc.projects);
   entries(h.experience, doc.experience);
-  entries(h.projects, doc.projects);
+  if (!doc.projectsFirst) entries(h.projects, doc.projects);
   if (doc.education.length) {
     out.push("", h.education);
     for (const e of doc.education) out.push(entryHead({ role: e.title, org: e.detail, dates: e.dates }));
@@ -162,8 +163,9 @@ function modelStrings(doc: CvDocument): { what: string; text: string }[] {
       if (!r.compact) for (const b of r.bullets) add("bullet", b.lead ? `${b.lead}: ${b.text}` : b.text);
     }
   };
+  if (doc.projectsFirst) roles(h.projects, doc.projects);
   roles(h.experience, doc.experience);
-  roles(h.projects, doc.projects);
+  if (!doc.projectsFirst) roles(h.projects, doc.projects);
   if (doc.education.length) add("heading", h.education);
   for (const e of doc.education) {
     add("education", e.title);

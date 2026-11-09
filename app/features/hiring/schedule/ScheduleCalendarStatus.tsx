@@ -26,7 +26,7 @@ export function ScheduleCalendarStatus() {
       {/* The two statuses a click fixes get the click: connect a calendar, or reconnect a
           dead grant. `unavailable` is a wait, so it offers nothing to press. */}
       {data.calendarStatus === "not_connected" || data.calendarStatus === "needs_reconnect" ? (
-        <button type="button" onClick={() => nav.push(buildUrl({ ...clearedTabScopedParams(), tab: "integrations" }, search.toString()))} className="focus-ring font-semibold text-coral hover:underline">
+        <button type="button" onClick={() => nav.push(buildUrl({ ...clearedTabScopedParams(), tab: "integrations" }, search.toString()))} className="focus-ring font-semibold text-coral-ink hover:underline">
           {data.calendarStatus === "needs_reconnect" ? tCalendar("grant.reconnectAction") : tCalendar("connect")}
         </button>
       ) : null}

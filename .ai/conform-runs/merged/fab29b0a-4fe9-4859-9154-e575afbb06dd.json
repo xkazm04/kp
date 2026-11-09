@@ -1,0 +1,22 @@
+{
+ "schema": "conform-run/1",
+ "worker": "fab29b0a-4fe9-4859-9154-e575afbb06dd",
+ "subject": "cv-presentation-and-parseability",
+ "evaluatedAt": "2026-10-19T02:12:55.110663+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [],
+ "declined": [
+  {
+   "subject": "cv-presentation-and-parseability",
+   "context": "jd-template-engine",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "cv-presentation-and-parseability",
+   "context": "spark-trust-market",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": []
+}

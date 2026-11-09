@@ -56,7 +56,7 @@ const BLEND = Math.min(1, Math.max(0, Number(process.env.MARKET_BLEND ?? 0.7)));
 const M_MIN = 0.75; // a family can be re-levelled at most −25% …
 const M_MAX = 1.3; // … or +30%, so a mis-mapped family can't blow up the anchors
 const MIN_SAMPLE_K = 15; // ISPV employees (thousands) needed to trust the median
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { assertFresh, STALE_AFTER_DAYS } from "./lib/market-earnings.mjs";
@@ -131,9 +131,12 @@ const flatBlock = (obj) =>
 
 // Preserve the pristine hand-authored bands the first time we run — always as the
 // FLAT target block, never the whole keyed file (so `manual.roles` is defined).
-if (!existsSync(BACKUP)) {
-  writeFileSync(BACKUP, JSON.stringify(flatBlock(benchRaw), null, 2) + "\n");
+// "wx" creates atomically and refuses an existing file: no check-then-write race.
+try {
+  writeFileSync(BACKUP, JSON.stringify(flatBlock(benchRaw), null, 2) + "\n", { flag: "wx" });
   console.log(`[apply-salaries] backed up original → ${path.relative(ROOT, BACKUP)}`);
+} catch (e) {
+  if (e?.code !== "EEXIST") throw e;
 }
 // Always diff against the pristine manual bands, even on re-runs.
 const manual = flatBlock(JSON.parse(readFileSync(BACKUP, "utf8")));

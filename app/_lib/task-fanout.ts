@@ -62,7 +62,13 @@ export type FanoutOutcome = {
   byCode: Partial<Record<FanoutCode, number>>;
 };
 
-const SUPPRESSED = new Set(["suppressed_anonymized", "suppressed_consent_expired"]);
+const SUPPRESSED = new Set([
+  "suppressed_anonymized",
+  "suppressed_consent_expired",
+  "suppressed_replied",
+  "suppressed_manual",
+  "suppressed_candidate",
+]);
 
 function cohortOf(params: unknown): string[] | null {
   const ids = params && typeof params === "object" ? (params as { entryIds?: unknown }).entryIds : undefined;

@@ -1,0 +1,163 @@
+{
+ "schema": "conform-run/1",
+ "worker": "7ef6a284-7a60-4cdf-90e8-09598a0af901",
+ "subject": "repository-landing-document",
+ "evaluatedAt": "2026-10-19T11:04:49.396019+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "spark-landing-shell",
+   "subject": "repository-landing-document",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/landing/spark/SparkHome.tsx:32 This shell composes an application marketing page, while searches found no repository-document publishing markers in its directories and located the repository badge in the separate root README.",
+   "techniques": [
+    {
+     "technique": "caption-carrying-figures",
+     "verdict": "not-applicable",
+     "evidence": "app/landing/_components/KandidateMark.tsx:14 This application logomark is outside the standard's repository-document figure scope."
+    },
+    {
+     "technique": "evidence-linked-badges",
+     "verdict": "not-applicable",
+     "evidence": "app/landing/spark/Wordmark.tsx:22 The wordmark supplies product identity, not a repository-host evidence badge."
+    },
+    {
+     "technique": "host-metadata-is-a-second-document",
+     "verdict": "not-applicable",
+     "evidence": "app/landing/spark/LandingLangSwitch.tsx:41 This control changes the application's locale rather than repository-host metadata."
+    },
+    {
+     "technique": "input-channel-distinction",
+     "verdict": "not-applicable",
+     "evidence": "app/landing/spark/DemoUnavailableNotice.tsx:46 The application displays a refusal notice; repository-document shell and agent instruction channels are outside this surface."
+    },
+    {
+     "technique": "landing-document-as-router",
+     "verdict": "not-applicable",
+     "evidence": "app/landing/spark/SparkHome.tsx:32 This composes a Next.js product page, not the document rendered as the repository front page."
+    },
+    {
+     "technique": "multi-surface-degradation",
+     "verdict": "not-applicable",
+     "evidence": "app/landing/spark/AboutHome.tsx:32 This is another application route, not a syndicated repository document."
+    },
+    {
+     "technique": "style-rule-ships-its-detector",
+     "verdict": "not-applicable",
+     "evidence": "app/landing/spark/tokens.ts:18 The module supplies application typography tokens rather than a repository-document prose style guide."
+    },
+    {
+     "technique": "visual-text-cadence",
+     "verdict": "not-applicable",
+     "evidence": "app/landing/spark/SparkHome.tsx:12 The surface is the signed-out application homepage; the standard's rendered repository-document cadence does not govern it."
+    }
+   ],
+   "absenceTerms": [
+    "shields.io",
+    "badge.svg",
+    "readmeFilename"
+   ]
+  },
+  {
+   "context": "jd-public-detail-page",
+   "subject": "repository-landing-document",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/jds/[slug]/page.tsx:327 This route renders a stored job description, and context searches found no repository-document publishing markers while the repository search located the separate root README.",
+   "techniques": [
+    {
+     "technique": "caption-carrying-figures",
+     "verdict": "not-applicable",
+     "evidence": "app/jds/[slug]/JdBody.tsx:56 The rendered Markdown is job-description content, not a repository landing document."
+    },
+    {
+     "technique": "evidence-linked-badges",
+     "verdict": "not-applicable",
+     "evidence": "app/jds/[slug]/JdBody.tsx:51 These icons report clipboard state rather than repository-host badge claims."
+    },
+    {
+     "technique": "host-metadata-is-a-second-document",
+     "verdict": "not-applicable",
+     "evidence": "app/jds/[slug]/page.tsx:130 This generates job-page sharing metadata, not the code host's description, topics or homepage fields."
+    },
+    {
+     "technique": "input-channel-distinction",
+     "verdict": "not-applicable",
+     "evidence": "app/jds/[slug]/JdBody.tsx:32 Copy exports the job-description body; it does not supply repository installation commands or agent instructions."
+    },
+    {
+     "technique": "landing-document-as-router",
+     "verdict": "not-applicable",
+     "evidence": "app/jds/[slug]/page.tsx:327 A job-detail route serves its specific record rather than routing repository reader populations."
+    },
+    {
+     "technique": "multi-surface-degradation",
+     "verdict": "not-applicable",
+     "evidence": "app/jds/[slug]/page.tsx:126 The snippet derives from a job posting; repository-document syndication is outside this context."
+    },
+    {
+     "technique": "style-rule-ships-its-detector",
+     "verdict": "not-applicable",
+     "evidence": "app/jds/[slug]/JdActions.tsx:85 This checks edited job descriptions rather than enforcing a repository-document house style."
+    },
+    {
+     "technique": "visual-text-cadence",
+     "verdict": "not-applicable",
+     "evidence": "app/jds/[slug]/page.tsx:249 The heading identifies an individual job posting, outside the repository-front-page cadence contract."
+    }
+   ],
+   "absenceTerms": [
+    "shields.io",
+    "badge.svg",
+    "readmeFilename"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-19T11:04:49.396019+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "repository-landing-document"
+   ],
+   "techniques": [
+    "caption-carrying-figures",
+    "evidence-linked-badges",
+    "host-metadata-is-a-second-document",
+    "input-channel-distinction",
+    "landing-document-as-router",
+    "multi-surface-degradation",
+    "style-rule-ships-its-detector",
+    "visual-text-cadence"
+   ],
+   "deviations": 0,
+   "context": "spark-landing-shell",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-19T11:04:49.396019+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "repository-landing-document"
+   ],
+   "techniques": [
+    "caption-carrying-figures",
+    "evidence-linked-badges",
+    "host-metadata-is-a-second-document",
+    "input-channel-distinction",
+    "landing-document-as-router",
+    "multi-surface-degradation",
+    "style-rule-ships-its-detector",
+    "visual-text-cadence"
+   ],
+   "deviations": 0,
+   "context": "jd-public-detail-page",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

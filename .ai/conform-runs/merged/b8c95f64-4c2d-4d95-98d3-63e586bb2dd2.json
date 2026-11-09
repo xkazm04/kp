@@ -1,0 +1,181 @@
+{
+ "schema": "conform-run/1",
+ "worker": "b8c95f64-4c2d-4d95-98d3-63e586bb2dd2",
+ "subject": "hiring-policy-defaults-and-tiering",
+ "evaluatedAt": "2026-10-24T23:10:51.767283+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "decisions-screen-wave-logic",
+   "subject": "hiring-policy-defaults-and-tiering",
+   "bundle": "recruiting",
+   "state": "conformant",
+   "evidence": "app/features/hiring/decisions/decisionsScreenWaveMachine.ts:32 When the commit is refused because the approval no longer matches the live policy and cohort, the pure wave reducer sends the recruiter back to a fresh preview, never a merge or a bare warning, so an approval is only ever redeemed against the rulebook the reviewer actually saw.",
+   "techniques": [
+    {
+     "technique": "policy-version-sealed-into-every-decision",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/decisions/decisionsScreenWaveMachine.ts:32 Client half of verify-at-redemption: a token/policy mismatch forces a fresh review (keepCommitNotice keeps the reason visible across that refresh)."
+    },
+    {
+     "technique": "a-default-is-a-policy-position",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/decisions/decisionsComplianceFold.ts:25 Three distinct states: somebody chose it, the default is in force but nobody chose it, and the read failed. A shipped default is never shown as a choice somebody made (decisionsRulesLoad likewise refuses to fall back to SCREENING_DEFAULT on a malformed read)."
+    },
+    {
+     "technique": "per-role-family-threshold-overrides",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/decisions/decisionsFloorDisclosure.ts:37 Each reject row shows the per-family floor it was judged against, and familyFloorEntries drops overrides equal to the global floor, so a family deviation is visible as a deviation and never claimed when it changes nothing."
+    }
+   ]
+  },
+  {
+   "context": "decisions-review-ui",
+   "subject": "hiring-policy-defaults-and-tiering",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/hiring/decisions/useDecisionsScreenWave.ts:27 The screen-wave modal opens with auto-reject ON and sends it as a per-run override that screen-wave.ts:159 spreads over the stored workspace rule, so a recruiter can enable auto-reject for one job even where the organisation left the switch off; the bulk tool has its own enablement that was never reviewed as one.",
+   "techniques": [
+    {
+     "technique": "automation-ships-off-by-default",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/decisions/useDecisionsScreenWave.ts:27 A second switch per run that starts ON (DecisionsScreenWaveModal.tsx:8: 'auto-reject is on for the run by default'), not one organisation-level switch that starts off. Human approval of the wave still applies, which softens this but does not cure it."
+    },
+    {
+     "technique": "a-default-is-a-policy-position",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/decisions/useDecisionsScreenWave.ts:28 The wave seeds its bar from the shipped constant, not from the workspace's saved rule, and the override then replaces the saved value. Whoever does not retype the number runs the vendor's 20/45, not their own policy."
+    },
+    {
+     "technique": "per-role-family-threshold-overrides",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/decisions/useDecisionsScreenWave.ts:29 maxMatchToReject can be changed per job in the wave modal, which is a requisition-level bar. The technique says a request for a different bar is a family review, not a per-requisition exception."
+    },
+    {
+     "technique": "organisation-baseline-with-a-team-override",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/decisions/DecisionsRulesModal.tsx:77 The screen writes the tier it shows. It never renders whether a value is inherited from the org baseline or overridden by the team, or by whom and when (step 5)."
+    },
+    {
+     "technique": "policy-version-sealed-into-every-decision",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/decisions/useDecisionsScreenWave.ts:88 The commit echoes the token signed over the previewed policy version and cohort. The server refuses it on mismatch."
+    }
+   ],
+   "registryProposal": "automation-ships-off-by-default could name the 'per-run override of a human-approved bulk tool' shape explicitly. Its decision rule covers 'a bulk tool with its own enablement', but a reviewer can read the human approval token as making the tool's default-ON switch acceptable. The technique should say whether a mandatory human approval of the cohort changes the off-by-default requirement for the run's own toggle."
+  },
+  {
+   "context": "hiring-pipeline-config",
+   "subject": "hiring-policy-defaults-and-tiering",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/settings/hiring/pipelineComposerModel.ts:210 The shipped 'lean' preset sets the screening gate to auto ahead of an AI round, and setStepGate and the schema validator accept 'auto' on any column, offer included. No gate is declared required, so the human screen and human-approved offer can be assembled away by choosing a preset or flipping a column.",
+   "techniques": [
+    {
+     "technique": "required-gates-declared-not-assembled-per-role",
+     "verdict": "deviation",
+     "evidence": "app/features/settings/hiring/pipelineComposerModel.ts:210 No required set is held in data. A preset puts a machine round before any human screen, and steps still carry a rounds list rather than one activity. The shipped INTERVIEW_PLAN_DEFAULT does satisfy the set, and absence is never turned into a fabricated gate (line 343), but neither cures the missing declaration."
+    },
+    {
+     "technique": "a-default-is-a-policy-position",
+     "verdict": "conformant",
+     "evidence": "app/features/settings/hiring/pipelineComposerModel.ts:137 A case step nobody configured ships human-gated, with the reason stated just above the value: 'nobody chose' must not resolve to the machine sending unpaid work unattended. newRound also defaults gate to 'human'."
+    }
+   ]
+  },
+  {
+   "context": "schedule-interview-prep",
+   "subject": "hiring-policy-defaults-and-tiering",
+   "bundle": "recruiting",
+   "state": "not-applicable",
+   "evidence": "app/features/hiring/schedule/ScheduleHumanScorecardPanel.tsx:165 This context renders prep, transcripts and scorecards, and only discloses a gate move the server decided. A search of app/features/hiring/schedule for the policy vocabulary (autoRejectEnabled, policyVersion, familyFloors, SCREENING_DEFAULT, effectiveFloor) found zero hits, so it ships no default, threshold, toggle or tier of hiring policy.",
+   "techniques": [
+    {
+     "technique": "a-default-is-a-policy-position",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/schedule/ScheduleHumanScorecardPanel.tsx:165 The gate outcome comes from the server and is only disclosed here."
+    }
+   ],
+   "absenceTerms": [
+    "autoRejectEnabled",
+    "policyVersion",
+    "familyFloors",
+    "SCREENING_DEFAULT",
+    "effectiveFloor"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "hiring-policy-defaults-and-tiering",
+   "context": "pipeline-actions-events",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-24T23:10:51.767283+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "hiring-policy-defaults-and-tiering"
+   ],
+   "techniques": [
+    "a-default-is-a-policy-position",
+    "per-role-family-threshold-overrides",
+    "policy-version-sealed-into-every-decision"
+   ],
+   "deviations": 0,
+   "context": "decisions-screen-wave-logic",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T23:10:51.767283+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "hiring-policy-defaults-and-tiering"
+   ],
+   "techniques": [
+    "a-default-is-a-policy-position",
+    "automation-ships-off-by-default",
+    "organisation-baseline-with-a-team-override",
+    "per-role-family-threshold-overrides",
+    "policy-version-sealed-into-every-decision"
+   ],
+   "deviations": 1,
+   "context": "decisions-review-ui",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T23:10:51.767283+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "hiring-policy-defaults-and-tiering"
+   ],
+   "techniques": [
+    "a-default-is-a-policy-position",
+    "required-gates-declared-not-assembled-per-role"
+   ],
+   "deviations": 1,
+   "context": "hiring-pipeline-config",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T23:10:51.767283+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "hiring-policy-defaults-and-tiering"
+   ],
+   "techniques": [
+    "a-default-is-a-policy-position"
+   ],
+   "deviations": 0,
+   "context": "schedule-interview-prep",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

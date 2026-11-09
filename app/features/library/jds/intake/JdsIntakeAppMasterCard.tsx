@@ -192,7 +192,7 @@ const RUNG_KEY = ["spec.rungValue.0", "spec.rungValue.1", "spec.rungValue.2"] as
 const VERDICT_GLYPH: Record<PopulationFit["verdict"], { glyph: string; cls: string }> = {
   agent: { glyph: "✓", cls: "text-moss" },
   hybrid: { glyph: "–", cls: "text-amber-700" },
-  human: { glyph: "✗", cls: "text-coral" },
+  human: { glyph: "✗", cls: "text-coral-ink" },
   unassessed: { glyph: "–", cls: "text-steel" },
 };
 

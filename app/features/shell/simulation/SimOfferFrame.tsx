@@ -64,7 +64,7 @@ function FrameDialog({ url, title, onClose }: { url: string; title: string; onCl
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 border-b border-stone-200 bg-paper px-3 py-2 text-sm">
-          <span className="rounded-full bg-coral/15 px-2 py-0.5 text-meta font-semibold uppercase tracking-wide text-coral">
+          <span className="rounded-full bg-coral/15 px-2 py-0.5 text-meta font-semibold uppercase tracking-wide text-coral-ink">
             {title}
           </span>
           <span className="min-w-0 flex-1 truncate text-steel">{url}</span>

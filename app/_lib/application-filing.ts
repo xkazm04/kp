@@ -39,6 +39,8 @@
 //   5. The entry at the workspace axis's ENTRY column, consent (best-effort), the
 //      best-effort status-link mint, and the acknowledgement (best-effort, its links
 //      minted synchronously, its dispatch deferrable off the response path).
+//   6. When the door supplies `deferScore`, the fresh built entry's role-fit score,
+//      off the response path (entry-scoring.ts — scoring only, no decision).
 //
 // Doors: the conversational apply (app/api/apply/[id]/route.ts, "token" | "none"),
 // the lead core behind the quick form and the lead webhooks (lead-intake.ts,
@@ -62,12 +64,14 @@ import { FALLBACK_ARCHETYPE } from "./apply";
 import { applicantKey } from "./applicant-key";
 import { ANONYMOUS_APPLICANT_LABEL, type ApplyAnswers } from "./apply-intake";
 import { buildApplicantProfile, type BuildOutcome } from "./applicant-profile";
+import { shouldScoreAfterFiling } from "./entry-scoring-policy";
 import { getOrCreateStatusLink } from "./application-status-store";
 import { dispatchApplicationReceived } from "./comms-dispatch";
 import { codedReasonDetail } from "./coded-reason";
 import { randomId } from "./random-id";
 import { sanitizeFreeText } from "./text-sanitize";
 import { coerceLocale } from "@/i18n/locales";
+import { knockoutHoldDetail } from "./knockout-hold";
 
 export type FilingJob = NonNullable<ReturnType<typeof getJob>>;
 
@@ -136,6 +140,23 @@ export type ApplicationFilingInput = ProofInput & {
   enrichLinkFor?: (entry: PipelineEntry, kind: AckKind) => string | null;
   /** The `re_applied` event detail. Default: the coded repeatApplication* reason. */
   repeatDetail?: (changes: string[]) => string;
+  /** Schedule the role-fit SCORE of a fresh, built filing off the response path — the
+   *  door's `startTask("score_entry", { entryId }, workspaceId)` (the task runner
+   *  runs entry-scoring.ts's scoreFiledEntry in the background lane: the deterministic
+   *  ranker, a NULL-only CAS write, no decision). Called only when
+   *  shouldScoreAfterFiling holds. Omitted = not scored here, and the automation pass's
+   *  sweep scores it later, as it always has. The door owns the scorer import so the
+   *  ranker's module graph is paid only by the doors that score, not by every route
+   *  that reaches this core (perf-budget.json). */
+  deferScore?: (entry: PipelineEntry) => void;
+  /** File the application as a KNOCKOUT HOLD (owner ruling Q1, knockout-hold.ts): the
+   *  applicant answered no to a must-have, so the entry is filed behind the existing
+   *  `decision` approval carrying the failed step ids, for a person to confirm or clear.
+   *  A hold files NO acknowledgement (its links invite enrichment of an application nobody
+   *  has accepted) and mints no enrichment token, and a repeat of a known applicant
+   *  writes NOTHING — a no must not merge onto, re-consent or re-contact an entry that
+   *  already stands. Callers pass `stub` too: the hold is filed before any profile exists. */
+  hold?: { failedKoIds: readonly string[] };
 };
 
 export type ApplicationFilingOutcome =
@@ -222,6 +243,10 @@ export async function fileApplication(input: ApplicationFilingInput): Promise<Ap
   // 4. A repeat under the door's proof.
   const repeat = async (existing: PipelineEntry, raced: boolean): Promise<ApplicationFilingOutcome> => {
     const proof: FilingProof = raced && input.proof === "none" ? "channel" : input.proof;
+    // A knockout hold writes nothing onto a known applicant's entry, whatever the proof.
+    if (input.hold) {
+      return { kind: "duplicate", entry: existing, label, merged: false, raced, changes: [], rebuilt: null };
+    }
     if (proof === "none") {
       return { kind: "duplicate", entry: existing, label, merged: false, raced, changes: [], rebuilt: null };
     }
@@ -316,13 +341,33 @@ export async function fileApplication(input: ApplicationFilingInput): Promise<Ap
     sourceVariant: input.sourceVariant ?? null,
     workspaceId,
     actor: input.actor ?? null,
+    ...(input.hold ? { approvalKind: "decision" as const, approvalDetail: knockoutHoldDetail(input.hold.failedKoIds) } : {}),
   });
   if (!created) return repeat(entry, true);
+
+  if (input.hold) {
+    // Consent stays (the application is on file and the contact is data we hold), but no
+    // ack, no score and no enrichment token: nothing is accepted until a person looks.
+    recordConsentSafely(entry.id, input.sourceChannel, workspaceId);
+    return { kind: "created", entry, label, built };
+  }
 
   input.onEntry?.(entry);
   // GDPR: data-processing consent + a 12-month expiry at intake (the expiry drives
   // the anonymization sweep). Best-effort — never undoes a filed application.
   recordConsentSafely(entry.id, input.sourceChannel, workspaceId);
   await sendAck(entry, "ack");
+  // 6. The role-fit score, deferred: a new applicant used to sit on the board blank and
+  //    "awaiting match score" until a pass ran (the clock is off by default). Scoring
+  //    only — never a stage, approval or proposal. Best-effort twice over: the task
+  //    logs its own failure (the entry stays unscored for the pass), and scheduling it
+  //    can never turn a filed application into an error.
+  if (input.deferScore && shouldScoreAfterFiling({ kind: "created", entry }, !!input.stub)) {
+    try {
+      input.deferScore(entry);
+    } catch (err) {
+      console.error(`[application-filing] could not schedule scoring for entry ${entry.id}:`, err instanceof Error ? err.message : err);
+    }
+  }
   return { kind: "created", entry, label, built };
 }

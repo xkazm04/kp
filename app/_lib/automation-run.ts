@@ -18,10 +18,6 @@ import {
   UI_LANG_TASKS,
 } from "./automation-cache-key";
 import { screenStageOutcome } from "./pipeline-stages";
-import { getPlanGateForRole } from "./interview-plan";
-import { readLiveArchetypes } from "./archetype-live";
-import { extendDraftedOffer } from "./pipeline-entry-action";
-import { sealDecisionSafe } from "./decision-record-store";
 import { scorecardGateOpen } from "./interview-scorecard-gate";
 import { resolveCommsLocale } from "./comms-locale";
 import { getWorkspaceDefaultLocale } from "./db/workspaces";
@@ -30,7 +26,9 @@ import { getPipelineAxis } from "./pipeline-axis-server";
 import { offeredStageActions } from "./stage-ai-actions";
 import type { StageAiAction } from "./pipeline-stages";
 import { screenedLandingStage, stageHasRole } from "./pipeline-stages";
-import { dispatchOutreach } from "./comms-dispatch";
+import { draftOutreachLetter } from "./outreach-release";
+import { candidateOutreachSuppression } from "./rediscovery-alert-store";
+import { outreachHaltFor } from "./outreach-state-store";
 import {
   coerceInterviewRecommendation,
   coerceScreenRoute,
@@ -109,29 +107,6 @@ export const AUTOMATION_VERSION: Record<string, string> = {
  *  and its prompt bytes are unchanged. */
 export const SCORECARD_TASKS = new Set(["rejection", "offer"]);
 
-/** Why an `offerGate="auto"` draft must NOT be extended unattended, or null when
- *  nothing here objects.
- *
- *  An offer letter auto-sent to a candidate is the highest-consequence output in
- *  the product, and the gate had exactly one evidential precondition: that a figure
- *  existed. Live, that was not enough — a draft went out on an entry whose OWN
- *  interview scorecard said `hold`, 2 of 5 on the technical axis. The gate's
- *  meaning is unchanged for every case the operator configured it for: an interview
- *  that closed as `advance`, and an entry with no interview at all (a recruiter can
- *  reach Offer without one), still auto-extend. Only the case where the workspace's
- *  own recorded verdict CONTRADICTS the send is refused — and refused by parking the
- *  draft at offer_review, never by rewriting the letter.
- *
- *  Takes the raw stored scorecard (unvalidated row JSON): an unreadable or verdict-
- *  less scorecard is "no recorded objection", not a refusal — it is the same absence
- *  as no interview. */
-export function offerAutoExtendRefusal(scorecard: unknown): string | null {
-  if (!scorecard || typeof scorecard !== "object") return null;
-  const raw = (scorecard as { recommendation?: unknown }).recommendation;
-  if (typeof raw !== "string" || !raw.trim()) return null;
-  const verdict = coerceInterviewRecommendation(raw);
-  return verdict === "advance" ? null : `scorecard_${verdict}`;
-}
 // LETTER_LANG_TASKS — candidate-facing letters; their language is the entry's
 // resolved comms locale (explicit apply choice, else the workspace default —
 // comms-locale.resolveCommsLocale), passed to Python as --lang so the letter and
@@ -146,20 +121,13 @@ const LETTER_TASKS = LETTER_LANG_TASKS;
 // Event kind for the generic "drafted" tasks — ONLY those that fall through to the
 // catch-all branch below (currently rejection + prep). screen/scorecard/offer/
 // rematch/outreach each have their own branch and record their own event, so they
-// must NOT be listed here (an outreach entry was dead: outreach records
-// "outreach_sent" via dispatchOutreach, never "outreach_drafted").
+// must NOT be listed here (an outreach entry was dead: outreach holds its draft on an
+// outreach_letters row, and "outreach_sent" is recorded only when a person releases it).
 const DRAFT_EVENT: Record<string, string> = {
   rejection: "rejection_drafted",
   prep: "interview_prep_generated",
 };
 const TTL_HOURS = 168;
-
-// Per-entry in-process single-flight for outreach (mirrors automation-pass's inFlightPass).
-// The durable `outreach_sent` marker is written only AFTER sendComm, so two concurrent
-// same-process /api/automation/outreach calls for one entry both passed the hasEvent gate
-// and double-sent. The manual surfaces run in the same Next server process as the heartbeat,
-// so an in-process guard suffices; on send failure the entry is released so a retry works.
-const outreachInFlight = new Set<string>();
 
 // The refusals THIS module decides, as machine tokens. A route answers each with
 // its own `jsonRefusal` code, in the reader's language; everything else that
@@ -303,6 +271,15 @@ export interface BuildAutomationArgvOptions {
   notesPath?: string | null;
   lang?: string | null;
   githubEvidencePath?: string | null;
+  /** S1 — scorecard only: the entry carries a work sample, so the rubric gains the
+   *  optional "Working with AI tools" axis. Absent/false = the pre-S1 argv. */
+  devCase?: boolean;
+}
+
+/** The one rule for "this entry has a dev case" — the scorecard route's hasDevCase,
+ *  the argv and the cache key all read it from here. */
+export function entryHasDevCase(entry: { devCaseId?: string | null; devSubmissionId?: string | null }): boolean {
+  return Boolean(entry.devCaseId || entry.devSubmissionId);
 }
 
 export function buildAutomationArgv(options: BuildAutomationArgvOptions): string[] {
@@ -330,6 +307,9 @@ export function buildAutomationArgv(options: BuildAutomationArgvOptions): string
   }
   if (options.task === "scorecard" && options.notesPath) {
     args.push("--notes-file", options.notesPath);
+  }
+  if (options.task === "scorecard" && options.devCase) {
+    args.push("--dev-case");
   }
   if (options.lang) {
     args.push("--lang", options.lang);
@@ -482,6 +462,7 @@ export async function runAutomationTask(
     task === "screen" && entry.jobId ? countActiveEntriesForJob(entry.jobId, workspaceId) : null;
   const jobRecord = task !== "rematch" && entry.jobId ? getJob(entry.jobId, workspaceId) : null;
   const jobJson = jobRecord ? JSON.stringify(jobRecord) : null;
+  const devCase = task === "scorecard" && entryHasDevCase(entry);
   const cacheKey = computeAutomationCacheKey({
     version,
     task,
@@ -503,6 +484,7 @@ export async function runAutomationTask(
     // Tasks in neither set (rematch) ignore it.
     lang: uiLang ?? letterLang,
     githubEvidenceJson: githubEvidenceJson ?? undefined,
+    devCase,
     // Bucketed inside computeAutomationCacheKey (small/medium/large), so the key is
     // stable as candidates trickle in but a verdict computed at 3 is never served at 80.
     pipelineSize,
@@ -560,6 +542,7 @@ export async function runAutomationTask(
         notesPath,
         lang: uiLang ?? letterLang,
         githubEvidencePath,
+        devCase,
       });
 
       const { result } = spawnPython(args, { signal, env: buildLlmConfigEnv() });
@@ -621,6 +604,14 @@ export async function runAutomationTask(
     // hop, so a recruiter (Decisions) or a concurrent pass may have advanced/rejected
     // it meanwhile. A stale screen verdict must no-op instead of moving whatever stage
     // the entry is in NOW — mirrors the policy-pass hardening (automation-pass.ts).
+    //
+    // Q2 (owner ruling 2026-11-09) queued the POLICY PASS's score-threshold advances for a
+    // person. THIS move is a different door and is deliberately left as it was: it is a
+    // MODEL's screening verdict (route "advance", confidence at or above
+    // POLICY.screen_advance_conf, fairness-gated and never for a template verdict or an
+    // early-career profile), not a score cut-off, and whether a screening verdict may
+    // move a candidate unattended is the Q3 question (the screening gate), decided and
+    // built separately. Do not fold it into the Q2 queue by reflex.
     if (advance) {
       const moved = actOnPipelineEntry(entry.id, "accept", undefined, { expectedStage: entry.stage, actor: "system" }, workspaceId);
       if (!moved) {
@@ -632,52 +623,11 @@ export async function runAutomationTask(
     if (holdForReview) {
       setApproval(entry.id, "screening_review", approvalDetail(), workspaceId);
       recordAutomationEvent(entry.id, "screening_hold", readRecommendation(result, task), workspaceId, engineActor);
-      // interviewPlan screeningGate="auto" — the workspace chose to trust the
-      // AI's ADVANCE verdicts: a review parked only for confidence (recommendation
-      // advance, route hold) is ratified unattended through the SAME accept
-      // machinery a recruiter's click uses (advance + calendar gate + auto_advanced
-      // event), CAS-guarded on the approval just set. hold/reject recommendations
-      // ALWAYS park — auto mode never overrides a cautious or adverse verdict.
-      // The route cannot say WHY it held, and confidence is not the only reason:
-      // Python also holds a fairness-shielded candidate's advance (`and not early`),
-      // and the recommendation it leaves standing is the model's. So the shield is
-      // re-derived here from the entry, through the same live reader the auto-reject
-      // backstop uses (unknown/unrouted fails closed): a shielded candidate is
-      // advanced by a person, never by the plan gate.
-      // The gate trusts the MODEL's advance verdicts; a template's is never ratified.
-      if (
-        verdictSource === "llm" &&
-        getPlanGateForRole("screening", workspaceId) === "auto" &&
-        coerceInterviewRecommendation(String((result as { recommendation?: unknown }).recommendation ?? "")) === "advance" &&
-        !readLiveArchetypes().isFairnessProtected(entry.archetype)
-      ) {
-        const ratified = actOnPipelineEntry(
-          entry.id,
-          "accept",
-          undefined,
-          { expectedApprovalKind: "screening_review", actor: "system" },
-          workspaceId
-        );
-        if (ratified) {
-          sealDecisionSafe({
-            kind: "auto_advanced",
-            actor: "auto:interview-plan",
-            policyVersion: "interview-plan",
-            candidateRef: entry.id,
-            rationale: "Screening advance verdict auto-ratified per the hiring plan (screening gate: auto).",
-            // Resolved through `decisions.wave.reasons.*` by waveReasonText, the ONE
-            // sealed-reason resolver the records panel + decision log share — so this
-            // rationale reads in the auditor's language instead of falling back to the
-            // byte-stable English. A dedicated code, not the generic "accept" a human
-            // acceptance seals: the two are different decisions with different readers.
-            reasonCode: "autoRatifiedScreening",
-            inputs: { fromStage: entry.stage, approvalKind: "screening_review" },
-          });
-          applied = "auto_ratified";
-        }
-      }
+      // No workspace setting ratifies a held review: the screening gate is display
+      // only (a stored "auto" reads as "human" - see getInterviewPlan), so a held
+      // review always parks for a person.
     }
-    if (applied !== "auto_ratified") applied = screenApplied;
+    applied = screenApplied;
   } else if (task === "scorecard") {
     const fresh = getPipelineEntry(entry.id, workspaceId);
     if (!fresh || !scorecardGateOpen(fresh, getPipelineAxis(workspaceId).stages)) {
@@ -690,71 +640,9 @@ export async function runAutomationTask(
     setApproval(entry.id, "offer_review", approvalDetail(), workspaceId);
     recordAutomationEvent(entry.id, "offer_drafted", String(result.recommended ?? ""), workspaceId, engineActor);
     applied = "offer_ready";
-    // interviewPlan offerGate="auto" — extend the freshly-drafted offer to the
-    // candidate unattended, through the SAME extend path a recruiter's approval
-    // uses (idempotent open-offer reuse, truthful sent/queued dispatch, sealed
-    // offer_terms with the machine as actor). Three hard guards:
-    //   • an UNPRICED fail-safe draft (recommended null — no figure was willing
-    //     to be invented) ALWAYS parks for a human to price it;
-    //   • the extend runs on the FRESH row (the approval just written), so a
-    //     concurrent decision can't be clobbered;
-    //   • a THIRD guard, added after a live draft was auto-sent on an entry whose own
-    //     interview scorecard said `hold` (2 of 5 technical): a recorded verdict that
-    //     contradicts the send parks the draft for a human. See offerAutoExtendRefusal
-    //     — it refuses the send, it does not touch the letter, and it is silent for the
-    //     `advance` and no-interview cases the gate was configured for.
-    // Origin "" → publicBaseUrl resolves the configured/canonical public origin
-    // (never a request Host), which is exactly right for a background extend.
-    const offerGateIsAuto = getPlanGateForRole("offer", workspaceId) === "auto";
-    const scorecardRefusal = offerGateIsAuto ? offerAutoExtendRefusal(interviewScorecard) : null;
-    if (scorecardRefusal) {
-      console.warn(
-        `[automation:offer] auto-extend withheld (${scorecardRefusal}); the interview verdict on this entry ` +
-          `does not support an unattended offer — draft parked at offer_review for human approval`
-      );
-    }
-    if (offerGateIsAuto && result.recommended != null && !scorecardRefusal) {
-      const fresh = getPipelineEntry(entry.id, workspaceId);
-      if (fresh && fresh.approvalKind === "offer_review") {
-        try {
-          const extended = await extendDraftedOffer(fresh, workspaceId, "", null, "auto:interview-plan");
-          // A REFUSAL IS NOT A SEND. extendDraftedOffer never throws for a business
-          // rule — it RETURNS { status, body } — and this block used to ignore that
-          // entirely, so a 400 (invalid offer terms), a 502 (the letter did not
-          // dispatch) or a 409 (the approval moved while it sent) all stamped
-          // `offer_auto_extended` on the timeline and reported `applied: "offer_sent"`
-          // to the caller. The recruiter was told an offer went out that did not.
-          // Now the draft parks exactly as it does for a thrown error: `applied` is
-          // left as the "offer_ready" the branch above set, so the card stays at
-          // offer_review for a human, and the timeline records WHY.
-          if (extended.status !== 200) {
-            const code = typeof extended.body.code === "string" ? extended.body.code : "OFFER_NOT_EXTENDED";
-            // The refusal CODE is the record; the SCREEN shows the kind's own
-            // localized verb. Deliberately NOT a resolvable `reason:<code>` — the
-            // renderer's parser accepts letters only (pipeline-event-reasons.test.ts
-            // §3), so a detail carrying an UPPER_SNAKE refusal code falls through to
-            // the localized kind label instead of painting English prose at a Czech
-            // recruiter. Same kind extendDraftedOffer's own 502 path writes: nothing
-            // went out, the approval is still open, approving again retries.
-            recordAutomationEvent(
-              entry.id,
-              "offer_comms_failed",
-              `${AUTOMATION_REASON_PREFIX}offerAutoExtendRefused:${code}`,
-              workspaceId,
-              engineActor
-            );
-            console.error(`[automation:offer] auto-extend refused (${extended.status} ${code}); draft parked for human approval`);
-          } else {
-            recordAutomationEvent(entry.id, "offer_auto_extended", automationReasonDetail("offerAutoExtended"), workspaceId, engineActor);
-            applied = "offer_sent";
-          }
-        } catch (error) {
-          // The draft is parked at offer_review as if the gate were human — an
-          // auto-extend failure must never lose the draft.
-          console.error("[automation:offer] auto-extend failed; draft parked for human approval", error);
-        }
-      }
-    }
+    // No workspace setting extends an offer: the offer gate is display only (a stored
+    // "auto" reads as "human"), so a drafted offer always parks at offer_review for a
+    // person to price and approve.
   } else if (task === "rematch") {
     if (result.found && result.jobId) {
       // createPipelineEntry is idempotent (a corpus edit self-invalidates the
@@ -800,34 +688,45 @@ export async function runAutomationTask(
       applied = "no_alternative";
     }
   } else if (task === "outreach") {
-    // Non-adverse and recruiter-initiated — deliver the generated draft through
-    // the comms channel (queued to the outbox by default; relayed if configured).
+    // Non-adverse and recruiter-initiated — but a FIRST CONTACT with a person, so it is
+    // never sent from here (comms scope C2, "approve before first outreach"). The draft is
+    // HELD as an outreach_letters row; a person approves that exact revision and releases
+    // it (app/_lib/outreach-release.ts, POST /api/outreach-letters/[id]/{approve,release}).
+    // This branch makes no relay call and writes no outbox row, for every door that runs
+    // it: the drawer's automation task, the board's batch outreach (tasks.ts
+    // batchOutreach) and the sourcing "Reach out" route.
     //
-    // The prompt cache makes the DRAFT idempotent, but dispatchOutreach is a real
-    // side effect: it queues an outbox row and, with a relay configured, POSTs the
-    // message to the candidate. A cache HIT within the 7-day TTL (double-click,
-    // refresh-retry, or the same entry re-screened then outreach'd again) would
-    // otherwise re-fire the send every time. Gate the dispatch on the durable
-    // per-entry "outreach_sent" marker that dispatchOutreach itself records, so an
-    // outreach is delivered at most once per entry — first-contact, not a resend.
-    if (hasEvent(entry.id, "outreach_sent", workspaceId) || outreachInFlight.has(entry.id)) {
+    // A first touch is sent once: the durable `outreach_sent` marker (written only by a
+    // delivered release) still short-circuits, so a cache HIT or a re-screen never drafts
+    // a second first-contact for someone already reached. Re-running on a still-drafted
+    // letter re-drafts it in place (a new revision, voiding an approval nobody gave yet);
+    // once approved, the late draft is dropped by the store.
+    if (hasEvent(entry.id, "outreach_sent", workspaceId)) {
       applied = "already_sent";
     } else {
-      outreachInFlight.add(entry.id);
-      try {
-        const outcome = await dispatchOutreach(entry, result);
-        // A consent-suppressed outreach records no outreach_sent marker, so the UI
-        // surfaces "cannot contact — consent expired/anonymized" and a re-consent can
-        // still be reached later.
-        applied = outcome.sent
-          ? "sent"
-          : outcome.reason === "anonymized"
-            ? "suppressed_anonymized"
-            : "suppressed_consent_expired";
-      } finally {
-        // Release on completion AND on failure: dispatchOutreach records the durable marker
-        // only on a successful send, so clearing the in-flight slot lets a failed send retry.
-        outreachInFlight.delete(entry.id);
+      // The consent gate and the halted-sequence gate, read BEFORE anything is held — the
+      // same two predicates, in the same order, that dispatchOutreach applies at release —
+      // so a letter is not written to someone who cannot be contacted, and the refusal is
+      // audited the way a refused send always was. The release re-checks both.
+      const suppress =
+        candidateOutreachSuppression(entry.candidateId, {
+          givenAt: entry.consentGivenAt,
+          expiresAt: entry.consentExpiresAt,
+          anonymizedAt: entry.anonymizedAt,
+        }) ?? outreachHaltFor(entry.id, workspaceId);
+      if (suppress) {
+        recordAutomationEvent(entry.id, "outreach_suppressed", suppress, workspaceId);
+        // One token per refusal. Every one keeps the `suppressed_` prefix, which is what
+        // the client (reachOutVerdict) collapses into its "cannot be contacted" sentence.
+        applied =
+          suppress === "anonymized" ? "suppressed_anonymized"
+          : suppress === "replied" ? "suppressed_replied"
+          : suppress === "manual" ? "suppressed_manual"
+          : suppress === "candidate" ? "suppressed_candidate"
+          : "suppressed_consent_expired";
+      } else {
+        await draftOutreachLetter(entry, result, workspaceId, verdictSource);
+        applied = "drafted";
       }
     }
   } else {

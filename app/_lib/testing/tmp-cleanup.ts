@@ -10,7 +10,9 @@
 // handle first, then removes the folders. Import it BEFORE any module that opens a database.
 // Set KP_KEEP_TMP=1 to keep the folders for debugging.
 
-import { rmSync } from "node:fs";
+import { appendFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import Database from "better-sqlite3";
 
 type Handle = { close(): unknown; open: boolean };
@@ -42,12 +44,43 @@ export function closeTrackedDatabases(): void {
   holder.__kpDb = undefined;
 }
 
+type Remove = (dir: string) => void;
+const removeWithRetries: Remove = (dir) => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+
+/** Where a leaked folder is recorded (one JSON line each). KP_TMP_LEAK_LOG moves it. */
+export function tmpLeakLogPath(): string {
+  return process.env.KP_TMP_LEAK_LOG || path.join(tmpdir(), "kp-tmp-leaks.log");
+}
+
 /** Close tracked database handles, then remove each folder. Unlike a bare rmSync this is
- *  loud: a folder that survives the retries throws instead of leaking in silence. */
+ *  loud: a folder that survives the retries throws instead of leaking in silence. For scripts
+ *  and any caller where a leak must stop the run; test `after()` hooks use removeTempDirsInHook. */
 export function removeTempDirs(...dirs: string[]): void {
   closeTrackedDatabases();
   if (process.env.KP_KEEP_TMP === "1") return;
+  for (const dir of dirs) removeWithRetries(dir);
+}
+
+/** The `after()` hook form (ADR 0031): a leak is still a defect, but the hook runs after the
+ *  file's own tests have passed, so a busy folder must not fail them. Logs and records each
+ *  leaked path (never throws) and returns the leaked paths. `remove` is the test seam. */
+export function removeTempDirsInHook(dirs: string[], remove: Remove = removeWithRetries): string[] {
+  closeTrackedDatabases();
+  if (process.env.KP_KEEP_TMP === "1") return [];
+  const leaked: string[] = [];
   for (const dir of dirs) {
-    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    try {
+      remove(dir);
+    } catch (err) {
+      leaked.push(dir);
+      const code = (err as NodeJS.ErrnoException)?.code ?? "UNKNOWN";
+      console.warn(`[tmp-cleanup] leaked ${dir} (${code}); recorded in ${tmpLeakLogPath()}`);
+      try {
+        appendFileSync(tmpLeakLogPath(), JSON.stringify({ at: new Date().toISOString(), dir, code }) + "\n");
+      } catch {
+        /* best-effort: the warning above already names the path; the record is a convenience */
+      }
+    }
   }
+  return leaked;
 }

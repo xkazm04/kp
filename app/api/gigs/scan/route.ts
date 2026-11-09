@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { getGigSource } from "@/app/_lib/db/gigs-sources";
@@ -35,7 +35,7 @@ import { startTask } from "@/app/_lib/tasks";
 
 const SOURCE_ID_MAX = 200;
 
-export async function POST(request: Request): Promise<NextResponse> {
+export const POST = withWorkspace(async (ws: string, request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -50,7 +50,6 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (rawSource !== undefined && rawSource !== null && (typeof rawSource !== "string" || !rawSource.trim() || rawSource.length > SOURCE_ID_MAX)) {
       return jsonRefusal("GIG_INPUT_INVALID", 400, { field: "sourceId" });
     }
-    const ws = await currentWorkspace();
     const sourceId = typeof rawSource === "string" ? rawSource.trim() : null;
     if (sourceId) {
       const source = getGigSource(ws, sourceId);
@@ -68,4 +67,4 @@ export async function POST(request: Request): Promise<NextResponse> {
   } catch (error) {
     return safeJsonError(error, "api:gigs/scan", "GIG_STORE_FAILED");
   }
-}
+});

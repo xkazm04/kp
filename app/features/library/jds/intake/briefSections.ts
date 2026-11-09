@@ -1,6 +1,6 @@
 // The live brief, flattened into SECTIONS OF IDENTIFIED LINES.
 //
-// The shipped body (JdsIntakeBriefBody.tsx) walks the brief's four shapes
+// The shipped body (coats/atelier/AtelierBriefPlane.tsx) walks the brief's four shapes
 // inline, which is fine for drawing it once — but a reveal has to answer a
 // question the inline walk cannot: "is this line new?". That needs a stable
 // identity per line, held across the re-render that a fresh extraction causes.

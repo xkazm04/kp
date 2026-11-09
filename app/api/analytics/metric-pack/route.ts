@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { pipelineAnalytics } from "@/app/_lib/db/analytics";
 import { countOpenRoles } from "@/app/_lib/db/jobs";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { listMembershipsForWorkspace } from "@/app/_lib/db/memberships";
 import { candidateNpsSummary } from "@/app/_lib/candidate-nps-store";
 import { buildMetricPack, paceFromMomentum, renderMetricPack, type MetricPack, type MetricPackInput } from "@/app/_lib/metric-pack";
@@ -74,14 +74,13 @@ async function dateTheSpendBasis(pack: MetricPack, locale: string, asOf: string 
   };
 }
 
-export async function GET(request: Request) {
+export const GET = withWorkspace(async (ws: string, request: Request) => {
   try {
     const { searchParams } = new URL(request.url);
     const windowDays = parseWindowDays(searchParams.get("days"));
     if (!rateLimit(`metric-pack:${clientIpFrom(request.headers)}`, METRIC_PACK_RATE_LIMIT)) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
-    const ws = await currentWorkspace();
 
     const analytics = pipelineAnalytics(windowDays, undefined, ws);
 
@@ -142,4 +141,4 @@ export async function GET(request: Request) {
     // carries constraint text and the absolute db path.
     return safeJsonError(error, "api:analytics/metric-pack", "ANALYTICS_METRIC_PACK_FAILED");
   }
-}
+});

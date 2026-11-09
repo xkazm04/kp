@@ -1,0 +1,135 @@
+{
+ "schema": "conform-run/1",
+ "worker": "27e607dd-2b98-4598-9193-d88c10153668",
+ "subject": "background-jobs",
+ "evaluatedAt": "2026-10-19T01:49:26.348677+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "jobs-api",
+   "subject": "background-jobs",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/jobs/[id]/agent-fit/route.ts:64 Agent-fit starts tracked background work whose handler publishes no progress or activity updates, preventing observers from distinguishing slow execution from a stalled run.",
+   "techniques": [
+    {
+     "technique": "adaptive-cadence",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/tasks.ts:639 The assessed task runner performs maintenance on submissions rather than through an idle polling loop."
+    },
+    {
+     "technique": "job-progress-and-cancellation",
+     "verdict": "deviation",
+     "evidence": "app/_lib/tasks.ts:332 The agent-fit handler omits ctx.progress, and runAgentFit exposes no progress callback or activity publication throughout its multi-step execution."
+    },
+    {
+     "technique": "loop-health-telemetry",
+     "verdict": "not-applicable",
+     "evidence": "app/api/jobs/[id]/campaign/route.ts:58 These routes execute individual requests or admit singular tasks; they do not define recurring ticks whose outcomes require loop-health snapshots."
+    },
+    {
+     "technique": "startup-sweeps",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/tasks.ts:406 startTask invokes recovery, which materializes and re-enqueues the entire queued backlog without an item cap or sweep time budget; the concurrency ceiling bounds execution, not recovery."
+    },
+    {
+     "technique": "tick-isolation",
+     "verdict": "not-applicable",
+     "evidence": "app/api/jobs/[id]/winnability/route.ts:77 The assessed executions are singular jobs and request-bound subprocesses, rather than recurring tick bodies."
+    },
+    {
+     "technique": "timeout-is-a-status-not-a-consumption",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/tasks.ts:817 The runner deadline cancels work and records interruption; it is not a bounded collector wait that leaves work pending."
+    }
+   ]
+  },
+  {
+   "context": "jobs-posting-campaign",
+   "subject": "background-jobs",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/library/jobs/jobsIngestAdPanelLogic.ts:65 Unmounting the import viewer aborts its running import, violating the requirement that watched jobs survive their observers and support reattachment.",
+   "techniques": [
+    {
+     "technique": "adaptive-cadence",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/JobsLifecycleStrip.tsx:102 The lifecycle strip refreshes on identity or explicit transition changes, rather than running an interval poller."
+    },
+    {
+     "technique": "job-progress-and-cancellation",
+     "verdict": "deviation",
+     "evidence": "app/features/library/jobs/jobsIngestAdPanelLogic.ts:65 A bulk import is owned by the mounted hook: unmount aborts execution, and run state has no persistent run identity or snapshot for reattachment."
+    },
+    {
+     "technique": "loop-health-telemetry",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/jobsIngestAdPanelLogic.ts:166 The import processes a finite submitted collection; its outcomes belong to job progress rather than recurring-loop health."
+    },
+    {
+     "technique": "loop-supervision",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/jobsPostingModalLogic.ts:260 The local timers reset clipboard feedback once; they are not recurring background loops."
+    },
+    {
+     "technique": "startup-sweeps",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/jobsIngestAdPanelLogic.ts:53 This client hook holds transient import state and hosts no persistent execution runtime; its missing reattachment is assessed under the job contract."
+    },
+    {
+     "technique": "tick-isolation",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/jobsIngestAdPanelLogic.ts:163 This is a finite sequential import, not a recurring cadence that can dispatch overlapping ticks."
+    },
+    {
+     "technique": "timeout-is-a-status-not-a-consumption",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/jobsPostingModalLogic.ts:137 Stopping publication aborts its request; this surface provides no bounded wait on a retained operation handle."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-19T01:49:26.348677+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "background-jobs"
+   ],
+   "techniques": [
+    "adaptive-cadence",
+    "job-progress-and-cancellation",
+    "loop-health-telemetry",
+    "startup-sweeps",
+    "tick-isolation",
+    "timeout-is-a-status-not-a-consumption"
+   ],
+   "deviations": 1,
+   "context": "jobs-api",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-19T01:49:26.348677+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "background-jobs"
+   ],
+   "techniques": [
+    "adaptive-cadence",
+    "job-progress-and-cancellation",
+    "loop-health-telemetry",
+    "loop-supervision",
+    "startup-sweeps",
+    "tick-isolation",
+    "timeout-is-a-status-not-a-consumption"
+   ],
+   "deviations": 1,
+   "context": "jobs-posting-campaign",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

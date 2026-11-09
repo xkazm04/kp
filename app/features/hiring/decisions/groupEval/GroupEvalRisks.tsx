@@ -14,7 +14,7 @@ export function Risks({ risks }: { risks: (string | RiskFact)[] }) {
   if (!risks.length) return null;
   return (
     <section>
-      <p className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-coral">
+      <p className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-coral-ink">
         <AlertTriangle size={14} /> {t("watchOuts", { n: risks.length })}
       </p>
       <div className="mt-2 grid gap-1.5 sm:grid-cols-2">

@@ -1,0 +1,145 @@
+{
+ "schema": "conform-run/1",
+ "worker": "42bd1180-8f63-48a7-95e8-a9895590b03a",
+ "subject": "inclusive-job-advertising",
+ "evaluatedAt": "2026-10-19T00:13:28.743571+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "jobs-posting-campaign",
+   "subject": "inclusive-job-advertising",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/library/jobs/jobsMarkdown.ts:158 The job-board Markdown includes defaulted salary estimates, whereas the standard requires assumed bands to remain absent from advertisement copy.",
+   "techniques": [
+    {
+     "technique": "advisory-lint-gated-on-substance",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/JobsPostingTab.tsx:71 The posting tab renders a document; it does not wire an always-on lint into an authoring editor."
+    },
+    {
+     "technique": "stated-pay-and-place-test",
+     "verdict": "deviation",
+     "evidence": "app/features/library/jobs/jobsMarkdown.ts:158 Labelling an assumed band as an estimate still publishes it; the technique requires withholding defaulted pay from advertisement copy."
+    }
+   ]
+  },
+  {
+   "context": "lint-quality-gates",
+   "subject": "inclusive-job-advertising",
+   "bundle": "recruiting",
+   "state": "not-applicable",
+   "evidence": "scripts/lint/ts-ratchet.mjs:356 Searches for jd-lint, digital native, exclusionary, and competitive salary found no hits in scripts/lint, scripts/perf, or scripts/design, whose checks concern source-code suppressions, performance, and design tokens.",
+   "techniques": [
+    {
+     "technique": "advisory-lint-gated-on-substance",
+     "verdict": "not-applicable",
+     "evidence": "scripts/lint/ts-ratchet.mjs:148 This counts TypeScript suppression directives; no posting editor or draft-substance check is involved."
+    },
+    {
+     "technique": "age-proxy-detection",
+     "verdict": "not-applicable",
+     "evidence": "scripts/lint/ruff-ratchet.mjs:250 The measurement invokes Ruff over Python source rather than reviewing advertisement wording."
+    },
+    {
+     "technique": "boilerplate-that-reads-as-a-red-flag",
+     "verdict": "not-applicable",
+     "evidence": "scripts/lint/__tests__/fixtures/known-bad.mjs:52 The fixture exercises a code-syntax restriction, not job-advertisement filler."
+    },
+    {
+     "technique": "gendered-and-coded-language-detection",
+     "verdict": "not-applicable",
+     "evidence": "scripts/design/check-design-tokens.mjs:230 The design check compares theme tokens, not gendered or coded advertisement language."
+    },
+    {
+     "technique": "multilingual-inflection-tolerant-linting",
+     "verdict": "not-applicable",
+     "evidence": "scripts/perf/check-budget.mjs:267 The import-graph measurement operates on source modules; document-language phrase matching is outside its scope."
+    },
+    {
+     "technique": "stated-pay-and-place-test",
+     "verdict": "not-applicable",
+     "evidence": "scripts/perf/ci-budget.mjs:79 Here a job is a workflow execution with a time budget, not an advertised vacancy with pay and place disclosures."
+    }
+   ],
+   "absenceTerms": [
+    "jd-lint",
+    "digital native",
+    "exclusionary",
+    "competitive salary"
+   ]
+  },
+  {
+   "context": "job-intake-schema",
+   "subject": "inclusive-job-advertising",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/salary-band.ts:92 The helper replaces parsed pay with a market-analysis band and removes its default marker without requiring evidence that the employer stated or approved that band.",
+   "techniques": [
+    {
+     "technique": "advisory-lint-gated-on-substance",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/job-ingest.ts:304 This is an explicitly invoked ingestion operation, not an always-on editor lint."
+    },
+    {
+     "technique": "stated-pay-and-place-test",
+     "verdict": "deviation",
+     "evidence": "app/_lib/salary-band.ts:92 Market provenance is treated as sufficient to remove the unstated-pay marker; the function requires no employer-statement or approval evidence."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-19T00:13:28.743571+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "inclusive-job-advertising"
+   ],
+   "techniques": [
+    "advisory-lint-gated-on-substance",
+    "stated-pay-and-place-test"
+   ],
+   "deviations": 1,
+   "context": "jobs-posting-campaign",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-19T00:13:28.743571+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "inclusive-job-advertising"
+   ],
+   "techniques": [
+    "advisory-lint-gated-on-substance",
+    "age-proxy-detection",
+    "boilerplate-that-reads-as-a-red-flag",
+    "gendered-and-coded-language-detection",
+    "multilingual-inflection-tolerant-linting",
+    "stated-pay-and-place-test"
+   ],
+   "deviations": 0,
+   "context": "lint-quality-gates",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-19T00:13:28.743571+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "inclusive-job-advertising"
+   ],
+   "techniques": [
+    "advisory-lint-gated-on-substance",
+    "stated-pay-and-place-test"
+   ],
+   "deviations": 1,
+   "context": "job-intake-schema",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

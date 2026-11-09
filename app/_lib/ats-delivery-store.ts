@@ -326,6 +326,23 @@ export function finalizeAtsDelivery(
   return res.changes === 1;
 }
 
+/** Park a delivery the EGRESS SEAL refused to send: back to `failed` and due now, with the
+ *  reason `sealed` — and with `attempts` UNTOUCHED. No request left the process, so no
+ *  attempt was spent and nothing is dead-lettered; the row simply waits for the seal to
+ *  lift and then flows through the ordinary ladder under its original Idempotency-Key.
+ *  Holder-checked like `finalizeAtsDelivery` (only the lease owner may park it). */
+export function deferSealedAtsDelivery(id: number, lease: string, at: Date = new Date()): boolean {
+  const iso = at.toISOString();
+  const res = db()
+    .prepare(
+      `UPDATE ats_delivery SET status='failed', last_status=NULL, last_error='sealed',
+         next_attempt_at=?, lease_token=NULL, lease_until=NULL, updated_at=?
+       WHERE id=? AND status='pending' AND lease_token=?`
+    )
+    .run(iso, iso, id, lease);
+  return res.changes === 1;
+}
+
 /** Failed deliveries whose backoff window has elapsed and that still have retry
  *  budget — the work list for the retry sweep. Ordered oldest-due first. */
 export function listDueAtsDeliveries(nowIso: string = new Date().toISOString(), limit = 50): AtsDeliveryRow[] {

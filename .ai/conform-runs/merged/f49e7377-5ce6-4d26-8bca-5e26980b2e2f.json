@@ -1,0 +1,199 @@
+{
+ "schema": "conform-run/1",
+ "worker": "f49e7377-5ce6-4d26-8bca-5e26980b2e2f",
+ "subject": "embedded-preview",
+ "evaluatedAt": "2026-10-18T23:00:10.683319+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "shell-palette-preview",
+   "subject": "embedded-preview",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/shell/palette/PalettePreviewPane.tsx:48 Context searches found no contentWindow or srcDoc references, and the pane renders fetched data through first-party React components, so the embedded guest application precondition is absent.",
+   "techniques": [
+    {
+     "technique": "convention-discovery",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shell/palette/usePalettePreview.ts:34 Queries identify host workspace tabs; no guest file-tree routing is involved."
+    },
+    {
+     "technique": "cross-frame-protocol",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shell/palette/usePalettePreview.ts:73 Preview requests use the host's HTTP API, without a frame message channel."
+    },
+    {
+     "technique": "dev-server-registry",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shell/palette/PalettePreviewPane.tsx:56 The preview composes a local component; there is no separately served guest to register."
+    },
+    {
+     "technique": "injected-instrumentation-with-fallback",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shell/palette/PreviewHiring.tsx:21 The panel directly renders supplied data and needs no instrumentation inside a guest."
+    },
+    {
+     "technique": "origin-validation",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shell/palette/usePalettePreview.ts:75 Incoming preview data is an HTTP response, without cross-frame senders or target origins."
+    },
+    {
+     "technique": "preview-checkpoints",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shell/palette/usePalettePreview.ts:49 Mutation notifications invalidate a data memo; no mutable guest project requires snapshots."
+    }
+   ],
+   "absenceTerms": [
+    "contentWindow",
+    "srcDoc"
+   ]
+  },
+  {
+   "context": "agent-hire-app-master",
+   "subject": "embedded-preview",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/agent-hire/bridge-client.ts:327 Context searches found no contentWindow or srcDoc references, and the bridge exchanges HTTP data with Personas and runs a Python transform without hosting an embedded guest application.",
+   "techniques": [
+    {
+     "technique": "convention-discovery",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/agent-hire/bridge-client.ts:205 Discovery obtains connector metadata through an API, not routes from a guest application."
+    },
+    {
+     "technique": "cross-frame-protocol",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/agent-hire/bridge-client.ts:327 Agent dispatch uses HTTP request/response; it is not a frame protocol."
+    },
+    {
+     "technique": "dev-server-registry",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/agent-hire/bridge-store.ts:80 Configuration selects an external integration endpoint, without owning a preview server lifecycle."
+    },
+    {
+     "technique": "injected-instrumentation-with-fallback",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/agent-hire/transform-run.ts:76 The invoked program transforms recruiting data; it does not instrument an embedded guest."
+    },
+    {
+     "technique": "origin-validation",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/agent-hire/pairing.ts:83 This Origin header belongs to HTTP pairing, without a frame message dispatch boundary."
+    },
+    {
+     "technique": "preview-checkpoints",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/app-master/spec-vintage.ts:52 Freshness compares a specification with its brief; there is no running preview project to checkpoint."
+    }
+   ],
+   "absenceTerms": [
+    "contentWindow",
+    "srcDoc"
+   ]
+  },
+  {
+   "context": "brand-theme-tokens",
+   "subject": "embedded-preview",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/palette-preview/resolve-hiring.ts:22 Context searches found no contentWindow or srcDoc references, and these modules manage theme configuration and return preview data objects, so no embedded guest application boundary exists.",
+   "techniques": [
+    {
+     "technique": "convention-discovery",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/palette-preview/index.ts:45 The dispatcher resolves a host workspace tab, without discovering guest routes."
+    },
+    {
+     "technique": "cross-frame-protocol",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/palette-preview/index.ts:92 Entity resolution is an ordinary function call, without a frame request/reply channel."
+    },
+    {
+     "technique": "dev-server-registry",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/palette-preview/resolve-hiring.ts:17 Preview facts come from workspace data reads, without starting a guest development server."
+    },
+    {
+     "technique": "injected-instrumentation-with-fallback",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/theme.ts:27 Theme application updates the host document directly; no guest instrumentation is injected."
+    },
+    {
+     "technique": "origin-validation",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/brand-config.ts:273 External branding content is an image resource, without a cross-frame messaging bridge."
+    },
+    {
+     "technique": "preview-checkpoints",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/brand-store.ts:60 Persistence stores brand configuration, without capturing mutation turns of a live guest project."
+    }
+   ],
+   "absenceTerms": [
+    "contentWindow",
+    "srcDoc"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-18T23:00:10.683319+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "embedded-preview"
+   ],
+   "techniques": [
+    "convention-discovery",
+    "cross-frame-protocol",
+    "dev-server-registry",
+    "injected-instrumentation-with-fallback",
+    "origin-validation",
+    "preview-checkpoints"
+   ],
+   "deviations": 0,
+   "context": "shell-palette-preview",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-18T23:00:10.683319+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "embedded-preview"
+   ],
+   "techniques": [
+    "convention-discovery",
+    "cross-frame-protocol",
+    "dev-server-registry",
+    "injected-instrumentation-with-fallback",
+    "origin-validation",
+    "preview-checkpoints"
+   ],
+   "deviations": 0,
+   "context": "agent-hire-app-master",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-18T23:00:10.683319+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "embedded-preview"
+   ],
+   "techniques": [
+    "convention-discovery",
+    "cross-frame-protocol",
+    "dev-server-registry",
+    "injected-instrumentation-with-fallback",
+    "origin-validation",
+    "preview-checkpoints"
+   ],
+   "deviations": 0,
+   "context": "brand-theme-tokens",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

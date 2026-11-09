@@ -300,7 +300,14 @@ function finish() {
   rec.ms = Date.now() - t0;
   resolveVerdict(rec);
   mkdirSync(SOAK_DIR, { recursive: true });
-  const lines = existsSync(LOG) ? readLogLines(readFileSync(LOG, "utf-8")) : [];
+  // Read without a prior existence check: absence is the empty log (js/file-system-race).
+  let logText = "";
+  try {
+    logText = readFileSync(LOG, "utf-8");
+  } catch (e) {
+    if (e?.code !== "ENOENT") throw e;
+  }
+  const lines = readLogLines(logText);
   // ALL rows are built first and written in ONE append (round 14): a per-day
   // append that dies mid-loop would leave the log claiming calendar continuity
   // it does not have, with no marker on the missing days. One write, all rows —

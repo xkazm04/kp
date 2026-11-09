@@ -26,7 +26,12 @@ import { cleanupUnitDb } from "../../../_lib/testing/unit-db.ts";
 
 // Line endings normalised: this checkout carries CRLF while a worktree may be LF, and
 // the ordering assertions below index into the text.
-const src = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "route.ts"), "utf8").replace(/\r\n/g, "\n");
+// The route plus the shared REFUSAL_FOR map it imports (app/_lib/automation-refusal-codes.ts).
+const HERE_DIR = path.dirname(fileURLToPath(import.meta.url));
+const src = [path.join(HERE_DIR, "route.ts"), path.join(HERE_DIR, "..", "..", "..", "_lib", "automation-refusal-codes.ts")]
+  .map((f) => readFileSync(f, "utf8"))
+  .join("\n")
+  .replace(/\r\n/g, "\n");
 
 // The refusal vocabulary is DERIVED from the module that decides it, never typed out
 // here — a new refusal token with no coded answer must fail this file, not ship as a

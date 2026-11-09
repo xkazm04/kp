@@ -30,6 +30,7 @@ from . import artifact_checks as _checks
 from . import evaluate as _evaluate
 from . import prompt_signals as _psig
 from . import reflect as _reflect
+from .decision_log import decision_log_entries
 from .provenance import FallbackReasons, collect_fallback_reasons
 
 
@@ -132,7 +133,7 @@ def run_evaluation(inputs: EvaluationInputs, *, provider: Any | None, reflect_on
     # The interview hand-off: candidate-specific authorship questions minted from THIS
     # submission's observed decisions — the scores above are hypotheses the live
     # conversation verifies (the artifact alone can be wholly LLM-produced).
-    followups, fsrc = _evaluate.mint_followups(reflection, tooling, evaluation, case, role, extras=extras, provider=provider, lang=inputs.lang)
+    followups, fsrc = _evaluate.mint_followups(reflection, tooling, evaluation, case, role, extras=extras, decision_log=decision_log_entries(inputs.files), provider=provider, lang=inputs.lang)
     result = {
         # observedChecks rides in the result so the TS bundle persists the mechanical
         # verdicts (canaries, prompt signals, baseline distance) beside the LLM

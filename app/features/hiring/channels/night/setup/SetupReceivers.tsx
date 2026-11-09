@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Button, Note } from "@/app/_components/kit";
 import { ConfirmDialog } from "@/app/_components/ConfirmDialog";
+import { useCandidateLinkReach, useLinkReachWords } from "@/app/_components/LinkReachNotice";
 import type { ChannelWebhookRecord } from "@/app/_lib/db/channels";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
@@ -46,6 +47,10 @@ export function SetupReceivers({ section, data, focus, onMessages }: {
   // The card to scroll to once it exists: the level's focus, then a receiver just created.
   const pending = useRef<string | null>(focus);
   const base = publicBaseUrl(typeof window !== "undefined" ? window.location.origin : "");
+  // An http endpoint on this base (ad forms; email until a mail domain is wired) is only as
+  // reachable as the base: a source on the internet cannot post to a laptop's localhost.
+  const reachWords = useLinkReachWords(useCandidateLinkReach(), "sources");
+  const reach = section === "ads" || !emailInboundDomain ? reachWords : null;
   const list = useMemo(() => (receivers ? rankReceivers(receivers, locale) : null), [receivers, locale]);
 
   const onReveal = useCallback((token: string, next: boolean) => {
@@ -74,6 +79,11 @@ export function SetupReceivers({ section, data, focus, onMessages }: {
       {section === "email" && !emailInboundDomain ? (
         <Note tone="caution">
           <b>{t("email.notWiredTitle")}</b> {t("email.notWiredHowTo")}
+        </Note>
+      ) : null}
+      {reach ? (
+        <Note tone="caution">
+          <b>{reach.line}</b> {reach.fix}
         </Note>
       ) : null}
       {data.webhooksTruncated ? <Note tone="caution">{t("receiversTruncated")}</Note> : null}

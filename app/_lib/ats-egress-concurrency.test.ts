@@ -29,6 +29,7 @@ import { setAtsConfig } from "./ats-config-store.ts";
 import { ATS_DEFAULT_MAX_CONCURRENT, atsEgressLoad, dispatchAtsEvent } from "./ats-egress.ts";
 import { getAtsDelivery, listAtsDeliveries } from "./ats-delivery-store.ts";
 import { createPipelineEntry } from "./db/pipeline.ts";
+import { setEgressTransportForTests, type EgressTransport } from "./pinned-request.ts";
 
 after(() => cleanupUnitDb());
 
@@ -66,13 +67,14 @@ function gatedFetch(answer: () => Promise<unknown> = async () => ({ ok: true, st
   };
 }
 
+/** Install `impl` as the egress transport (the pinned request deliver dials through) for
+ *  the duration of `fn`. The fakes keep fetch's call shape: (url, init). */
 async function withFetch<T>(impl: typeof fetch, fn: () => Promise<T>): Promise<T> {
-  const real = globalThis.fetch;
-  globalThis.fetch = impl;
+  setEgressTransportForTests(impl as unknown as EgressTransport);
   try {
     return await fn();
   } finally {
-    globalThis.fetch = real;
+    setEgressTransportForTests(undefined);
   }
 }
 

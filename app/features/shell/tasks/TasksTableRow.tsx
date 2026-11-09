@@ -108,7 +108,7 @@ export function TasksTableRow({
               </span>
             </button>
           )}
-          {failed && task.error ? <p className="mt-0.5 break-words text-sm text-coral">{resolveError({ code: task.error }, task.error)}</p> : null}
+          {failed && task.error ? <p className="mt-0.5 break-words text-sm text-coral-ink">{resolveError({ code: task.error }, task.error)}</p> : null}
           {active ? (
             <>
               {/* Finding 5: a determinate bar ONLY when there's a real total. A
@@ -144,7 +144,7 @@ export function TasksTableRow({
 
         {/* A task KIND is a canonical wire slug (`jd_build`, `batch_screen`) — an
             identifier, not copy, so it renders verbatim in mono type. */}
-        <td className="whitespace-nowrap py-2.5 pr-3 font-mono text-sm text-steel/80">{task.kind}</td>
+        <td className="whitespace-nowrap py-2.5 pr-3 font-mono text-sm text-steel">{task.kind}</td>
 
         <td className="whitespace-nowrap py-2.5 pr-3 text-sm text-steel nums">
           {relTime(task.finishedAt ?? task.startedAt ?? task.createdAt, locale)}
@@ -163,7 +163,7 @@ export function TasksTableRow({
             {full ? (
               <TaskOutcome task={full} />
             ) : outcomeFailed ? (
-              <p className="text-sm text-coral">{t("done.outcomeFailed")}</p>
+              <p className="text-sm text-coral-ink">{t("done.outcomeFailed")}</p>
             ) : (
               <p className="text-sm text-steel">{t("done.outcomeLoading")}</p>
             )}

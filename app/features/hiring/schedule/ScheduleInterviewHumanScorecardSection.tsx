@@ -35,7 +35,7 @@ export function HumanScorecardSection({ sc }: { sc: Scorecard | HumanScorecardRe
     <section className="rounded-md border border-coral/30 bg-coral/5 p-3">
       <div className="flex items-center justify-between gap-2">
         <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
-          <ClipboardCheck size={13} className="text-coral" /> {t("humanScorecard")}
+          <ClipboardCheck size={13} className="text-coral-ink" /> {t("humanScorecard")}
         </p>
         {sc.recommendation ? (
           <Badge

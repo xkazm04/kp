@@ -134,7 +134,7 @@ export function ThresholdHistoryStrip({ nonce, family }: { nonce: number; family
                 <span className="flex items-center gap-2">
                   <span
                     className={`rounded-full px-1.5 py-0.5 text-meta font-semibold ${
-                      p.direction === "raise" ? "bg-coral/10 text-coral" : "bg-moss/10 text-moss"
+                      p.direction === "raise" ? "bg-coral/10 text-coral-ink" : "bg-moss/10 text-moss"
                     }`}
                   >
                     {p.direction === "raise" ? t("historyDirectionRaise") : t("historyDirectionLower")}

@@ -4,6 +4,11 @@
 // open, the cohort its pager walks (the visible reviews, in ledger order), and the
 // decision chrome the modal renders (candidate/decision/). The same modal the board
 // mounts — one experience of a candidate — with the verdict attached.
+//
+// CX S46: the role overview opens people with NO recommendation waiting too. Those open the
+// same modal without a verdict (its own footer carries the human-gated stage actions) and
+// stay open while the person is still on the board's read; a person opened FROM the queue
+// keeps the old rule (a verdict that lands elsewhere closes the modal).
 
 import { useCallback, useMemo, useState } from "react";
 import type { Entry as PipelineEntry } from "@/app/features/shared/pipelineTypes";
@@ -20,31 +25,42 @@ const asBoardEntry = (e: Entry): PipelineEntry => e as PipelineEntry;
 
 export function useDecisionsCandidate({
   visibleAiReviews,
+  entries,
   act,
   staleSinceOf,
   peersOf,
   peerFactsOf,
 }: {
   visibleAiReviews: Entry[];
-  act: (e: Entry, action: "accept" | "reject", detail?: string, ttlDays?: number) => Promise<boolean>;
+  /** Every entry the board read (the queue is a subset); null before the first read. */
+  entries: Entry[] | null;
+  act: (e: Entry, action: "accept" | "reject" | "decline_advance", detail?: string, ttlDays?: number) => Promise<boolean>;
   staleSinceOf: (e: Entry) => string | null;
   peersOf: (e: Entry) => PeerScore[];
   peerFactsOf: (e: Entry) => JobPeerContext | null;
 }) {
   const [view, setView] = useState<CandidateView | null>(null);
   const [busy, setBusy] = useState(false);
+  // Opened from outside the queue (no recommendation waited): kept open on the board's read.
+  const [plain, setPlain] = useState(false);
   const cohort = useMemo(() => visibleAiReviews.map(asBoardEntry), [visibleAiReviews]);
 
-  const open = useCallback((e: Entry) => setView((prev) => nextCandidateView(prev, asBoardEntry(e), { cohort: null, tab: "overview" })), []);
+  const open = useCallback(
+    (e: Entry) => {
+      setPlain(!visibleAiReviews.some((x) => x.id === e.id));
+      setView((prev) => nextCandidateView(prev, asBoardEntry(e), { cohort: null, tab: "overview" }));
+    },
+    [visibleAiReviews],
+  );
   const close = useCallback(() => setView(null), []);
   const navigate = useCallback((e: PipelineEntry) => setView((prev) => nextCandidateView(prev, e)), []);
   const setTab = useCallback((tab: CandidateTab) => setView((prev) => (prev ? { ...prev, tab } : prev)), []);
   const openById = useCallback(
     (id: string) => {
-      const e = visibleAiReviews.find((x) => x.id === id);
+      const e = visibleAiReviews.find((x) => x.id === id) ?? (plain ? entries?.find((x) => x.id === id) : undefined);
       if (e) setView((prev) => nextCandidateView(prev, asBoardEntry(e)));
     },
-    [visibleAiReviews],
+    [visibleAiReviews, entries, plain],
   );
 
   // The open recommendation, re-read from the live queue so a decision that landed
@@ -52,7 +68,7 @@ export function useDecisionsCandidate({
   // a verdict on a row the server already moved.
   const current = view ? (visibleAiReviews.find((e) => e.id === view.entry.id) ?? null) : null;
   const decide = useCallback(
-    async (e: Entry, action: "accept" | "reject", ttlDays?: number) => {
+    async (e: Entry, action: "accept" | "reject" | "decline_advance", ttlDays?: number) => {
       // decisions-review-ui/B — a reject is not written on the click: it arms the
       // shared commit window (the ledger's undo strip counts it down and offers Undo)
       // and the modal closes, exactly as a landed verdict closes it. An accept keeps
@@ -82,9 +98,11 @@ export function useDecisionsCandidate({
         peerFacts: peerFactsOf(current),
         onAccept: (ttlDays) => void decide(current, "accept", ttlDays),
         onReject: () => void decide(current, "reject"),
+        onKeepInPlace: () => void decide(current, "decline_advance"),
         busy,
       }
     : null;
 
-  return { view: view && current ? view : null, cohort, decision, open, close, navigate, setTab, openById };
+  const onBoard = view && plain ? (entries ?? []).some((e) => e.id === view.entry.id) : false;
+  return { view: view && (current || onBoard) ? view : null, cohort, decision, open, close, navigate, setTab, openById };
 }

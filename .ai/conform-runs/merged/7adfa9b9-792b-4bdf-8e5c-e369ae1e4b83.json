@@ -1,0 +1,71 @@
+{
+ "schema": "conform-run/1",
+ "worker": "7adfa9b9-792b-4bdf-8e5c-e369ae1e4b83",
+ "subject": "requisition-lifecycle-governance",
+ "evaluatedAt": "2026-10-26T00:23:09.555592+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "jobs-api",
+   "subject": "requisition-lifecycle-governance",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/api/jobs/[id]/close/route.ts:40 The close flips the requisition's status in its own statement and then runs the withdrawal cascade as a separate best-effort step (lines 45-50). It records no actor and queues no candidate communication, so a close can leave people stranded, and no close can be traced to the person who made it.",
+   "techniques": [
+    {
+     "technique": "closing-withdraws-candidates-in-flight",
+     "verdict": "deviation",
+     "evidence": "app/api/jobs/[id]/close/route.ts:46 Partly realized. closeEntriesByJobId writes a distinct role_closed kind with a per-entry event, uses the same workspace scope, spares the hire by stage role, and withdrawalFailed is reported. What is missing: the cascade is not in one transaction with the status flip at line 40, even though both are synchronous on the same handle. No message is queued (grep finds no outbox/enqueue on role_closed). No closer is recorded."
+    },
+    {
+     "technique": "headcount-approval-as-a-precondition",
+     "verdict": "deviation",
+     "evidence": "app/api/jobs/[id]/publish/route.ts:152 The only gate on draft\u2192live is the billing quota. There is no approver, no backfill/net-new class, no band attached at approval and no expiry. A grep of app/api/jobs for headcount|approv|backfill finds only outreach-letter approval."
+    },
+    {
+     "technique": "draft-live-and-closed-as-distinct-states",
+     "verdict": "deviation",
+     "evidence": "app/api/jobs/[id]/candidates/outreach/route.ts:101 The three states exist (setJobStatus draft|published|closed), and the null-means-live rule is decided once in isJobOpenForApplications. But outreach mints a Screened pipeline entry and drafts a first-touch letter after only a visibility check. Neither the route nor createPipelineEntry reads the job status, so a draft or closed role can take candidates. Separately, close records no who/when/why."
+    },
+    {
+     "technique": "publish-means-two-different-things",
+     "verdict": "deviation",
+     "evidence": "app/api/jobs/[id]/publish/route.ts:31 The route calls itself internal-only. But the same 'published' status opens the public apply link (isJobOpenForApplications) and lists the role in the crawler sitemap (app/sitemap.ts:26 via listLivePublicJds, jobs.ts:92). That is distribution under the internal verb, which the technique names as a failure. Conformant parts: the internal contract stays unrenamed with a written translation, and 'Publish to job boards' is shown as unavailable."
+    },
+    {
+     "technique": "fill-is-a-count-and-close-is-the-act-it-triggers",
+     "verdict": "conformant",
+     "evidence": "app/api/jobs/[id]/publish/route.ts:54 The target is stated at open, refused if non-integer, and capped at 50. It is written in the same transaction as the flip (setRoleOpenConfig, line 159). The list derives hired from the terminal-role count (route.ts withHired). The auto-close hook uses a CAS (closeRoleIfOpen) and withdraws through the manual close's function."
+    },
+    {
+     "technique": "ingest-as-draft-never-as-live",
+     "verdict": "conformant",
+     "evidence": "app/api/jobs/ingest/route.ts:72 A pasted ad always lands as a draft. It has a single-source MIN_AD_CHARS floor (line 25), content-hash dedup with a created flag, and an ownership gate when the ingest targets an existing role. The field-by-field preview is UI and outside this context. The route does not keep the raw text when the parse fails."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-26T00:23:09.555592+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "requisition-lifecycle-governance"
+   ],
+   "techniques": [
+    "closing-withdraws-candidates-in-flight",
+    "draft-live-and-closed-as-distinct-states",
+    "fill-is-a-count-and-close-is-the-act-it-triggers",
+    "headcount-approval-as-a-precondition",
+    "ingest-as-draft-never-as-live",
+    "publish-means-two-different-things"
+   ],
+   "deviations": 1,
+   "context": "jobs-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

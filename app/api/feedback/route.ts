@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jsonRefusal } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { currentSession, requireCapability } from "@/app/_lib/auth/current-user";
 import { currentUserId } from "@/app/_lib/auth/session";
 import { getUserById } from "@/app/_lib/db/users";
@@ -41,7 +41,7 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 // /control's own feedback section carries the same gate server-side
 // (app/control/page.tsx), so the panel is not rendered only to 403 on load.
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const body = (await request.json().catch(() => null)) as unknown;
   // Validation refuses before the limiter, so a rejected submission never
   // consumes budget (the contract's servedBefore convention).
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
         // dev/start scripts); null when the runtime doesn't carry it. Never client-supplied.
         appVersion: process.env.npm_package_version ?? null,
       },
-      await currentWorkspace()
+      ws
     );
     return NextResponse.json({ ok: true });
   } catch (error) {
@@ -77,17 +77,17 @@ export async function POST(request: NextRequest) {
     console.error("[feedback] record failed", error);
     return NextResponse.json({ error: "Could not send feedback. Please try again.", code: "FEEDBACK_SAVE_FAILED" }, { status: 500 });
   }
-}
+});
 
-export async function GET() {
+export const GET = withWorkspace(async (ws: string) => {
   const denied = await requireCapability("members:manage");
   // requireCapability answers 401 unauthenticated / 403 under-privileged. Keep its
   // status, replace its bare English body with the code the console resolves.
   if (denied) return jsonRefusal("FEEDBACK_READ_FORBIDDEN", denied.status);
   try {
-    return NextResponse.json({ feedback: listFeedback(50, await currentWorkspace()) });
+    return NextResponse.json({ feedback: listFeedback(50, ws) });
   } catch (error) {
     console.error("[feedback] list failed", error);
     return NextResponse.json({ error: "Could not load feedback. Please try again.", code: "FEEDBACK_LIST_FAILED" }, { status: 500 });
   }
-}
+});

@@ -113,6 +113,13 @@
       ]
     },
     {
+      "doc": "docs/features/connect/README.md",
+      "sourceGlobs": [
+        "app/_lib/connect/**",
+        "app/api/connect/**"
+      ]
+    },
+    {
       "doc": "docs/features/comms/outbound-export.md",
       "sourceGlobs": [
         "app/_lib/comms-envelope.ts",
@@ -646,6 +653,13 @@
         "app/features/insights/journey/**",
         "app/api/journeys/**",
         "app/_lib/db/intake-events.ts"
+      ]
+    },
+    {
+      "doc": "docs/design/one-interface.md",
+      "sourceGlobs": [
+        "app/one/**",
+        "app/features/one/**"
       ]
     }
   ]

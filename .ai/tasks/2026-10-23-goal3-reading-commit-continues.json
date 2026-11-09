@@ -1,0 +1,1013 @@
+{
+  "produced": [
+    {
+      "kind": "role_spec",
+      "branchRef": null,
+      "status": "complete"
+    },
+    {
+      "kind": "slate",
+      "branchRef": null,
+      "status": "complete"
+    },
+    {
+      "kind": "screen",
+      "branchRef": "pe-011",
+      "status": "awaiting_approval"
+    },
+    {
+      "kind": "screen",
+      "branchRef": "pe-027",
+      "status": "awaiting_approval"
+    },
+    {
+      "kind": "screen",
+      "branchRef": "pe-003",
+      "status": "awaiting_approval"
+    },
+    {
+      "kind": "screen",
+      "branchRef": "pe-018",
+      "status": "awaiting_approval"
+    },
+    {
+      "kind": "screen",
+      "branchRef": "m-cand-049-job-001",
+      "status": "awaiting_approval"
+    },
+    {
+      "kind": "screen",
+      "branchRef": "m-cand-002-job-001",
+      "status": "awaiting_approval"
+    },
+    {
+      "kind": "screen",
+      "branchRef": "m-cand-025-job-001",
+      "status": "awaiting_approval"
+    },
+    {
+      "kind": "screen",
+      "branchRef": "m-cand-010-job-001",
+      "status": "awaiting_approval"
+    },
+    {
+      "kind": "screen",
+      "branchRef": "m-cand-016-job-001",
+      "status": "awaiting_approval"
+    },
+    {
+      "kind": "screen",
+      "branchRef": "pe-011",
+      "status": "complete"
+    },
+    {
+      "kind": "case_assignment",
+      "branchRef": "pe-011",
+      "status": "complete"
+    },
+    {
+      "kind": "interview",
+      "branchRef": "pe-011",
+      "status": "awaiting_approval"
+    },
+    {
+      "kind": "interview",
+      "branchRef": "pe-011",
+      "status": "complete"
+    },
+    {
+      "kind": "scorecard",
+      "branchRef": "pe-011",
+      "status": "complete"
+    },
+    {
+      "kind": "offer_draft",
+      "branchRef": "pe-011",
+      "status": "awaiting_approval"
+    },
+    {
+      "kind": "offer_draft",
+      "branchRef": "pe-011",
+      "status": "terminal"
+    }
+  ],
+  "branches": 9,
+  "parked": [
+    {
+      "gate": "rejection",
+      "kind": "screen",
+      "branchRef": "pe-027"
+    },
+    {
+      "gate": "rejection",
+      "kind": "screen",
+      "branchRef": "pe-003"
+    },
+    {
+      "gate": "rejection",
+      "kind": "screen",
+      "branchRef": "pe-018"
+    },
+    {
+      "gate": "rejection",
+      "kind": "screen",
+      "branchRef": "m-cand-049-job-001"
+    },
+    {
+      "gate": "rejection",
+      "kind": "screen",
+      "branchRef": "m-cand-002-job-001"
+    },
+    {
+      "gate": "rejection",
+      "kind": "screen",
+      "branchRef": "m-cand-025-job-001"
+    },
+    {
+      "gate": "rejection",
+      "kind": "screen",
+      "branchRef": "m-cand-010-job-001"
+    },
+    {
+      "gate": "rejection",
+      "kind": "screen",
+      "branchRef": "m-cand-016-job-001"
+    }
+  ],
+  "parkedByGate": {
+    "rejection": [
+      "pe-027",
+      "pe-003",
+      "pe-018",
+      "m-cand-049-job-001",
+      "m-cand-002-job-001",
+      "m-cand-025-job-001",
+      "m-cand-010-job-001",
+      "m-cand-016-job-001"
+    ]
+  },
+  "furthest": "offer_draft",
+  "measured": true,
+  "reason": null,
+  "headline": "reached offer_draft; 8 branches parked at gates rejection",
+  "run": {
+    "id": "rr-mvkvd13j-5a6585",
+    "jobId": "job-001",
+    "cycle": "demo-1792753861965",
+    "workspaceId": "workspace"
+  },
+  "status": "running",
+  "passes": 4,
+  "coverage": {
+    "overall": {
+      "total": 18,
+      "autonomousComplete": 4,
+      "coverage": 0.2222222222222222
+    },
+    "byKind": {
+      "role_spec": {
+        "total": 1,
+        "autonomousComplete": 1,
+        "coverage": 1
+      },
+      "slate": {
+        "total": 1,
+        "autonomousComplete": 1,
+        "coverage": 1
+      },
+      "screen": {
+        "total": 10,
+        "autonomousComplete": 0,
+        "coverage": 0
+      },
+      "case_assignment": {
+        "total": 1,
+        "autonomousComplete": 1,
+        "coverage": 1
+      },
+      "interview": {
+        "total": 2,
+        "autonomousComplete": 0,
+        "coverage": 0
+      },
+      "scorecard": {
+        "total": 1,
+        "autonomousComplete": 1,
+        "coverage": 1
+      },
+      "offer_draft": {
+        "total": 2,
+        "autonomousComplete": 0,
+        "coverage": 0
+      }
+    }
+  },
+  "dwell": {
+    "entries": [
+      {
+        "kind": "screen",
+        "branchRef": "pe-011",
+        "parkedSeq": 3,
+        "parkedAt": "2026-10-23T11:11:02.850Z",
+        "state": "closed",
+        "resolvedAt": "2026-10-23T11:11:05.716Z",
+        "dwellMs": 2866
+      },
+      {
+        "kind": "screen",
+        "branchRef": "pe-027",
+        "parkedSeq": 4,
+        "parkedAt": "2026-10-23T11:11:03.177Z",
+        "state": "open",
+        "resolvedAt": null,
+        "dwellMs": null
+      },
+      {
+        "kind": "screen",
+        "branchRef": "pe-003",
+        "parkedSeq": 5,
+        "parkedAt": "2026-10-23T11:11:03.608Z",
+        "state": "open",
+        "resolvedAt": null,
+        "dwellMs": null
+      },
+      {
+        "kind": "screen",
+        "branchRef": "pe-018",
+        "parkedSeq": 6,
+        "parkedAt": "2026-10-23T11:11:03.919Z",
+        "state": "open",
+        "resolvedAt": null,
+        "dwellMs": null
+      },
+      {
+        "kind": "screen",
+        "branchRef": "m-cand-049-job-001",
+        "parkedSeq": 7,
+        "parkedAt": "2026-10-23T11:11:04.233Z",
+        "state": "open",
+        "resolvedAt": null,
+        "dwellMs": null
+      },
+      {
+        "kind": "screen",
+        "branchRef": "m-cand-002-job-001",
+        "parkedSeq": 8,
+        "parkedAt": "2026-10-23T11:11:04.542Z",
+        "state": "open",
+        "resolvedAt": null,
+        "dwellMs": null
+      },
+      {
+        "kind": "screen",
+        "branchRef": "m-cand-025-job-001",
+        "parkedSeq": 9,
+        "parkedAt": "2026-10-23T11:11:04.852Z",
+        "state": "open",
+        "resolvedAt": null,
+        "dwellMs": null
+      },
+      {
+        "kind": "screen",
+        "branchRef": "m-cand-010-job-001",
+        "parkedSeq": 10,
+        "parkedAt": "2026-10-23T11:11:05.370Z",
+        "state": "open",
+        "resolvedAt": null,
+        "dwellMs": null
+      },
+      {
+        "kind": "screen",
+        "branchRef": "m-cand-016-job-001",
+        "parkedSeq": 11,
+        "parkedAt": "2026-10-23T11:11:05.714Z",
+        "state": "open",
+        "resolvedAt": null,
+        "dwellMs": null
+      },
+      {
+        "kind": "interview",
+        "branchRef": "pe-011",
+        "parkedSeq": 14,
+        "parkedAt": "2026-10-23T11:11:05.719Z",
+        "state": "closed",
+        "resolvedAt": "2026-10-23T11:11:05.723Z",
+        "dwellMs": 4
+      },
+      {
+        "kind": "offer_draft",
+        "branchRef": "pe-011",
+        "parkedSeq": 17,
+        "parkedAt": "2026-10-23T11:11:05.726Z",
+        "state": "closed",
+        "resolvedAt": "2026-10-23T11:11:05.733Z",
+        "dwellMs": 7
+      }
+    ],
+    "closed": 3,
+    "open": 8,
+    "unmeasurable": 0,
+    "medianClosedMs": 7
+  },
+  "goalOne": {
+    "gateApprovals": {
+      "rejection": {
+        "approved": 1,
+        "declined": 0
+      },
+      "interview_invite": {
+        "approved": 1,
+        "declined": 0
+      },
+      "offer": {
+        "approved": 0,
+        "declined": 1
+      }
+    },
+    "openGates": {
+      "rejection": 8,
+      "interview_invite": 0,
+      "offer": 0
+    },
+    "humanStepsOutsideGates": 0,
+    "goalOneComplete": 6,
+    "total": 18,
+    "verdict": "not met",
+    "reason": "stopped at the rejection gate: 8 awaiting approval (an allowed step)"
+  },
+  "goalOneHeadline": "goal 1: not met: 0 offers approved; 1 offer declined (scorecard unrated: no interview session); 8 held for a person at the rejection gate; 1 seed branch(es) reached the interview unplayed by the cap (--sim-interviews 0); run end state: running; 8 branches held for a person at rejection (gates approved by demo stand-in)",
+  "simulatedAgenda": null,
+  "simulatedAgendaBlocks": null,
+  "runEndState": "running; 8 branches held for a person at rejection",
+  "protocolEndedBases": 0,
+  "harnessEndedBases": {},
+  "cappedSeedBranches": [
+    "pe-011"
+  ],
+  "heldForPerson": [
+    "pe-027",
+    "pe-003",
+    "pe-018",
+    "m-cand-049-job-001",
+    "m-cand-002-job-001",
+    "m-cand-025-job-001",
+    "m-cand-010-job-001",
+    "m-cand-016-job-001"
+  ],
+  "openBranches": [],
+  "goalOneClauses": {
+    "offerApproved": false,
+    "protocolEndedBasis": false,
+    "everyBranchAtEndState": true,
+    "noSeedBranchCapped": false
+  },
+  "approvedBy": "demo-stand-in",
+  "standInMode": "policy",
+  "mechanicsOnly": false,
+  "standInTally": {
+    "byGate": {
+      "rejection": {
+        "approved": 1,
+        "declined": 0,
+        "left": 8
+      },
+      "interview_invite": {
+        "approved": 1,
+        "declined": 0,
+        "left": 0
+      },
+      "offer": {
+        "approved": 0,
+        "declined": 1,
+        "left": 0
+      }
+    },
+    "reasons": [
+      {
+        "action": "leave",
+        "gate": "rejection",
+        "reason": "score below floor",
+        "count": 8
+      },
+      {
+        "action": "decline",
+        "gate": "offer",
+        "reason": "scorecard unrated: no interview session",
+        "count": 1
+      }
+    ]
+  },
+  "standInDecisions": [
+    {
+      "gate": "rejection",
+      "branchRef": "pe-011",
+      "action": "approve",
+      "reason": "screen routed advance (score at or above the floor)"
+    },
+    {
+      "gate": "rejection",
+      "branchRef": "pe-027",
+      "action": "leave",
+      "reason": "score below floor"
+    },
+    {
+      "gate": "rejection",
+      "branchRef": "pe-003",
+      "action": "leave",
+      "reason": "score below floor"
+    },
+    {
+      "gate": "rejection",
+      "branchRef": "pe-018",
+      "action": "leave",
+      "reason": "score below floor"
+    },
+    {
+      "gate": "rejection",
+      "branchRef": "m-cand-049-job-001",
+      "action": "leave",
+      "reason": "score below floor"
+    },
+    {
+      "gate": "rejection",
+      "branchRef": "m-cand-002-job-001",
+      "action": "leave",
+      "reason": "score below floor"
+    },
+    {
+      "gate": "rejection",
+      "branchRef": "m-cand-025-job-001",
+      "action": "leave",
+      "reason": "score below floor"
+    },
+    {
+      "gate": "rejection",
+      "branchRef": "m-cand-010-job-001",
+      "action": "leave",
+      "reason": "score below floor"
+    },
+    {
+      "gate": "rejection",
+      "branchRef": "m-cand-016-job-001",
+      "action": "leave",
+      "reason": "score below floor"
+    },
+    {
+      "gate": "interview_invite",
+      "branchRef": "pe-011",
+      "action": "approve",
+      "reason": "screen routed advance"
+    },
+    {
+      "gate": "offer",
+      "branchRef": "pe-011",
+      "action": "decline",
+      "reason": "scorecard unrated: no interview session"
+    }
+  ],
+  "simulatedInterviews": [
+    {
+      "branchRef": "pe-011",
+      "sessionId": null,
+      "recommendation": null,
+      "verdictSource": null,
+      "turns": 0,
+      "endReason": null,
+      "skipped": "not simulated: cap",
+      "agenda": null,
+      "agendaBlocks": 0
+    }
+  ],
+  "simulatedInterviewCap": 0,
+  "simulatedInterviewProvider": "the CV of every played (seeded) entry goes to the Claude CLI (`claude -p`) on this machine's Claude seat — no other provider, no API key, no service in between",
+  "refusedNotSeedData": 0,
+  "stagesReached": [
+    {
+      "kind": "role_spec",
+      "chains": 1
+    },
+    {
+      "kind": "slate",
+      "chains": 1
+    },
+    {
+      "kind": "screen",
+      "chains": 9
+    },
+    {
+      "kind": "case_assignment",
+      "chains": 1
+    },
+    {
+      "kind": "interview",
+      "chains": 1
+    },
+    {
+      "kind": "scorecard",
+      "chains": 1
+    },
+    {
+      "kind": "offer_draft",
+      "chains": 1
+    }
+  ],
+  "furthestPerBranch": [
+    {
+      "branchRef": "pe-011",
+      "furthest": "offer_draft"
+    },
+    {
+      "branchRef": "pe-027",
+      "furthest": "screen"
+    },
+    {
+      "branchRef": "pe-003",
+      "furthest": "screen"
+    },
+    {
+      "branchRef": "pe-018",
+      "furthest": "screen"
+    },
+    {
+      "branchRef": "m-cand-049-job-001",
+      "furthest": "screen"
+    },
+    {
+      "branchRef": "m-cand-002-job-001",
+      "furthest": "screen"
+    },
+    {
+      "branchRef": "m-cand-025-job-001",
+      "furthest": "screen"
+    },
+    {
+      "branchRef": "m-cand-010-job-001",
+      "furthest": "screen"
+    },
+    {
+      "branchRef": "m-cand-016-job-001",
+      "furthest": "screen"
+    }
+  ],
+  "stoppedAt": "awaiting approval at rejection (8)",
+  "artifacts": [
+    {
+      "kind": "role_spec",
+      "branchRef": null,
+      "status": "complete",
+      "seq": 1,
+      "producedAt": "2026-10-23T11:11:02.097Z",
+      "payload": {
+        "jobId": "job-001",
+        "roleSpecHash": "efd9683c2c975a609244dccacd9b9c4d",
+        "rubricVersion": "1",
+        "rubricKeys": [
+          "javascript",
+          "node.js",
+          "typescript",
+          "react",
+          "express",
+          "rest_apis",
+          "git",
+          "sql"
+        ],
+        "lintFindings": []
+      }
+    },
+    {
+      "kind": "slate",
+      "branchRef": null,
+      "status": "complete",
+      "seq": 2,
+      "producedAt": "2026-10-23T11:11:02.528Z",
+      "payload": {
+        "candidates": [
+          {
+            "candidateRef": "pe-011",
+            "origin": "pool"
+          },
+          {
+            "candidateRef": "pe-027",
+            "origin": "pool"
+          },
+          {
+            "candidateRef": "pe-003",
+            "origin": "pool"
+          },
+          {
+            "candidateRef": "pe-018",
+            "origin": "pool"
+          },
+          {
+            "candidateRef": "m-cand-049-job-001",
+            "origin": "rediscovery",
+            "priorOutcomeRef": "prior:elsewhere:Screened"
+          },
+          {
+            "candidateRef": "m-cand-002-job-001",
+            "origin": "rediscovery",
+            "priorOutcomeRef": "prior:elsewhere:Accepted"
+          },
+          {
+            "candidateRef": "m-cand-025-job-001",
+            "origin": "rediscovery",
+            "priorOutcomeRef": "prior:elsewhere:Screened"
+          },
+          {
+            "candidateRef": "m-cand-010-job-001",
+            "origin": "rediscovery",
+            "priorOutcomeRef": "prior:elsewhere:Hired"
+          },
+          {
+            "candidateRef": "m-cand-016-job-001",
+            "origin": "rediscovery",
+            "priorOutcomeRef": "prior:elsewhere:Screened"
+          }
+        ],
+        "truncated": true
+      }
+    },
+    {
+      "kind": "screen",
+      "branchRef": "pe-011",
+      "status": "awaiting_approval",
+      "seq": 3,
+      "producedAt": "2026-10-23T11:11:02.850Z",
+      "payload": {
+        "decisions": [
+          {
+            "entryId": "pe-011",
+            "route": "advance",
+            "matchScore": 75,
+            "reasonCode": "policy_advance",
+            "reasonParams": {}
+          }
+        ],
+        "policyVersion": "automation-pass-dryrun-1",
+        "fairnessAlerts": []
+      }
+    },
+    {
+      "kind": "screen",
+      "branchRef": "pe-027",
+      "status": "awaiting_approval",
+      "seq": 4,
+      "producedAt": "2026-10-23T11:11:03.177Z",
+      "payload": {
+        "decisions": [
+          {
+            "entryId": "pe-027",
+            "route": "hold",
+            "matchScore": 69,
+            "reasonCode": "policy_hold",
+            "reasonParams": {}
+          }
+        ],
+        "policyVersion": "automation-pass-dryrun-1",
+        "fairnessAlerts": []
+      }
+    },
+    {
+      "kind": "screen",
+      "branchRef": "pe-003",
+      "status": "awaiting_approval",
+      "seq": 5,
+      "producedAt": "2026-10-23T11:11:03.608Z",
+      "payload": {
+        "decisions": [
+          {
+            "entryId": "pe-003",
+            "route": "hold",
+            "matchScore": 69,
+            "reasonCode": "policy_hold",
+            "reasonParams": {}
+          }
+        ],
+        "policyVersion": "automation-pass-dryrun-1",
+        "fairnessAlerts": []
+      }
+    },
+    {
+      "kind": "screen",
+      "branchRef": "pe-018",
+      "status": "awaiting_approval",
+      "seq": 6,
+      "producedAt": "2026-10-23T11:11:03.919Z",
+      "payload": {
+        "decisions": [
+          {
+            "entryId": "pe-018",
+            "route": "hold",
+            "matchScore": 51,
+            "reasonCode": "policy_hold",
+            "reasonParams": {}
+          }
+        ],
+        "policyVersion": "automation-pass-dryrun-1",
+        "fairnessAlerts": []
+      }
+    },
+    {
+      "kind": "screen",
+      "branchRef": "m-cand-049-job-001",
+      "status": "awaiting_approval",
+      "seq": 7,
+      "producedAt": "2026-10-23T11:11:04.233Z",
+      "payload": {
+        "decisions": [
+          {
+            "entryId": "m-cand-049-job-001",
+            "route": "hold",
+            "matchScore": 60,
+            "reasonCode": "policy_hold",
+            "reasonParams": {}
+          }
+        ],
+        "policyVersion": "automation-pass-dryrun-1",
+        "fairnessAlerts": []
+      }
+    },
+    {
+      "kind": "screen",
+      "branchRef": "m-cand-002-job-001",
+      "status": "awaiting_approval",
+      "seq": 8,
+      "producedAt": "2026-10-23T11:11:04.542Z",
+      "payload": {
+        "decisions": [
+          {
+            "entryId": "m-cand-002-job-001",
+            "route": "hold",
+            "matchScore": 59,
+            "reasonCode": "policy_hold",
+            "reasonParams": {}
+          }
+        ],
+        "policyVersion": "automation-pass-dryrun-1",
+        "fairnessAlerts": []
+      }
+    },
+    {
+      "kind": "screen",
+      "branchRef": "m-cand-025-job-001",
+      "status": "awaiting_approval",
+      "seq": 9,
+      "producedAt": "2026-10-23T11:11:04.852Z",
+      "payload": {
+        "decisions": [
+          {
+            "entryId": "m-cand-025-job-001",
+            "route": "hold",
+            "matchScore": 59,
+            "reasonCode": "policy_hold",
+            "reasonParams": {}
+          }
+        ],
+        "policyVersion": "automation-pass-dryrun-1",
+        "fairnessAlerts": []
+      }
+    },
+    {
+      "kind": "screen",
+      "branchRef": "m-cand-010-job-001",
+      "status": "awaiting_approval",
+      "seq": 10,
+      "producedAt": "2026-10-23T11:11:05.370Z",
+      "payload": {
+        "decisions": [
+          {
+            "entryId": "m-cand-010-job-001",
+            "route": "hold",
+            "matchScore": 58,
+            "reasonCode": "policy_hold",
+            "reasonParams": {}
+          }
+        ],
+        "policyVersion": "automation-pass-dryrun-1",
+        "fairnessAlerts": []
+      }
+    },
+    {
+      "kind": "screen",
+      "branchRef": "m-cand-016-job-001",
+      "status": "awaiting_approval",
+      "seq": 11,
+      "producedAt": "2026-10-23T11:11:05.714Z",
+      "payload": {
+        "decisions": [
+          {
+            "entryId": "m-cand-016-job-001",
+            "route": "hold",
+            "matchScore": 55,
+            "reasonCode": "policy_hold",
+            "reasonParams": {}
+          }
+        ],
+        "policyVersion": "automation-pass-dryrun-1",
+        "fairnessAlerts": []
+      }
+    },
+    {
+      "kind": "screen",
+      "branchRef": "pe-011",
+      "status": "complete",
+      "seq": 12,
+      "producedAt": "2026-10-23T11:11:05.716Z",
+      "payload": {
+        "decisions": [
+          {
+            "entryId": "pe-011",
+            "route": "advance",
+            "matchScore": 75,
+            "reasonCode": "policy_advance",
+            "reasonParams": {}
+          }
+        ],
+        "policyVersion": "automation-pass-dryrun-1",
+        "fairnessAlerts": [],
+        "gate": "rejection",
+        "decision": "approved",
+        "approverRef": "6e696dedf09a487f815e846e6ff6b042",
+        "decidedAt": "2026-10-23T11:11:05.715Z"
+      }
+    },
+    {
+      "kind": "case_assignment",
+      "branchRef": "pe-011",
+      "status": "complete",
+      "seq": 13,
+      "producedAt": "2026-10-23T11:11:05.718Z",
+      "payload": {
+        "assignments": [
+          {
+            "entryId": "pe-011",
+            "devcaseId": null,
+            "timeboxMinutes": 90,
+            "seedRef": "34eefbc6861eefe8c7fa093592db6675"
+          }
+        ],
+        "caseDesignHash": "9bb873aed4e0ace98ab1697d9a878efb"
+      }
+    },
+    {
+      "kind": "interview",
+      "branchRef": "pe-011",
+      "status": "awaiting_approval",
+      "seq": 14,
+      "producedAt": "2026-10-23T11:11:05.719Z",
+      "payload": {
+        "invites": [
+          {
+            "entryId": "pe-011",
+            "inviteRef": null,
+            "status": "drafted",
+            "slotAt": null,
+            "rescheduleCount": 0
+          }
+        ]
+      }
+    },
+    {
+      "kind": "interview",
+      "branchRef": "pe-011",
+      "status": "complete",
+      "seq": 15,
+      "producedAt": "2026-10-23T11:11:05.723Z",
+      "payload": {
+        "invites": [
+          {
+            "entryId": "pe-011",
+            "inviteRef": null,
+            "status": "drafted",
+            "slotAt": null,
+            "rescheduleCount": 0
+          }
+        ],
+        "gate": "interview_invite",
+        "decision": "approved",
+        "approverRef": "6e696dedf09a487f815e846e6ff6b042",
+        "decidedAt": "2026-10-23T11:11:05.722Z"
+      }
+    },
+    {
+      "kind": "scorecard",
+      "branchRef": "pe-011",
+      "status": "complete",
+      "seq": 16,
+      "producedAt": "2026-10-23T11:11:05.724Z",
+      "payload": {
+        "cards": [
+          {
+            "entryId": "pe-011",
+            "sessionId": null,
+            "recommendation": "unrated",
+            "rubricVersion": "1",
+            "rubricKeys": [
+              "javascript",
+              "node.js",
+              "typescript",
+              "react",
+              "express",
+              "rest_apis",
+              "git",
+              "sql"
+            ],
+            "source": "ai"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "offer_draft",
+      "branchRef": "pe-011",
+      "status": "awaiting_approval",
+      "seq": 17,
+      "producedAt": "2026-10-23T11:11:05.726Z",
+      "payload": {
+        "drafts": [
+          {
+            "entryId": "pe-011",
+            "terms": {
+              "band": "job_posted_range",
+              "currency": "EUR",
+              "ttlDays": 7
+            },
+            "ttlDays": 7,
+            "rationaleRef": "0b6f039b8c30a87f28000300d4fd43d0",
+            "basis": {
+              "source": "scorecard",
+              "recommendation": "unrated",
+              "band": "job_posted_range"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "offer_draft",
+      "branchRef": "pe-011",
+      "status": "terminal",
+      "seq": 18,
+      "producedAt": "2026-10-23T11:11:05.733Z",
+      "payload": {
+        "drafts": [
+          {
+            "entryId": "pe-011",
+            "terms": {
+              "band": "job_posted_range",
+              "currency": "EUR",
+              "ttlDays": 7
+            },
+            "ttlDays": 7,
+            "rationaleRef": "0b6f039b8c30a87f28000300d4fd43d0",
+            "basis": {
+              "source": "scorecard",
+              "recommendation": "unrated",
+              "band": "job_posted_range"
+            }
+          }
+        ],
+        "gate": "offer",
+        "decision": "declined",
+        "approverRef": "6e696dedf09a487f815e846e6ff6b042",
+        "decidedAt": "2026-10-23T11:11:05.732Z"
+      }
+    }
+  ],
+  "runnerSet": "live",
+  "headSha": "62c6f9f11aa38e294636f09fbb1b62f7b65e2ba3",
+  "interventions": {
+    "counts": {
+      "gate_commit": 3,
+      "simulated_interview": 0,
+      "retrigger": 0,
+      "other": 0
+    },
+    "interventionsOutsideAllowed": 0,
+    "total": 3,
+    "log": [
+      {
+        "code": "gate_commit",
+        "pass": 1,
+        "gate": "rejection",
+        "branchRef": "pe-011"
+      },
+      {
+        "code": "gate_commit",
+        "pass": 2,
+        "gate": "interview_invite",
+        "branchRef": "pe-011"
+      },
+      {
+        "code": "gate_commit",
+        "pass": 3,
+        "gate": "offer",
+        "branchRef": "pe-011"
+      }
+    ]
+  },
+  "source": {
+    "kind": "seed",
+    "db": null
+  }
+}

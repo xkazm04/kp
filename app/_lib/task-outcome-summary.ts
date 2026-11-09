@@ -115,6 +115,10 @@ export const APPLIED_VALUES = [
   "already_sent",
   "suppressed_anonymized",
   "suppressed_consent_expired",
+  // A halted outreach sequence, one value per HaltReason (outreach-halt.ts).
+  "suppressed_replied",
+  "suppressed_manual",
+  "suppressed_candidate",
   "rematched",
   "already_rematched",
   "no_alternative",
@@ -264,6 +268,8 @@ const TABLE: Record<MappedKind, Mapper> = {
     const failed = num(r.failed);
     return [...fact("candidates", num(r.members)), ...(failed ? fact("failures", failed) : []), ...sourceLine(r.source)];
   },
+  // { scored } — the score itself is the entry's match score, shown on the board.
+  score_entry: () => [],
 };
 
 /** Kinds deliberately WITHOUT a table mapper, each with the reason. TABLE is typed

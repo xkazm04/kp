@@ -231,7 +231,7 @@ export function JdActions({
                   editor.setError(null);
                   router.refresh();
                 }}
-                className="focus-ring font-semibold text-coral hover:underline"
+                className="focus-ring font-semibold text-coral-ink hover:underline"
               >
                 {t("editReload")}
               </button>

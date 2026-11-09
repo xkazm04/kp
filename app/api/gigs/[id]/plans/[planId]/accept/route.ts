@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { getGig } from "@/app/_lib/db/gigs";
@@ -38,7 +38,7 @@ type Params = { params: Promise<{ id: string; planId: string }> };
 /** The note's cap (db/gigs-plans.ts acceptGigPlan clamps to the same). */
 const NOTE_MAX = 2000;
 
-export async function POST(request: Request, { params }: Params): Promise<NextResponse> {
+export const POST = withWorkspace(async (ws: string, request: Request, { params }: Params): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -55,7 +55,6 @@ export async function POST(request: Request, { params }: Params): Promise<NextRe
     }
     const note = typeof rawNote === "string" && rawNote.trim() ? rawNote : null;
     const { id, planId } = await params;
-    const ws = await currentWorkspace();
     const gig = getGig(ws, id);
     if (!gig) return jsonRefusal("GIG_NOT_FOUND", 404);
     const plan = getGigPlan(ws, planId);
@@ -75,4 +74,4 @@ export async function POST(request: Request, { params }: Params): Promise<NextRe
   } catch (error) {
     return safeJsonError(error, "api:gigs/[id]/plans/[planId]/accept", "GIG_STORE_FAILED");
   }
-}
+});

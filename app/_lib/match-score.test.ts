@@ -137,3 +137,15 @@ test("no `matchScore ?? 0` fabrication site remains anywhere under app/", () => 
     "an absent match score must stay null (see app/_lib/match-score.ts) — never be coerced to a decision-feeding 0"
   );
 });
+
+test("getCanonicalMatchScore names a score the rule-based scorer filled AFTER the add — never 'snapshot at add'", () => {
+  assert.deepEqual(getCanonicalMatchScore({ matchScore: 61, scoredAt: "2026-10-22T09:00:00.000Z" }, null), {
+    score: 61,
+    provenance: { source: "scored", at: "2026-10-22T09:00:00.000Z" },
+  });
+  // No marker (or an empty one) is the add-time snapshot, as before.
+  assert.deepEqual(getCanonicalMatchScore({ matchScore: 61, scoredAt: null })?.provenance, { source: "snapshot" });
+  assert.deepEqual(getCanonicalMatchScore({ matchScore: 61, scoredAt: "" })?.provenance, { source: "snapshot" });
+  // The marker never invents a number for an unscored entry.
+  assert.equal(getCanonicalMatchScore({ matchScore: null, scoredAt: "2026-10-22T09:00:00.000Z" }), null);
+});

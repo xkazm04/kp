@@ -96,3 +96,39 @@ test("the absent-marker cannot be forged by a query-param value", () => {
   assert.equal(optionalKeyField(undefined), KEY_SEP);
   assert.equal(KEY_SEP, "\u0000", "the joiner is NUL — no real key field can contain it");
 });
+
+test("a miss at the bound costs what it reclaims, not a walk of every live entry", () => {
+  // A constant bound with the live set sitting on it is the pathological case for a
+  // reclaim fired from insert: the old full-Map sweep visited all 256 live entries on
+  // EVERY miss to reclaim none of them. Insertion order is expiry order (one ttlMs for
+  // all), so the expired entries are a prefix and the reclaim stops at the first live
+  // head. Counted by wrapping Map iteration for the duration of one get().
+  let clock = 0;
+  const cache = createTtlCache<number>({ ttlMs: 100_000, now: () => clock, maxEntries: 256 });
+  for (let i = 0; i < 256; i += 1) {
+    clock = i;
+    cache.get(`k${i}`, () => i);
+  }
+  let visited = 0;
+  const methods = ["entries", "keys", Symbol.iterator] as const;
+  const originals = methods.map((m) => Map.prototype[m]);
+  methods.forEach((m, j) => {
+    (Map.prototype as unknown as Record<PropertyKey, unknown>)[m] = function (this: Map<unknown, unknown>) {
+      const it = (originals[j] as () => Iterator<unknown>).call(this);
+      return { next: () => ((visited += 1), it.next()), [Symbol.iterator]() { return this; } };
+    };
+  });
+  try {
+    clock = 300;
+    cache.get("fresh", () => -1);
+  } finally {
+    methods.forEach((m, j) => {
+      (Map.prototype as unknown as Record<PropertyKey, unknown>)[m] = originals[j];
+    });
+  }
+  assert.ok(visited <= 4, `one miss at a full, all-live bound visited ${visited} entries`);
+  // and the bound still evicted exactly the oldest
+  let recomputed = 0;
+  cache.get("k0", () => ((recomputed += 1), 0));
+  assert.equal(recomputed, 1, "the oldest live entry was the one evicted");
+});

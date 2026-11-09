@@ -49,7 +49,7 @@ import { PipelineEmptyMoveArt } from "./PipelineEmptyMoveArt";
 import type { EmptyMoveKey } from "./pipelineEmptyMoves";
 
 /** Hover and focus-visible say the same thing, so they are written once. */
-const REACT_TEXT = "transition-colors group-hover:text-coral group-focus-visible:text-coral motion-reduce:transition-none";
+const REACT_TEXT = "transition-colors group-hover:text-coral-ink group-focus-visible:text-coral-ink motion-reduce:transition-none";
 
 export function PipelineEmptyMoveCard({
   index,

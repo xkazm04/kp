@@ -26,10 +26,10 @@ export type StatusMeta = {
 };
 
 export const STATUS: Record<TaskStatus, StatusMeta> = {
-  running: { badge: "bg-coral/10 text-coral", Icon: Loader2, iconCls: "animate-spin text-coral" },
+  running: { badge: "bg-coral/10 text-coral-ink", Icon: Loader2, iconCls: "animate-spin text-coral-ink" },
   queued: { badge: "bg-steel/10 text-steel", Icon: Clock, iconCls: "text-steel" },
   succeeded: { badge: "bg-moss/10 text-moss", Icon: Check, iconCls: "text-moss" },
-  failed: { badge: "bg-coral/10 text-coral", Icon: AlertTriangle, iconCls: "text-coral" },
+  failed: { badge: "bg-coral/10 text-coral-ink", Icon: AlertTriangle, iconCls: "text-coral-ink" },
   canceled: { badge: "bg-stone-100 text-steel", Icon: Ban, iconCls: "text-steel" },
   interrupted: { badge: "bg-amber-100 text-amber-700", Icon: AlertTriangle, iconCls: "text-amber-600" },
 };

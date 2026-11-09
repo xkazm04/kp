@@ -12,6 +12,7 @@ import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { answerFailure, jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // A connection body is a provider name, two short strings and a field map. The map is the
 // only part that can grow - one dot path per mappable field plus a stage map - and 32 KB
@@ -29,13 +30,13 @@ const MAX_CONNECTION_BODY_BYTES = 32 * 1024;
 // become kp records. Authentication alone is not authorization here. Open mode (no
 // KP_OPERATOR_PASSWORD) stays open for local dev.
 
-export async function GET() {
+export const GET = withSession(async () => {
   const denied = await requireOperator();
   if (denied) return denied;
   return NextResponse.json({ providers: ATS_PROVIDERS, connections: listAtsConnections() });
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). requireOperator above proves a
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
     // client gets the code it renders in its own language.
     return answerFailure(error, "api:ats/connections", "ATS_CONNECTION_SAVE_FAILED");
   }
-}
+});
 
 /**
  * Remove a connection. `?forgetLinks=1` ALSO drops its external-id links.
@@ -94,7 +95,7 @@ export async function POST(request: NextRequest) {
  * bound to a provider whose credential no longer exists, and reported a count that only
  * covered one team. An installation-level delete owes an installation-level cleanup.
  */
-export async function DELETE(request: NextRequest) {
+export const DELETE = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). requireOperator above proves a
@@ -118,4 +119,4 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:ats/connections", "ATS_CONNECTION_REMOVE_FAILED");
   }
-}
+});

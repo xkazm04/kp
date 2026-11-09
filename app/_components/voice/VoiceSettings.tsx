@@ -104,7 +104,7 @@ export function VoiceSettings({
           // The probe failed, so EVERY option above is disabled. Say why, and offer
           // the one action that can change it — the same line and retry the Start
           // control shows, so the two controls tell one story.
-          <p className="mt-1.5 text-meta text-coral" role="status">
+          <p className="mt-1.5 text-meta text-coral-ink" role="status">
             {t("availabilityUnknown")}{" "}
             <button type="button" onClick={onRecheck} className="focus-ring font-semibold underline">
               {t("availabilityRetry")}

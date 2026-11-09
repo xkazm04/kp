@@ -1,0 +1,109 @@
+{
+ "schema": "conform-run/1",
+ "worker": "e77391bb-2654-4756-b33f-7323025c51c9",
+ "subject": "adverse-impact-and-proxy-neutrality",
+ "evaluatedAt": "2026-10-15T22:57:38.814428+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "screening-fairness",
+   "subject": "adverse-impact-and-proxy-neutrality",
+   "bundle": "recruiting",
+   "state": "conformant",
+   "evidence": "app/_lib/adverse-impact.ts:19 Implements the four-fifths adverse impact screen alongside significance testing, shortfall counts, and minimum cohort floors.",
+   "techniques": [
+    {
+     "technique": "selection-rate-ratio-testing",
+     "verdict": "conformant",
+     "evidence": "app/_lib/adverse-impact.ts:308 Computes selection rate ratio against the reference rate, returning null when unmeasurable."
+    },
+    {
+     "technique": "reference-group-selection",
+     "verdict": "conformant",
+     "evidence": "app/_lib/adverse-impact.ts:293 Selects highest selection rate group meeting min-cohort floor as reference, breaking ties deterministically."
+    },
+    {
+     "technique": "minimum-cohort-before-a-ratio-is-asserted",
+     "verdict": "conformant",
+     "evidence": "app/_lib/adverse-impact.ts:39 Enforces a minimum floor of 30 considered candidates per group before a selection rate is deemed reliable."
+    },
+    {
+     "technique": "too-small-to-assess-as-a-distinct-verdict",
+     "verdict": "conformant",
+     "evidence": "app/_lib/adverse-impact.ts:369 Returns an explicit insufficient sample verdict rather than treating sub-floor cohorts as clean."
+    },
+    {
+     "technique": "cohort-shield-is-not-a-protected-class-test",
+     "verdict": "conformant",
+     "evidence": "app/_lib/automation-fairness.ts:57 Shields protected and unknown career archetypes from automated rejection without claiming protected-class fairness."
+    }
+   ]
+  },
+  {
+   "context": "jobs-candidates-compare",
+   "subject": "adverse-impact-and-proxy-neutrality",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/library/jobs/JobsRecruiterCandidatesFairness.tsx:55 Presents candidate weight robustness and career cohort protections under a fairness audit label without disclaiming that they are not protected-class tests.",
+   "techniques": [
+    {
+     "technique": "cohort-shield-is-not-a-protected-class-test",
+     "verdict": "deviation",
+     "evidence": "app/features/library/jobs/JobsRecruiterCandidates.tsx:110 Renders early-career cohort protection as fairness-shielded without any disclaimer that it is not a protected-class test."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "adverse-impact-and-proxy-neutrality",
+   "context": "tests-scoring-fairness",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "adverse-impact-and-proxy-neutrality",
+   "context": "group-eval-comparison",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "adverse-impact-and-proxy-neutrality",
+   "context": "group-eval-shared",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-15T22:57:38.814428+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "adverse-impact-and-proxy-neutrality"
+   ],
+   "techniques": [
+    "cohort-shield-is-not-a-protected-class-test",
+    "minimum-cohort-before-a-ratio-is-asserted",
+    "reference-group-selection",
+    "selection-rate-ratio-testing",
+    "too-small-to-assess-as-a-distinct-verdict"
+   ],
+   "deviations": 0,
+   "context": "screening-fairness",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-15T22:57:38.814428+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "adverse-impact-and-proxy-neutrality"
+   ],
+   "techniques": [
+    "cohort-shield-is-not-a-protected-class-test"
+   ],
+   "deviations": 1,
+   "context": "jobs-candidates-compare",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}

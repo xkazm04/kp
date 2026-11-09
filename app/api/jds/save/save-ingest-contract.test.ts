@@ -102,7 +102,7 @@ test("the Ledger offers an in-place re-ingest for a JD with no matchable job (no
 // ingest and the edit-time re-sync in PATCH /api/jds/[slug] — must go through the
 // one helper that pins it, or an edited salary line becomes the matchable band.
 test("both jd-<slug> ingests pin the band through withGroundedBand", () => {
-  const first = read("./ingest-job.ts");
+  const first = read("../../../_lib/jd-ingest.ts");
   assert.match(first, /withGroundedBand\(/, "the first ingest must pin the analysis band through the shared helper");
   const resync = read("../[slug]/route.ts");
   assert.match(resync, /withGroundedBand\(/, "the edit re-sync must carry the grounded band across the re-parse");

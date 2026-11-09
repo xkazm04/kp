@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
+import { EmployerBrand } from "@/app/_components/EmployerBrand";
 import { disclosureComplianceFor } from "@/app/_lib/compliance-disclosure";
 import { getScheduleInviteByToken } from "@/app/_lib/schedule-store";
 import { SchedulePicker } from "./SchedulePicker";
@@ -30,10 +31,11 @@ export default async function SchedulePage({ params }: { params: Promise<{ token
           re-opened weeks later, or a stale NEXT_LOCALE cookie from an earlier visit can
           still land them in a language they don't read — and this page has no other
           chrome to change it from. */}
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex items-center justify-end gap-3">
+        <EmployerBrand className="mr-auto" />
         <LanguageSwitcher />
       </div>
-      <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+      <p className="text-meta uppercase text-coral-ink">{t("eyebrow")}</p>
       <h1 className="mt-1 font-serif text-display text-ink">{t("title")}</h1>
       <p className="mt-2 text-body text-steel">{t("intro")}</p>
       <div className="mt-6">

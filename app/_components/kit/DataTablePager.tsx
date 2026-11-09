@@ -3,6 +3,8 @@
 import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "./Button";
+import { DomCount } from "./DomCount";
+import { showDomFooter } from "./windowing";
 import "./kit.css";
 
 /**
@@ -10,11 +12,13 @@ import "./kit.css";
  * count of rows that exist in the DOM (the windowing made visible), caller extras, and a
  * viewport-sized step up and down. Internal to DataTable.
  */
-export function DataTablePager({ from, to, total, domRows, extra, onPage }: {
+export function DataTablePager({ from, to, total, domRows, domFooter, extra, onPage }: {
   from: number;
   to: number;
   total: number;
   domRows: number;
+  /** Explicit opt-out of the "N rows in the DOM" footer; shown by default. */
+  domFooter?: boolean;
   extra?: ReactNode;
   onPage: (dir: 1 | -1) => void;
 }) {
@@ -24,9 +28,7 @@ export function DataTablePager({ from, to, total, domRows, extra, onPage }: {
       <span>
         {t.rich("range", { from, to, total, b: (chunks) => <b>{chunks}</b> })}
       </span>
-      <span className="k-pager__dom" data-tip={t("domTip")} tabIndex={0}>
-        {t("dom", { count: domRows })}
-      </span>
+      {showDomFooter(domFooter) ? <DomCount count={domRows} /> : null}
       {extra}
       <span className="k-pager__acts">
         <Button label={t("prev")} icon="up" iconOnly size="sm" variant="ghost" disabled={from <= 1} onClick={() => onPage(-1)} />

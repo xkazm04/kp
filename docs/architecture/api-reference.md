@@ -77,7 +77,7 @@ live on the other side of a route.
 
 <!-- BEGIN GENERATED ROUTES -->
 
-_295 routes, 395 handlers._
+_317 routes, 426 handlers._
 
 ### `/api/agents`
 
@@ -196,6 +196,7 @@ _295 routes, 395 handlers._
 | Route | Methods | Auth |
 | --- | --- | --- |
 | `/api/brand` | GET, PUT | gated |
+| `/api/brand/logo` | GET, POST, DELETE | public |
 
 ### `/api/calendar`
 
@@ -203,6 +204,7 @@ _295 routes, 395 handlers._
 | --- | --- | --- |
 | `/api/calendar/google` | GET, DELETE | gated |
 | `/api/calendar/google/callback` | GET | gated |
+| `/api/calendar/google/client` | GET, POST | gated |
 | `/api/calendar/google/start` | GET | gated |
 
 ### `/api/channels`
@@ -219,10 +221,13 @@ _295 routes, 395 handlers._
 | --- | --- | --- |
 | `/api/comms` | GET | gated |
 | `/api/comms/[id]/resend` | POST | gated |
+| `/api/comms/backlog` | GET, POST | gated |
 | `/api/comms/callback` | POST | public |
 | `/api/comms/capability` | GET | gated |
 | `/api/comms/relay` | GET, POST | gated |
 | `/api/comms/relay/test` | POST | gated |
+| `/api/comms/smtp` | GET, POST | gated |
+| `/api/comms/smtp/test` | POST | gated |
 
 ### `/api/companion`
 
@@ -238,6 +243,13 @@ _295 routes, 395 handlers._
 | Route | Methods | Auth |
 | --- | --- | --- |
 | `/api/compliance` | GET | gated |
+
+### `/api/connect`
+
+| Route | Methods | Auth |
+| --- | --- | --- |
+| `/api/connect` | GET | gated |
+| `/api/connect/[id]/probe` | POST | gated |
 
 ### `/api/data`
 
@@ -259,7 +271,9 @@ _295 routes, 395 handlers._
 | `/api/decisions/peer-context` | GET | gated |
 | `/api/decisions/reconsider` | GET | gated |
 | `/api/decisions/records` | GET | gated |
+| `/api/decisions/role-view` | GET | gated |
 | `/api/decisions/screen-wave` | POST | gated |
+| `/api/decisions/shortlist` | GET, POST | gated |
 
 ### `/api/demo`
 
@@ -540,6 +554,16 @@ _295 routes, 395 handlers._
 | `/api/org/members` | GET | gated |
 | `/api/org/members/[userId]` | PATCH, DELETE | gated |
 
+### `/api/outreach-letters`
+
+| Route | Methods | Auth |
+| --- | --- | --- |
+| `/api/outreach-letters` | GET | gated |
+| `/api/outreach-letters/[id]` | GET, PATCH | gated |
+| `/api/outreach-letters/[id]/approve` | POST | gated |
+| `/api/outreach-letters/[id]/release` | POST | gated |
+| `/api/outreach-letters/by-entry/[entryId]` | GET | gated |
+
 ### `/api/palette`
 
 | Route | Methods | Auth |
@@ -556,6 +580,8 @@ _295 routes, 395 handlers._
 | `/api/pipeline/[id]/notes` | GET | gated |
 | `/api/pipeline/[id]/offer-letter` | GET | gated |
 | `/api/pipeline/[id]/timeline` | GET | gated |
+| `/api/pipeline/[id]/work-sample` | POST | gated |
+| `/api/pipeline/automation-counts` | GET | gated |
 | `/api/pipeline/batch` | POST | gated |
 | `/api/pipeline/command` | POST | gated |
 | `/api/pipeline/command/reverse` | POST | gated |
@@ -588,6 +614,16 @@ _295 routes, 395 handlers._
 | `/api/repo-scan` | GET, POST | gated |
 | `/api/repo-scan/[id]` | GET | gated |
 
+### `/api/role-runs`
+
+| Route | Methods | Auth |
+| --- | --- | --- |
+| `/api/role-runs` | GET, POST | gated |
+| `/api/role-runs/[id]` | GET | gated |
+| `/api/role-runs/[id]/advance` | POST | gated |
+| `/api/role-runs/[id]/gate/commit` | POST | gated |
+| `/api/role-runs/[id]/gate/preview` | POST | gated |
+
 ### `/api/roles`
 
 | Route | Methods | Auth |
@@ -608,6 +644,12 @@ _295 routes, 395 handlers._
 | Route | Methods | Auth |
 | --- | --- | --- |
 | `/api/search` | GET | gated |
+
+### `/api/setup`
+
+| Route | Methods | Auth |
+| --- | --- | --- |
+| `/api/setup/first-run` | GET, POST | gated |
 
 ### `/api/sim`
 

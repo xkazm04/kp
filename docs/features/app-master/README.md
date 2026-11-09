@@ -191,10 +191,22 @@ on 2026-08-23 and pinned by `test_repo_scan.ReadOnlyAccessTest`:
 
 ```
 claude -p --output-format json \
+  --setting-sources user \
   --permission-mode plan \
   --allowedTools "Read,Grep,Glob,Bash(git log:*),Bash(git diff:*),Bash(git show:*)" \
   --disallowedTools "Write,Edit,MultiEdit,NotebookEdit,WebFetch"
 ```
+
+The three layers govern **tools**, not what the CLI loads from its working
+directory, and the working directory is the scanned repo. Measured 2026-11-03
+against CLI 2.1.317 (n=2 per arm, a scratch repo whose `.claude/settings.json`
+declared SessionStart and Stop hooks and whose `CLAUDE.md` gave an instruction):
+with the default setting sources the target's hooks **executed** and its
+`CLAUDE.md` steered the answer, under all three layers; with `--setting-sources
+user` neither happened, the tree stayed readable, and the secret-file deny rules
+below still refused a `.env` read. So the scan loads the operator's user sources
+only. The repo's agent docs still reach the model, as quoted excerpts in the
+prompt.
 
 `ClaudeCliProvider.with_repo_access(cwd)` is the only way to set them, it returns
 a **copy** (so a provider handed out by the registry never inherits a repo

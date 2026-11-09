@@ -1,0 +1,121 @@
+{
+ "schema": "conform-run/1",
+ "worker": "95f86024-a07c-413f-b0d2-8eb92c35b15f",
+ "subject": "comparative-shortlist-evaluation",
+ "evaluatedAt": "2026-10-25T00:03:09.309111+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "candidate-matching",
+   "subject": "comparative-shortlist-evaluation",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/group_compare.py:124 The comparison prompt asks the model to decide who leads. The context it gets has no separation or robustness status, and the candidates arrive in score order. So the model picks and words the crown itself instead of narrating claims that code already computed.",
+   "techniques": [
+    {
+     "technique": "minimum-cohort-before-a-comparative-claim",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/group_compare.py:284 With n==1 the module makes no lead claim. Per-dimension superlatives also need two measured candidates (leader() returns None when len(dim) < 2)."
+    },
+    {
+     "technique": "confidence-band-lead-separation",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/group_compare.py:291 The fallback headline says 'leads' and the recommendation says 'Advance first' without checking any separation status. Equal totals keep input order from a stable sort, so a tie is resolved by accident."
+    },
+    {
+     "technique": "counterbalanced-candidate-order",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/group_compare.py:124 The model is asked who leads, which fails step 1. The caller sorts candidates by score before the prompt is built, and there is no reorder rerun or post-check against forbidden lead claims (the grounding check only tests names and numbers)."
+    },
+    {
+     "technique": "cross-scheme-weight-robustness",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/matching.py:1499 fairness_matrix ranks by the mean across schemes (the centroid weighting) and calls that the robust order. It never checks that the schemes differ, counts per-scheme leader agreement, or reports how far the weights moved. Keeping the diagonal ('own') is correct."
+    },
+    {
+     "technique": "refuse-a-cross-currency-comparison",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/group_compare.py:126 The prompt asks for budget-fit comparisons, but the payload has no 'withheld' state. A cross-currency figure is nulled upstream, and the prompt explains null only for scores, so 'withheld' looks the same as 'stated no expectation'."
+    }
+   ]
+  },
+  {
+   "context": "devcase-evaluation",
+   "subject": "comparative-shortlist-evaluation",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/devcase-compare.ts:130 Per-axis leadership is a bare strict-greater scan. It crowns whichever column comes first on an equal score, crowns a column that is the only one scored on an axis, and has no band, so the compare matrix highlights a 'leader' the evidence does not support.",
+   "techniques": [
+    {
+     "technique": "confidence-band-lead-separation",
+     "verdict": "deviation",
+     "evidence": "app/_lib/devcase-compare.ts:130 No band and no separation state. A tie at the top goes to the earlier column (transferScore order) instead of being reported as a tie."
+    },
+    {
+     "technique": "minimum-cohort-before-a-comparative-claim",
+     "verdict": "deviation",
+     "evidence": "app/_lib/devcase-compare.test.ts:53 The test pins a one-submission comparison that crowns an axis leader. The module has no per-axis floor of two scored columns, unlike group_compare's leader()."
+    },
+    {
+     "technique": "refuse-a-cross-currency-comparison",
+     "verdict": "conformant",
+     "evidence": "app/_lib/devcase-compare.ts:128 In a mixed cohort, template-scored columns are labelled with their currency, listed after the graded ones, and never lead an axis."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "comparative-shortlist-evaluation",
+   "context": "match-score-shared-types",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "comparative-shortlist-evaluation",
+   "context": "tests-matching-taxonomy",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "comparative-shortlist-evaluation",
+   "context": "candidate-profile",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-25T00:03:09.309111+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "comparative-shortlist-evaluation"
+   ],
+   "techniques": [
+    "confidence-band-lead-separation",
+    "counterbalanced-candidate-order",
+    "cross-scheme-weight-robustness",
+    "minimum-cohort-before-a-comparative-claim",
+    "refuse-a-cross-currency-comparison"
+   ],
+   "deviations": 1,
+   "context": "candidate-matching",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-25T00:03:09.309111+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "comparative-shortlist-evaluation"
+   ],
+   "techniques": [
+    "confidence-band-lead-separation",
+    "minimum-cohort-before-a-comparative-claim",
+    "refuse-a-cross-currency-comparison"
+   ],
+   "deviations": 1,
+   "context": "devcase-evaluation",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -1,0 +1,103 @@
+{
+ "schema": "conform-run/1",
+ "worker": "cb59cc12-c77b-4756-b1f9-ae2e7ea2cdda",
+ "subject": "browser-credential-boundary",
+ "evaluatedAt": "2026-10-24T22:36:12.420677+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "jobs-table-core",
+   "subject": "browser-credential-boundary",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/library/jobs/useJobsList.ts:161 The client calls only same-origin /api routes on its session cookie and holds no dependency credential. A grep of app/features/library/jobs for NEXT_PUBLIC, process.env, apiKey/api_key and Authorization found nothing, so there is no credential-boundary decision in this context.",
+   "techniques": [
+    {
+     "technique": "public-vs-server-env-split",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/useJobsList.ts:161 No env value is read in the jobs directory; the browser reaches data only through same-origin routes."
+    }
+   ],
+   "absenceTerms": [
+    "NEXT_PUBLIC",
+    "process.env",
+    "apiKey",
+    "Authorization"
+   ]
+  },
+  {
+   "context": "jd-public-detail-page",
+   "subject": "browser-credential-boundary",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/jds/[slug]/JdActions.tsx:91 The public JD page is server-rendered from a server-side SQLite read, and its client islands call only same-origin /api/jds. A grep of app/jds for NEXT_PUBLIC, process.env, apiKey and Authorization found nothing, so no browser-held credential or brokered upstream exists here.",
+   "techniques": [
+    {
+     "technique": "broker-proxy-attaches-secret",
+     "verdict": "not-applicable",
+     "evidence": "app/jds/[slug]/JdActions.tsx:91 Same-origin call to the app's own route; no privileged upstream is reached from this page."
+    },
+    {
+     "technique": "omit-the-column-not-the-value",
+     "verdict": "not-applicable",
+     "evidence": "app/jds/[slug]/page.tsx:323 Regime two: no public role reads a table. The server projects explicit props to the client, and analysis_json is reduced to a boolean."
+    }
+   ],
+   "absenceTerms": [
+    "NEXT_PUBLIC",
+    "process.env",
+    "apiKey",
+    "Authorization"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "browser-credential-boundary",
+   "context": "shared-api-utilities",
+   "reason": "evidence leans on ats-egress-guard.ts/pinned-request.ts, which is not a tracked file"
+  },
+  {
+   "subject": "browser-credential-boundary",
+   "context": "candidate-status-api",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "browser-credential-boundary",
+   "context": "platform-admin-ops",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-24T22:36:12.420677+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "browser-credential-boundary"
+   ],
+   "techniques": [
+    "public-vs-server-env-split"
+   ],
+   "deviations": 0,
+   "context": "jobs-table-core",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T22:36:12.420677+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "browser-credential-boundary"
+   ],
+   "techniques": [
+    "broker-proxy-attaches-secret",
+    "omit-the-column-not-the-value"
+   ],
+   "deviations": 0,
+   "context": "jd-public-detail-page",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -12,9 +12,9 @@ import { withCanonicalScores } from "./match-score-resolve";
 import { commsVerdict, deriveCommsView, type CommsVerdict, type CommsViewRow } from "./comms-view";
 import { consentStatus, consentWithholdsPii, redactTranscriptForConsent, type ConsentStatus } from "./consent";
 import { getInterviewPrep } from "./interview-prep";
-import { humanScorecardViews, readHumanScorecards, type HumanScorecardView } from "./human-scorecard-set";
+import { projectForViewer, readHumanScorecards, type HumanScorecardView, type ScorecardViewer } from "./human-scorecard-set";
 import { isScoreStale } from "@/app/features/shared/decisionsTypes";
-import { parseRematchDetail } from "@/app/features/shared/pipelineRematchLink";
+import { parseRematchDetail } from "@/app/_lib/pipeline-rematch-link";
 import { normalizeScorecardEntities, type Scorecard, type ScorecardEntities } from "./interview-scorecard";
 import { listDecisionRecords } from "./decision-record-store";
 import type { InterviewTelemetry } from "./interview-telemetry";
@@ -424,14 +424,22 @@ function candidateConsent(
 // interview panel with the AI synthesis withheld and the human interviewer's verbatim
 // summary + ratings, on the same candidate, shown in full right beside it. The gate
 // withholds EVERY record — a panel is no less PII than one card.
-function candidateHumanScorecards(entry: NonNullable<ReturnType<typeof getPipelineEntry>>): HumanScorecardView[] {
+//
+// Independent scoring on top of consent: the records then go through projectForViewer, so a
+// colleague's card stays out of the drawer until the viewer has filed for the round the
+// candidate is in, unless they can manage the team. No viewer (an unresolved caller) is the
+// fail-closed viewer: no colleague's record.
+function candidateHumanScorecards(
+  entry: NonNullable<ReturnType<typeof getPipelineEntry>>,
+  viewer: ScorecardViewer | null,
+): HumanScorecardView[] {
   if (
     consentWithholdsPii({ givenAt: entry.consentGivenAt, expiresAt: entry.consentExpiresAt, anonymizedAt: entry.anonymizedAt })
   ) {
     return [];
   }
   const prep = getInterviewPrep(entry.id, entry.workspaceId);
-  return prep ? humanScorecardViews(readHumanScorecards(prep.payload)) : [];
+  return prep ? projectForViewer(readHumanScorecards(prep.payload), viewer, entry.stage).records : [];
 }
 
 /** The sealed decisions about ONE candidate, projected for the drawer.
@@ -465,7 +473,11 @@ function candidateDecisions(entryId: string, workspaceId: string): CandidateDeci
  *  comms, interview outcome, human scorecard and the sealed decisions — assembled in
  *  ONE call so the drawer opens with a single request. Returns null when the entry is
  *  unknown / not in the caller's workspace (the route answers 404). */
-export function candidateDrawerBundle(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): CandidateDrawerBundle | null {
+export function candidateDrawerBundle(
+  entryId: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  viewer: ScorecardViewer | null = null,
+): CandidateDrawerBundle | null {
   const entry = getPipelineEntry(entryId, workspaceId);
   if (!entry) return null;
   const events = listPipelineEventsForEntry(entry.id, EVENTS_LIMIT, workspaceId);
@@ -475,7 +487,7 @@ export function candidateDrawerBundle(entryId: string, workspaceId: string = DEF
     decisions: candidateDecisions(entry.id, entry.workspaceId),
     comms: candidateComms(entry.id, workspaceId),
     interview: candidateInterviewOutcome(entry),
-    humanScorecards: candidateHumanScorecards(entry),
+    humanScorecards: candidateHumanScorecards(entry, viewer),
     consent: candidateConsent(entry, workspaceId),
     rematchLinks: resolveRematchLinks(events, workspaceId),
     staleSince: deriveStaleSince(entry, workspaceId),

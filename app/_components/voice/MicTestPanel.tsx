@@ -81,13 +81,13 @@ export function MicTestPanel({
             <CheckCircle2 size={16} aria-hidden /> {t("micTestHeard")}
           </span>
         ) : null}
-        {micTest === "silent" ? <span className="text-base text-coral">{t("micTestSilent")}</span> : null}
+        {micTest === "silent" ? <span className="text-base text-coral-ink">{t("micTestSilent")}</span> : null}
         {/* Three failure verdicts, three different fixes. The hook used to answer
             "denied" to all of them, so a candidate with an unplugged headset was
             told to grant a permission they had already granted. */}
-        {micTest === "denied" ? <span className="text-base text-coral">{t("errMicDenied")}</span> : null}
-        {micTest === "not-found" ? <span className="text-base text-coral">{t("errMicNotFound")}</span> : null}
-        {micTest === "busy" ? <span className="text-base text-coral">{t("errMicBusy")}</span> : null}
+        {micTest === "denied" ? <span className="text-base text-coral-ink">{t("errMicDenied")}</span> : null}
+        {micTest === "not-found" ? <span className="text-base text-coral-ink">{t("errMicNotFound")}</span> : null}
+        {micTest === "busy" ? <span className="text-base text-coral-ink">{t("errMicBusy")}</span> : null}
       </div>
     </div>
 
@@ -132,7 +132,7 @@ export function MicTestPanel({
             </span>
           ) : null}
           {/* Advisory, never blocking: it names what to check and leaves Start alone. */}
-          {speakerTest === "unheard" ? <span className="text-base text-coral">{t("speakerCheck.unheard")}</span> : null}
+          {speakerTest === "unheard" ? <span className="text-base text-coral-ink">{t("speakerCheck.unheard")}</span> : null}
           {speakerTest === "unsupported" ? (
             <span className="text-base text-steel">{t("speakerCheck.unsupported")}</span>
           ) : null}

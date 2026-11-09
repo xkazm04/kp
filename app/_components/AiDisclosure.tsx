@@ -156,7 +156,7 @@ export function AiDisclosure({
         {t("regimeNote", { framework: regime.antiDiscrimination, dataLaw: regime.dataLaw })}
       </p>
       {!serverResolved && loadFailed ? (
-        <p role="alert" className="mt-2 text-meta text-coral">
+        <p role="alert" className="mt-2 text-meta text-coral-ink">
           {t("loadFailed")}{" "}
           <button type="button" onClick={() => setAttempt((value) => value + 1)} className="focus-ring underline underline-offset-2">
             {t("retry")}

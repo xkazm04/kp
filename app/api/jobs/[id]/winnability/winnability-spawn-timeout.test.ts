@@ -12,12 +12,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readApiResponseSource } from "../../../../_lib/api-errors/read-source.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(path.join(HERE, "route.ts"), "utf8");
 const LIB = path.join(HERE, "..", "..", "..", "..", "_lib");
 const runnerSrc = readFileSync(path.join(LIB, "python-runner.ts"), "utf8");
-const responsesSrc = readFileSync(path.join(LIB, "api-response.ts"), "utf8");
+const responsesSrc = readApiResponseSource(path.join(LIB, "api-response.ts"));
 
 test("the winnability_cli spawn is bounded by an explicit 60s-class timeout, not the 600s backstop", () => {
   const declared = src.match(/const WINNABILITY_TIMEOUT_MS = ([\d_]+)/);

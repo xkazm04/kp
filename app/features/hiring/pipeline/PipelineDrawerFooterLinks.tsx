@@ -23,7 +23,7 @@ export function PipelineDrawerFooterLinks({ candidateId }: { candidateId: string
         <button
           type="button"
           onClick={() => router.push(buildUrl({ tab: "matrix", profile: candidateId }, search.toString()))}
-          className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-steel hover:text-coral"
+          className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-steel hover:text-coral-ink"
         >
           <ExternalLink size={13} /> {t("openFullMatch")}
         </button>
@@ -32,7 +32,7 @@ export function PipelineDrawerFooterLinks({ candidateId }: { candidateId: string
         <button
           type="button"
           onClick={() => router.push(buildUrl({ tab: "archetypes", edit: candidateId }, search.toString()))}
-          className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-steel hover:text-coral"
+          className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-steel hover:text-coral-ink"
         >
           <Pencil size={13} /> {t("editProfile")}
         </button>

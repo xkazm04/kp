@@ -1,0 +1,37 @@
+{
+  "schema": "conform-run/1",
+  "worker": "737d29fb-fa58-450a-8cb1-5468bbe10f70",
+  "subject": "assessment-instrument-validation",
+  "evaluatedAt": "2026-10-19T12:42:48.251470+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "assessment-instrument-validation",
+      "context": "devcase-evaluation",
+      "reason": "withdrawn after review: reviewer (sonnet): The cited code is real and says what the evidence claims (llm_judge.py:87 compares provider/model labels, test line 110 accepts the same model on two providers, submission_eval.py:492 reports a mean of 1–5 scores). But all four files are Python pipeline code under pipeline/jobfit/. The context-map e"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-19T12:42:48.251470+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "assessment-instrument-validation"
+      ],
+      "techniques": [
+        "adversarial-persona-red-teaming",
+        "binary-metrics-over-a-noisy-scale",
+        "discrimination-margin-gate",
+        "judge-independent-of-generator",
+        "minimum-cohort-and-inconclusive-verdicts",
+        "synthetic-candidate-behaviour-landscape"
+      ],
+      "deviations": 1,
+      "context": "devcase-evaluation",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}

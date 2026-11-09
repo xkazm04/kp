@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { getGig } from "@/app/_lib/db/gigs";
@@ -26,7 +26,7 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 // Throttled per IP BEFORE any read: every accepted call makes third-party page reads under
 // the politeness budget the install shares, and may spend a model call.
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> {
+export const POST = withWorkspace(async (ws: string, request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -36,7 +36,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   try {
     const { id } = await params;
-    const ws = await currentWorkspace();
     const gig = getGig(ws, id);
     if (!gig) return jsonRefusal("GIG_NOT_FOUND", 404);
     // Not bound to request.signal: a client that walks away mid-read would otherwise leave
@@ -47,4 +46,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } catch (error) {
     return safeJsonError(error, "api:gigs/[id]/research", "GIG_STORE_FAILED");
   }
-}
+});

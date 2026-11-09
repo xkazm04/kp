@@ -135,6 +135,42 @@ test("a second throttle is NOT retried — the honest 'unavailable' beats a stor
   assert.equal(busy, null);
 });
 
+const freeBusyBody = (primary: unknown): string => JSON.stringify({ calendars: { primary } });
+
+test("a free/busy answer with no busy field, or a non-array one, is UNKNOWN — never free", async () => {
+  for (const primary of [{}, { busy: null }, { busy: "none" }, { busy: { start: "a", end: "b" } }]) {
+    connectCalendar();
+    scriptGoogle({ status: 200, body: freeBusyBody(primary) });
+    assert.equal(await fetchBusy(WINDOW, DEFAULT_WORKSPACE_ID), null, JSON.stringify(primary));
+    deleteCalendarConnection(DEFAULT_WORKSPACE_ID);
+  }
+});
+
+test("one busy entry without string start/end makes the whole answer unknown, not a shorter list", async () => {
+  const ok = { start: WINDOW.timeMin, end: WINDOW.timeMax };
+  for (const bad of [{ start: "2026-03-02T09:00:00Z" }, { end: "2026-03-02T09:00:00Z" }, { start: 1, end: 2 }, null, "x"]) {
+    connectCalendar();
+    scriptGoogle({ status: 200, body: freeBusyBody({ busy: [ok, bad] }) });
+    assert.equal(await fetchBusy(WINDOW, DEFAULT_WORKSPACE_ID), null, JSON.stringify(bad));
+    deleteCalendarConnection(DEFAULT_WORKSPACE_ID);
+  }
+});
+
+test("a well-formed empty busy array is free, and a well-formed list passes through", async () => {
+  connectCalendar();
+  scriptGoogle({ status: 200, body: freeBusyBody({ busy: [] }) });
+  assert.deepEqual(await fetchBusy(WINDOW, DEFAULT_WORKSPACE_ID), []);
+  deleteCalendarConnection(DEFAULT_WORKSPACE_ID);
+
+  connectCalendar();
+  const list = [
+    { start: "2026-03-02T09:00:00Z", end: "2026-03-02T10:00:00Z" },
+    { start: "2026-03-02T13:00:00Z", end: "2026-03-02T14:00:00Z" },
+  ];
+  scriptGoogle({ status: 200, body: freeBusyBody({ busy: list }) });
+  assert.deepEqual(await fetchBusy(WINDOW, DEFAULT_WORKSPACE_ID), list);
+});
+
 test("a non-transient status is answered, never repeated", async () => {
   connectCalendar();
   scriptGoogle({ status: 400, body: "bad request" });

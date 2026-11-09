@@ -39,7 +39,7 @@ export function DevSection({
   return (
     <section>
       <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
-        {icon} {title} <span className="text-coral">· {count}</span>
+        {icon} {title} <span className="text-coral-ink">· {count}</span>
         <LoadStatus state={state} label={label} variant="pill" />
       </h3>
       {children}
@@ -167,7 +167,7 @@ export function FollowupQuestionItem({
           <span className="block text-micro text-steel">{t("listenFor", { note: q.listenFor })}</span>
         ) : null}
         {q.redFlag ? (
-          <span className="block text-micro text-coral/80">{t("redFlag", { note: q.redFlag })}</span>
+          <span className="block text-micro text-coral-ink">{t("redFlag", { note: q.redFlag })}</span>
         ) : null}
       </>
     );
@@ -178,7 +178,7 @@ export function FollowupQuestionItem({
         {index + 1}. {q.question}
       </p>
       {q.listenFor ? <p className="mt-0.5 text-steel">{t("listenFor", { note: q.listenFor })}</p> : null}
-      {q.redFlag ? <p className="mt-0.5 text-coral/80">{t("redFlag", { note: q.redFlag })}</p> : null}
+      {q.redFlag ? <p className="mt-0.5 text-coral-ink">{t("redFlag", { note: q.redFlag })}</p> : null}
     </>
   );
 }

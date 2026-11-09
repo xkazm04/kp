@@ -2,9 +2,16 @@ import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { randomId, randomToken } from "./random-id";
-import { isReminderDue, reminderRetryDelayMs, REMINDER_LEAD_MS, REMINDER_MAX_ATTEMPTS } from "./interview-reminder-policy";
+import { isReminderDue, isScheduleNudgeDue, reminderRetryDelayMs, REMINDER_LEAD_MS, REMINDER_MAX_ATTEMPTS } from "./interview-reminder-policy";
 import { isEntryReminderEligible } from "./pipeline-status";
-import { BOOKING_COLLISION_REACH_MS, bookingCollides, isScheduleInviteExpired, type BookedInterval } from "./schedule-slots";
+import {
+  BOOKING_COLLISION_REACH_MS,
+  INVITE_LINK_TTL_MS,
+  bookingCollides,
+  isScheduleInviteExpired,
+  scheduleInviteExpiryAnchor,
+  type BookedInterval,
+} from "./schedule-slots";
 import { DEFAULT_INTERVIEW_MINUTES } from "./calendar/constants";
 import { addColumns } from "./db/add-columns";
 
@@ -129,6 +136,11 @@ function db(): Database.Database {
     "calendar_event_link TEXT",
     "calendar_event_state TEXT",
     "calendar_event_at TEXT",
+    // Book-your-interview nudge for still-pending links (own columns: a nudge must not
+    // mark the later confirmed-interview reminder as already sent).
+    "nudge_sent_at TEXT",
+    "nudge_attempts INTEGER NOT NULL DEFAULT 0",
+    "nudge_last_attempt_at TEXT",
   ]);
   // Tenant backfill (P1): existing invites → the default workspace. A subquery join to
   // pipeline_entries would be more "correct" in spirit, but this store owns its OWN
@@ -966,3 +978,66 @@ export function markReminderSent(id: string): void {
 // proposal can never drift apart. This store keeps only the persistence side
 // (confirmScheduleInvite/rescheduleScheduleInvite, via schedule-slots' bookingCollides,
 // are the collision authority).
+
+// --- Book-your-interview nudge (pending links) -----------------------------------
+
+/** A pending invite owed its nudge, plus the retry counter the claim CAS needs. */
+export type DueScheduleNudge = { invite: ScheduleInvite; attempts: number };
+
+/** Pending invites old enough to nudge and not yet expired, whose linked entry is
+ *  still on the interview track and not anonymized. Same eligibility rule as
+ *  dueReminders (isEntryReminderEligible), same backoff after a failed attempt. */
+export function dueScheduleNudges(): DueScheduleNudge[] {
+  const now = Date.now();
+  const rows = db()
+    .prepare(
+      `SELECT s.*, p.id AS entry_row_id, p.status AS entry_status, p.stage AS entry_stage, p.locale AS entry_locale
+         FROM schedule_invites s
+         LEFT JOIN pipeline_entries p ON p.id = s.entry_id
+        WHERE s.status = 'pending' AND s.nudge_sent_at IS NULL
+          AND s.nudge_attempts < ?
+          AND (p.id IS NULL OR p.anonymized_at IS NULL)`
+    )
+    .all(REMINDER_MAX_ATTEMPTS) as Record<string, unknown>[];
+  const out: DueScheduleNudge[] = [];
+  for (const r of rows) {
+    if (!isEntryReminderEligible(r.entry_row_id == null ? null : { status: String(r.entry_status), stage: String(r.entry_stage) })) continue;
+    const invite = rowTo(r);
+    if (isScheduleInviteExpired(invite, now)) continue;
+    if (!isScheduleNudgeDue({ nowMs: now, anchorMs: scheduleInviteExpiryAnchor(invite), ttlMs: INVITE_LINK_TTL_MS })) continue;
+    const attempts = Number(r.nudge_attempts ?? 0);
+    const lastMs = r.nudge_last_attempt_at ? Date.parse(String(r.nudge_last_attempt_at)) : NaN;
+    if (!Number.isNaN(lastMs) && now < lastMs + reminderRetryDelayMs(attempts)) continue;
+    out.push({ invite, attempts });
+  }
+  return out;
+}
+
+/** Atomically claim the next nudge attempt (optimistic CAS on the attempt counter,
+ *  the cap and the backoff cutoff), exactly like claimReminderAttempt. Also re-asserts
+ *  status = 'pending', so a candidate who books between the read and the claim is
+ *  not nudged. */
+export function claimNudgeAttempt(
+  id: string,
+  expectedAttempts: number,
+  cutoffIso: string,
+  maxAttempts: number = REMINDER_MAX_ATTEMPTS
+): boolean {
+  const res = db()
+    .prepare(
+      `UPDATE schedule_invites
+          SET nudge_attempts = nudge_attempts + 1, nudge_last_attempt_at = ?
+        WHERE id = ? AND status = 'pending'
+          AND nudge_sent_at IS NULL
+          AND nudge_attempts = ?
+          AND nudge_attempts < ?
+          AND (nudge_last_attempt_at IS NULL OR nudge_last_attempt_at <= ?)`
+    )
+    .run(new Date().toISOString(), id, expectedAttempts, maxAttempts, cutoffIso);
+  return res.changes > 0;
+}
+
+/** Terminal success for a nudge: the link is never nudged again. */
+export function markNudgeSent(id: string): void {
+  db().prepare(`UPDATE schedule_invites SET nudge_sent_at = ? WHERE id = ?`).run(new Date().toISOString(), id);
+}

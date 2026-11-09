@@ -9,7 +9,9 @@
 
 import type { Database } from "better-sqlite3";
 import { openStore } from "./db-path";
+import { createHash } from "node:crypto";
 import { DEFAULT_BRAND, sanitizeBrand, type BrandConfig } from "./brand-config";
+import { LOGO_PATH, type LogoMime } from "./brand-logo";
 
 const ROW_ID = "workspace";
 
@@ -26,6 +28,13 @@ function db(): Database {
        updated_at   TEXT NOT NULL
      )`
   );
+  // The UPLOADED logo lives on the same row as the brand it belongs to (ADDITIVE
+  // columns; docs/features/organization/README.md "Logo upload"), so it is scoped
+  // exactly like brand_settings, with no new table for the tenancy manifest to learn.
+  const have = new Set((d.prepare("PRAGMA table_info(brand_settings)").all() as { name: string }[]).map((c) => c.name));
+  for (const [col, type] of [["logo_data", "BLOB"], ["logo_mime", "TEXT"], ["logo_hash", "TEXT"]] as const) {
+    if (!have.has(col)) d.exec(`ALTER TABLE brand_settings ADD COLUMN ${col} ${type}`);
+  }
   _db = d;
   return d;
 }
@@ -72,5 +81,53 @@ export function saveBrand(input: unknown): BrandConfig {
       logoUrl: clean.logoUrl,
       updatedAt: new Date().toISOString(),
     });
+  // A logo URL that is not the uploaded file's own serving URL (another link, or
+  // none) orphans the stored bytes: drop them rather than keep a hidden copy.
+  if (!isUploadedLogoUrl(clean.logoUrl)) {
+    db().prepare("UPDATE brand_settings SET logo_data = NULL, logo_mime = NULL, logo_hash = NULL WHERE id = ?").run(ROW_ID);
+  }
   return clean;
+}
+
+function isUploadedLogoUrl(url: string | null): boolean {
+  return url !== null && (url === LOGO_PATH || url.startsWith(`${LOGO_PATH}?`));
+}
+
+export type StoredLogo = { bytes: Buffer; mime: LogoMime; hash: string };
+
+/** The uploaded logo, or null. Only ever bytes that saveLogo's caller validated. */
+export function getLogo(): StoredLogo | null {
+  const row = db()
+    .prepare("SELECT logo_data, logo_mime, logo_hash FROM brand_settings WHERE id = ?")
+    .get(ROW_ID) as { logo_data: Buffer | null; logo_mime: string | null; logo_hash: string | null } | undefined;
+  if (!row?.logo_data || !row.logo_hash) return null;
+  if (row.logo_mime !== "image/png" && row.logo_mime !== "image/svg+xml") return null;
+  return { bytes: row.logo_data, mime: row.logo_mime, hash: row.logo_hash };
+}
+
+/** Store validated bytes and point the brand's logoUrl at them (content-hash query,
+ *  so a replaced logo busts every cache). Leaves the name and accent untouched. */
+export function saveLogo(bytes: Uint8Array, mime: LogoMime): BrandConfig {
+  const hash = createHash("sha256").update(bytes).digest("hex").slice(0, 16);
+  db()
+    .prepare(
+      `INSERT INTO brand_settings (id, logo_url, logo_data, logo_mime, logo_hash, updated_at)
+       VALUES (@id, @logoUrl, @data, @mime, @hash, @updatedAt)
+       ON CONFLICT(id) DO UPDATE SET
+         logo_url   = excluded.logo_url,
+         logo_data  = excluded.logo_data,
+         logo_mime  = excluded.logo_mime,
+         logo_hash  = excluded.logo_hash,
+         updated_at = excluded.updated_at`
+    )
+    .run({ id: ROW_ID, logoUrl: `${LOGO_PATH}?v=${hash}`, data: Buffer.from(bytes), mime, hash, updatedAt: new Date().toISOString() });
+  return getBrand();
+}
+
+/** Remove the logo: the uploaded bytes and whatever URL the brand pointed at. */
+export function clearLogo(): BrandConfig {
+  db()
+    .prepare("UPDATE brand_settings SET logo_url = NULL, logo_data = NULL, logo_mime = NULL, logo_hash = NULL, updated_at = ? WHERE id = ?")
+    .run(new Date().toISOString(), ROW_ID);
+  return getBrand();
 }

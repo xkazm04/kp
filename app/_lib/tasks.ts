@@ -29,9 +29,9 @@ import { cancelQueuedRepoScan } from "./db/repo-scans";
 import { runCampaign, type CampaignParams } from "./campaign-run";
 import { runProfileDraft, type ProfileDraftParams } from "./profile-draft-run";
 import { runCompanionDigestTask } from "./companion-digest-run";
-import { externalRunner } from "./task-external-runners";
+import { externalRunner, scanWholePhaseFailure } from "./task-external-runners";
+import { SCAN_JOB_NAME } from "./scheduler-jobs";
 import type { ScanSummary } from "./jobseeker/types";
-import { SCAN_JOB_NAME, scanWholePhaseFailure } from "./jobseeker/types";
 import { recordRun } from "./scheduler-store";
 import { randomId } from "./random-id";
 import { buildDedupeKey } from "./task-dedupe";
@@ -169,17 +169,17 @@ function itemCode(err: unknown): FanoutCode {
 
 // Draft tailored OUTREACH for a board-selected cohort — one background job that
 // runs the SAME per-candidate `outreach` automation the drawer's "Draft outreach"
-// action runs (runAutomationTask → the LLM/deterministic letter → dispatchOutreach,
-// which QUEUES the draft to the Outbox by default and only relays it when a channel
-// is configured; nothing is auto-sent in the demo default). Reaching a filtered
+// action runs (runAutomationTask → the LLM/deterministic letter → a HELD
+// outreach_letters draft; nothing is sent until a person approves and releases each
+// letter, comms scope C2 / outreach-release.ts). Reaching a filtered
 // cohort of 8 was 8 drawer trips; this is one action. Per-candidate ISOLATION: one
 // entry's failure (not found, no profile, consent-suppressed, LLM error) never
 // aborts the others, and each id's outcome is reported back so the board can keep
 // the failures selected for retry while successes deselect — the same batch grammar
 // the synchronous move/decide endpoint uses. Drafting N letters is N LLM calls, so
 // it runs here (backgrounded) instead of blocking the recruiter. Outreach is the
-// ONLY drafting action batched from the board: its output lands in the Outbox as a
-// reviewable, releasable row, whereas a rejection draft is a drawer-only result.
+// ONLY drafting action batched from the board: its output is a reviewable,
+// releasable held letter, whereas a rejection draft is a drawer-only result.
 // Guard a runaway cohort (mirrors the sync batch endpoint's BATCH_CAP): the board
 // rarely selects this many, and each id is an LLM call, so the wall-clock watchdog
 // would otherwise reap a huge run mid-flight.
@@ -515,6 +515,20 @@ const HANDLERS: Record<TaskKind, Spec> = {
     tenancy: "scoped",
     label: (p) => encodeTaskLabel("analyzeCohort", { role: detail(p.jdTitle, p.jdSlug) ?? "" }),
   },
+  // The role-fit score of a freshly filed entry (entry-scoring.ts), enqueued by the apply
+  // and inbound-CV doors. The runner puts every handler in the BACKGROUND spawn lane, so
+  // the score never takes a slot ahead of a recruiter's click and the door assigns no lane.
+  // Imported on demand: the ranker's module graph is paid by the run, not by this hub.
+  score_entry: {
+    run: async (ctx) => {
+      const entry = getPipelineEntry(String(ctx.params.entryId), ctx.workspaceId);
+      if (!entry) return { scored: false };
+      const { scoreFiledEntry } = await import("./entry-scoring");
+      return { scored: await scoreFiledEntry(entry) };
+    },
+    tenancy: "scoped",
+    label: (p) => encodeTaskLabel("scoreEntry", { entry: detail(p.entryLabel, p.entryId) ?? "" }),
+  },
 };
 
 let booted = false;
@@ -550,7 +564,7 @@ let lastMaintenanceMs = 0;
 //      result_json blobs can't accumulate forever.
 // Best-effort and self-contained: any failure is logged and the next submission
 // retries. Exported so tests / callers can force a sweep.
-export function runMaintenance(nowMs: number = Date.now()): void {
+function runMaintenance(nowMs: number = Date.now()): void {
   if (nowMs - lastMaintenanceMs < MAINTENANCE_INTERVAL_MS) return;
   lastMaintenanceMs = nowMs;
   try {

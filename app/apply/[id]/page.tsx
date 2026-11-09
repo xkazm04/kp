@@ -7,6 +7,7 @@ import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { buildApplyScript } from "@/app/_lib/apply";
 import { coerceLeadTokenParam, seedLeadPrefillAnswers, trimSeededSteps } from "@/app/_lib/apply-intake";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
+import { EmployerBrand } from "@/app/_components/EmployerBrand";
 import { ConversationalApply } from "./ConversationalApply";
 
 
@@ -46,10 +47,11 @@ export default async function ApplyPage({
         {/* Same locale toggle as the open path: a filled/retired link is still a
             public candidate door, and a Czech reader of an English filled-role
             ad has no other chrome. Drafts 404 above and stay switcher-less. */}
-        <div className="mb-4 flex justify-end">
+        <div className="mb-4 flex items-center justify-end gap-3">
+          <EmployerBrand className="mr-auto" />
           <LanguageSwitcher />
         </div>
-        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+        <p className="text-meta uppercase text-coral-ink">{t("eyebrow")}</p>
         <h1 className="mt-1 font-serif text-display text-ink">{job.title}</h1>
         <p className="mt-4 rounded-lg border border-stone-200 bg-paper/60 p-4 text-body text-steel">{t("roleClosed")}</p>
       </main>
@@ -103,10 +105,11 @@ export default async function ApplyPage({
       {/* APP4 — the candidate is the one user who couldn't reach the recruiter
           switcher; give the public apply page its own locale toggle (the cookie
           action re-renders the prompts in the chosen language). */}
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex items-center justify-end gap-3">
+        <EmployerBrand className="mr-auto" />
         <LanguageSwitcher />
       </div>
-      <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+      <p className="text-meta uppercase text-coral-ink">{t("eyebrow")}</p>
       <h1 className="mt-1 font-serif text-display text-ink">{job.title}</h1>
       {job.company ? <p className="mt-1 text-body text-steel">{job.company}</p> : null}
       <p className="mt-2 text-body text-steel">{t("subtitle")}</p>

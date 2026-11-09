@@ -100,7 +100,7 @@ export function InlineNumberSave({
       aria-invalid={failed ? true : undefined}
       placeholder="—"
       className={`focus-ring h-8 bg-white caret-coral placeholder:text-steel ${width} rounded-md border px-2 text-right disabled:opacity-50 ${inputClassName ?? ""} ${
-        failed ? "border-coral text-coral" : "border-stone-200 text-ink"
+        failed ? "border-coral text-coral-ink" : "border-stone-200 text-ink"
       }`}
     />
   );
@@ -113,7 +113,7 @@ export function InlineNumberSave({
           and identical for a refusal and an outage. role="alert" because the value the
           reader believes they just stored is not stored. */}
       {failure ? (
-        <span role="alert" className="max-w-[16rem] text-right text-meta text-coral">
+        <span role="alert" className="max-w-[16rem] text-right text-meta text-coral-ink">
           {failure}
         </span>
       ) : null}

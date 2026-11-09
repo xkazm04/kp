@@ -1,0 +1,151 @@
+{
+ "schema": "conform-run/1",
+ "worker": "81e6b0f2-3b75-4084-856e-4926724d5cd1",
+ "subject": "public-claim-provenance",
+ "evaluatedAt": "2026-10-19T11:00:58.941379+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "jd-public-detail-page",
+   "subject": "public-claim-provenance",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/jds/[slug]/page.tsx:327 Context and repository searches found roadmap references elsewhere but no roadmap, liveCount or noDataSource matches in this context, whose renderer publishes a stored job description rather than product-progress claims.",
+   "techniques": [
+    {
+     "technique": "build-time-derivation-off-the-client-bundle",
+     "verdict": "not-applicable",
+     "evidence": "app/jds/[slug]/page.tsx:327 Passes the description being displayed; no heavy catalog is downloaded to derive a public count."
+    },
+    {
+     "technique": "degraded-never-claims-live",
+     "verdict": "not-applicable",
+     "evidence": "app/jds/[slug]/loading.tsx:8 Loading reserves page space; this context has no request-time public counter or currency badge."
+    },
+    {
+     "technique": "derived-numerator-authored-denominator",
+     "verdict": "not-applicable",
+     "evidence": "app/jds/[slug]/page.tsx:255 Displays a stored record timestamp, not a shipped-count fraction or authored goal."
+    },
+    {
+     "technique": "no-data-source-labelled-inline",
+     "verdict": "not-applicable",
+     "evidence": "app/jds/[slug]/JdBody.tsx:56 Renders editorial posting content; the inspected component declares no hand-authored measurement claim."
+    },
+    {
+     "technique": "presentation-invariants-on-derived-values",
+     "verdict": "not-applicable",
+     "evidence": "app/jds/[slug]/JdBody.tsx:23 The presentation condition tests description presence, with no derived count paired with an authored target."
+    },
+    {
+     "technique": "promise-only-what-ships",
+     "verdict": "not-applicable",
+     "evidence": "app/jds/[slug]/page.tsx:264 The public action links to application intake; the inspected page and localized copy contain no follow-up-delivery promise."
+    },
+    {
+     "technique": "provenance-as-a-build-gate",
+     "verdict": "not-applicable",
+     "evidence": "app/jds/[slug]/JdActions.tsx:85 This lint evaluates an operator's posting draft, not formatted product claims requiring the technique's provenance gate."
+    }
+   ],
+   "absenceTerms": [
+    "roadmap",
+    "liveCount",
+    "noDataSource"
+   ]
+  },
+  {
+   "context": "match-presentation-components",
+   "subject": "public-claim-provenance",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/shared/MatchPresentation.tsx:33 Context and repository searches found roadmap references elsewhere but no roadmap, liveCount or noDataSource matches in this context, whose numbers present match measurements rather than claims about shipped product capabilities.",
+   "techniques": [
+    {
+     "technique": "build-time-derivation-off-the-client-bundle",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/MatchPresentation.tsx:44 Consumes supplied match-score dimensions rather than loading a heavy product catalog for a headline count."
+    },
+    {
+     "technique": "degraded-never-claims-live",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/MatchReasoningPanel.tsx:90 The badge identifies reasoning origin; its localized labels make no liveness claim about a public counter."
+    },
+    {
+     "technique": "derived-numerator-authored-denominator",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/MatchPresentation.tsx:64 Encodes measured score contributions, not shipped facts against an authored product commitment."
+    },
+    {
+     "technique": "no-data-source-labelled-inline",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/MatchPresentation.tsx:79 The displayed percentage comes from the supplied score dimension rather than a typed public figure."
+    },
+    {
+     "technique": "presentation-invariants-on-derived-values",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/MatchPresentation.tsx:22 Normalizes a score against a fixed scale; there is no independently moving count and authored target."
+    },
+    {
+     "technique": "promise-only-what-ships",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/MatchReasoningPanel.tsx:101 Presents suggested interview probes, not a commitment to deliver a future message or capability."
+    },
+    {
+     "technique": "provenance-as-a-build-gate",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/MatchPresentation.tsx:97 Counts matching outcomes supplied by the scoring run; the standard distinguishes such measurements from product marketing claims."
+    }
+   ],
+   "absenceTerms": [
+    "roadmap",
+    "liveCount",
+    "noDataSource"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-19T11:00:58.941379+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "public-claim-provenance"
+   ],
+   "techniques": [
+    "build-time-derivation-off-the-client-bundle",
+    "degraded-never-claims-live",
+    "derived-numerator-authored-denominator",
+    "no-data-source-labelled-inline",
+    "presentation-invariants-on-derived-values",
+    "promise-only-what-ships",
+    "provenance-as-a-build-gate"
+   ],
+   "deviations": 0,
+   "context": "jd-public-detail-page",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-19T11:00:58.941379+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "public-claim-provenance"
+   ],
+   "techniques": [
+    "build-time-derivation-off-the-client-bundle",
+    "degraded-never-claims-live",
+    "derived-numerator-authored-denominator",
+    "no-data-source-labelled-inline",
+    "presentation-invariants-on-derived-values",
+    "promise-only-what-ships",
+    "provenance-as-a-build-gate"
+   ],
+   "deviations": 0,
+   "context": "match-presentation-components",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

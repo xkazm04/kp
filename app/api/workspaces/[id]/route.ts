@@ -2,13 +2,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { renameWorkspace } from "@/app/_lib/db/workspaces";
 import { requireWorkspaceCapability } from "@/app/_lib/auth/current-user";
 import { jsonError } from "@/app/_lib/api-response";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // Rename a team (P2). `team:manage` ON THE TARGET workspace — which an org-wide
 // admin holds over every team in their org, and nobody holds over another org's
 // (requireWorkspaceCapability answers 404 there, so a cross-org probe learns
 // nothing). Renaming is the only workspace field the console edits; deletion is
 // deliberately absent (a team's data outlives the label).
-export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const PATCH = withSession(async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = await context.params;
     const denied = await requireWorkspaceCapability(id, "team:manage");
@@ -22,4 +23,4 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   } catch (error) {
     return jsonError(error, "Failed to rename the workspace.");
   }
-}
+});

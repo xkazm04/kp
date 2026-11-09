@@ -47,12 +47,12 @@ export function DecisionsFeedbackLetters() {
     <Defer strategy="idle">
       <details open={open} onToggle={(ev) => setOpenChoice(ev.currentTarget.open)} className="rounded-lg border border-stone-200 bg-paper/40">
         <summary className="focus-ring flex cursor-pointer items-center gap-1.5 px-4 py-2.5 text-meta uppercase tracking-wide text-steel">
-          <MessageSquareText size={13} className="text-coral" aria-hidden /> {t("title", { count: countLabel })}
+          <MessageSquareText size={13} className="text-coral-ink" aria-hidden /> {t("title", { count: countLabel })}
         </summary>
         <div className="space-y-2 px-4 pb-3">
           <p className="text-sm text-steel">{t("help")}</p>
           {failure ? (
-            <p role="alert" className="text-meta font-semibold text-coral">
+            <p role="alert" className="text-meta font-semibold text-coral-ink">
               {errMsg(failure, t("loadFailed"))}
             </p>
           ) : null}

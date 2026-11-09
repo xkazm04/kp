@@ -16,7 +16,7 @@
   font-family: var(--font-serif); font-size: calc(var(--text-display) * 2); line-height: .92; font-weight: 600;
   letter-spacing: -.03em; font-variant-numeric: tabular-nums; color: var(--k-ink);
 }
-.ov-num.is-needs { color: var(--color-coral); }
+.ov-num.is-needs { color: var(--color-coral-ink); }
 [data-theme="dark"] .ov-num { font-weight: 800; text-shadow: var(--sticker-sm-shadow); }
 .ov-say { max-width: 54ch; padding-bottom: 6px; }
 .ov-say h2 { margin: 0; font-family: var(--font-serif); font-size: var(--text-h2); line-height: 1.15; font-weight: 600; }

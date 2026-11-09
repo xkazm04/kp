@@ -1,6 +1,6 @@
 // BEHAVIOURAL COVER FOR automation-run.ts — the module that holds every side effect
-// in the automation context (the screen CAS, the unattended auto-ratify, the
-// unattended offer extension, the outreach single-flight) and, until this file, had
+// in the automation context (the screen CAS, the screening/offer parking, the
+// outreach single-flight) and, until this file, had
 // no test of its own: four suites read its SOURCE, none of them ran it.
 //
 // HOW IT RUNS WITHOUT PYTHON. The established idiom (reasoning-cache-first.test.ts):
@@ -24,7 +24,8 @@ const { saveProfile, getProfileRecord } = await import("./db/profiles.ts");
 const { actOnPipelineEntry, createPipelineEntry, getPipelineEntry, recordAutomationEvent, listPipelineEventsForEntry } =
   await import("./db/pipeline.ts");
 const { createWorkspace, setWorkspaceDefaultLocale, DEFAULT_WORKSPACE_ID } = await import("./db/workspaces.ts");
-const { setDecisionConfig } = await import("./decision-config-store.ts");
+const { setDecisionConfig, getDecisionConfig } = await import("./decision-config-store.ts");
+const { getPlanGateForRole } = await import("./interview-plan.ts");
 const { createInterviewSession, attachInterviewScorecard, completeInterviewSession } = await import("./db/interviews.ts");
 // A scorecard attaches only to a COMPLETED session that holds a transcript (the attach
 // is a conditional write after the scoring await), so fixtures reach that state first.
@@ -38,7 +39,7 @@ const { meterAllows } = await import("./billing/enforce.ts");
 const { resolveCommsLocale } = await import("./comms-locale.ts");
 const { LETTER_LANG_TASKS } = await import("./automation-cache-key.ts");
 const { computeAutomationCacheKey } = await import("./automation-cache-key.ts");
-const { AUTOMATION_VERSION, runAutomationTask, verdictSourceOf, automationReasonDetail, AUTOMATION_REASON_PREFIX, offerAutoExtendRefusal } =
+const { AUTOMATION_VERSION, runAutomationTask, verdictSourceOf, automationReasonDetail, AUTOMATION_REASON_PREFIX } =
   await import("./automation-run.ts");
 
 after(() => cleanupUnitDb());
@@ -162,17 +163,29 @@ test("the automation event carries the engine as its ACTOR", async () => {
 
 // ---- 2. the auto-ratify gate -------------------------------------------------
 
-test("screening gate 'auto' ratifies an ADVANCE verdict and seals a coded rationale", async () => {
+// Q3 (operator ruling 2026-11-09): `auto` is removed for the screening and offer gates.
+// A stored row that still says auto must LOAD and must behave as human.
+test("a stored screening gate 'auto' still loads and reads as human", () => {
+  const f = fixture(DEFAULT_WORKSPACE_ID, null, screeningStage(DEFAULT_WORKSPACE_ID));
+  setGate(f.ws, "screening", "auto");
+  const stageId = screeningStage(f.ws);
+  const stored = getDecisionConfig<{ steps: { stageId: string; gate: string }[] }>("interviewPlan", f.ws);
+  assert.equal(stored.steps.find((x) => x.stageId === stageId)?.gate, "auto", "the row is stored untouched");
+  assert.equal(getPlanGateForRole("screening", f.ws), "human", "no reader treats it as auto");
+  setGate(f.ws, "screening", "human");
+});
+
+test("screening gate 'auto' parks a held ADVANCE recommendation at screening_review", async () => {
   const f = fixture(DEFAULT_WORKSPACE_ID, null, screeningStage(DEFAULT_WORKSPACE_ID));
   setGate(f.ws, "screening", "auto");
   seedVerdict(f, "screen", { route: "hold", recommendation: "advance" }, "llm", "en");
 
   const out = await runAutomationTask(f.entry.id, "screen", "", undefined, "en");
-  assert.equal(out.applied, "auto_ratified");
-  // Ratified through the SAME accept machinery a recruiter's click uses, so the
-  // screening_review is cleared and the calendar gate arms behind it.
-  assert.equal(getPipelineEntry(f.entry.id, f.ws)?.approvalKind, "calendar");
-  setGate(f.ws, "screening", "human"); // leave the shared workspace as found
+  assert.notEqual(out.applied, "auto_ratified");
+  assert.equal(getPipelineEntry(f.entry.id, f.ws)?.approvalKind, "screening_review", "a person decides");
+  const kinds = listPipelineEventsForEntry(f.entry.id, 50, f.ws).map((e) => e.kind);
+  assert.ok(!kinds.includes("auto_advanced"), "nothing was advanced by the machine");
+  setGate(f.ws, "screening", "human");
 });
 
 test("screening gate 'auto' NEVER overrides a cautious verdict — a hold still parks", async () => {
@@ -273,49 +286,19 @@ test("an UNPRICED offer draft parks for a human even with the offer gate on 'aut
   setGate(f.ws, "offer", "human");
 });
 
-test("a REFUSED auto-extend parks the draft and never claims the offer was sent", async () => {
-  // RED FIRST (before this change): extendDraftedOffer answers a business-rule
-  // refusal by RETURNING { status, body } — it does not throw — and this block
-  // ignored the return, so every non-200 still stamped `offer_auto_extended` and
-  // reported `applied: "offer_sent"`. A recruiter was told an offer went out that
-  // never did. Driven live through a NEGATIVE figure, which offer-policy's
-  // validateOfferTerms now refuses with OFFER_SALARY_INVALID (400) before a token
-  // can be minted.
+test("offer gate 'auto' parks a priced offer at offer_review with no offer_auto_extended event", async () => {
   const f = fixture();
   setGate(f.ws, "offer", "auto");
-  seedVerdict(f, "offer", { recommended: -5000, currency: "CZK", rationale: "a figure nobody can be offered" }, "llm");
+  assert.equal(getPlanGateForRole("offer", f.ws), "human", "a stored auto reads as human");
+  seedVerdict(f, "offer", { recommended: 90000, currency: "CZK", rationale: "within band" }, "llm");
 
   const out = await runAutomationTask(f.entry.id, "offer", "", undefined, undefined);
-  assert.equal(out.applied, "offer_ready", "a refusal must not report the offer as sent");
-  assert.equal(getPipelineEntry(f.entry.id, f.ws)?.approvalKind, "offer_review", "the draft parks for a human");
-
+  assert.equal(out.applied, "offer_ready", "never extended unattended");
+  assert.equal(getPipelineEntry(f.entry.id, f.ws)?.approvalKind, "offer_review", "the draft parks for a person");
   const kinds = listPipelineEventsForEntry(f.entry.id, 50, f.ws).map((e) => e.kind);
-  assert.ok(!kinds.includes("offer_auto_extended"), "no phantom offer_auto_extended on the timeline");
-  const failed = listPipelineEventsForEntry(f.entry.id, 50, f.ws).find((e) => e.kind === "offer_comms_failed");
-  assert.ok(failed, "the refusal is recorded, not swallowed");
-  // The refusal CODE is the record; the screen resolves the kind's own localized
-  // verb (the detail is UPPER_SNAKE, which the renderer's letters-only parser
-  // deliberately does not claim — see pipeline-event-reasons.test.ts).
-  assert.equal(failed!.detail, `${AUTOMATION_REASON_PREFIX}offerAutoExtendRefused:OFFER_SALARY_INVALID`);
+  assert.ok(!kinds.includes("offer_auto_extended"), "no offer_auto_extended event is written");
+  assert.ok(!kinds.includes("offer_sent"), "nothing went out");
   setGate(f.ws, "offer", "human");
-});
-
-test("the park-on-refusal branch is keyed on the STATUS, so the 409 and 502 take it too", () => {
-  // The 400 above is driven live. The two refusals that predate it cannot be
-  // reached without a mid-dispatch race — OFFER_SENT_APPROVAL_CHANGED (409: the
-  // letter WENT OUT but the approval moved while it did) and OFFER_NOT_DISPATCHED
-  // (502) — so what is pinned is that the branch discriminates on the status rather
-  // than on any one code, which is what makes them take the same park path.
-  const s = src("./automation-run.ts");
-  const guard = s.indexOf("if (extended.status !== 200) {");
-  const claim = s.indexOf('applied = "offer_sent";');
-  assert.ok(guard > 0, "the auto-extend must inspect the status extendDraftedOffer returns");
-  assert.ok(claim > guard, "the offer_sent claim sits in the ELSE of that guard, never before it");
-  assert.match(s, /const extended = await extendDraftedOffer\(fresh,/, "the return value is bound, not discarded");
-  // Both pre-existing refusals are answered by extendDraftedOffer itself.
-  const action = src("./pipeline-entry-action.ts");
-  assert.match(action, /"OFFER_SENT_APPROVAL_CHANGED"/, "the 409 this branch now parks on still exists upstream");
-  assert.match(action, /"OFFER_NOT_DISPATCHED"/, "…and so does the 502");
 });
 
 test("the offer gate 'human' drafts and parks, extending nothing", async () => {
@@ -333,20 +316,6 @@ test("the offer gate 'human' drafts and parks, extending nothing", async () => {
 // received the scorecard sitting on the same entry, and `offerGate="auto"` had one
 // evidential precondition — that a figure existed. Live, a draft was auto-sent on an
 // entry whose OWN scorecard said `hold` with 2 of 5 on the technical axis.
-
-test("offerAutoExtendRefusal is silent for the cases the gate was configured for", () => {
-  assert.equal(offerAutoExtendRefusal(null), null, "no interview on the entry — unchanged behaviour");
-  assert.equal(offerAutoExtendRefusal({}), null, "a scorecard with no verdict records no objection");
-  assert.equal(offerAutoExtendRefusal({ recommendation: "advance" }), null);
-  assert.equal(offerAutoExtendRefusal("not an object"), null);
-});
-
-test("offerAutoExtendRefusal refuses a recorded verdict that contradicts the send", () => {
-  assert.equal(offerAutoExtendRefusal({ recommendation: "hold" }), "scorecard_hold");
-  assert.equal(offerAutoExtendRefusal({ recommendation: "reject" }), "scorecard_reject");
-  // Present but unreadable fails CLOSED (coerced to hold) — never to the send.
-  assert.equal(offerAutoExtendRefusal({ recommendation: "definitely-hire" }), "scorecard_hold");
-});
 
 test("a HOLD scorecard parks a priced offer draft even with the gate on 'auto'", async () => {
   const f = fixture();
@@ -395,6 +364,188 @@ test("outreach is delivered at most once per entry — the durable marker short-
   assert.equal(out.applied, "already_sent", "a cache HIT must not re-fire a real send");
   const sends = listPipelineEventsForEntry(f.entry.id, 50, f.ws).filter((e) => e.kind === "outreach_sent");
   assert.equal(sends.length, 1, "no second dispatch");
+});
+
+// ---- 4b. approve before first outreach (comms scope C2) ------------------------
+//
+// Every outreach door DRAFTS and holds the letter: 0 relay POSTs, 0 outbox rows, one
+// drafted outreach_letters row. These used to assert nothing about the send because the
+// send was the point; the release is now its own act (outreach-release.test.ts).
+
+const { outreachLetterByEntry } = await import("./db/outreach-letters.ts");
+const { listOutboxFiltered } = await import("./db/devcase.ts");
+const { setRelayHostLookupForTests } = await import("./comms.ts");
+const { haltOutreach, recordOutreachSend, recordOutreachReply } = await import("./outreach-state-store.ts");
+
+/** A fixture relay that records every POST; restores the channel when called back. */
+function spyRelay(): { posts: string[]; restore: () => void } {
+  const realFetch = globalThis.fetch;
+  const posts: string[] = [];
+  process.env.COMMS_WEBHOOK_URL = "https://relay.example.test/hook";
+  setRelayHostLookupForTests(async () => [{ address: "93.184.216.34" }]);
+  globalThis.fetch = (async (url: string) => {
+    posts.push(String(url));
+    return new Response(null, { status: 200 });
+  }) as unknown as typeof fetch;
+  return {
+    posts,
+    restore: () => {
+      globalThis.fetch = realFetch;
+      setRelayHostLookupForTests(undefined);
+      delete process.env.COMMS_WEBHOOK_URL;
+    },
+  };
+}
+
+test("the outreach task (drawer / automation door) drafts and holds the letter — it sends nothing", async () => {
+  const relay = spyRelay();
+  try {
+    const f = fixture();
+    seedVerdict(f, "outreach", { subject: "Hello", body: "A first letter." }, "llm");
+    const out = await runAutomationTask(f.entry.id, "outreach", "", undefined, undefined);
+    assert.equal(out.applied, "drafted");
+    assert.equal(relay.posts.length, 0, "0 relay POSTs");
+    assert.equal(listOutboxFiltered({ ref: f.entry.id }).length, 0, "0 outbox rows");
+    const letter = outreachLetterByEntry(f.entry.id, f.ws);
+    assert.equal(letter?.state, "drafted", "1 drafted row");
+    assert.equal(letter?.subject, "Hello");
+    assert.equal(letter?.body, "A first letter.");
+    assert.equal(
+      listPipelineEventsForEntry(f.entry.id, 50, f.ws).some((e) => e.kind === "outreach_sent"),
+      false,
+      "nothing was sent, so nothing claims it was"
+    );
+
+    // A re-run on the still-drafted letter lands on the same row, never a second letter.
+    await runAutomationTask(f.entry.id, "outreach", "", undefined, undefined);
+    assert.equal(outreachLetterByEntry(f.entry.id, f.ws)?.id, letter?.id);
+    assert.equal(relay.posts.length, 0);
+  } finally {
+    relay.restore();
+  }
+});
+
+test("a halted entry is not drafted for: the refusal is audited, nothing is held or sent", async () => {
+  const relay = spyRelay();
+  try {
+    const f = fixture();
+    seedVerdict(f, "outreach", { subject: "Hello", body: "…" }, "llm");
+    haltOutreach(f.entry.id, f.ws);
+    const out = await runAutomationTask(f.entry.id, "outreach", "", undefined, undefined);
+    assert.equal(out.applied, "suppressed_manual", "a manual halt is not reported as an expired consent");
+    assert.equal(outreachLetterByEntry(f.entry.id, f.ws), null);
+    assert.equal(relay.posts.length, 0);
+    assert.ok(listPipelineEventsForEntry(f.entry.id, 50, f.ws).some((e) => e.kind === "outreach_suppressed"));
+  } finally {
+    relay.restore();
+  }
+});
+
+test("a halted-replied entry's outreach outcome reads replied, not an expired consent", async () => {
+  const relay = spyRelay();
+  try {
+    const f = fixture();
+    seedVerdict(f, "outreach", { subject: "Hello", body: "…" }, "llm");
+    recordOutreachSend(f.entry.id, f.ws);
+    assert.ok(recordOutreachReply(f.entry.id, f.ws));
+    const out = await runAutomationTask(f.entry.id, "outreach", "", undefined, undefined);
+    assert.equal(out.applied, "suppressed_replied");
+    assert.equal(outreachLetterByEntry(f.entry.id, f.ws), null);
+  } finally {
+    relay.restore();
+  }
+});
+
+test("the board's batch outreach door drafts one held letter per candidate and sends nothing", async () => {
+  const relay = spyRelay();
+  try {
+    const a = fixture();
+    const b = fixture();
+    seedVerdict(a, "outreach", { subject: "Hi A", body: "Letter A." }, "llm");
+    seedVerdict(b, "outreach", { subject: "Hi B", body: "Letter B." }, "llm");
+    const { startTask } = await import("./tasks.ts");
+    const { getTask } = await import("./db/tasks.ts");
+    const rec = startTask("batch_outreach", { entryIds: [a.entry.id, b.entry.id] }, DEFAULT_WORKSPACE_ID);
+    let done = getTask(rec.id, DEFAULT_WORKSPACE_ID);
+    for (let i = 0; i < 200 && done && (done.status === "queued" || done.status === "running"); i++) {
+      await new Promise((r) => setTimeout(r, 25));
+      done = getTask(rec.id, DEFAULT_WORKSPACE_ID);
+    }
+    assert.equal(done?.status, "succeeded");
+    const result = done?.result as { ok: number; results: { id: string; applied?: string }[] };
+    assert.equal(result.ok, 2);
+    assert.deepEqual(result.results.map((r) => r.applied), ["drafted", "drafted"]);
+    assert.equal(relay.posts.length, 0, "0 relay POSTs for the whole cohort");
+    for (const f of [a, b]) {
+      assert.equal(outreachLetterByEntry(f.entry.id, f.ws)?.state, "drafted");
+      assert.equal(listOutboxFiltered({ ref: f.entry.id }).length, 0);
+    }
+  } finally {
+    relay.restore();
+  }
+});
+
+test("the sourcing Reach-out door files the candidate and holds the letter — 0 relay POSTs", async () => {
+  const relay = spyRelay();
+  try {
+    const { insertJob } = await import("./job-ingest.ts");
+    const { NextRequest } = await import("next/server");
+    const { POST } = await import("../api/jobs/[id]/candidates/outreach/route.ts");
+    seq += 1;
+    const ws = DEFAULT_WORKSPACE_ID;
+    const jobId = `job-reach-${seq}`;
+    insertJob({ id: jobId, title: "Backend Engineer" } as never, undefined, "published", ws);
+    const { id: candidateId } = saveProfile(
+      { label: `Reach ${seq}`, archetype: "bau", roleFamily: "software_engineering", completeness: 90, payload: { skills: ["ts"] } },
+      ws
+    );
+    // The candidate is already on the board for this role (a re-add returns the existing
+    // entry untouched), so the verdict can be seeded at the exact key the route's run
+    // computes and the run is a cache HIT.
+    const { entry: filed } = createPipelineEntry({
+      candidateId,
+      candidateLabel: `Reach ${seq}`,
+      jobId,
+      jobTitle: "Backend Engineer",
+      stage: "Screened",
+      workspaceId: ws,
+    });
+    // A real job row is a key axis of its own (jobJson), which seedVerdict's fixtures
+    // never have, so the key is built here with it.
+    const { getJob } = await import("./db/jobs.ts");
+    const key = computeAutomationCacheKey({
+      version: AUTOMATION_VERSION.outreach,
+      task: "outreach",
+      candidateId,
+      profileJson: JSON.stringify(getProfileRecord(candidateId, ws)?.payload),
+      jobId,
+      jobJson: JSON.stringify(getJob(jobId, ws)),
+      stage: filed.stage,
+      notes: "",
+      lang: resolveCommsLocale(filed.locale, ws),
+      degraded: !meterAllows("ai_candidates", { workspace: ws }),
+    });
+    storePromptCache(key, { result: { subject: "Reaching out", body: "A sourced letter." }, source: "llm" }, AUTOMATION_VERSION.outreach, 168);
+
+    const res = await POST(
+      new NextRequest(`http://localhost/api/jobs/${jobId}/candidates/outreach`, {
+        method: "POST",
+        body: JSON.stringify({ candidateId, candidateLabel: `Reach ${seq}` }),
+        headers: { "content-type": "application/json" },
+      }),
+      { params: Promise.resolve({ id: jobId }) }
+    );
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as { entryId: string; applied: string; outreachLetterId: string | null };
+    assert.equal(body.applied, "drafted");
+    const letter = outreachLetterByEntry(body.entryId, ws);
+    assert.equal(letter?.state, "drafted");
+    assert.equal(body.outreachLetterId, letter?.id, "the answer names the held letter to approve");
+    assert.equal(relay.posts.length, 0);
+    assert.equal(listOutboxFiltered({ ref: body.entryId }).length, 0);
+  } finally {
+    relay.restore();
+  }
 });
 
 // ---- 5. a hired candidate is never re-matched --------------------------------
@@ -467,18 +618,9 @@ test("an EXPLICIT entry locale still wins over the team default", async () => {
 // while the worktree may be LF.
 const src = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8").replace(/\r\n/g, "\n");
 
-test("the screen path arms BOTH compare-and-swaps at their call sites", () => {
+test("the screen path arms its advance compare-and-swap at the call site", () => {
   const s = src("./automation-run.ts");
   assert.match(s, /expectedStage: entry\.stage, actor: "system"/, "the advance is CAS'd on the SNAPSHOT stage");
-  assert.match(s, /expectedApprovalKind: "screening_review", actor: "system"/, "the auto-ratify is CAS'd on the approval it just wrote");
-});
-
-test("the unattended extend runs on a FRESHLY re-read row, never the pre-hop snapshot", () => {
-  const s = src("./automation-run.ts");
-  const fresh = s.indexOf("const fresh = getPipelineEntry(entry.id, workspaceId);");
-  const guard = s.indexOf('fresh.approvalKind === "offer_review"');
-  const extend = s.indexOf("await extendDraftedOffer(fresh,");
-  assert.ok(fresh > 0 && guard > fresh && extend > guard, "re-read → re-check → extend, in that order");
 });
 
 test("the coded-detail wire format is understood by the event-detail renderer", () => {

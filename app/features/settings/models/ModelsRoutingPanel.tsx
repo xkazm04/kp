@@ -81,7 +81,7 @@ export function ModelsRoutingPanel() {
   if (loadFailed) {
     return (
       <div className={`${PANEL_SUNKEN} flex flex-wrap items-center gap-3 p-4`}>
-        <p className="text-base text-coral">{t("loadFailed")}</p>
+        <p className="text-base text-coral-ink">{t("loadFailed")}</p>
         <button
           type="button"
           onClick={() => {

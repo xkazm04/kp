@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { getGig } from "@/app/_lib/db/gigs";
@@ -34,20 +34,19 @@ import { startTask } from "@/app/_lib/tasks";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, { params }: Params): Promise<NextResponse> {
+export const GET = withWorkspace(async (ws: string, _request: Request, { params }: Params): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { id } = await params;
-    const ws = await currentWorkspace();
     if (!getGig(ws, id)) return jsonRefusal("GIG_NOT_FOUND", 404);
     return NextResponse.json({ plans: listGigPlans(ws, id) });
   } catch (error) {
     return safeJsonError(error, "api:gigs/[id]/plans", "GIG_STORE_FAILED");
   }
-}
+});
 
-export async function POST(request: Request, { params }: Params): Promise<NextResponse> {
+export const POST = withWorkspace(async (ws: string, request: Request, { params }: Params): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -57,7 +56,6 @@ export async function POST(request: Request, { params }: Params): Promise<NextRe
   }
   try {
     const { id } = await params;
-    const ws = await currentWorkspace();
     const gig = getGig(ws, id);
     if (!gig) return jsonRefusal("GIG_NOT_FOUND", 404);
     if (getAcceptedGigPlan(ws, id)) return jsonRefusal("GIG_PLAN_ALREADY_ACCEPTED", 409);
@@ -68,4 +66,4 @@ export async function POST(request: Request, { params }: Params): Promise<NextRe
   } catch (error) {
     return safeJsonError(error, "api:gigs/[id]/plans", "GIG_STORE_FAILED");
   }
-}
+});

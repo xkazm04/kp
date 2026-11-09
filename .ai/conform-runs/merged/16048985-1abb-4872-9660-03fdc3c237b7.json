@@ -1,0 +1,77 @@
+{
+ "schema": "conform-run/1",
+ "worker": "16048985-1abb-4872-9660-03fdc3c237b7",
+ "subject": "collective-and-statutory-hiring-governance",
+ "evaluatedAt": "2026-10-20T21:34:29.200204+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "group-eval-comparison",
+   "subject": "collective-and-statutory-hiring-governance",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/hiring/decisions/groupEval/GroupEvalLegacyView.tsx:23 The compact comparison presents a recommended lead even for governed payloads because its lead card checks topPick without checking the governance sealing predicate.",
+   "techniques": [
+    {
+     "technique": "advisory-machine-that-never-seals",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/decisions/groupEval/GroupEvalLegacyView.tsx:20 Governed runs retain topPick, so this condition exposes their recommended-lead card; the enriched table's governance check does not protect this rendering path."
+    },
+    {
+     "technique": "committee-visible-evidence-packet",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/decisions/groupEval/GroupEvalPerCandidateTabs.tsx:20 The shared IconList removes empty strengths, gaps, and interview-probe sections rather than explicitly stating that no evidence was recorded, violating the packet's required common shape."
+    },
+    {
+     "technique": "governance-mode-selection",
+     "verdict": "deviation",
+     "evidence": "app/_lib/group-eval-governance.ts:17 Missing and unrecognised governance values become the permissive recommendation mode; the modal uses this normalizer before deciding whether to crown a lead."
+    },
+    {
+     "technique": "machine-ordering-after-independent-reads",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/decisions/groupEval/GroupEvalComparisonTable.tsx:199 Committee comparisons expose the machine's numbered order immediately, without an independent-read locking gate or an instruction requiring external independent reads before reveal."
+    },
+    {
+     "technique": "name-the-ceiling-you-cannot-compute",
+     "verdict": "deviation",
+     "evidence": "messages/en.json:4454 The displayed banner names the statutory step and missing data but does not identify the examining authority responsible for adjudicating and applying preferences, leaving the required owner unnamed."
+    },
+    {
+     "technique": "ordinal-eligibility-list-over-a-crowned-lead",
+     "verdict": "deviation",
+     "evidence": "app/_lib/group-eval-governance.ts:55 After filtering only KO failures, the builder assigns sequential ranks even to candidates with null scores; unassessed candidates must instead remain separately unranked."
+    },
+    {
+     "technique": "sticky-governance-against-silent-downgrade",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/decisions/groupEval/groupEvalOpenMachine.ts:180 A cache hit becomes displayable even when governance synchronization reports a mode mismatch; the standard requires discarding and recomputing that comparison rather than displaying it with a warning."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-20T21:34:29.200204+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "collective-and-statutory-hiring-governance"
+   ],
+   "techniques": [
+    "advisory-machine-that-never-seals",
+    "committee-visible-evidence-packet",
+    "governance-mode-selection",
+    "machine-ordering-after-independent-reads",
+    "name-the-ceiling-you-cannot-compute",
+    "ordinal-eligibility-list-over-a-crowned-lead",
+    "sticky-governance-against-silent-downgrade"
+   ],
+   "deviations": 1,
+   "context": "group-eval-comparison",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

@@ -76,6 +76,7 @@ ledger:
   instead of a dead-end notice (`jobsTabDeepLink.test.ts`).
 - `?tab=library` — the saved-JD ledger (`JdsTab.tsx` → `JdsSavedLedger.tsx`); the whole page is the table now. It opens on the All-but-live filter so live roles (the Roles tab's business) do not clutter the shelf.
 - `?tab=intake` — **Job intake**, the authoring tab (`JdsIntakeTab.tsx`): the intake dialog (default) and the AI JD builder (`JdsBuilder.tsx`, exported as `JdBuilder` via `JdsGeneratePanel.tsx`) behind one switcher. Authoring and the ledger were one page behind a Saved/Generate/Intake strip until the split; "which roles do I have" and "write me a new one" are two questions, and the ledger now opens on the answer to the first. The empty Jobs catalog's "draft a role" launchpad card routes here (`tab=intake`), not to the JD shelf. Entry-mode rule: `jdsIntakeTabEntry.ts` (see `docs/features/intake/README.md`). The tab header carries no cross-link back to the ledger: "Job descriptions" is its own sidebar row one click away, and the corner button bought nothing but a width cap on the intro. A successful **Generate** reads `{ slug, taskId }` from `POST /api/jds/generate` and replaces the old 4s queued chip with a durable status linking to `/?tab=library&jd=<slug>` (pinned by `jdsBuilderGenerate.test.ts`), so the recruiter can watch the row the paid run is filling in.
+- **Run tab** of the job modal (`jobs/roleRun/JobsRoleRunPanel.tsx`): start the role run, review and approve or decline each parked gate as one batch, over `GET /api/role-runs/[id]` and the gate preview/commit routes. See `docs/features/hiring-pipeline/role-run-ledger.md` ("A recruiter can reach the run").
 - `/jds/[slug]` — the public JD page (candidate-facing). The library detail rail copies that share URL (`origin + /jds/<slug>`) without a round-trip through the page. Live (non-archived) pages advertise `alternates.languages` for exactly the languages the page serves: the posting's source language plus every language the owning team holds a fresh posting translation for, plus `x-default` (see "The public JD page serves the stored translations" below). Each served `?lang=` variant is self-canonical; the bare path and an unserved `?lang=` canonicalise to the original. Archived pages set an explicit empty `languages` so the root layout's four `./?lang=` alternates are not inherited. The sitemap lists only non-archived JDs with a linked open opening; saved drafts and closed roles stay out of the public index.
 - Recruiter `/api/jds/*` 404s answer `jsonRefusal("JD_NOT_FOUND")` so the client localizes a missing slug.
 - `POST /api/jds` and `POST /api/jds/save` refuse empty/over-long fields with `jsonRefusal(fields.code)` (`JD_FIELDS_REQUIRED` / `JD_TITLE_TOO_LONG` / `JD_BODY_TOO_LONG`).
@@ -147,7 +148,7 @@ is `jobLifecycleInOverlay` in `app/_lib/db/core.ts`.
 When a JD is **Generated**, the market-salary analysis produces a band with
 its own provenance (`web-grounded` vs `estimated`), a confidence level, and
 cited sources. That band is the single source of truth the Pipeline matches
-against: `ingestStructuredJob` (`app/api/jds/save/ingest-job.ts`) sets
+against: `ingestStructuredJob` (`app/_lib/jd-ingest.ts`) sets
 `job.salaryBand` from the analysis's `salary`, normalizing a
 backwards/degenerate range rather than dropping it. The band is intentionally
 **read-only** in the builder — a hand-typed number couldn't honestly wear the
@@ -287,6 +288,8 @@ The command palette's library preview reads `countTemplates`, a real COUNT, rath
 the bounded page's length — reporting a page size as a library total is the exact bug the
 JD figure beside it was already fixed for (`app/_lib/palette-preview/resolve-library-tools.ts`).
 
+**Keyless prose-ad ingest.** `jobs_cli ingest` (`POST /api/jobs/ingest`, `POST /api/jds/[slug]/ingest-job`) no longer 500s when no LLM provider is available: it falls back to `ingest_ad_deterministic` (`pipeline/jobfit/jobs.py`) -- title from the first non-empty line, the ad as the description, no invented requirements -- and answers `source: "deterministic"` with every unstated field listed in `defaultedFields`. The two re-sync doors (`PATCH /api/jds/[slug]`, the revision revert) only overwrite the linked job on `source: "llm"`, so a keyless edit can never erase a job's parsed requirements (`jobResynced` stays `false`).
+
 ## Save vs. ingest — a draft can exist without a matchable Job
 
 `POST /api/jds/save` does two things, and only the first is authoritative:
@@ -294,7 +297,7 @@ JD figure beside it was already fixed for (`app/_lib/palette-preview/resolve-lib
 1. **Save the JD draft** (`saveJd`) — the markdown/title row in `jds`. If this
    fails, the whole request errors and nothing is saved.
 2. **Ingest the role as a structured `jd-<slug>` Job**
-   (`ingestStructuredJob`, `app/api/jds/save/ingest-job.ts`) — best-effort,
+   (`ingestStructuredJob`, `app/_lib/jd-ingest.ts`) — best-effort,
    wrapped in try/catch, never blocks the JD save. The response field
    `jobIngested` reports whether it ran. The client-sent `role` payload is
    parsed at the boundary via `parseRoleSpec` (`app/_lib/rolespec.ts`) — the
@@ -314,6 +317,19 @@ Publish with an inline **Retry** that re-POSTs to
 `/api/jds/save` with the existing `slug` to re-run only the ingest (no
 duplicate draft). When `slug` is supplied, the save route rejects an unknown
 slug (404) so a retry can never mint a `jd-<slug>` Job with no backing draft.
+
+### A blank company is the owner's own
+
+Every door that writes a role a candidate can apply to — `POST /api/jobs/ingest`,
+`/api/jds/save`, `/api/jds/generate`, `/api/jds/[slug]` (edit re-sync),
+`/ingest-job`, `/revisions`, `/retry-analysis`, `/api/intake/[id]/promote` and the
+companion's `draft_jd` — fills a BLANK company from `effectiveOrgName()`
+(`app/_lib/org-name-server.ts`): the `kp_org_name` cookie, then the brand display
+name, then the seed gate's fallback (empty on an unseeded install). A typed or parsed
+company always wins (`companyOrDefault`); a re-sync keeps the row's own company
+before the org name. Backgrounded builds resolve it at the door, in the request, and
+carry it on the task params and the persisted intent — the detached task has no
+cookie. Pinned by `app/_lib/org-name-default.test.ts`.
 
 ### Which team's JD `/jds/[slug]` serves
 
@@ -794,7 +810,7 @@ kit" and §"The kit in the interview".
 |---|---|
 | `app/_lib/job-ingest.ts` | `setJobStatus`, `getJobStatus`, `isJobOpenForApplications`, draft/published/closed lifecycle. |
 | `app/api/jds/route.ts`, `app/api/jds/save/route.ts` | Manual paste / AI-builder save + best-effort ingest. |
-| `app/api/jds/save/ingest-job.ts` | `ingestStructuredJob` — JD → structured `jobs` row. |
+| `app/_lib/jd-ingest.ts` | `ingestStructuredJob` — JD → structured `jobs` row. |
 | `app/api/jds/[slug]/**` | Analyses, retry-analysis, revisions, per-slug JD read, `ingest-job` (make a saved JD matchable). Retry's row-fallback replay (`replayParamsFromIntent` in `app/_lib/jd-build-start.ts`) carries the intake brief for promoted JDs; JDs promoted before this change replay without it. |
 | `app/api/jobs/route.ts`, `app/api/jobs/[id]/route.ts` | Job listing / read. |
 | `app/api/jobs/[id]/publish/route.ts` | Draft → published + source into Pipeline. |
@@ -1194,6 +1210,12 @@ inert on a role that is live unless every caller remembered to clear the flag by
 hand. Pinned by `jobsPostingLifecycle.test.ts`; the Campaign tab's `(job, lang)`
 staleness rule moved to `jobsCampaignPackKey.ts` with the same treatment.
 
+The footer's Apply link / Quick-apply link copies are built on `publicBaseUrl`; when that
+base is this computer, the local network or the `kandidate.example` placeholder
+(`app/_lib/link-reach.ts`), `LinkReachNotice` says under them that candidates can't open
+the links, with a "How to fix" disclosure (set `NEXT_PUBLIC_APP_BASE_URL` to an address
+candidates can reach). It never blocks the copy; a public base renders nothing.
+
 The Compare tab's failed load (`useJsonFetch`) offers the same retry control the
 Coach panel already has, bound to `reload` — a transient 500 is recoverable
 without closing the modal. Pinned by `jobsCompareInterviewsRetry.test.ts`. The
@@ -1433,7 +1455,7 @@ locales.
 author never made without saying so. (1) `role-design-v5` (`pipeline/jobfit/devcase/design.py`)
 extends the grounding rule to responsibilities, nice-to-haves and languages, and the keyless
 fallback returns `languages: []` instead of `["English"]` — that English used to become a
-Languages section and, via `ingest-job.ts` → `apply.ts`, a `ko_lang` knockout question for every
+Languages section and, via `jd-ingest.ts` → `apply.ts`, a `ko_lang` knockout question for every
 applicant. (2) `runJdBuild` sets the role's languages with `statedLanguages`
 (`app/_lib/jd-role-trace.ts`): a brief's non-empty `languages` win, otherwise only model
 languages the author's own input STATES survive, so a keyless build with no stated language

@@ -28,7 +28,7 @@ export function MatrixFilterRow({
   if (scopedPositionTitle) {
     return (
       <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-full bg-coral/10 px-2.5 py-1 text-sm font-semibold text-coral">
+        <span className="rounded-full bg-coral/10 px-2.5 py-1 text-sm font-semibold text-coral-ink">
           {t("rankingFor", { title: scopedPositionTitle })}
         </span>
         <button

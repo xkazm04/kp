@@ -26,7 +26,7 @@ import { sealDecisionSafe } from "./decision-record-store";
 import { buildEligibilityList, governanceNote, normalizeGovernanceMode, resolveGovernanceMode, sealsLead } from "./group-eval-governance";
 import type { MatchResultView, ScoreDimension, Confidence, Reasoning as CanonicalReasoning } from "@/app/features/shared/matchTypes";
 import type { Comparison, Fairness, FairnessScheme, RiskFact, RobustnessStatus, SummaryFacts } from "@/app/features/shared/groupEvalTypes";
-import { selectionCacheKey } from "@/app/features/hiring/decisions/groupEval/cache-key";
+import { selectionCacheKey } from "@/app/_lib/group-eval-cache-key";
 import { assessRobustness } from "@/app/features/shared/groupEvalTypes";
 
 // Cap on how many candidates one comparative evaluation covers (GROUP_EVAL_CAP,
@@ -445,7 +445,7 @@ export async function runGroupEval(
   // deterministic hash of its sorted member ids, so reopening the IDENTICAL
   // comparison serves the cache instead of re-spawning the whole ≤8-process
   // pipeline. The client computes the same key from the same ids before it spawns
-  // (DecisionsTab.openGroupEval) — see group-eval/cache-key.ts for why the key is
+  // (DecisionsTab.openGroupEval) — see group-eval-cache-key.ts for why the key is
   // layered onto role_key rather than migrated into a new column. The ids hashed are
   // the ones the CLIENT sent (pre-cap/dedupe), because that is what the client can
   // key on at lookup time; a fallback-to-top-N run (`useSelection` false) is stored

@@ -1,0 +1,144 @@
+{
+  "schema": "conform-run/1",
+  "worker": "2498c3a0-7465-44da-9eed-ab0a575fe153",
+  "subject": "portable-hiring-records",
+  "evaluatedAt": "2026-11-07T04:04:33.230109+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "ats-sync-egress",
+      "subject": "portable-hiring-records",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evidence": "app/_lib/ats/inbound.ts:141 An inbound record whose vendor stage has no mapping gets a guessed stage (the head-of-funnel 'Accepted', or a caller fallback) instead of an explicit unmapped state, and the live import path in ingest.ts does the same thing by landing unmapped stages on the entry column, so a candidate who is mid-process upstream reads as a new applicant.",
+      "techniques": [
+        {
+          "technique": "unmapped-stage-stays-null-never-guessed",
+          "verdict": "deviation",
+          "evidence": "app/_lib/ats/ingest.ts:143 The live writer (ingestAtsApplications) folds an unmapped vendor stage into the entry-role column. That is the 'head of the funnel' guess the technique forbids. No unmapped state, no unmapped lane and no unmapped count exist. The raw label is kept only as ats_links.last_seen_stage. inbound.ts:141 repeats the same default in toAtsEntryInput."
+        },
+        {
+          "technique": "external-identifier-as-the-sync-identity",
+          "verdict": "deviation",
+          "evidence": "app/_lib/ats/ingest.ts:186 Much of this is conformant: a compound PK (provider, external_id, workspace_id), bind-once ON CONFLICT (links-store.ts:74), refusal of a missing externalId, provider excluded from mappable fields, and coerceScalar refusing objects. But when a first import misses the link, the filing core binds it ('linked') to an existing applicant on the same opening by applicantKey. That key is the email, or the NAME when there is no email (applicant-key.ts:13-15). This is exactly the email/name fallback match that step 3 forbids, and it can merge two different people who share a name."
+        },
+        {
+          "technique": "per-tenant-stage-mapping-never-a-shared-assumption",
+          "verdict": "deviation",
+          "evidence": "app/_lib/ats/connections-store.ts:297 A connection saved without a fieldMap silently stores the compiled Recruitee default, including the stage row \"1st round\" -> Interview (field-map.ts:194). That default is never shown as a suggestion for a human to confirm. ats_connections is keyed by provider alone, so every team shares one stage map. The map has no version history, only an optimistic-concurrency counter. Apply-time validation against the workspace axis (mapStage with liveIds) is present, and the code records the missing workspace key as a known gap."
+        },
+        {
+          "technique": "human-versus-automated-decision-attribution-on-export",
+          "verdict": "conformant",
+          "evidence": "app/_lib/ats-record.ts:165 `automated` is derived at export time from the sealed actor's namespace and degrades to automated unless the actor says human. Minor gaps: there is no third 'not identified' state, and the check is a loose startsWith('human') rather than 'human:'."
+        },
+        {
+          "technique": "versioned-record-envelope",
+          "verdict": "deviation",
+          "evidence": "app/_lib/ats-record.ts:141 Fields were added (rationale, rationaleWithheld, piiWithheld) without bumping kp.ats.v1. The header comment (line 27) bumps only on 'breaking' changes, but the technique says to increment when a field is added. The envelope does carry schemaVersion, event and sentAt/exportedAt, but no explicit producer field."
+        }
+      ]
+    },
+    {
+      "context": "ats-api",
+      "subject": "portable-hiring-records",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evidence": "app/api/ats/candidate/ats-candidate-audit.ts:38 The per-candidate PII export audit descriptor has no actor field, even though recordEvent accepts a server-derived actor, so the egress row filed on the candidate's timeline cannot say who took the export; the door is also gated by requireOperator alone, with no export-specific capability and no confirmation step.",
+      "techniques": [
+        {
+          "technique": "personal-data-egress-audit",
+          "verdict": "deviation",
+          "evidence": "app/api/ats/candidate/ats-candidate-audit.ts:38 Conformant parts: the audit is filed per subject on the candidate's own timeline, with a light marker (schemaVersion, decision/offer, consent-redacted) and no payload. Deviations: no actor (route.ts:68 passes the descriptor without one, so the export is unattributable rather than refused); the gate is requireOperator only (route.ts:22), with no dedicated export permission or confirmation; a failed audit write still serves the export."
+        },
+        {
+          "technique": "human-versus-automated-decision-attribution-on-export",
+          "verdict": "conformant",
+          "evidence": "app/api/ats/candidate/[id]/route.ts:28 The exported record is built from the sealed decision's own actor. The route never passes the exporting operator into it, so the person running the export is not credited with the decisions inside it."
+        }
+      ]
+    },
+    {
+      "context": "pipeline-move-bulk-operations",
+      "subject": "portable-hiring-records",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evidence": "app/features/hiring/pipeline/usePipelineBulk.ts:399 These modules move entries between kp's own stage ids through kp's own pipeline APIs and exchange no record with an external system; a search of app/features/hiring/pipeline for externalId, externalStage, ats_links, kp.ats and fieldMap found no hits.",
+      "techniques": [],
+      "absenceTerms": [
+        "externalId",
+        "externalStage",
+        "ats_links",
+        "kp.ats",
+        "fieldMap"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "portable-hiring-records",
+      "context": "pipeline-board-ui",
+      "reason": "withdrawn after review: reviewer (sonnet): The board is where imported ATS entries (sourceChannel ats-*) and any unmapped lane would be shown, so its not-applicable is not established; usePipelineBoardData.ts:112 only shows a /api/pipeline load, and the grep terms never covered the ats- source channel."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-07T04:04:33.230109+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "portable-hiring-records"
+      ],
+      "techniques": [
+        "external-identifier-as-the-sync-identity",
+        "human-versus-automated-decision-attribution-on-export",
+        "per-tenant-stage-mapping-never-a-shared-assumption",
+        "unmapped-stage-stays-null-never-guessed",
+        "versioned-record-envelope"
+      ],
+      "deviations": 1,
+      "context": "ats-sync-egress",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-07T04:04:33.230109+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "portable-hiring-records"
+      ],
+      "techniques": [
+        "human-versus-automated-decision-attribution-on-export",
+        "personal-data-egress-audit"
+      ],
+      "deviations": 1,
+      "context": "ats-api",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-07T04:04:33.230109+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "portable-hiring-records"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "pipeline-move-bulk-operations",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-07T04:04:33.230109+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "portable-hiring-records"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "pipeline-board-ui",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

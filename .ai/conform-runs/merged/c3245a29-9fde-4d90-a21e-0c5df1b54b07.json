@@ -1,0 +1,77 @@
+{
+ "schema": "conform-run/1",
+ "worker": "c3245a29-9fde-4d90-a21e-0c5df1b54b07",
+ "subject": "candidate-ai-disclosure-and-explanation",
+ "evaluatedAt": "2026-10-19T01:53:21.183025+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "application-status-page",
+   "subject": "candidate-ai-disclosure-and-explanation",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/status/[token]/StatusClient.tsx:348 The candidate status page suppresses decisions whose actor is unknown by rendering null, violating the requirement that attribution must explicitly fail to an undetermined state rather than being hidden.",
+   "techniques": [
+    {
+     "technique": "allowlist-of-candidate-visible-decisions",
+     "verdict": "deviation",
+     "evidence": "app/status/[token]/StatusClient.tsx:347 The renderer falls back to replacing underscores with spaces for unlabelled decision kinds instead of withholding them until reviewed copy is provided."
+    },
+    {
+     "technique": "decisive-facts-not-the-rationale",
+     "verdict": "deviation",
+     "evidence": "app/status/[token]/StatusClient.tsx:387 The decision facts view emits the model's self-reported confidence scalar to the candidate, violating the rule that confidence is evidence about the model rather than decisive personal data."
+    },
+    {
+     "technique": "disclosure-at-the-point-of-submission",
+     "verdict": "not-applicable",
+     "evidence": "app/status/[token]/page.tsx:13 ApplicationStatusPage is a post-submission status tracking view rather than an application form at the point of submission."
+    },
+    {
+     "technique": "held-data-derived-from-what-exists",
+     "verdict": "not-applicable",
+     "evidence": "app/status/[token]/StatusClient.tsx:417 The status page manages recording audio deletion rather than the derived inventory of held personal data, which is served via /api/data/[token]."
+    },
+    {
+     "technique": "right-to-request-a-human-review",
+     "verdict": "deviation",
+     "evidence": "app/status/[token]/StatusClient.tsx:395 The page shows a passive text note telling the candidate to reply to any email, providing no interactive review request mechanism carrying the decision ID."
+    },
+    {
+     "technique": "three-state-attribution-that-fails-to-unknown",
+     "verdict": "deviation",
+     "evidence": "app/status/[token]/StatusClient.tsx:348 When attribution is unknown, the component renders null, suppressing undetermined decisions rather than rendering an explicit unknown actor state."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "candidate-ai-disclosure-and-explanation",
+   "context": "decisions-screen-wave-logic",
+   "reason": "Preconditions for candidate-ai-disclosure-and-explanation do not hold: decisions-screen-wave-logic consists of internal business logic and state machines for the operator/recruiter Decisions UI (screen-wave reducer machine, peer comparison ranking, recruiter compliance posture folding, queue loading, and review card parsing), containing no candidate-facing surfaces, public status tokens, or candidate-directed explanations. Per the seat rule that not-applicable is not accepted, this pair is declined."
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-19T01:53:21.183025+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-ai-disclosure-and-explanation"
+   ],
+   "techniques": [
+    "allowlist-of-candidate-visible-decisions",
+    "decisive-facts-not-the-rationale",
+    "disclosure-at-the-point-of-submission",
+    "held-data-derived-from-what-exists",
+    "right-to-request-a-human-review",
+    "three-state-attribution-that-fails-to-unknown"
+   ],
+   "deviations": 1,
+   "context": "application-status-page",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}

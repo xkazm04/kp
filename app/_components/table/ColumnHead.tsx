@@ -53,7 +53,7 @@ export function ColumnHead<C extends string>({
       className={`pb-2 pr-3 ${align === "right" ? "text-right" : "text-left"} ${className}`}
     >
       <span className={`inline-flex items-center gap-1 ${align === "right" ? "flex-row-reverse" : ""}`}>
-        <span className={`${META_LABEL} ${active ? "text-coral" : ""}`}>{title}</span>
+        <span className={`${META_LABEL} ${active ? "text-coral-ink" : ""}`}>{title}</span>
         {sortCol ? (
           <Tooltip label={t("sortBy", { column: title })} side="bottom">
             <button
@@ -61,7 +61,7 @@ export function ColumnHead<C extends string>({
               onClick={() => onSort(sortCol)}
               aria-label={t("sortBy", { column: title })}
               className={`focus-ring inline-flex h-6 w-6 items-center justify-center rounded transition-colors ${
-                active ? "bg-coral/10 text-coral" : "text-steel hover:bg-stone-100 hover:text-ink"
+                active ? "bg-coral/10 text-coral-ink" : "text-steel hover:bg-stone-100 hover:text-ink"
               }`}
             >
               <SortIcon size={13} className={active ? "" : "opacity-60"} aria-hidden />

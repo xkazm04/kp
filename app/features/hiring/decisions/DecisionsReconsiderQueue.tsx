@@ -53,7 +53,7 @@ export function DecisionsReconsiderQueue({
         className="rounded-lg border border-stone-200 bg-paper/40"
       >
         <summary className="focus-ring flex cursor-pointer items-center gap-1.5 px-4 py-2.5 text-meta uppercase tracking-wide text-steel">
-          <RotateCcw size={13} className="text-coral" /> {t("reconsiderTitle", { count: reconsider.length })}
+          <RotateCcw size={13} className="text-coral-ink" /> {t("reconsiderTitle", { count: reconsider.length })}
         </summary>
         <div className="space-y-2 px-4 pb-3">
           <p className="text-sm text-steel">{t("reconsiderHelp")}</p>
@@ -84,7 +84,7 @@ export function DecisionsReconsiderQueue({
                       type="button"
                       onClick={() => void reinstate(item)}
                       disabled={reinstating.has(item.id)}
-                      className="focus-ring ml-auto rounded-md border border-coral/40 bg-white px-2.5 py-1 text-sm font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
+                      className="focus-ring ml-auto rounded-md border border-coral/40 bg-white px-2.5 py-1 text-sm font-semibold text-coral-ink hover:bg-coral/5 disabled:opacity-50"
                     >
                       {reinstating.has(item.id) ? t("reinstating") : t("reinstate")}
                     </button>
@@ -98,7 +98,7 @@ export function DecisionsReconsiderQueue({
                       row simply stayed, with the failure escaping as an unhandled
                       rejection. */}
                   {reinstateErrors[item.id] ? (
-                    <p role="alert" className="mt-1 text-meta font-semibold text-coral">
+                    <p role="alert" className="mt-1 text-meta font-semibold text-coral-ink">
                       {errMsg(reinstateErrors[item.id], t("reinstateFailed"))}
                     </p>
                   ) : null}

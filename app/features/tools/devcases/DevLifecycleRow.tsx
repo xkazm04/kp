@@ -35,7 +35,7 @@ const WARNING_TONE: Record<OutcomeWarningCode, BadgeTone> = {
   mixed_currency: "caution",
 };
 const ACTION_BTN =
-  "focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded-md border border-coral/40 bg-white px-2 text-micro font-semibold text-coral hover:bg-coral/5 disabled:opacity-50";
+  "focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded-md border border-coral/40 bg-white px-2 text-micro font-semibold text-coral-ink hover:bg-coral/5 disabled:opacity-50";
 
 export function LifecycleRow({
   lc,
@@ -192,7 +192,7 @@ export function LifecycleRow({
         {stall.stalled ? (
           <span
             title={t("lifecycle.stalledTitle", { days: stall.ageDays ?? 0 })}
-            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-coral/15 px-2 py-0.5 text-micro font-semibold uppercase text-coral"
+            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-coral/15 px-2 py-0.5 text-micro font-semibold uppercase text-coral-ink"
           >
             <AlarmClock size={11} aria-hidden /> {t("lifecycle.stalledBadge", { days: stall.ageDays ?? 0 })}
           </span>
@@ -203,7 +203,7 @@ export function LifecycleRow({
             onClick={reSource}
             aria-expanded={previewOpen}
             title={t("lifecycle.reSourceTitle")}
-            className="focus-ring inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-coral/40 bg-white px-2.5 text-micro font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
+            className="focus-ring inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-coral/40 bg-white px-2.5 text-micro font-semibold text-coral-ink hover:bg-coral/5 disabled:opacity-50"
           >
             <RefreshCw size={12} /> {t("lifecycle.reSource")}
           </button>
@@ -325,7 +325,7 @@ export function LifecycleRow({
                   setConfirmingClose(false);
                   void closeCase();
                 }}
-                className="focus-ring inline-flex h-9 items-center rounded-md bg-coral px-3 text-sm font-semibold text-white hover:opacity-90"
+                className="focus-ring inline-flex h-9 items-center rounded-md bg-coral-solid px-3 text-sm font-semibold text-white hover:opacity-90"
               >
                 {t("lifecycle.close")}
               </button>

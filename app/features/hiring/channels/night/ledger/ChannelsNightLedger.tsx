@@ -8,6 +8,7 @@ import type { useChannelData } from "../../useChannelsData";
 import type { useCommsFeed } from "../../useCommsFeed";
 import { NODE_NAME } from "../channelsNightCopy";
 import type { NightChannel, NightEntry } from "../channelsNightNav";
+import { ChannelsNightBacklogOffer } from "./ChannelsNightBacklogOffer";
 import { ChannelsNightLedgerAlarm } from "./ChannelsNightLedgerAlarm";
 import { ChannelsNightLedgerChips } from "./ChannelsNightLedgerChips";
 import { ChannelsNightLedgerFacets } from "./ChannelsNightLedgerFacets";
@@ -101,6 +102,7 @@ export function ChannelsNightLedger({ entry, feed, data, onOpenMessage, onOpenCh
   const from = entry.from;
   return (
     <div ref={rootRef} className="cn-ledger">
+      <ChannelsNightBacklogOffer relayConfigured={feed.relayConfigured} onSent={() => feed.load()} />
       <ChannelsNightLedgerAlarm
         fact={relayFact(messages, feed.relayConfigured)}
         onConfigure={(el) => onOpenChannel("relay", el)}

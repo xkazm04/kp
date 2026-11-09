@@ -198,12 +198,21 @@ test("a heartbeat posts with nothing queued — it is how the clock reaches the 
 });
 
 test("observations are bounded and sent in order, oldest dropped first", async () => {
-  const h = harness(() => null); // unreachable: nothing drains
+  let reachable = false;
+  const h = harness(() => (reachable ? ok() : null)); // unreachable until it is not
   const ch = channel(h.post);
   for (let i = 0; i < MAX_QUEUED_EVENTS + 10; i += 1) {
     ch.recordEvent({ kind: "answer_timing", at: AT, turnSeq: i, preSilenceMs: null, durationMs: null });
   }
   await ch.idle();
+  reachable = true;
+  for (let i = 0; i < 4; i += 1) {
+    ch.heartbeat();
+    await ch.idle();
+  }
+  const delivered = h.sent.filter((_r, n) => n > 0).flatMap((r) => r.events);
+  const seqs = delivered.map((e) => (e.kind === "answer_timing" ? e.turnSeq : -1));
+  assert.deepEqual(seqs, Array.from({ length: MAX_QUEUED_EVENTS }, (_v, i) => i + 10), "the newest survive, in order");
   const h2 = harness(() => ok({ ackSeq: -1 }));
   const ch2 = channel(h2.post);
   for (let i = 0; i < 25; i += 1) {
@@ -211,6 +220,40 @@ test("observations are bounded and sent in order, oldest dropped first", async (
   }
   await ch2.idle();
   assert.ok(h2.sent[0].events.length <= 20, "a request carries at most the server's ceiling");
+});
+
+test("every discarded observation is counted at its drop site: sent = delivered + evicted + flushed", async () => {
+  // Reconciliation on a saturated edge (registry: drop-accounting). Without the counter
+  // a 100-observation outage delivers 60 and the other 40 leave no trace anywhere, and a
+  // hang-up with five queued loses all five the same way.
+  // Delivered is read where the director ANSWERED, never where the browser sent: a
+  // request posted into an outage is not a delivery.
+  let reachable = false;
+  let acknowledged = 0;
+  const h = harness((req) => {
+    if (!reachable) return null;
+    acknowledged += req.events.length;
+    return ok();
+  });
+  const ch = channel(h.post);
+  const ev = { kind: "focus_lost", at: AT, during: "idle" } as const;
+  for (let i = 0; i < 100; i += 1) ch.recordEvent(ev);
+  await ch.idle();
+  assert.deepEqual(ch.droppedEvents, { evicted: 100 - MAX_QUEUED_EVENTS, flushed: 0 });
+  reachable = true;
+  for (let i = 0; i < 4; i += 1) {
+    ch.heartbeat();
+    await ch.idle();
+  }
+  assert.equal(acknowledged, MAX_QUEUED_EVENTS);
+  reachable = false;
+  for (let i = 0; i < 5; i += 1) ch.recordEvent(ev);
+  await ch.idle();
+  ch.close();
+  ch.recordEvent(ev); // after close: discarded, and counted as such
+  const d = ch.droppedEvents;
+  assert.deepEqual(d, { evicted: 100 - MAX_QUEUED_EVENTS, flushed: 6 });
+  assert.equal(100 + 5 + 1, acknowledged + d.evicted + d.flushed, "no residual: every drop path counted");
 });
 
 test("a request never exceeds the server's per-request turn ceiling", async () => {

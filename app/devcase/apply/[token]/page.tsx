@@ -4,7 +4,8 @@ import { Markdown } from "@/app/_components/Markdown";
 import { getDevCase, getPostingByToken } from "@/app/_lib/db/devcase";
 import { caseToMarkdown } from "@/app/features/tools/devcases/DevHelpers";
 import { timeboxHoursForDisplay } from "@/app/_lib/devcase-timebox";
-import { applySubtitleKey } from "@/app/_lib/devcase-apply-subtitle";
+import { applySubtitleKey, caseRoleFamily, doorRegister } from "@/app/_lib/devcase-apply-subtitle";
+import { devcaseAssistantLive } from "@/app/_lib/devcase-assistant-live";
 import type { CaseScenario, RoleSpec, SeedFile } from "@/app/features/tools/devcases/DevTypes";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { disclosureComplianceFor } from "@/app/_lib/compliance-disclosure";
@@ -42,7 +43,7 @@ export default async function DevCaseApplyPage({ params }: { params: Promise<{ t
   if (posting.status === "closed") {
     return (
       <main className="mx-auto max-w-xl px-4 py-12">
-        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+        <p className="text-meta uppercase text-coral-ink">{t("eyebrow")}</p>
         <h1 className="mt-1 font-serif text-display text-ink">{posting.caseTitle || posting.roleTitle || t("fallbackTitle")}</h1>
         <p className={`mt-4 ${PANEL_SUNKEN} p-4 text-body text-steel`}>{t("closed")}</p>
         <AiDisclosure
@@ -103,7 +104,7 @@ export default async function DevCaseApplyPage({ params }: { params: Promise<{ t
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-12">
-      <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+      <p className="text-meta uppercase text-coral-ink">{t("eyebrow")}</p>
       <h1 className="mt-1 font-serif text-display text-ink">
         {posting.caseTitle || kase?.title || posting.roleTitle || t("fallbackTitle")}
       </h1>
@@ -147,11 +148,18 @@ export default async function DevCaseApplyPage({ params }: { params: Promise<{ t
           // clock inside the surface and the sentence the candidate read cannot disagree.
           // devcase-timebox.ts is the single producer; this page never types a number.
           timeboxHours={timeboxHoursForDisplay(kase?.timeboxHours)}
+          // CX S43: the process sentence follows the case's role family (a sales case is
+          // not "graded beyond the final code"), and the chat intro says plainly when no
+          // real AI is behind the tabs instead of promising that good prompts count.
+          register={doorRegister(caseRoleFamily(devCase?.need, devCase?.role))}
+          assistantLive={devcaseAssistantLive()}
         />
       ) : (
         <section className={`mt-6 ${PANEL_SUNKEN} p-4`}>
           <h2 className="font-serif text-h3 text-ink">{t("submitHeading")}</h2>
           <p className="mt-1 text-sm text-steel">{t("submitHint")}</p>
+          {/* The live path says it in its intro; this path said nothing (CX S43). */}
+          <p className="mt-1 text-meta text-steel">{t("aiAllowed")}</p>
           <DevApplyForm token={token} />
         </section>
       )}

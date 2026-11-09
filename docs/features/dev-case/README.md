@@ -299,10 +299,30 @@ Six controls, referenced in code comments as "LLM-era controls #1–#6":
 |---|---|---|---|
 | 1 | Tamper-evident hash chain | Every Live Work Surface event is chained server-side (SHA-256); a broken chain or backdated client timestamp marks the whole observed trace untrustworthy | `app/_lib/db/core.ts` (schema), `app/_lib/db/devcase.ts` (verify), `app/_lib/devcase-run.ts` |
 | 2 | Captured prompt channel | In-session chat (assistant/stakeholder replies) is server-recorded, not client-reported, so tooling-fluency signals can't be fabricated | `pipeline/jobfit/devcase/chat.py`, `prompt_signals.py` |
-| 3 | Canaries | The seed materializer plants known-ground-truth flaws; each is graded ADDRESSED / FLAGGED / PROPAGATED / UNVERIFIABLE against the submitted tree | `pipeline/jobfit/devcase/seed_materializer.py`, `artifact_checks.py` |
+| 3 | Canaries | The seed materializer plants known-ground-truth flaws; each is graded ADDRESSED / FLAGGED / PROPAGATED / UNVERIFIABLE against the submitted tree. Every case, keyless included, also carries one supplied AI draft (below) whose flaws are canaries | `pipeline/jobfit/devcase/seed_materializer.py`, `ai_drafts.py`, `artifact_checks.py` |
 | 4 | Per-session watermark | A deterministic, session-specific marker in the seed; a **foreign** watermark inside a submission is the tell that a solution circulated between candidates | `app/_lib/db/devcase.ts` |
 | 5 | Mid-flight perturbation | A requirement change revealed mid-session (server-timestamped), after which everything is the candidate's observed adaptation to a changed brief — defeats pure one-shot generation | `pipeline/jobfit/devcase/models.py`, `design.py` (case-design-v6), `process_events.py` |
 | 6 | Frozen naive baseline | At approval, a bare one-shot LLM solve is frozen per case; submissions are diffed against it (never as a penalty — it aims the authorship interview, since using an LLM is never itself penalized) | `pipeline/jobfit/devcase/baseline.py`, `artifact_checks.py` |
+
+**The supplied AI draft (ADR 0027 S2).** Every seed ships exactly one file under
+`drafts/` that opens with the truthful label *UNREVIEWED AI-GENERATED DRAFT … You may
+use it, fix it or discard it*, and the README names it the same way. The drafts are
+curated per role family in `pipeline/jobfit/devcase/ai_drafts.py` (one per
+`taxonomy.ROLE_FAMILIES` entry; the devcase scenario families such as `devops_sre` or
+`fpna` alias onto them, anything else gets the `general_professional` draft). Each
+carries two flaws whose ground truth holds in every case of its family (a backoff that
+grows linearly while its docstring says exponential, a 1:100 dilution labelled 1:10, a
+GDPR deadline of 7 days instead of 72 hours), recorded as canaries in the usual shape.
+Nothing in the draft hints at them beyond the "unreviewed" label. The keyless
+`deterministic_seed()` used to plant no canaries at all; the draft is now its only
+source of them, and on the LLM path the draft's canaries ride beside the model's own
+(the draft path is reserved, so a model file cannot shadow it). Grading is the existing
+channel-neutral rule: fixed or flagged counts as caught, left in place as propagated.
+Using the draft is neither rewarded nor penalised; only checking its claims counts.
+The draft's verdict feeds the keyless **tooling** dimension only; its canaries stay out of the
+verification term, so correcting the draft cannot lift judgment or transfer above catching a planted flaw.
+Pinned by `pipeline/jobfit/tests/test_devcase_ai_draft.py`. Gap: the draft text is
+English-only, like the rest of the deterministic seed.
 
 Fairness invariants (checked in code, not just prose): using an LLM is never
 penalized; over-reliance is inferred only from observed process artifacts
@@ -337,7 +357,8 @@ assembled only inside the CLI's argv branch, so the gate certified the
 commit-message path alone while in-product candidates were scored on the
 observed one. `--path commit` (default) runs repo-link submissions,
 `--path observed` Live Work Surface sessions — one fixed template per behaviour
-(events, chat, submitted tree, a seed with two canaries, a one-shot baseline),
+(events, chat, submitted tree, a seed with two canaries plus the software family's
+supplied AI draft and its two, a one-shot baseline),
 replicated to `--count` — and `--path both` the two landscapes together.
 `python -m pipeline.jobfit.devcase.submission_eval --path observed --count 48 --no-llm --strict`
 exits 0, and the gated Python suite holds both paths
@@ -405,6 +426,15 @@ deterministic reflect path (`reflect.deterministic` → `reverts[:4]`), so a com
 unfenced. It is the step the module leans on hardest when the artifact itself proves
 nothing ("the scores above are HYPOTHESES"), so steering it blunts the very interview that
 verifies them. Pinned by `TestFollowupContextIsFenced` in `test_devcase_evaluate.py`.
+
+**The decision log aims the debrief (`followups-v4`).** `artifact_checks.submission_excerpts` keeps
+`DECISIONS.md` in the order it was written, and `decision_log.py` parses it by the seeded template's
+structure (`##` sections, bullet position, first colon; a 4th bullet is the counterfactual), so a Czech
+log parses like an English one. `mint_followups(decision_log=...)` quotes each entry's own rejected
+alternative / why / counterfactual (at most 2), and an untouched or empty log mints one "no logged
+decision" question. The entries ride inside the `fenced_untrusted` context. They are debrief evidence
+only: no score, band or confidence reads the log's length, count or presence.
+
 
 **A step that spent tokens and kept none of them reports `deterministic`.**
 `provenance.generate_with_fallback` is the LLM-or-deterministic runner behind every devcase
@@ -549,10 +579,11 @@ Three presentation rules are enforced by those components rather than left to pr
 
 - **Honest darkness.** Every check is optional at the producer, and "did not run"
   never renders as a pass. `chain.valid === null` (no hashed events) is shown as
-  *unverifiable*, not clean. A case whose seed planted no canaries — which is what
-  the deterministic/keyless seed deliberately does, since
-  "a template flaw with no real ground truth would grade candidates against noise"
-  (`seed_materializer.py`) — says the check did not run. So does a case where the
+  *unverifiable*, not clean. A case whose seed planted no canaries says the check did
+  not run. Since S2 every newly materialized seed carries the supplied draft's canaries,
+  keyless included (`ai_drafts.py`; the keyless path still plants no *template* flaws,
+  since "a template flaw with no real ground truth would grade candidates against
+  noise"), so this state now means a seed frozen before `seed-materializer-v3`. So does a case where the
   LLM was unavailable at approval and no baseline was frozen
   (`devcase-orchestrator.ts` records a `baseline_unavailable` audit).
 - **Never a penalty.** Baseline overlap is rendered as a plain figure with an
@@ -1285,6 +1316,18 @@ credential. These rules keep that honest, all sized so a real candidate never me
   their stakeholder — and spend an hour of a timed case on its answer — is not. The route
   also forwards `request.signal` into `runSessionChat`, so an abandoned generation does not
   leave a Python child running for the rest of its timeout.
+- **The door speaks the case's register, and says when no AI is there** (CX S43,
+  `app/_lib/devcase-apply-subtitle.ts`). The process sentence follows the case's role
+  family (`caseRoleFamily` → `doorRegister`): a technical family (`TECHNICAL_FAMILIES`) or
+  an unclassified case keeps `workSurface.intro` ("not just the final code"); every other
+  family reads `workSurface.introGeneral` ("your work and how you got there", a short
+  decisions note). The chat intro is `chatIntro` ("good prompts count in your favor") only
+  while `devcaseAssistantLive()` (`app/_lib/devcase-assistant-live.ts`: not `KP_OFFLINE`,
+  and LLM routing/keys configured or the Claude CLI / a Gemini key present) forecasts a
+  real AI **and** no reply has come back `deterministic`; otherwise `chatIntroStandIn`
+  says plainly that the tabs answer with a scripted note, not a real AI. The repo-link
+  path now prints `devApply.aiAllowed` ("You may use any tools, including AI"), which only
+  the live path said before.
 - **Durable submit.** The final flush is the only thing that puts the candidate's last
   edits and process events on the server — `saveDevSessionFiles` is a no-op once a session
   is `submitted`, so sealing after a failed flush would grade them on a stale tree *and*
@@ -1874,7 +1917,8 @@ of the JD's ingested job (`jdJobId`, `app/_lib/jd-limits.ts`).
   and the manual `POST /api/devcase` — get the same link without either remembering to.
 - **Verified, not assumed.** JD → Job ingest is best-effort (a save can answer
   `jobIngested: false`, see [the jobs doc](../jobs/README.md)), so `resolveCaseJobId`
-  checks the `jobs` row EXISTS and stores NULL when it does not. A case can therefore
+  checks the `jobs` row EXISTS and stores NULL when it does not.
+  An explicit `need.jobId` (a job with no saved JD) is checked first, team-scoped, and wins over the slug. A case can therefore
   know its JD (`jdSlug`) while having no job to link to — a real state, which the case
   detail header states out loud rather than rendering as "unlinked".
 - **Read back joined.** Every dev-case read (`getDevCase`, `listDevCases`,
@@ -2068,8 +2112,9 @@ On arrival, for the entry's job:
 1. **The job's newest approved case** (`listDevCasesForJob`, workspace-scoped, status
    `approved`) is the assignment to send.
 2. **No case yet?** The column's plan step gate decides. `auto` creates a lifecycle from
-   a need built off the job's **saved JD** (`need.jdSlug`, which is what
-   `resolveCaseJobId` re-derives so the designed case is linked back to this job and the
+   a need built off the job's **saved JD**, or off the job row itself when it has none
+   (`need.jobId` is always set, `need.jdSlug` only when a JD exists; `resolveCaseJobId`
+   verifies the id and stores it, so the designed case is linked back to this job and the
    next arrival finds it rather than designing a second one), runs it, and comes back
    around to send the result. `human` creates the lifecycle with `auto: false`, so it
    parks at its own `awaiting_approval` gate — **the column's gate governs the
@@ -2148,6 +2193,15 @@ unaddressable refusal (nothing sent, nothing published, the move stands), a stop
 intake refused rather than reopened (no fresh posting, no letter, the move stands), the human gate
 parking at `awaiting_approval`, the auto gate designing-then-sending, and both binding
 cases (invited → their entry; uninvited → the old resolution).
+
+**The same send, from the candidate drawer** (CX S43). A board with no homework column —
+the default one — had no way to hand a named candidate their assignment. `sendWorkSample`
+(same module) is the drawer's door to `inviteToCase`: the owner's click is the human
+gate, every other rule above holds, and it never designs a case (`no_case` → the panel
+links to Assignments filtered to the role). The `invited` and `already_invited` outcomes
+now carry the relative apply `url` so the drawer can show the link to copy. Route
+`POST /api/pipeline/[id]/work-sample`; pipeline README "Work sample"; pinned by the three
+`send work sample:` cases in the same test file.
 
 ### The voice screen is reachable from the assignment
 
@@ -2251,7 +2305,7 @@ the scoring half is `ObservedIsArchetypeIndependentTest` in
   Android) still falls back to "generic engineering" in `design_case` — see
   `docs/_archive/dev-d3-hardening-findings.md` residuals.
 - `design-artifacts --focus-probes-json` is the Python half of Rec B (CV
-  hypothesis → covert probe). `runDesignArtifacts` (`app/_lib/devcase-run-design.ts`)
+  hypothesis → covert probe). `runDesignArtifacts` (`app/_lib/devcase-run.ts`)
   still has no argument to forward a panel, so designed cases from the app
   never confirm over-claimed skills.
 - Apply tokens and work sessions never expire: `getPostingByToken`
@@ -2268,20 +2322,53 @@ the scoring half is `ObservedIsArchetypeIndependentTest` in
   its result could not be loaded" instead of spinning "Pulling the codebase + reflecting…"
   forever. The design watch only drops its spinner — it has no dedicated message yet, it
   falls back to re-offering **Design role & assignment**.
-- **The hash chain protects the log, not the timeline it records.** Links are computed
-  server-side at INSERT over the server receive time, so a candidate cannot edit, reorder
-  or re-time a *persisted* event (`verifyDevSessionChain`). But each event's `t` is
-  client-authored, and `getDevSessionIntegrity` only window-checks it against
-  `[session start − skew, receive + skew]`. A scripted client can mint a session, wait out
-  the timebox, then POST one flush carrying a fully synthetic hour of `open → edit →
-  decision_log` events (plus a ghostwritten tree, watermarked with the marker the mint
-  response hands back) and the verdict reads `chain: valid, backdatedEvents: 0` — a clean
-  bill of health on a fabricated process trace, which is exactly the evidence the
-  `suspect` gate at `devcase-run.ts:639` trusts. The tell is stored but unread: every
-  event in such a session shares ONE `created_at`, whereas a real 8s-flush session spreads
-  across hundreds of arrival batches. Closing it means surfacing arrival-batch cardinality
-  (or claimed-span vs. arrival-span) in `SessionIntegrity` and rendering it in
-  `DevEvalPanelIntegrity.tsx` with the honest-darkness framing the other verdicts use.
+- **The hash chain protects the log, not the timeline it records — the witnessed
+  timeline closes the gap, without a penalty.** Links are computed server-side at INSERT
+  over the server receive time, so a candidate cannot edit, reorder or re-time a
+  *persisted* event (`verifyDevSessionChain`). But each event's `t` is client-authored, so
+  a scripted client could mint a session, wait out the timebox, then POST one flush
+  carrying a synthetic hour of `open → edit → decision_log` events and read `chain: valid,
+  backdatedEvents: 0`. `getDevSessionIntegrity` now also returns `witness`
+  (`witnessVerdictOf`, `app/_lib/db/devcase.ts`): per event, how long after its claimed
+  time it ARRIVED (an honest 8s-flush session lags seconds; the synthetic hour lags up to
+  an hour), plus `arrivalBatches`, `claimedSpanMs` and `arrivalSpanMs`. Verdicts:
+  `witnessed` (nothing material late), `neutral` (a ≥5 min stretch arrived late but at most
+  half the events did — the offline-then-reconnect shape, never suspect), `unwitnessed`
+  (most events arrived >2 min after the time they claim) and `unknown` (no timestamped
+  events). **An unwitnessed trace costs 0 points and moves no band** — it is absent from
+  `scoreAuthenticity`. It does three things: `promoteSubmission` HOLDS with a reasons line
+  ("trace unwitnessed … score unchanged") on the card and in the audit trail;
+  `mintObservedFromSubmission` refuses to write permanent observed provenance; and process
+  confidence is capped at 0.5 (`UNWITNESSED_CONFIDENCE_CAP`, mirrored in
+  `process_events.py`). `DevEvalPanelIntegrity.tsx` renders the verdict in the neutral tone
+  (`devcase.integrity.witnessed|witnessNeutral|unwitnessed`). Fixtures:
+  `app/_lib/devcase-witnessed.test.ts` (attack, honest replay, offline reconnect).
+  Residual: the verdict is a lag heuristic, not proof — a forger who drips synthetic events
+  live at real time defeats it (that is the paste / watermark controls' ground); under 5
+  minutes of late work is below its resolution; and the postings-list promote preview
+  (`promoteVerdict`) does not yet carry the unwitnessed hold, so a preview may say advance
+  where promote holds.
+- **A hold has one exit: recorded debrief findings, then a human clearance (`clearedBy`).**
+  A `suspect` band or an `unwitnessed` trace used to hold until someone re-promoted by
+  hand. Now the interviewer records ONE finding per minted follow-up — `supported`,
+  `revised`, `not_evidenced` or `not_asked` — and an adverse one (`revised`,
+  `not_evidenced`) is refused without a quote of what the candidate said. A follow-up with
+  no finding reads **not asked**, never a midpoint. A human then seals an
+  `authorship_verified` decision (the existing decision chain, keyed on the submission id;
+  no new table) that is bound to a **digest of the submission** (`submissionDigest`: the
+  stored evaluation + score). It is refused without findings recorded against this
+  evaluation, or when fewer than 4 in 5 follow-ups are `supported`
+  (`CLEARANCE_SUPPORTED_SHARE`). `clearedBy` is the only thing `heldForAuthorship` accepts:
+  `mintObservedFromSubmission` and `promoteSubmission` then proceed, while the authenticity
+  band and the score stay in the bundle unchanged as history. Re-evaluating writes a new
+  bundle (`evaluatedAt`), so the digest moves and the clearance — and the findings made
+  against the old evaluation — stop counting. Deterministic and keyless: no LLM anywhere in
+  it. Door: `GET|POST /api/interview-prep/scorecard?debrief=<submissionId>` (POST
+  `{findings}` and/or `{clear: true}`, `pipeline:write`); UI: the *Debrief findings* block
+  of `DevInterviewKit.tsx`. Code: `app/_lib/devcase-debrief-findings.ts`, fixtures
+  `devcase-debrief-findings.test.ts`. Gaps: the findings are not yet folded into the AI
+  scorecard's grounding (`automation.py`), and the postings-list promote preview does not
+  show a cleared state.
 - The seed's `note` is only rendered to candidates on the **LLM** path. The deterministic
   (keyless) seed's note is a fixed English provenance marker aimed at us, so the apply page
   suppresses it on `seed.source === "deterministic"` rather than showing build jargon,

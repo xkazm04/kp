@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { canonicalize } from "../decision-hash";
+import { listDecisionRecords } from "../decision-record-store";
 import { coerceOutboxStatus, type OutboxStatus } from "../comms-status";
 import { randomId } from "../random-id";
 import { jdJobId } from "../jd-limits";
@@ -117,13 +119,29 @@ function rowToDevCase(r: DevCaseRow): DevCaseRecord {
  *  "this case has a job" a fact rather than an assumption; the JD itself is not lost —
  *  it stays on the record as `jdSlug`, and the UI says so.
  *
+ *  An explicit `need.jobId` is the FIRST choice: a seeded job with no saved JD has no slug
+ *  to derive an id from, yet is still the job the case was cut for. It gets the same
+ *  existence check — an unverified id is never stored — and, when `workspaceId` is given,
+ *  must be visible to that team (a corpus row, `workspace_id IS NULL`, or its own); an
+ *  omitted `workspaceId` keeps the unscoped check. The slug path is the second choice.
+ *
  *  Exported so the write paths and their tests agree on one rule. */
-export function resolveCaseJobId(need: unknown): string | null {
-  const slug = (need as { jdSlug?: unknown } | null | undefined)?.jdSlug;
+export function resolveCaseJobId(need: unknown, workspaceId?: string): string | null {
+  const db = ensureDb();
+  const fields = need as { jobId?: unknown; jdSlug?: unknown } | null | undefined;
+  const explicit = typeof fields?.jobId === "string" ? fields.jobId.trim() : "";
+  if (explicit) {
+    const row = db.prepare(`SELECT workspace_id FROM jobs WHERE id = ?`).get(explicit) as
+      | { workspace_id: string | null }
+      | undefined;
+    if (row && (workspaceId === undefined || row.workspace_id === null || row.workspace_id === workspaceId)) {
+      return explicit;
+    }
+  }
+  const slug = fields?.jdSlug;
   const trimmed = typeof slug === "string" ? slug.trim() : "";
   if (!trimmed) return null;
   const jobId = jdJobId(trimmed);
-  const db = ensureDb();
   return db.prepare(`SELECT 1 FROM jobs WHERE id = ?`).get(jobId) ? jobId : null;
 }
 
@@ -185,7 +203,7 @@ export function saveDevCase(
   // lifecycle's approve transition and the manual POST /api/devcase — funnel through
   // this function, so a single resolution point is what makes "every assignment knows
   // its job" true of both instead of of whichever one remembered.
-  const jobId = resolveCaseJobId(input.need);
+  const jobId = resolveCaseJobId(input.need, workspaceId);
   db.prepare(
     `INSERT INTO dev_cases (id, title, role_title, seniority, need_json, analysis_json, role_json, case_json, status, created_at, workspace_id, job_id)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?, ?, ?)`
@@ -528,6 +546,11 @@ export type OutboxEntry = {
    *  non-failed row AND on legacy failures written before the column existed — the
    *  UI must render its absence as "no reason recorded", never invent one. */
   failureDetail: string | null;
+  /** The delivery identity sendComm minted for this message (also the envelope's
+   *  `messageId` and the Idempotency-Key). NULL on rows written before the column. */
+  messageId?: string | null;
+  /** When a relay last reported this row "delivered". NULL until it does. */
+  lastDeliveredAt?: string | null;
 };
 
 // Tenant (P1): derive the outbox tenant from the referenced pipeline entry (ref =
@@ -538,8 +561,9 @@ export type OutboxEntry = {
 // comms-tenancy-pair — the ENTRY-DERIVED tenant always wins (unchanged), but an
 // ENTRY-LESS comm no longer falls straight to the default workspace: a dispatch may
 // now carry an explicit `workspaceId` and that is used instead. The motivating case is
-// dispatchKnockoutDecline, which is entry-less BY DESIGN (a channel lead is declined
-// before any pipeline entry exists) yet its caller holds the webhook's owning team — so
+// the pre-Q1 dispatchKnockoutDecline, which was entry-less BY DESIGN (a channel lead was declined
+// before any pipeline entry existed; the KO letter is now sent for a held entry and takes its
+// tenant from it) yet its caller held the webhook's owning team — so
 // a non-default team's KO-decline used to surface in the DEFAULT team's Comms Center and
 // nowhere in its own. The explicit tenant is the LAST resort before the default, never a
 // way to re-file a ref'd comm away from its entry's team.
@@ -581,6 +605,9 @@ export function recordOutbox(input: {
   ref?: string | null;
   /** The dead-letter reason for a `failed` row (comms.ts computes it per attempt). */
   failureDetail?: string | null;
+  /** The delivery identity (see OutboxEntry.messageId). A bounce receipt stores the id
+   *  the relay echoed, which is how the view attributes it to exactly one send. */
+  messageId?: string | null;
   /** The dispatch's own tenant — used ONLY when `ref` names no pipeline entry (an
    *  entry-less comm such as a KO decline). A ref'd comm always files into its
    *  entry's team, whatever this says. */
@@ -596,11 +623,12 @@ export function recordOutbox(input: {
   // A reason belongs to a FAILURE. Storing one on a sent/queued row would put a stale
   // "http 503" (the last retry before the one that worked) next to a green badge.
   const failureDetail = input.status === "failed" ? input.failureDetail?.trim() || null : null;
+  const messageId = input.messageId?.trim() || null;
   db.prepare(
-    `INSERT INTO dev_outbox (id, recipient, subject, body, kind, channel, status, ref, created_at, workspace_id, failure_detail)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, input.recipient, input.subject, input.body, input.kind, input.channel, input.status, input.ref ?? null, now, workspaceId, failureDetail);
-  return { id, ...message, ref: input.ref ?? null, createdAt: now, failureDetail };
+    `INSERT INTO dev_outbox (id, recipient, subject, body, kind, channel, status, ref, created_at, workspace_id, failure_detail, message_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, input.recipient, input.subject, input.body, input.kind, input.channel, input.status, input.ref ?? null, now, workspaceId, failureDetail, messageId);
+  return { id, ...message, ref: input.ref ?? null, createdAt: now, failureDetail, messageId, lastDeliveredAt: null };
 }
 
 function rowToOutboxEntry(r: Record<string, unknown>): OutboxEntry {
@@ -617,7 +645,36 @@ function rowToOutboxEntry(r: Record<string, unknown>): OutboxEntry {
     ref: (r.ref as string) ?? null,
     createdAt: r.created_at as string,
     failureDetail: (r.failure_detail as string) ?? null,
+    messageId: (r.message_id as string) ?? null,
+    lastDeliveredAt: (r.last_delivered_at as string) ?? null,
   };
+}
+
+/** Stamp "a relay reported this delivered" on the send a receipt concerns.
+ *
+ *  Exact when the receipt echoes a `messageId`; otherwise the newest non-bounced send of
+ *  that (ref, kind) — the same fallback the bounce view uses for id-less rows. A stamp on
+ *  an existing row, not an appended one: "delivered" is a fact about the send, and a
+ *  ledger row per delivery would only be folded back onto it. Returns whether a row took it. */
+export function stampOutboxDelivered(ref: string, kind: string, messageId?: string | null): boolean {
+  const db = ensureDb();
+  const ws = outboxWorkspaceForRef(ref);
+  const now = new Date().toISOString();
+  const id = messageId?.trim();
+  if (id) {
+    const r = db
+      .prepare(`UPDATE dev_outbox SET last_delivered_at = ? WHERE workspace_id = ? AND ref = ? AND kind = ? AND message_id = ? AND status IN ('sent','failed')`)
+      .run(now, ws, ref, kind, id);
+    if (r.changes > 0) return true;
+  }
+  const r = db
+    .prepare(
+      `UPDATE dev_outbox SET last_delivered_at = ? WHERE id = (
+         SELECT id FROM dev_outbox WHERE workspace_id = ? AND ref = ? AND kind = ? AND status = 'sent'${id ? " AND message_id IS NULL" : ""}
+         ORDER BY created_at DESC, id DESC LIMIT 1)`
+    )
+    .run(now, ws, ref, kind);
+  return r.changes > 0;
 }
 
 export function listOutbox(limit = 50, workspaceId: string = DEFAULT_WORKSPACE_ID): OutboxEntry[] {
@@ -1084,10 +1141,12 @@ export function verifyDevSessionChain(id: string): ChainVerdict {
  *  the per-session seq can't collide under concurrent flushes — and so each row's
  *  chain hash links the true predecessor. Returns the new high-water seq. No-op
  *  once submitted. */
-export function appendDevSessionEvents(id: string, events: DevSessionEvent[]): number {
+export function appendDevSessionEvents(id: string, events: DevSessionEvent[], receivedAt: string = new Date().toISOString()): number {
   const db = ensureDb();
   if (!events?.length) return 0;
-  const now = new Date().toISOString();
+  // `receivedAt` is the SERVER clock for this flush; the parameter is a seam for tests
+  // that replay a timeline, never something a route passes from the client.
+  const now = receivedAt;
   const tx = db.transaction((): number => {
     // Read status + tenant together (by-id): events inherit their session's workspace.
     const active = db.prepare(`SELECT status, workspace_id FROM dev_sessions WHERE id = ?`).get(id) as
@@ -1145,7 +1204,76 @@ export type SessionIntegrity = {
   // a shared/relayed solution. A merely-missing own marker is a mild note (the
   // candidate may have deleted the line), never decisive alone.
   watermark: { expected: string; present: boolean; foreign: string[] };
+  // C2 — was the timeline WITNESSED as it happened? The chain protects the log, not
+  // the time the log claims; this reads how the claimed time arrived. Never a penalty.
+  witness: WitnessVerdict;
 };
+
+// ---- Witnessed timeline (C2) -------------------------------------------------
+// An honest editor flushes every ~8s, so an event reaches the server within seconds of
+// the time it claims. A scripted client can mint a session, wait, and POST a synthetic
+// hour in one go: chain valid, nothing backdated, every event claimed in-window — but
+// every event ARRIVES an hour after it supposedly happened. Lag (receive - claimed) is
+// the tell the chain cannot see.
+//
+//   witnessed   nothing material arrived late
+//   neutral     a stretch arrived late but the session was mostly live around it — the
+//               offline-then-reconnect shape. Reads as connectivity, never as suspicion.
+//   unwitnessed most of the claimed work arrived in bulk
+//   unknown     no timestamped events: nothing to witness
+//
+// An unwitnessed trace costs the candidate NO points and moves no band. It only holds
+// auto-promote, caps process confidence and blocks permanent observed-provenance minting.
+export const WITNESS_MAX_LAG_MS = 2 * 60 * 1000; // arrived later than this = not witnessed
+export const WITNESS_MIN_LATE_SPAN_MS = 5 * 60 * 1000; // less late-claimed work than this is noise
+export const WITNESS_LATE_SHARE_UNWITNESSED = 0.5; // more than this share of events late
+
+// Process confidence is capped here when unwitnessed (process_events.py mirrors it).
+export const UNWITNESSED_CONFIDENCE_CAP = 0.5;
+
+export const WITNESS_VERDICTS = ["witnessed", "neutral", "unwitnessed", "unknown"] as const;
+export type WitnessVerdictKind = (typeof WITNESS_VERDICTS)[number];
+export type WitnessVerdict = {
+  verdict: WitnessVerdictKind;
+  /** Distinct server receive instants — one per flush. An honest 8s session has hundreds. */
+  arrivalBatches: number;
+  /** Span the events CLAIM (first to last client timestamp). */
+  claimedSpanMs: number;
+  /** Span the events actually ARRIVED over (first to last receive). */
+  arrivalSpanMs: number;
+  lateEvents: number;
+  totalEvents: number;
+};
+
+/** Pure: the verdict from (claimed, received) pairs in epoch ms. */
+export function witnessVerdictOf(pairs: ReadonlyArray<{ t: number; received: number }>): WitnessVerdict {
+  const total = pairs.length;
+  if (total === 0) return { verdict: "unknown", arrivalBatches: 0, claimedSpanMs: 0, arrivalSpanMs: 0, lateEvents: 0, totalEvents: 0 };
+  const ts = pairs.map((p) => p.t);
+  const rx = pairs.map((p) => p.received);
+  const late = pairs.filter((p) => p.received - p.t > WITNESS_MAX_LAG_MS);
+  const lateTs = late.map((p) => p.t);
+  const lateSpan = late.length > 0 ? Math.max(...lateTs) - Math.min(...lateTs) : 0;
+  let verdict: WitnessVerdictKind = "witnessed";
+  if (lateSpan >= WITNESS_MIN_LATE_SPAN_MS) {
+    verdict = late.length / total > WITNESS_LATE_SHARE_UNWITNESSED ? "unwitnessed" : "neutral";
+  }
+  return {
+    verdict,
+    arrivalBatches: new Set(rx).size,
+    claimedSpanMs: Math.max(...ts) - Math.min(...ts),
+    arrivalSpanMs: Math.max(...rx) - Math.min(...rx),
+    lateEvents: late.length,
+    totalEvents: total,
+  };
+}
+
+/** Does this persisted evaluation bundle carry an UNWITNESSED verdict? Absent (legacy
+ *  bundle, repo submission) is not unwitnessed — no signal, no hold. */
+export function bundleTraceUnwitnessed(bundle: unknown): boolean {
+  const witness = (bundle as { integrity?: { witness?: { verdict?: unknown } } } | null | undefined)?.integrity?.witness;
+  return witness?.verdict === "unwitnessed";
+}
 
 // LLM-era controls #4 — the per-session seed watermark. Deterministically derived
 // from the session id (never stored), injected into the served DECISIONS log as an
@@ -1171,9 +1299,11 @@ export function getDevSessionIntegrity(id: string): SessionIntegrity {
     .all(id) as Array<{ t: number; created_at: string }>;
   let backdated = 0;
   let maxDrift = 0;
+  const pairs: Array<{ t: number; received: number }> = [];
   for (const r of rows) {
     const received = Date.parse(r.created_at);
     if (!Number.isFinite(received)) continue;
+    pairs.push({ t: r.t, received });
     const future = r.t - received - INTEGRITY_CLOCK_SKEW_MS; // claimed after it was received
     const preSession = Number.isFinite(startMs) ? startMs - INTEGRITY_CLOCK_SKEW_MS - r.t : -1; // claimed before the session existed
     if (future > 0 || preSession > 0) {
@@ -1191,6 +1321,7 @@ export function getDevSessionIntegrity(id: string): SessionIntegrity {
     backdatedEvents: backdated,
     maxClockDriftMs: maxDrift,
     watermark: { expected, present: found.has(expected), foreign },
+    witness: witnessVerdictOf(pairs),
   };
 }
 
@@ -1364,4 +1495,52 @@ export function saveSubmissionEvaluation(id: string, evaluation: unknown, transf
     transferScore,
     id
   );
+}
+
+// ---------------------------------------------------------------------------
+// C4 — the authorship-hold READ side (the write side is devcase-debrief-findings.ts)
+// ---------------------------------------------------------------------------
+// A suspect authenticity band or an unwitnessed trace holds promote and minting; the only
+// exit is a sealed `authorship_verified` decision bound to the digest of THIS evaluation.
+
+export const DEBRIEF_FINDINGS_KIND = "debrief_findings";
+export const AUTHORSHIP_VERIFIED_KIND = "authorship_verified";
+
+/** What a clearance is bound to: the stored evaluation and its score. Any re-evaluation
+ *  that writes a different bundle (it stamps `evaluatedAt`) changes it. */
+export function submissionDigest(sub: DevSubmission): string {
+  return createHash("sha256")
+    .update(canonicalize({ id: sub.id, evaluation: sub.evaluation, transferScore: sub.transferScore }))
+    .digest("hex");
+}
+
+export type Sealed = { actor: string; findings: unknown[] };
+
+/** The newest record of `kind` sealed against THIS evaluation's digest. */
+export function sealedFor(sub: DevSubmission, kind: string): Sealed | null {
+  const digest = submissionDigest(sub);
+  for (const rec of listDecisionRecords({ candidateRef: sub.id, workspaceId: sub.workspaceId, limit: 100 })) {
+    if (rec.kind !== kind) continue;
+    let inputs: { digest?: unknown; findings?: unknown } = {};
+    try {
+      inputs = (JSON.parse(rec.payloadJson) as { inputs?: typeof inputs }).inputs ?? {};
+    } catch {
+      continue; // best-effort: an unreadable record binds nothing
+    }
+    if (inputs.digest !== digest) continue; // sealed against another evaluation: history
+    return { actor: rec.actor, findings: Array.isArray(inputs.findings) ? (inputs.findings as unknown[]) : [] };
+  }
+  return null;
+}
+
+/** Who cleared this evaluation, or null — also null once the submission was re-evaluated. */
+export function clearedByFor(sub: DevSubmission): string | null {
+  return sealedFor(sub, AUTHORSHIP_VERIFIED_KIND)?.actor ?? null;
+}
+
+/** Suspect band or unwitnessed trace, with no clearance on this evaluation. */
+export function heldForAuthorship(sub: DevSubmission): boolean {
+  const band = (sub.evaluation as { authenticity?: { band?: unknown } } | null | undefined)?.authenticity?.band;
+  if (band !== "suspect" && !bundleTraceUnwitnessed(sub.evaluation)) return false;
+  return clearedByFor(sub) === null;
 }

@@ -5,7 +5,7 @@ import {
   probeCompanionBrain,
   recordCompanionBrainConsent,
 } from "@/app/_lib/companion-brain";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
@@ -34,7 +34,7 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 // Operator-gated like the rest of /api/companion, and workspace-scoped: consent
 // is a tenant fact even though the tree it consents to is machine-wide.
 
-export async function GET(request: Request) {
+export const GET = withWorkspace(async (ws: string, request: Request) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
@@ -49,14 +49,13 @@ export async function GET(request: Request) {
     if (!rateLimit(`companion-brain-probe:${clientIpFrom(request.headers)}`, { limit: 60, windowMs: 10 * 60_000 })) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
-    const ws = await currentWorkspace();
     return NextResponse.json(companionBrainStatus(await probeCompanionBrain(), ws));
   } catch (error) {
     return safeJsonError(error, "api:companion/brain", "COMPANION_BRAIN_FAILED");
   }
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withWorkspace(async (ws: string, request: Request) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
@@ -72,7 +71,6 @@ export async function POST(request: Request) {
       // RATE_LIMITED_ERROR through the refusal chokepoint (api-contracts.md §1.1).
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
-    const ws = await currentWorkspace();
     // The disk is re-read HERE rather than trusted from the GET the wizard made
     // minutes ago: a proposal-time check is a claim and an execution-time check
     // is the guarantee (the same reasoning the resolve route documents). Birth
@@ -84,4 +82,4 @@ export async function POST(request: Request) {
   } catch (error) {
     return safeJsonError(error, "api:companion/brain", "COMPANION_BRAIN_FAILED");
   }
-}
+});

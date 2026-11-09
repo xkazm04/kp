@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getHiredAgent, transitionHiredAgent, type HiredAgentRecord } from "@/app/_lib/db/agents";
 import { lifecycleEventName, lifecycleTarget, placeAgentOnBoard } from "@/app/_lib/agent-hire/lifecycle";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { requireCapability } from "@/app/_lib/auth/current-user";
@@ -41,7 +41,7 @@ function safeAgent(agent: HiredAgentRecord | null): Omit<HiredAgentRecord, "repo
 // function the push report uses (agent-hire/lifecycle.ts); this route keeps no
 // private copy of the vocabulary.
 
-export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). A poll reads like a read, but
@@ -55,7 +55,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   if (under) return under;
   try {
     const { id } = await context.params;
-    const ws = await currentWorkspace();
     const agent = getHiredAgent(id, ws);
     if (!agent) return NextResponse.json({ error: "Agent not found." }, { status: 404 });
     if (!agent.requestId) {
@@ -130,4 +129,4 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   } catch (error) {
     return safeJsonError(error, "api:agents/refresh", "AGENT_REFRESH_FAILED");
   }
-}
+});

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { prepareGigProject } from "@/app/_lib/gigs/project";
@@ -22,7 +22,7 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 // Throttled per IP BEFORE any read, at the research door's budget: every accepted call
 // writes to disk and makes up to two calls to the local Personas app.
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> {
+export const POST = withWorkspace(async (ws: string, request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -32,7 +32,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   try {
     const { id } = await params;
-    const ws = await currentWorkspace();
     const res = await prepareGigProject(ws, id);
     if (!res.ok) {
       if (res.code === "GIG_NOT_FOUND") return jsonRefusal("GIG_NOT_FOUND", 404);
@@ -42,4 +41,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } catch (error) {
     return safeJsonError(error, "api:gigs/[id]/workspace", "GIG_STORE_FAILED");
   }
-}
+});

@@ -378,19 +378,25 @@ function requireLocalizedCode(code, origin) {
 }
 
 // 1. The central registries.
-const apiResponseSrc = readFileSync(join(REPO_ROOT, "app", "_lib", "api-response.ts"), "utf8");
+// The catalogs live in app/_lib/api-errors/ (re-exported by api-response.ts).
+const REGISTRY_FILES = {
+  STORE_ERRORS: "app/_lib/api-errors/store-errors.ts",
+  REFUSAL_ERRORS: "app/_lib/api-errors/refusal-errors.ts",
+};
 for (const registry of ["STORE_ERRORS", "REFUSAL_ERRORS"]) {
+  const registryFile = REGISTRY_FILES[registry];
+  const apiResponseSrc = readFileSync(join(REPO_ROOT, ...registryFile.split("/")), "utf8");
   const block = apiResponseSrc.match(new RegExp(`export const ${registry} = \\{([\\s\\S]*?)\\n\\} as const;`));
   if (!block) {
-    problems.push(`app/_lib/api-response.ts — could not locate the ${registry} block (did its shape change?)`);
+    problems.push(`${registryFile} — could not locate the ${registry} block (did its shape change?)`);
     continue;
   }
   const codes = [...block[1].matchAll(/^ {2}([A-Z_0-9]+):/gm)].map((m) => m[1]);
   if (!codes.length) {
-    problems.push(`app/_lib/api-response.ts — ${registry} parsed to zero codes (did its shape change?)`);
+    problems.push(`${registryFile} — ${registry} parsed to zero codes (did its shape change?)`);
     continue;
   }
-  for (const code of codes) requireLocalizedCode(code, `${registry} (app/_lib/api-response.ts)`);
+  for (const code of codes) requireLocalizedCode(code, `${registry} (${registryFile})`);
 }
 
 // 2. The satellite registries.

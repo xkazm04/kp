@@ -1,0 +1,96 @@
+{
+  "schema": "conform-run/1",
+  "worker": "17ccf9b4-8a80-4b4f-8c32-8b64f6384d14",
+  "subject": "scoring-rubrics",
+  "evaluatedAt": "2026-10-19T11:21:06.430216+00:00",
+  "provider": "agy",
+  "model": "gemini-3.8-flash-high",
+  "pairs": [
+    {
+      "context": "match-score-shared-types",
+      "subject": "scoring-rubrics",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/features/shared/matchTypes.ts:181 The shared match scoring model defines gaps as unstructured prose strings rather than computed objects with target distances, impact in rubric space, effort estimates, and action priorities.",
+      "techniques": [
+        {
+          "technique": "gap-ranking",
+          "verdict": "deviation",
+          "evidence": "app/features/shared/matchTypes.ts:181 Reasoning models gaps as string arrays rather than computed objects carrying rubric-space impact, effort cost, and action-oriented next steps."
+        },
+        {
+          "technique": "rubric-stability",
+          "verdict": "deviation",
+          "evidence": "app/features/shared/matchTypes.ts:53 MatchResult defines canonical persisted match scores but omits a rubric version identifier, leaving historical scores uninterpretable across rubric modifications."
+        },
+        {
+          "technique": "weight-design",
+          "verdict": "deviation",
+          "evidence": "app/features/shared/matchTypes.ts:124 WeightVector defines scoring dimensions without an enforced sum invariant, per-dimension rationales, or version identifiers."
+        },
+        {
+          "technique": "score-explanation",
+          "verdict": "deviation",
+          "evidence": "app/features/shared/matchTypes.ts:31 ScoreDimension models contributions and weights for additive breakdown rendering, but MatchResult omits coverage disclosure, rubric version, and top gap actions."
+        },
+        {
+          "technique": "unmeasured-honesty",
+          "verdict": "deviation",
+          "evidence": "app/features/shared/matchTypes.ts:35 ScoreDimension types percent and contribution as required numbers and cannot represent an absent or unmeasured dimension, while MatchResult lacks a coverage floor."
+        },
+        {
+          "technique": "weight-lenses",
+          "verdict": "deviation",
+          "evidence": "app/features/shared/matchTypes.ts:167 MatchResponse supplies candidate archetype weights, but MatchResult lacks the lens label under which individual match scores were evaluated."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "scoring-rubrics",
+      "context": "score-metric-display",
+      "reason": "withdrawn after review: reviewer (sonnet): FactorChartBody.tsx:109 does plot value/max ratios, but factor-points.ts defines the maxes (25/30/23/12/10) as the weighted point ceilings, and the tooltip and sr-only table show the raw value/max points; those points are the additive contributions, so the claims that importance is concealed and tha"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-19T11:21:06.430216+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "scoring-rubrics"
+      ],
+      "techniques": [
+        "gap-ranking",
+        "normalization",
+        "rubric-stability",
+        "score-explanation",
+        "unmeasured-honesty",
+        "weight-lenses"
+      ],
+      "deviations": 1,
+      "context": "score-metric-display",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-19T11:21:06.430216+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "scoring-rubrics"
+      ],
+      "techniques": [
+        "gap-ranking",
+        "rubric-stability",
+        "score-explanation",
+        "unmeasured-honesty",
+        "weight-design",
+        "weight-lenses"
+      ],
+      "deviations": 1,
+      "context": "match-score-shared-types",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    }
+  ]
+}

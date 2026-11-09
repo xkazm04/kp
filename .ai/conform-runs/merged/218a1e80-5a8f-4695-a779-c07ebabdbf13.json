@@ -1,0 +1,71 @@
+{
+ "schema": "conform-run/1",
+ "worker": "218a1e80-5a8f-4695-a779-c07ebabdbf13",
+ "subject": "portable-candidate-credentials",
+ "evaluatedAt": "2026-10-23T21:05:14.598500+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "skill-profile-public-page",
+   "subject": "portable-candidate-credentials",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/skill/[token]/page.tsx:82 The page passes scores to its client component regardless of trust state, leaving suppression to rendering instead of withholding numeric data during resolution.",
+   "techniques": [
+    {
+     "technique": "freshness-is-separate-from-integrity",
+     "verdict": "deviation",
+     "evidence": "app/_lib/skill-profile.ts:112 Age overrides methodology retirement when both apply, contrary to supersession taking precedence; line 101 also assumes missing methodology means the current version."
+    },
+    {
+     "technique": "numbers-only-for-genuine-states",
+     "verdict": "deviation",
+     "evidence": "app/skill/[token]/page.tsx:82 Scores, confidence and axes are passed unconditionally to the client view; its template hides them, but the required data-layer omission is absent, and methodology-superseded credentials retain the ordinary score layout."
+    },
+    {
+     "technique": "signed-artifact-over-a-canonical-form",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/skill-profiles.ts:136 Canonical HMAC signing and key-id binding exist, but verification uses the same serializer without checking or dispatching on the artifact's form version, so unknown versions are not refused before reserialization."
+    },
+    {
+     "technique": "substantive-versus-signed-but-empty",
+     "verdict": "deviation",
+     "evidence": "app/_lib/skill-profile.ts:70 Any axis key or positive transfer score establishes substance without checking populated numeric dimensions, default-filled payloads, or the observed-work evidence and extent required by the standard."
+    },
+    {
+     "technique": "trust-state-resolution",
+     "verdict": "deviation",
+     "evidence": "app/skill/[token]/page.tsx:44 Missing backing records and corrupt profile JSON bypass trust resolution and become a 404; the standard requires an unavailable backing record or malformed envelope to resolve to neutral unverifiable."
+    },
+    {
+     "technique": "unverifiable-before-tampered-never-accuse",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/skill-profiles.ts:117 Missing or malformed signature material is decoded without a prerequisite validation gate; with a configured key it becomes mismatch and then tampered instead of unverifiable or unsigned."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-23T21:05:14.598500+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "portable-candidate-credentials"
+   ],
+   "techniques": [
+    "freshness-is-separate-from-integrity",
+    "numbers-only-for-genuine-states",
+    "signed-artifact-over-a-canonical-form",
+    "substantive-versus-signed-but-empty",
+    "trust-state-resolution",
+    "unverifiable-before-tampered-never-accuse"
+   ],
+   "deviations": 1,
+   "context": "skill-profile-public-page",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

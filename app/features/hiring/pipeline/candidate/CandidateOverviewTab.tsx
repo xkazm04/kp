@@ -4,7 +4,8 @@
 // leads it: a degraded intake to capture, or, for someone this workspace hired, how
 // the hire worked out. Then a summary rail (score with its kind and provenance, the
 // confidence meter, fit tier, estimated salary against the band, the route across
-// the axis) beside the weighted breakdown and the skills evidence. Every action on
+// the axis) beside the weighted breakdown and the skills evidence, and under them the
+// evidence ladder of how they work with AI (evidence-ladder/). Every action on
 // the candidate lives in the modal's footer (footer/CandidateFooter.tsx).
 
 import { useTranslations } from "next-intl";
@@ -17,6 +18,8 @@ import type { Entry } from "@/app/features/shared/pipelineTypes";
 import { useMapMoney } from "../map/useMapMoney";
 import { PipelineDegradedIntakeBanner } from "../PipelineDegradedIntakeBanner";
 import { PipelineHireOutcomeCard } from "../PipelineHireOutcomeCard";
+import { EvidenceLadder } from "./evidence-ladder/EvidenceLadder";
+import { OutreachReleaseCard } from "./outreach/OutreachReleaseCard";
 import type { CandidateState } from "./state/useCandidateState";
 import type { CandidateDetailModel } from "./scorecard/candidateDetailModel";
 import { AnalysisNote, SkillGroups, StageRoute } from "./scorecard/DetailParts";
@@ -51,26 +54,31 @@ export function CandidateOverviewTab({
   // speaks, and a work-sample TRANSFER score must never read as a match score.
   const board = model.hasAnalysis ? null : model.display;
   const caption = board?.kind === "transfer" ? tDrawer("transfer") : t("score");
+  // The score always carries its source: the board's own provenance when the board
+  // number speaks, else the live ranking — the keyless rule-based ranker, no AI.
+  const detail = board ? provenanceText(board.provenance) : model.hasAnalysis ? t("ruleBased") : null;
+  const differs = model.boardDiffers;
   const fit = model.salary.fit;
   const fitNote = fit === "unknown" ? null : t(`salaryFit.${fit}`);
 
   return (
     <div className="flex flex-col">
-      {entry.intakeDegraded || hired ? (
-        <div className="space-y-4 px-4 pt-5 sm:px-6">
-          {entry.intakeDegraded ? (
-            <PipelineDegradedIntakeBanner
-              reason={entry.intakeDegradedReason}
-              resolving={st.resolvingIntake}
-              intakeErr={st.intakeErr}
-              onResolve={st.resolveIntake}
-              onOpenProfile={onOpenProfile}
-              candidateId={entry.candidateId}
-            />
-          ) : null}
-          {hired ? <PipelineHireOutcomeCard entryId={entry.id} /> : null}
-        </div>
-      ) : null}
+      <div className="space-y-4 px-4 pt-5 empty:hidden sm:px-6">
+        {/* A first-contact letter is held until a person approves and releases it. A fresh
+            outreach task result re-reads it (the task drafts a new revision). */}
+        <OutreachReleaseCard entryId={entry.id} refreshKey={st.result?.task === "outreach" ? st.result : null} />
+        {entry.intakeDegraded ? (
+          <PipelineDegradedIntakeBanner
+            reason={entry.intakeDegradedReason}
+            resolving={st.resolvingIntake}
+            intakeErr={st.intakeErr}
+            onResolve={st.resolveIntake}
+            onOpenProfile={onOpenProfile}
+            candidateId={entry.candidateId}
+          />
+        ) : null}
+        {hired ? <PipelineHireOutcomeCard entryId={entry.id} /> : null}
+      </div>
 
       <div className="mt-5 grid border-t border-stone-200 bg-white md:grid-cols-[17rem_minmax(0,1fr)]">
         <aside className="flex flex-col gap-5 border-b border-stone-200 p-6 md:border-b-0 md:border-r">
@@ -79,10 +87,23 @@ export function CandidateOverviewTab({
               model={model}
               size="xl"
               caption={caption}
-              detail={board ? provenanceText(board.provenance) : null}
+              detail={detail}
             />
             <FitTierBadge tier={model.fitTier} score={model.raw} labels={tierLabels} />
           </div>
+          {model.hasAnalysis && model.score != null ? (
+            <div className="-mt-2 space-y-1 text-meta text-steel">
+              <p>{t("ruleBasedWeighs")}</p>
+              {differs ? (
+                <p>
+                  {t("boardShows", {
+                    score: differs.score,
+                    source: provenanceText(differs.provenance) ?? "—",
+                  })}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
           <ScoreMeter model={model} />
           <div>
             <p className={META_LABEL}>{t("salary")}</p>
@@ -103,6 +124,9 @@ export function CandidateOverviewTab({
           <SkillGroups model={model} layout="columns" />
         </div>
       </div>
+
+      {/* How they work with AI (ADR 0027 S3): three rungs, descriptive, no score. */}
+      <EvidenceLadder entryId={entry.id} humanScorecards={st.humanScs} aiInterview={st.ivOutcome} />
     </div>
   );
 }

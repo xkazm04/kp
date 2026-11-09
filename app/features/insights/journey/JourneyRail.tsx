@@ -188,7 +188,7 @@ function JourneyRailImpl({ cluster, phases, bandPx, sharedPx, unit, silencePx, l
             them — the one claim a per-role rail may not make. Clamped to two
             lines so a long role title cannot break the 44px head the columns
             are aligned against; the full title stays in the DOM. */}
-        <span className="line-clamp-2 text-micro font-semibold leading-tight text-coral">
+        <span className="line-clamp-2 text-micro font-semibold leading-tight text-coral-ink">
           {t("rail.forRole", { role: roleTitle })}
         </span>
       </div>

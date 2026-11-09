@@ -52,7 +52,7 @@ function ExplainDrawerPanel({ phase, onClose }: { phase: SimPhaseId; onClose: ()
     >
       <header className="flex items-center justify-between border-b border-stone-200 bg-paper/95 px-4 py-3 backdrop-blur">
         <div>
-          <p className="text-meta uppercase tracking-wide text-coral">{t("explainer.eyebrow")}</p>
+          <p className="text-meta uppercase tracking-wide text-coral-ink">{t("explainer.eyebrow")}</p>
           <h3 className="font-serif text-h3 text-ink">{t(`phase.${current}`)}</h3>
         </div>
         <button
@@ -86,11 +86,11 @@ function CriteriaTable({ phase }: { phase: SimPhaseId }) {
     <section className="mt-4 border-t border-stone-200 pt-3">
       <p className="text-meta uppercase tracking-wide text-steel">{t("explainer.criteriaTitle")}</p>
       {rows.length === 0 ? (
-        <p className="mt-2 text-sm leading-relaxed text-steel/80">{t("explainer.criteriaEmpty")}</p>
+        <p className="mt-2 text-sm leading-relaxed text-steel">{t("explainer.criteriaEmpty")}</p>
       ) : (
         <table className="mt-2 w-full border-collapse text-sm">
           <thead>
-            <tr className="text-left text-steel/70">
+            <tr className="text-left text-steel">
               <th scope="col" className="pb-1.5 font-medium">{t("explainer.colCriterion")}</th>
               <th scope="col" className="pb-1.5 font-medium">{t("explainer.colWeight")}</th>
               <th scope="col" className="pb-1.5 font-medium">{t("explainer.colSource")}</th>

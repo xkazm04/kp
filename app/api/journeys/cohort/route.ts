@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { journeyCohort } from "@/app/_lib/journey/project";
@@ -18,14 +18,13 @@ import { journeyCohort } from "@/app/_lib/journey/project";
 // board's paged read.
 const JOURNEY_COHORT_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
 
-export async function GET(request: Request) {
+export const GET = withWorkspace(async (workspaceId: string, request: Request) => {
   try {
     if (!rateLimit(`journeys-cohort:${clientIpFrom(request.headers)}`, JOURNEY_COHORT_RATE_LIMIT)) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
-    const workspaceId = await currentWorkspace();
     return NextResponse.json(journeyCohort({ workspaceId }));
   } catch (error) {
     return safeJsonError(error, "api:journeys:cohort", "PIPELINE_TIMELINE_FAILED");
   }
-}
+});

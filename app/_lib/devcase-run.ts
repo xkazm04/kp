@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getDevCase, getDevCaseBaseline, getDevSession, getDevSessionChat, getDevSessionEvents, getDevSessionIntegrity, getPosting, getSubmission, lifecycleByPosting, saveSubmissionEvaluation, type DevCaseRecord, type DevSubmission, type SessionIntegrity } from "./db/devcase";
+import { clearedByFor, heldForAuthorship, getDevCase, getDevCaseBaseline, getDevSession, getDevSessionChat, getDevSessionEvents, getDevSessionIntegrity, UNWITNESSED_CONFIDENCE_CAP, getPosting, getSubmission, lifecycleByPosting, saveSubmissionEvaluation, type DevCaseRecord, type DevSubmission, type SessionIntegrity } from "./db/devcase";
 import { candidateIdByContact, createPipelineEntry, getPipelineEntry, recordAutomationEvent, setApproval } from "./db/pipeline";
 import { getJob } from "./db/jobs";
 import { ensureDb } from "./db/core";
@@ -470,7 +470,13 @@ export async function mintObservedFromSubmission(
   // (devcase-authenticity.ts) and apply_live_case only ever sees the transfer score
   // and its propagated confidence. Held, not lost — re-promoting mints normally
   // once a human has verified authorship and cleared the band.
-  if (bundle.authenticity?.band === "suspect") return { credited: [], applied: false };
+  // C2 — the same hold for a trace nobody witnessed. It costs the candidate no score,
+  // but observed provenance is permanent and global, so it is minted only from a
+  // timeline that was seen as it happened.
+  // C4 — held, not lost: the ONLY exit from either hold is `clearedBy`, a sealed human
+  // authorship_verified decision bound to this evaluation's digest. It leaves the band
+  // and the score untouched, and a re-evaluation retires it.
+  if (heldForAuthorship(sub)) return { credited: [], applied: false };
   const posting = sub.postingId ? getPosting(sub.postingId) : null;
   const devCase = posting?.caseId ? getDevCase(posting.caseId) : null;
   if (!devCase?.case || !devCase.role) return { credited: [], applied: false };
@@ -590,6 +596,8 @@ export type SubmissionEvaluation = {
   perStepSources: Record<string, string>; // {reflect, tooling, evaluate, transfer, followups}
   fallbackReason: Record<string, string>; // {step: "<ExceptionType>: <message>"} for steps whose LLM call raised
   commitCount: number;
+  /** C4 — when this evaluation ran; the digest a clearance is bound to changes with it. */
+  evaluatedAt?: string;
 };
 
 // D6 core: the full incoming-evaluation chain for one submission — trace -> reflect +
@@ -748,6 +756,13 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
   const integrityCompromised =
     integrity != null &&
     (integrity.chain.valid === false || integrity.backdatedEvents > 0 || integrity.watermark.foreign.length > 0);
+  // C2 — an unwitnessed trace CAPS process confidence (never a score or a band: it is
+  // absent from scoreAuthenticity's input on purpose). Mirrors process_events.py's
+  // UNWITNESSED_CONFIDENCE_CAP, which the CLI cannot receive without a new flag.
+  if (integrity?.witness.verdict === "unwitnessed") {
+    const tooling = payload.result.tooling as { confidence?: unknown } | null | undefined;
+    if (tooling && typeof tooling.confidence === "number") tooling.confidence = Math.min(tooling.confidence, UNWITNESSED_CONFIDENCE_CAP);
+  }
   const authenticity = scoreAuthenticity({
     commitCount: processTrace.commitCount,
     bursty: processTrace.cadence?.bursty ?? null,
@@ -787,6 +802,9 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
     perStepSources: payload.perStepSources ?? {},
     fallbackReason: payload.fallbackReason ?? {},
     commitCount: commits.length,
+    // C4 — stamps every evaluation as its own event, so a re-run is never byte-identical
+    // to the one a clearance was sealed against (the digest the clearance binds to).
+    evaluatedAt: new Date().toISOString(),
   };
   const transferScore = Number((payload.result.transfer as { transferScore?: number } | null | undefined ?? {}).transferScore ?? 0);
   saveSubmissionEvaluation(submissionId, out, transferScore);
@@ -1097,13 +1115,20 @@ export function promoteSubmission(submissionId: string, floor: number, actor?: s
   //
   // Both blockers, the floor and the absent-score tier are ONE pure rule, computed
   // here — ABOVE the transaction — and shared with the postings preview.
-  const verdictInput = promoteVerdictInputOf(sub.evaluation, sub.transferScore, floor);
+  // C4 — a clearance (clearedBy) lifts the authorship holds below; the band and the
+  // score stay in the bundle as history, only the BLOCKER is removed from the verdict.
+  // The preview (devcase-postings-view.ts) builds its input the same way: the C2 unwitnessed
+  // hold and the C4 clearance are INPUTS of the one rule, not a second pass over its answer.
+  const verdictInput = promoteVerdictInputOf(sub.evaluation, sub.transferScore, floor, () => clearedByFor(sub) !== null);
   const verdict = promoteVerdict(verdictInput);
   // null when nothing scored the submission — never the fabricated 0 it used to be.
   const score = verdictInput.transferScore;
-  const suspectAuth = verdictInput.authenticityBand === "suspect";
+  const suspectAuth = verdict.reasons.some((r) => r.code === "authenticity_suspect");
   const evalConfidence = verdictInput.confidence ?? null;
   const lowConfidence = verdict.reasons.some((r) => r.code === "low_confidence");
+  // C2 — an unwitnessed timeline holds auto-promote; it never changes the score. The
+  // reasons line is written here, beside the verdict's own, so a hold always says why.
+  const unwitnessed = verdict.reasons.some((r) => r.code === "trace_unwitnessed");
 
   // TENANT: the SUBMISSION's own team owns everything this function writes — the
   // pipeline entry, the screening card and the audit event. There is no session
@@ -1200,6 +1225,9 @@ export function promoteSubmission(submissionId: string, floor: number, actor?: s
   const recommendation: PromoteResult["recommendation"] = verdict.recommendation;
   const reasons = promoteAuditReasons(verdict, floor);
   const redFlags = [...((evaluation.concerns as string[]) ?? [])];
+  if (unwitnessed) {
+    redFlags.unshift("Trace unwitnessed — the work timeline arrived in bulk rather than as it happened. The score is unchanged; verify the work live before advancing.");
+  }
   if (suspectAuth) {
     const authScore = verdictInput.authenticityScore;
     redFlags.unshift(

@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { openSimOfferToken, resolveSimEntry } from "@/app/_lib/sim-entry";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 
 // After the recruiter real-clicks "Send offer", the extend mints a token the
 // Decisions UI discards. The simulation reads it back here to open the
 // candidate's actual /offer/[token] page (and click Accept inside it).
-export async function GET(request: NextRequest) {
+export const GET = withWorkspace(async (workspaceId: string, request: NextRequest) => {
+  // Hands back an offer token (for a demo entry only): bound the repeat rate per client.
+  if (!rateLimit(`sim-offer-link:${clientIpFrom(request.headers)}`, { limit: 120, windowMs: 10 * 60_000 })) {
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
+  }
   try {
     const entryId = new URL(request.url).searchParams.get("entryId");
     if (!entryId) return jsonRefusal("SIM_ENTRY_REQUIRED", 400);
@@ -30,7 +35,6 @@ export async function GET(request: NextRequest) {
     // seat reaches it too, and a REAL candidate's offer token in a viewer's hands is an
     // accept/decline on that candidate's behalf. resolveSimEntry admits only a
     // (SIM)-marked entry, so a real id 404s exactly like a missing one (sim-entry.ts).
-    const workspaceId = await currentWorkspace();
     const entry = resolveSimEntry(entryId, workspaceId);
     if (!entry) return jsonRefusal("SIM_ENTRY_NOT_FOUND", 404);
 
@@ -43,4 +47,4 @@ export async function GET(request: NextRequest) {
     // non-JSON 500 that crashes the offer step's .json() instead of surfacing a clean error.
     return safeJsonError(error, "api:sim/offer-link", "SIM_OFFER_LINK_FAILED");
   }
-}
+});

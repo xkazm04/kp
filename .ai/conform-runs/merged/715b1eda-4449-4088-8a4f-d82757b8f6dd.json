@@ -1,0 +1,78 @@
+{
+ "schema": "conform-run/1",
+ "worker": "715b1eda-4449-4088-8a4f-d82757b8f6dd",
+ "subject": "background-jobs",
+ "evaluatedAt": "2026-10-26T22:37:03.787159+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "jobs-api",
+   "subject": "background-jobs",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/jobs/[id]/publish/route.ts:79 GET /api/jobs/[id]/publish returns the go-live receipt row unchanged, so a receipt left in state 'sourcing' by a process that died mid-sourcing is served as live work forever. A graceful abort does record 'abandoned' (golive-run.ts), but nothing sweeps or projects the ungraceful case. The only repair is the lazy compare-and-swap in claimResume on a later POST, and the client's receiptNote renders 'sourcing' as 'wentLive' with resumable:false.",
+   "techniques": [
+    {
+     "technique": "startup-sweeps",
+     "verdict": "deviation",
+     "evidence": "app/api/jobs/[id]/publish/route.ts:79 Orphaned in-flight state ('sourcing' with no live process behind it) is never moved to an honest interrupted state when the receipt is read, and no startup sweep exists. golive-receipt-store.ts claimResume does recognise stale 'sourcing' (GOLIVE_RESUME_GRACE_MS) as interrupted, but only on a re-publish, and the read path never applies that test."
+    },
+    {
+     "technique": "job-progress-and-cancellation",
+     "verdict": "conformant",
+     "evidence": "app/api/jobs/[id]/agent-fit/route.ts:65 The backgrounded agent_fit job's id is minted once at admission and handed to the viewer. startTask (tasks.ts) dedupes on a key built from the kind plus the job id, scoped to the workspace, never on the kind alone, so a double-click attaches to the same run instead of cross-wiring. The progress, cancel and snapshot clauses live in app/_lib/tasks.ts, outside this context."
+    },
+    {
+     "technique": "timeout-is-a-status-not-a-consumption",
+     "verdict": "not-applicable",
+     "evidence": "app/api/jobs/[id]/winnability/route.ts:75 The only bounded waits in this context are spawn deadlines that kill the child, which is the cancellation contract the technique explicitly excludes. No route waits on a tracked operation and then hands back a handle to wait again; the overrun is answered with the named JOB_WINNABILITY_TIMEOUT 504 refusal."
+    },
+    {
+     "technique": "loop-supervision",
+     "verdict": "not-applicable",
+     "evidence": "app/api/jobs/[id]/agent-fit/route.ts:64 No route here arms a recurring loop. A grep of app/api/jobs found no setInterval, heartbeat, supervisor or tick. Background work is handed to the task runtime in app/_lib/tasks.ts, which owns the queue and pump."
+    },
+    {
+     "technique": "adaptive-cadence",
+     "verdict": "not-applicable",
+     "evidence": "app/api/jobs/[id]/campaign/route.ts:13 There is no poller or idle loop in this context. Polling of tracked tasks happens on the client and in /api/tasks, not in these routes."
+    },
+    {
+     "technique": "tick-isolation",
+     "verdict": "not-applicable",
+     "evidence": "app/api/jobs/[id]/publish/route.ts:173 Long work here is awaited inside the request and bounded by its signal and per-child timeouts. There is no recurring tick whose crash, re-entrancy or deadline this context would need to isolate."
+    },
+    {
+     "technique": "loop-health-telemetry",
+     "verdict": "not-applicable",
+     "evidence": "app/api/jobs/[id]/campaign/route.ts:58 These are synchronous request handlers that report outcomes in their responses. No loop exists here whose per-tick health or silence would need to be tracked."
+    }
+   ],
+   "registryProposal": "startup-sweeps assumes in-flight state is repaired by a sweep at boot. A common pattern in request-driven apps is lazy repair: a later write compare-and-swaps a stale 'running' row once a grace window has passed, as claimResume does here. The technique should say whether lazy repair counts as a sweep. It should also say that every read path then has to apply the same staleness test, because otherwise the read keeps serving the phantom 'running' state the lazy writer would have repaired."
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-26T22:37:03.787159+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "background-jobs"
+   ],
+   "techniques": [
+    "adaptive-cadence",
+    "job-progress-and-cancellation",
+    "loop-health-telemetry",
+    "loop-supervision",
+    "startup-sweeps",
+    "tick-isolation",
+    "timeout-is-a-status-not-a-consumption"
+   ],
+   "deviations": 1,
+   "context": "jobs-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

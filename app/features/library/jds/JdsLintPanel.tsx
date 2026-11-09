@@ -48,7 +48,7 @@ export function JdLintPanel({ findings, onLocate }: { findings: JdLintFinding[];
               {phrase && onLocate ? (
                 <button
                   type="button"
-                  className="text-left underline decoration-dotted underline-offset-2 hover:text-coral"
+                  className="text-left underline decoration-dotted underline-offset-2 hover:text-coral-ink"
                   onClick={() => onLocate(phrase)}
                 >
                   {label}

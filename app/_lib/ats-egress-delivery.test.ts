@@ -29,6 +29,7 @@ import {
 } from "./ats-delivery-store.ts";
 import { createPipelineEntry } from "./db.ts";
 import { anonymizeEntry } from "./db/pipeline.ts";
+import { setEgressTransportForTests, type EgressTransport } from "./pinned-request.ts";
 import {
   IDEMPOTENCY_HEADER,
   SIGNATURE_HEADER,
@@ -39,13 +40,14 @@ import {
 
 after(() => cleanupUnitDb());
 
+/** Install `impl` as the egress transport (the pinned request deliver dials through) for
+ *  the duration of `fn`. The fakes keep fetch's call shape: (url, init). */
 async function withFetch<T>(impl: typeof fetch, fn: () => Promise<T>): Promise<T> {
-  const real = globalThis.fetch;
-  globalThis.fetch = impl;
+  setEgressTransportForTests(impl as unknown as EgressTransport);
   try {
     return await fn();
   } finally {
-    globalThis.fetch = real;
+    setEgressTransportForTests(undefined);
   }
 }
 
@@ -74,28 +76,32 @@ test("deliver treats a network error / timeout as a FAILURE", async () => {
   if (!r.delivered) assert.match(r.reason, /socket hang up/);
 });
 
-// A2 — the SSRF boundary vets ONLY the URL we dial. With the default `redirect:
-// "follow"` a vetted public host could answer `302 Location: http://169.254.169.254/…`
-// (or a 307 to 127.0.0.1, replaying method + the signed PII body) and undici would dial
-// that address with no re-vetting. NON-VACUITY: pre-fix `init.redirect` is undefined and
-// the reason is "webhook endpoint responded 0" — both asserts below fail.
+// A2 — the SSRF boundary vets ONLY the URL we dial. A vetted public host could answer
+// `302 Location: http://169.254.169.254/…` (or a 307 to 127.0.0.1, replaying method + the
+// signed PII body); following it dials that address with no re-vetting. deliver posts
+// through the pinned transport, which never follows a redirect and surfaces the 3xx —
+// proven against a real socket in pinned-request.test.ts. What this pins is the call
+// site: ONE POST through that transport, and a 3xx (or status 0) refused, not accepted.
 test("deliver never FOLLOWS a redirect (a vetted host must not become a redirector into the LAN)", async () => {
   setAtsConfig({ webhookUrl: "https://example.com/hook", events: ["candidate.hired"] });
-  let init: RequestInit | undefined;
-  const r = await withFetch(
-    (async (_url: unknown, i: RequestInit) => {
-      init = i;
-      // What the fetch spec produces for redirect:"manual" — an opaque-redirect
-      // response: status 0, ok false, no headers.
-      return { ok: false, status: 0, type: "opaqueredirect" };
-    }) as unknown as typeof fetch,
-    () => deliver("ping", { ping: true })
-  );
-  assert.equal(init?.redirect, "manual", "the POST must be issued with redirect:'manual' — a followed 3xx bypasses the resolve-and-reject guard entirely");
-  assert.equal(r.delivered, false, "a redirect is not an acceptance");
-  if (!r.delivered) {
-    assert.match(r.reason, /redirect/i, "the operator is told the endpoint redirected, not given a bogus status");
-    assert.equal(r.status, undefined, "0 is not an HTTP status — the ledger must not record it as one");
+  for (const answer of [{ ok: false, status: 307 }, { ok: false, status: 0 }]) {
+    let posts = 0;
+    let method: string | undefined;
+    const r = await withFetch(
+      (async (_url: unknown, i: { method: string }) => {
+        posts += 1;
+        method = i.method;
+        return answer;
+      }) as unknown as typeof fetch,
+      () => deliver("ping", { ping: true })
+    );
+    assert.equal(posts, 1, "exactly one POST through the pinned transport — a redirect is neither retried nor followed");
+    assert.equal(method, "POST");
+    assert.equal(r.delivered, false, "a redirect is not an acceptance");
+    if (!r.delivered) {
+      assert.match(r.reason, /redirect/i, "the operator is told the endpoint redirected, not given a bogus status");
+      assert.equal(r.status, answer.status || undefined, "0 is not an HTTP status — the ledger must not record it as one");
+    }
   }
 });
 

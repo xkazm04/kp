@@ -54,7 +54,7 @@ export function SetupLeaveConfirm({
       <div className={`${SETUP_PROSE} mx-auto text-center`}>
         <span
           aria-hidden
-          className="mx-auto grid h-12 w-12 place-items-center rounded-full border-2 border-stone-200 bg-white text-coral shadow-sticker-xs dark:-rotate-2"
+          className="mx-auto grid h-12 w-12 place-items-center rounded-full border-2 border-stone-200 bg-white text-coral-ink shadow-sticker-xs dark:-rotate-2"
         >
           <AlertTriangle size={22} />
         </span>

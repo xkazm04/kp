@@ -60,9 +60,9 @@ export function JdsBuilderChecklist({
             </div>
             <p className="mt-2 border-t border-stone-200 pt-2 text-sm text-steel">{t("checklistHint")}</p>
             {!anyOption ? (
-              <p className="mt-1.5 text-sm text-coral">{t("pickAtLeastOne")}</p>
+              <p className="mt-1.5 text-sm text-coral-ink">{t("pickAtLeastOne")}</p>
             ) : !inputOk ? (
-              <p className="mt-1.5 text-sm text-coral">{t("needMoreInput")}</p>
+              <p className="mt-1.5 text-sm text-coral-ink">{t("needMoreInput")}</p>
             ) : null}
             <button
               type="button"

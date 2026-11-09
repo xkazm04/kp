@@ -214,8 +214,8 @@ export function CaseDetail({
       {seedFiles.length > 0 ? (
         <details className={PANEL}>
           <summary className="focus-ring flex cursor-pointer list-none items-center gap-1.5 px-4 py-3 text-meta font-semibold uppercase tracking-wide text-steel">
-            <FileCode2 size={13} className="text-coral" /> {t("seedSummary")}
-            <span className="text-coral">· {t("seedFiles", { count: seedFiles.length })}</span>
+            <FileCode2 size={13} className="text-coral-ink" /> {t("seedSummary")}
+            <span className="text-coral-ink">· {t("seedFiles", { count: seedFiles.length })}</span>
           </summary>
           <div className="space-y-3 border-t border-stone-200 px-4 py-3">
             {seedDegraded ? (

@@ -38,7 +38,7 @@ import { CANARY_STATUSES, type CanaryOutcome, type CanaryStatus, type ObservedCh
 const CANARY_TONE: Record<CanaryStatus, { cls: string; Icon: LucideIcon }> = {
   addressed: { cls: "bg-moss/15 text-moss", Icon: Check },
   flagged: { cls: "bg-blue-50 text-blue-700", Icon: Flag },
-  propagated: { cls: "bg-coral/15 text-coral", Icon: AlertTriangle },
+  propagated: { cls: "bg-coral/15 text-coral-ink", Icon: AlertTriangle },
   unverifiable: { cls: "bg-stone-100 text-steel", Icon: CircleHelp },
 };
 

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildCvDocument, formatDates } from "./cvDocument";
-import { acceptedEditsOf, applyAcceptedEdits, descriptorIn, languageLines, outcomeRung, SKILL_CAP } from "./cvContent";
+import { acceptedEditsOf, applyAcceptedEdits, descriptorIn, isPersonalData, languageLines, outcomeRung, SKILL_CAP } from "./cvContent";
 import { tailorCvDocument } from "./cvTailor";
 
 // The designed CV's content rules, held to registry recruiting/cv-content-construction.
@@ -287,6 +287,39 @@ test("no personal data by default: birth date, marital status, nationality, phot
   // The model has no field for any of it: no photo, birth date, marital status or signature.
   for (const key of ["photo", "birthDate", "dateOfBirth", "maritalStatus", "nationality", "signature"]) assert.ok(!(key in doc), key);
   assert.deepEqual(doc.skills.flatMap((g) => g.items.map((i) => i.name)), ["Python", "SQL"]);
+});
+
+test("a personal line in the HEADER never becomes the headline, in every market's own label and the European format's colon-less one", () => {
+  const headlineOf = (line: string) =>
+    buildCvDocument({
+      profile: { displayName: "Jana Nováková", evidence: [] },
+      preferences: { targetTitles: [] },
+      cvSourceText: ["JANA NOVÁKOVÁ", line, "jana@example.invalid", "WORK EXPERIENCE", "Data Engineer", "SKILLS", "Python"].join("\n"),
+      today: TODAY,
+    }).headline;
+  // Above the first section there is no PERSONAL DETAILS block to drop them with: the
+  // first unrecognised line was printed under the name.
+  for (const line of [
+    "Státní příslušnost: česká",
+    "Nationality Czech",
+    "Gender Female",
+    "Pohlaví: žena",
+    "Place of birth: Brno",
+    "Datum a místo narození: Brno",
+    "Geburtsdatum und -ort: Brno",
+    "Geburtsort: Brno",
+    "Date et lieu de naissance : Lyon",
+    "Vyznání: katolické",
+    "Zdravotní stav: dobrý",
+  ]) {
+    assert.ok(isPersonalData(line), line);
+    assert.equal(headlineOf(line), null, line);
+  }
+  // A title that starts with the same word is still a title.
+  for (const line of ["Gender Studies Researcher", "Health Informatics Lead", "Gender equality programme coordinator", "Nationwide sales director"]) {
+    assert.ok(!isPersonalData(line), line);
+    assert.equal(headlineOf(line), line);
+  }
 });
 
 test("an ACCEPTED polish edit reaches the designed CV; a suggestion the seeker did not accept never does", () => {

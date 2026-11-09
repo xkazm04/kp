@@ -1,0 +1,86 @@
+{
+ "schema": "conform-run/1",
+ "worker": "fa0eb7b9-dffa-416f-b4ba-2357a9af2118",
+ "subject": "test-input-generation",
+ "evaluatedAt": "2026-10-18T02:49:48.993256+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "pipeline-move-bulk-operations",
+   "subject": "test-input-generation",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/hiring/pipeline/pipelineBulkConfirm.test.ts:46 Cancel and fired cases enumerate only two of the three confirmation kinds, leaving the small finite transition matrix incompletely covered.",
+   "techniques": [
+    {
+     "technique": "exhaustive-when-bounded",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/pipeline/pipelineBulkConfirm.test.ts:46 The implementation also admits move; supplementary preview tests cover move arming, drift and selection changes, but cancel/fired and cross-action replacement are not enumerated across all three kinds."
+    },
+    {
+     "technique": "negative-space-generation",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/pipelineBoardFilters.test.ts:176 The parser receives an otherwise valid CSV containing one invalid token and must preserve exactly the valid tokens; nearby positive cases prevent an always-empty parser from passing."
+    }
+   ]
+  },
+  {
+   "context": "devcase-live-work-surface",
+   "subject": "test-input-generation",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/devcase/apply/[token]/liveWorkDraft.test.ts:126 Size tests construct large overshoots instead of adjacent boundary cases, leaving off-by-one acceptance and truncation behavior untested.",
+   "techniques": [
+    {
+     "technique": "negative-space-generation",
+     "verdict": "deviation",
+     "evidence": "app/devcase/apply/[token]/liveWorkDraft.test.ts:126 Malformed-shape cases and positive controls exist, but limit tests use 300 KiB, 61 files and 2500 events rather than limit\u22121/limit/limit+1; the content assertion also permits any length below the cap."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "test-input-generation",
+   "context": "e2e-suite",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "test-input-generation",
+   "context": "form-controls",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-18T02:49:48.993256+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-input-generation"
+   ],
+   "techniques": [
+    "exhaustive-when-bounded",
+    "negative-space-generation"
+   ],
+   "deviations": 1,
+   "context": "pipeline-move-bulk-operations",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-18T02:49:48.993256+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-input-generation"
+   ],
+   "techniques": [
+    "negative-space-generation"
+   ],
+   "deviations": 1,
+   "context": "devcase-live-work-surface",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

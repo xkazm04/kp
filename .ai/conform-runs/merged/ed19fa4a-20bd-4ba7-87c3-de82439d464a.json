@@ -1,0 +1,83 @@
+{
+ "schema": "conform-run/1",
+ "worker": "ed19fa4a-20bd-4ba7-87c3-de82439d464a",
+ "subject": "english",
+ "evaluatedAt": "2026-10-19T10:04:13.927265+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "spark-feature-showcase",
+   "subject": "english",
+   "bundle": "localization",
+   "state": "deviation",
+   "evidence": "app/landing/spark/market/data.ts:215 Market Pulse formats its English prose date with a numeric month, producing the ambiguous all-numeric dates EN-DATE requires replacing with a written month.",
+   "techniques": [
+    {
+     "technique": "false-friends-and-collocations",
+     "verdict": "conformant",
+     "evidence": "messages/en.json:857 EN-COLLOCATION: the scheduling feature uses the native verb-object pairing \u201cpick their own slot\u201d."
+    },
+    {
+     "technique": "generated-prose-patterns",
+     "verdict": "conformant",
+     "evidence": "messages/en.json:853 EN-TEMPLATED-GRID: the feature description supplies distinct mechanisms rather than interchangeable category praise."
+    },
+    {
+     "technique": "interference-constructions",
+     "verdict": "conformant",
+     "evidence": "messages/en.json:882 EN-ARTICLE and EN-ORDER: the voice pitch uses natural determiners and subject-verb-object statements."
+    },
+    {
+     "technique": "register-and-voice",
+     "verdict": "conformant",
+     "evidence": "messages/en.json:16444 EN-EXPLETIVE-OPEN: the salary-panel instruction starts with its action and avoids introductory padding or effort minimizers."
+    },
+    {
+     "technique": "typography-and-capitalization",
+     "verdict": "deviation",
+     "evidence": "messages/en.json:823 EN-END-PUNCT: Proof.tsx renders these full-stop-ended fragments as an h2; headline punctuation is not held consistently across the page."
+    },
+    {
+     "technique": "ui-and-landing-microcopy",
+     "verdict": "deviation",
+     "evidence": "messages/en.json:16268 EN-LIST-PARALLEL: Scene.tsx places this imperative after the noun phrases \u201c0-100 fit score per CV\u201d and \u201cThe evidence to back it up\u201d in one ordered list."
+    },
+    {
+     "technique": "variant-and-locale-conventions",
+     "verdict": "deviation",
+     "evidence": "app/landing/spark/market/data.ts:215 EN-DATE: MarketPulseApp.tsx inserts this numeric-month output into the header\u2019s \u201cas of {date}\u201d prose."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "english",
+   "context": "spark-landing-shell",
+   "reason": "pair anchor refused: messages/en.json:16039 does not contain the quoted text"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-19T10:04:13.927265+00:00",
+   "bundle": "localization",
+   "subjects": [
+    "english"
+   ],
+   "techniques": [
+    "false-friends-and-collocations",
+    "generated-prose-patterns",
+    "interference-constructions",
+    "register-and-voice",
+    "typography-and-capitalization",
+    "ui-and-landing-microcopy",
+    "variant-and-locale-conventions"
+   ],
+   "deviations": 1,
+   "context": "spark-feature-showcase",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

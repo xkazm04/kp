@@ -472,7 +472,7 @@ export type DialogReply = StudioReply & { artifact: DialogArtifact | null };
 // Scan (the scheduler job and the manual run share this summary)
 // ---------------------------------------------------------------------------
 
-export const SCAN_JOB_NAME = "jobseeker_scan";
+export { SCAN_JOB_NAME } from "../scheduler-jobs";
 export const SCAN_TASK_KIND = "jobseeker_scan";
 
 export type SourceRunSummary = {
@@ -508,15 +508,7 @@ export function isScanProgressPhase(v: unknown): v is ScanProgressPhase {
   return typeof v === "string" && (SCAN_PROGRESS_PHASES as readonly string[]).includes(v);
 }
 
-/** The phase the scan could not do AT ALL — every structure or match batch it attempted
- *  threw — or null. A deep-dive failure never qualifies: the scores stand without it.
- *  The manual door records such a run as `error` (tasks.ts), so it neither reads `ok` in
- *  the history nor verifies the clock job. Defensive over stored summaries that predate
- *  `failures`. */
-export function scanWholePhaseFailure(summary: { failures?: unknown }): ScanPhaseFailure | null {
-  const failures = Array.isArray(summary.failures) ? (summary.failures as ScanPhaseFailure[]) : [];
-  return failures.find((f) => f && f.phase !== "deepdive" && f.of > 0 && f.chunks >= f.of) ?? null;
-}
+export { scanWholePhaseFailure } from "../task-external-runners";
 
 export type ScanSummary = {
   workspaceId: string;

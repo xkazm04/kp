@@ -1,0 +1,64 @@
+{
+ "schema": "conform-run/1",
+ "worker": "e9b0b254-48d9-456d-9310-96ee13daf9b0",
+ "subject": "adverse-impact-and-proxy-neutrality",
+ "evaluatedAt": "2026-10-25T00:48:33.126623+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "group-eval-comparison",
+   "subject": "adverse-impact-and-proxy-neutrality",
+   "bundle": "recruiting",
+   "state": "conformant",
+   "evidence": "app/features/hiring/decisions/groupEval/GroupEvalFairnessPanel.tsx:112 Every branch of the 'fairness' panel renders the scope note. The catalog text reads 'Checks ranking stability under different scoring emphases. It does not assess demographic or protected-class bias (the app holds no such data)', under the heading 'Weighting robustness'. The non-protected metric therefore cannot be read as a fairness result, and the degenerate states render as distinct non-green verdicts.",
+   "techniques": [
+    {
+     "technique": "cohort-shield-is-not-a-protected-class-test",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/decisions/groupEval/GroupEvalFairnessPanel.tsx:112 The panel states loudly that the robustness metric is not a protected-class analysis and that no demographic data is held. The same note is repeated in the insufficient, unavailable and uniform branches (l.46/69/89)."
+    },
+    {
+     "technique": "too-small-to-assess-as-a-distinct-verdict",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/decisions/groupEval/GroupEvalFairnessPanel.tsx:38 insufficient_sample is its own branch with amber copy. The copy states what, why and what would change it ('Add more candidates'). not_varied renders 'Not tested' and unavailable renders 'could not assess', never a pass. This is a robustness verdict, not a selection rate."
+    },
+    {
+     "technique": "selection-rate-ratio-testing",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/decisions/groupEval/GroupEvalFairnessPanel.tsx:17 The 'fairness' here is a cross-weighting re-score matrix over a 2-6 candidate shortlist. No group selection rates are computed."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "adverse-impact-and-proxy-neutrality",
+   "context": "tests-scoring-fairness",
+   "reason": "evidence leans on eval/neutrality.PERTUR, which is not a tracked file"
+  },
+  {
+   "subject": "adverse-impact-and-proxy-neutrality",
+   "context": "group-eval-shared",
+   "reason": "conformant with fewer than two techniques shown realized"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-25T00:48:33.126623+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "adverse-impact-and-proxy-neutrality"
+   ],
+   "techniques": [
+    "cohort-shield-is-not-a-protected-class-test",
+    "selection-rate-ratio-testing",
+    "too-small-to-assess-as-a-distinct-verdict"
+   ],
+   "deviations": 0,
+   "context": "group-eval-comparison",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

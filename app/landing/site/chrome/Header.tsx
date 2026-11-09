@@ -31,9 +31,9 @@ export default async function Header({ page, signupOpen }: { page: MkMode; signu
       <a
         className="brand"
         href={onAbout ? "/" : "#top"}
-        aria-label={onAbout ? t("brand.home", { brand: BRAND.name }) : t("brand.toTop", { brand: BRAND.name })}
       >
         <BrandMark />
+        <span className="sr-only">{onAbout ? t("brand.home", { brand: BRAND.name }) : t("brand.toTop", { brand: BRAND.name })}</span>
       </a>
       <nav className="nav" aria-label={tl("nav.sections")}>
         <a href={sec("proof")}>{tl("nav.proof")}</a>

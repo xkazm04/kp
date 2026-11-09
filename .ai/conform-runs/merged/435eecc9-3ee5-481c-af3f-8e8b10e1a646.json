@@ -1,0 +1,161 @@
+{
+ "schema": "conform-run/1",
+ "worker": "435eecc9-3ee5-481c-af3f-8e8b10e1a646",
+ "subject": "media-playback",
+ "evaluatedAt": "2026-10-19T00:32:10.968732+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "voice-tts-package",
+   "subject": "media-playback",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "packages/voice-tts/src/react/utterance.ts:153 Pipelined utterance playback chains chunk execution sequentially off predecessor resolution rather than scheduling media intervals against an authoritative playback clock.",
+   "techniques": [
+    {
+     "technique": "timeline-scheduling",
+     "verdict": "deviation",
+     "evidence": "packages/voice-tts/src/react/utterance.ts:153 Pipelined audio chunk playback is chained sequentially off predecessor completion rather than scheduled against an authoritative timeline clock."
+    },
+    {
+     "technique": "transport-contract",
+     "verdict": "deviation",
+     "evidence": "packages/voice-tts/src/react/useTts.ts:23 The transport state vocabulary lacks buffering, stalled, ready, and ended states, and awaited playback transitions carry no watchdogs."
+    },
+    {
+     "technique": "media-resource-lifecycle",
+     "verdict": "deviation",
+     "evidence": "packages/voice-tts/src/react/utterance.ts:175 Minted chunk object URLs are accumulated across the utterance and only released on completion or stop, violating reap-on-replace."
+    },
+    {
+     "technique": "playback-clock",
+     "verdict": "deviation",
+     "evidence": "packages/voice-tts/src/react/useTts.ts:224 Playback progress is tracked solely as reactive React state without an authoritative clock reference outside the reactive tree."
+    },
+    {
+     "technique": "generated-supply-margin",
+     "verdict": "deviation",
+     "evidence": "packages/voice-tts/src/react/useTts.ts:219 Lookahead buffer depth is hardcoded to a static default rather than derived from measured production time and jitter dispersion percentiles."
+    },
+    {
+     "technique": "committed-buffer-steering",
+     "verdict": "deviation",
+     "evidence": "packages/voice-tts/src/react/utterance.ts:226 Steering input immediately aborts in-flight generation without an append option, shallow acknowledgement lane, or margin-derived discard budget."
+    },
+    {
+     "technique": "engine-adapters",
+     "verdict": "deviation",
+     "evidence": "packages/voice-tts/src/react/useTts.ts:323 Playback directly instantiates HTMLAudioElement without an engine adapter interface or declared playback capabilities."
+    },
+    {
+     "technique": "source-resilience",
+     "verdict": "deviation",
+     "evidence": "packages/voice-tts/src/react/useTts.ts:333 Playback error terminates the utterance without a playback fallback ladder, audio source blacklist, or transition treatment."
+    }
+   ],
+   "registryProposal": "The standard states that media-playback does not own the speech channel (which belongs to voice-io), yet generated-supply-margin explicitly highlights 'synthesized speech played as it is produced' as a primary motivating use case; the standard should define the architectural boundary between voice-io (synthesis/dialogue generation) and media-playback (pipelined chunk playback, transport state machine, and object-URL lifecycle in browser speech hooks)."
+  },
+  {
+   "context": "shell-companion-voice",
+   "subject": "media-playback",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/shell/companion/voice/VoicePlayback.tsx:56 The transport button collapses pause into stop by immediately terminating playback and surrendering utterance position when pressed during speech.",
+   "techniques": [
+    {
+     "technique": "transport-contract",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/companion/voice/VoicePlayback.tsx:56 The transport control collapses stop and pause by surrendering position and aborting speech on stop rather than pausing."
+    },
+    {
+     "technique": "playback-clock",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/companion/voice/VoicePlayback.tsx:66 Voice mode tracks active speaking via binary turn ID comparison without an authoritative playback clock or playhead time."
+    },
+    {
+     "technique": "committed-buffer-steering",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/companion/voice/VoicePlayback.tsx:87 Interrupting an ongoing spoken turn immediately aborts playback rather than offering an append option or shallow acknowledgement lane."
+    },
+    {
+     "technique": "timeline-scheduling",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/companion/voice/VoicePlayback.tsx:51 Spoken replies are triggered as discrete isolated utterances rather than scheduled against a continuous timeline."
+    },
+    {
+     "technique": "engine-adapters",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/companion/voice/VoicePlayback.tsx:101 The transport button binds directly to the high-level CompanionSpeech interface without querying declared engine capabilities."
+    },
+    {
+     "technique": "generated-supply-margin",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/companion/voice/VoicePlayback.tsx:73 The UI displays a simple waiting indicator when throttled rather than calculating or exposing supply margin metrics."
+    },
+    {
+     "technique": "source-resilience",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/companion/voice/VoicePlayback.tsx:86 Playback failures present localized error copy but lack a playback fallback ladder or source blacklist."
+    },
+    {
+     "technique": "media-resource-lifecycle",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/companion/voice/CompanionVoiceMode.tsx:131 Playback invocation via keyboard shortcuts relies on unmount cleanup without managing element or stream resources directly."
+    }
+   ],
+   "registryProposal": "The transport-contract standard requires distinguishing paused from buffering and stopped, but spoken turn UI surfaces intentionally collapse stop and pause into a single toggle because speech turns are ephemeral and non-seekable; the standard should specify whether turn-based speech surfaces are exempt from the pause-vs-stop requirement or how speech transport should model intent surrender."
+  }
+ ],
+ "declined": [
+  {
+   "subject": "media-playback",
+   "context": "pipeline-scheduler-sla",
+   "reason": "The pipeline-scheduler-sla context implements candidate self-scheduling, recruiter SLAs, and pipeline stage history feeds; it contains no audio, video, or media playback machinery."
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-19T00:32:10.968732+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "media-playback"
+   ],
+   "techniques": [
+    "committed-buffer-steering",
+    "engine-adapters",
+    "generated-supply-margin",
+    "media-resource-lifecycle",
+    "playback-clock",
+    "source-resilience",
+    "timeline-scheduling",
+    "transport-contract"
+   ],
+   "deviations": 1,
+   "context": "voice-tts-package",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-19T00:32:10.968732+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "media-playback"
+   ],
+   "techniques": [
+    "committed-buffer-steering",
+    "engine-adapters",
+    "generated-supply-margin",
+    "media-resource-lifecycle",
+    "playback-clock",
+    "source-resilience",
+    "timeline-scheduling",
+    "transport-contract"
+   ],
+   "deviations": 1,
+   "context": "shell-companion-voice",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}

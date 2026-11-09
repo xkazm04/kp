@@ -15,7 +15,7 @@ export const PILL_TONE: Record<string, string> = {
   // back — the tilt applies to a flex box just as well.
   neutral: `${CHIP_QUIET} dark:inline-flex`,
   moss: "bg-moss/15 text-moss",
-  coral: "bg-coral/10 text-coral",
+  coral: "bg-coral/10 text-coral-ink",
   amber: "bg-amber-100 text-amber-700",
   info: "bg-blue-50 text-blue-700",
 };

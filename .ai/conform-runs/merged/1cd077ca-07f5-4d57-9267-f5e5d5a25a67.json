@@ -1,0 +1,142 @@
+{
+ "schema": "conform-run/1",
+ "worker": "1cd077ca-07f5-4d57-9267-f5e5d5a25a67",
+ "subject": "agent-instruction-files",
+ "evaluatedAt": "2026-11-04T04:24:35.523825+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "companion-appmaster",
+   "subject": "agent-instruction-files",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/repo_scan.py:1099 The scan keeps the target repo's CLAUDE.md out of the harness's instruction channel (claude_cli passes `--setting-sources user` in repo_scan mode), but build_prompt then puts that same foreign file back into the prompt, unfenced and labelled as instructions to a machine reader, so a third-party tree's brief still reaches the agent as steering rather than as data.",
+   "techniques": [
+    {
+     "technique": "workspace-ancestry-isolation",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/repo_scan.py:1099 The technique says that in a tree somebody else owns, the instruction file is data. The prompt calls it 'instructions', and unlike the GitHub review path (fence.ts) and devcase fenced_untrusted it adds no fence and no data-not-instructions clause. No run records or asserts which instruction files were loaded."
+    },
+    {
+     "technique": "line-earning",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/repo_scan.py:891 This module reads other repos' instruction files as scan input. It does not author an always-loaded file of its own, so the admission test has nothing to judge here."
+    }
+   ],
+   "registryProposal": "workspace-ancestry-isolation covers keeping a foreign tree's file out of the loaded set, but it says nothing about a tool that removes the file from discovery and then pastes it into its own prompt. That re-injection path could be stated outright: excerpting a foreign instruction file into a prompt should carry the same 'data, not brief' framing."
+  },
+  {
+   "context": "tests-companion-voice",
+   "subject": "agent-instruction-files",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/tests/test_repo_scan.py:354 The repo-scan prompt test checks that a fixture CLAUDE.md's text reaches the prompt. It never checks that the text is fenced as data, and the read-only access tests in this file check tools and permission mode but not which instruction sources load, so the downward-injection channel is locked in rather than guarded.",
+   "techniques": [
+    {
+     "technique": "workspace-ancestry-isolation",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_repo_scan.py:354 The test covers the grounding but neither the isolation nor a data fence. The `--setting-sources user` check lives in test_claude_cli.py, which is outside this context."
+    },
+    {
+     "technique": "instruction-freshness",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/tests/test_repo_scan.py:115 The only CLAUDE.md here is a throwaway fixture inside a TemporaryDirectory, not a maintained instruction file."
+    }
+   ]
+  },
+  {
+   "context": "cv-analyze-intake",
+   "subject": "agent-instruction-files",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/tools/analyze/AnalyzeApi.ts:181 This context is browser-side intake and fetch glue to /api routes. A search of app/features/tools/analyze for CLAUDE.md, AGENTS.md, setting-sources, cursorrules and instruction found nothing, so it neither authors, loads nor launches an agent under an instruction file.",
+   "techniques": [],
+   "absenceTerms": [
+    "CLAUDE.md",
+    "AGENTS.md",
+    "setting-sources",
+    "cursorrules",
+    "instruction"
+   ]
+  },
+  {
+   "context": "agent-hire-app-master",
+   "subject": "agent-instruction-files",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/agent-hire/transform-run.ts:13 The bridge spawns the Python agentfit_cli on a temp workdir and talks to the Personas loopback API. Its systemPromptDraft is a product prompt artifact (prompt-assembly), not a repo instruction file a coding harness loads, and a search of app/_lib/agent-hire and app/_lib/app-master for CLAUDE.md, AGENTS.md, setting-sources, cursorrules and instruction found nothing.",
+   "techniques": [],
+   "absenceTerms": [
+    "CLAUDE.md",
+    "AGENTS.md",
+    "setting-sources",
+    "cursorrules",
+    "instruction"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "agent-instruction-files",
+   "context": "github-repo-intelligence",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-04T04:24:35.523825+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-instruction-files"
+   ],
+   "techniques": [
+    "line-earning",
+    "workspace-ancestry-isolation"
+   ],
+   "deviations": 1,
+   "context": "companion-appmaster",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-04T04:24:35.523825+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-instruction-files"
+   ],
+   "techniques": [
+    "instruction-freshness",
+    "workspace-ancestry-isolation"
+   ],
+   "deviations": 1,
+   "context": "tests-companion-voice",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-04T04:24:35.523825+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-instruction-files"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "cv-analyze-intake",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-04T04:24:35.523825+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-instruction-files"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "agent-hire-app-master",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

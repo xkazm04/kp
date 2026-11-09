@@ -55,7 +55,7 @@ export function MatchResultsBulkToolbar({
           onClick={onToggleComparing}
           aria-pressed={comparing}
           className={`focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-sm font-semibold ${
-            comparing ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-ink hover:bg-paper"
+            comparing ? "border-coral bg-coral/10 text-coral-ink" : "border-stone-200 bg-white text-ink hover:bg-paper"
           }`}
         >
           <Scale size={14} /> {t("compareN", { count: selectedCount })}

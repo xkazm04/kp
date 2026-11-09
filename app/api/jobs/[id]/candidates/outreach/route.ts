@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { createPipelineEntry } from "@/app/_lib/db/pipeline";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { AutomationError, runAutomationTask } from "@/app/_lib/automation-run";
+import { REFUSAL_FOR } from "@/app/_lib/automation-refusal-codes";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";
 import { withheldCandidateIds } from "@/app/_lib/rediscovery-eligibility";
 import { linkTerminalPriorsToTarget } from "@/app/_lib/rediscovery-prior-link";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { outreachLetterByEntry } from "@/app/_lib/db/outreach-letters";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
 
 // The outreach draft spawns the Claude CLI (automation_cli) — comfortably exceed
@@ -16,20 +18,22 @@ import { humanActor } from "@/app/_lib/auth/operator-approver";
 export const maxDuration = 180;
 
 // Sourcing "Reach out" (idea JOB3): file a sourced / rediscovered candidate into
-// the pipeline AND fire a first-touch outreach in one click — closing the
+// the pipeline AND draft a first-touch outreach in one click — closing the
 // discover→contact loop that previously meant hunting the candidate down in the
 // pipeline tab. Reuses existing, tested machinery end-to-end:
 //   - createPipelineEntry is idempotent (a re-add returns the existing entry,
 //     created:false), so a double-click / an already-pipelined candidate doesn't
 //     spawn a second row.
 //   - runAutomationTask("outreach") drafts via the cache-keyed automation_cli and
-//     dispatches through the durable Outbox, gated on a per-entry `outreach_sent`
-//     marker — so the candidate is contacted at most once (first-contact, not a
+//     HOLDS the letter for a person (comms scope C2): nothing is sent from this door.
+//     The answer is `applied: "drafted"` plus the held letter's `outreachLetterId`;
+//     a person approves that revision and releases it through
+//     /api/outreach-letters/[id]/{approve,release}. A per-entry `outreach_sent` marker
+//     still means the candidate is contacted at most once (first-contact, not a
 //     resend) even across repeat clicks.
-export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = await context.params;
-    const ws = await currentWorkspace();
     // Visibility gate, ahead of every read of the role and every spend — same as the
     // candidates read this button sits on and every other by-id job route
     // (docs/features/jobs README § "By-id job routes re-apply the list's visibility
@@ -71,7 +75,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // as contactable for a person who was erased, whose consent lapsed, or who told us to
     // stop (ePrivacy Art. 13(4); Czech § 7(4)(c) of zák. č. 480/2004 Sb.). Refusing here
     // means no entry is minted and no paid automation_cli draft is spawned;
-    // dispatchOutreach / commsSendSuppression re-check (defense in depth). Fail-closed
+    // the outreach task and the release re-check (defense in depth). Fail-closed
     // inside the gate. The wire keeps its vocabulary: an opt-out answers
     // `suppressed: "candidate"` (the halt reason), consent answers its own reason.
     const withheld = withheldCandidateIds([body.candidateId]).get(body.candidateId.trim());
@@ -82,9 +86,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // Per-IP, AFTER every cheap refusal (the 404, the missing-candidateId 400 and the
     // GDPR 409 above) and BEFORE the first write and the automation_cli draft, so a
     // rejected reach-out costs no budget. 60/10min: the recruiter works down a ranked
-    // list one click at a time and each accepted click drafts a paid first-touch and
-    // dispatches through the Outbox — generous enough for a genuine sourcing session,
-    // tight enough that a scripted loop cannot mail the whole pool. Session-gated, and
+    // list one click at a time and each accepted click drafts a paid first-touch held
+    // for approval — generous enough for a genuine sourcing session, tight enough that a
+    // scripted loop cannot spend a draft on the whole pool. Session-gated, and
     // in open mode that gate is a no-op for the whole API.
     if (!rateLimit(`jobs-outreach:${clientIpFrom(request.headers)}`, { limit: 60, windowMs: 10 * 60_000 })) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
@@ -146,14 +150,20 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     }
 
     const result = await runAutomationTask(entry.id, "outreach", "", undefined, undefined, ws);
-    return NextResponse.json({ entryId: entry.id, created, reopened, applied: result.applied });
+    // The held letter the recruiter approves next, when one was drafted.
+    const outreachLetterId = result.applied === "drafted" ? (outreachLetterByEntry(entry.id, ws)?.id ?? null) : null;
+    return NextResponse.json({ entryId: entry.id, created, reopened, applied: result.applied, outreachLetterId });
   } catch (error) {
-    // AutomationError carries a client-safe business message + status (e.g. the
-    // candidate has no saved profile to draft from → 400); everything else goes
-    // through the generic safe responder so raw internals never cross the wire.
+    // A refusal THIS module decided is answered as a code the client resolves in the
+    // reader's language. Any other AutomationError is the spawned engine failing: its
+    // message (parseStderrError) can be a traceback or the workdir path, so it goes to
+    // the server log and the engine's STATUS is preserved (a user-fixable 400 stays 400).
+    if (error instanceof AutomationError && error.refusal) {
+      return jsonRefusal(REFUSAL_FOR[error.refusal], error.status);
+    }
     if (error instanceof AutomationError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return safeJsonError(error, "api:jobs:candidates:outreach", "OUTREACH_FAILED", error.status);
     }
     return safeJsonError(error, "api:jobs:candidates:outreach", "OUTREACH_FAILED");
   }
-}
+});

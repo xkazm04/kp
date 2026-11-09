@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { listPostings } from "@/app/_lib/db/devcase";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { postingsView } from "@/app/_lib/devcase-postings-view";
 
 
@@ -17,11 +17,10 @@ import { postingsView } from "@/app/_lib/devcase-postings-view";
 // TENANT SCOPE (D5): every read takes the caller's workspace. The stores accepted it
 // all along; the route simply never passed it, so every team's Dev studio listed the
 // DEFAULT workspace's postings and submissions.
-export async function GET() {
+export const GET = withWorkspace(async (ws: string) => {
   try {
-    const ws = await currentWorkspace();
     return NextResponse.json({ postings: postingsView(listPostings(ws), ws) });
   } catch (error) {
     return safeJsonError(error, "api:devcase/postings", "DEVCASE_POSTINGS_FAILED");
   }
-}
+});

@@ -196,7 +196,7 @@ test("comparison and practice attachment refuse with localized codes", () => {
 });
 
 test("the refusal registry defines every interview code the routes answer", () => {
-  const registry = read("../../_lib/api-response.ts");
+  const registry = read("../../_lib/api-response.ts") + read("../../_lib/api-errors/store-errors.ts") + read("../../_lib/api-errors/refusal-errors.ts");
   const codes = new Set<string>();
   for (const rel of ["./create/route.ts", "./connect/route.ts", "./revoke/route.ts", "./simulate/route.ts", "./compare/route.ts", "./simulate/attach/route.ts"] as const) {
     for (const m of read(rel).matchAll(/jsonRefusal\("([A-Z_]+)"/g)) codes.add(m[1]);

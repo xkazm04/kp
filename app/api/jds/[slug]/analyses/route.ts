@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { listAnalysesByJd } from "@/app/_lib/db/analyses";
 import { jdLastEditedAt, loadJd } from "@/app/_lib/db/jobs";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 
 
 // Recruiter-side read behind the Library tab's expandable "Candidates (N)" row
@@ -11,9 +11,8 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 // /jds/[slug] page, which is deliberately candidate-facing (Apply CTA,
 // shareable ?lang=cs links): a personal-data exposure. It now loads lazily
 // here, only when a recruiter expands the row in the workspace.
-export async function GET(_request: Request, context: { params: Promise<{ slug: string }> }) {
+export const GET = withWorkspace(async (ws: string, _request: Request, context: { params: Promise<{ slug: string }> }) => {
   const { slug } = await context.params;
-  const ws = await currentWorkspace();
   try {
     if (!loadJd(slug, ws)) {
       return jsonRefusal("JD_NOT_FOUND", 404);
@@ -25,4 +24,4 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
   } catch (error) {
     return safeJsonError(error, "api:jds/[slug]/analyses", "JD_ANALYSES_FAILED");
   }
-}
+});

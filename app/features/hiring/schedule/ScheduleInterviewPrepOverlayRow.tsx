@@ -118,11 +118,11 @@ export function OverlayRowItem({
                   </button>
                 ) : null}
                 {row.origin === "added" ? (
-                  <button type="button" onClick={onRemoveAdded} aria-describedby={textId} className={`${ACTION} hover:text-coral`}>
+                  <button type="button" onClick={onRemoveAdded} aria-describedby={textId} className={`${ACTION} hover:text-coral-ink`}>
                     <Trash2 size={13} aria-hidden /> {t("removeAdded")}
                   </button>
                 ) : (
-                  <button type="button" onClick={onDrop} aria-describedby={textId} className={`${ACTION} hover:text-coral`}>
+                  <button type="button" onClick={onDrop} aria-describedby={textId} className={`${ACTION} hover:text-coral-ink`}>
                     <X size={13} aria-hidden /> {t("drop")}
                   </button>
                 )}
@@ -142,7 +142,7 @@ export function OverlayRowItem({
             label={t("mustAsk")}
           />
         ) : row.mustAsk && !dropped ? (
-          <span className="font-semibold text-coral">{t("mustAsk")}</span>
+          <span className="font-semibold text-coral-ink">{t("mustAsk")}</span>
         ) : null}
         {row.state === "edited" ? <span className="text-moss">{t("stateEdited")}</span> : null}
         {dropped ? <span className="text-steel">{t("stateDropped")}</span> : null}

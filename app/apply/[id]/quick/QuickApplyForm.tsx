@@ -87,7 +87,7 @@ export function QuickApplyForm({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [done, setDone] = useState<{
-    result: "accepted" | "declined";
+    result: "accepted" | "declined" | "held";
     message: string;
     duplicate?: boolean;
     // The entry's opaque lead token (from the accept response) — carried on the
@@ -206,7 +206,9 @@ export function QuickApplyForm({
             {done.result === "accepted" ? (done.duplicate ? t("alreadyApplied") : t("youreIn")) : t("thanksApplying")}
           </p>
           <p className="mt-1 text-base text-steel">{done.message}</p>
-          {done.result === "declined" ? <ApplyDeclineDetail names={done.failedKoNames ?? []} reviewByEmail={Boolean(done.reviewByEmail)} /> : null}
+          {done.result === "declined" || done.result === "held" ? (
+            <ApplyDeclineDetail names={done.failedKoNames ?? []} reviewByEmail={Boolean(done.reviewByEmail)} held={done.result === "held"} />
+          ) : null}
           {done.result === "declined" ? (
             <button
               type="button"
@@ -335,7 +337,7 @@ export function QuickApplyForm({
             className="mt-1 h-12"
           />
           {emailError ? (
-            <p id="qa-email-error" role="alert" className="mt-1 text-sm text-coral">
+            <p id="qa-email-error" role="alert" className="mt-1 text-sm text-coral-ink">
               {emailError}
             </p>
           ) : (
@@ -376,7 +378,7 @@ export function QuickApplyForm({
       </div>
 
       {submitError ? (
-        <p id="qa-submit-error" role="alert" className="mt-4 rounded-lg border border-coral/40 bg-coral/5 p-3 text-base text-coral">
+        <p id="qa-submit-error" role="alert" className="mt-4 rounded-lg border border-coral/40 bg-coral/5 p-3 text-base text-coral-ink">
           {submitError}
         </p>
       ) : null}
@@ -384,7 +386,7 @@ export function QuickApplyForm({
           pre-emptively), alongside the focus/scroll jump — the cue the dead
           disabled button never gave. */}
       {incompleteError ? (
-        <p id="qa-incomplete-error" role="alert" className="mt-4 rounded-lg border border-coral/40 bg-coral/5 p-3 text-base text-coral">
+        <p id="qa-incomplete-error" role="alert" className="mt-4 rounded-lg border border-coral/40 bg-coral/5 p-3 text-base text-coral-ink">
           {incompleteError}
         </p>
       ) : null}

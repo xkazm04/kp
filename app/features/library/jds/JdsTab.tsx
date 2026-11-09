@@ -18,7 +18,7 @@ export function JdsTab() {
     // right where that fetch does, rather than being threaded up through a prop.
     <section className={`stagger-children ${PANEL} ${CARD_PAD}`}>
       <header className="border-b border-stone-200 pb-4">
-        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+        <p className="text-meta uppercase text-coral-ink">{t("eyebrow")}</p>
         <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
         <p className="mt-2 max-w-3xl text-body text-steel">
           {t.rich("intro", { strong: (chunks) => <strong>{chunks}</strong> })}

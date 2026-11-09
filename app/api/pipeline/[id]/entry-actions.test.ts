@@ -16,10 +16,10 @@ import {
   entryActionOf,
 } from "./entry-actions.ts";
 
-test("the table is keyed by exactly the nine actions the door dispatches", () => {
+test("the table is keyed by exactly the eleven actions the door dispatches", () => {
   assert.deepEqual(
     [...ENTRY_ACTION_NAMES].sort(),
-    ["accept", "add_note", "approve_event", "reinstate", "reject", "resolve_intake", "set_github", "set_notes", "set_stage"],
+    ["accept", "add_note", "approve_event", "decline_advance", "draft_offer", "reinstate", "reject", "resolve_intake", "set_github", "set_notes", "set_stage"],
   );
   assert.deepEqual(Object.keys(ENTRY_ACTIONS).sort(), [...ENTRY_ACTION_NAMES].sort());
 });
@@ -40,9 +40,10 @@ test("entryActionOf admits the table's names and nothing else", () => {
 test("only accept may carry an engine claim — the guided sim's only use", () => {
   const claimers = ENTRY_ACTION_NAMES.filter((n) => ENTRY_ACTIONS[n].engineClaim);
   assert.deepEqual(claimers, ["accept"]);
-  assert.equal(engineClaimOf("accept", "sim"), "sim", "the declared engine keeps its attribution on accept");
+  assert.equal(engineClaimOf("accept", "sim", true), "sim", "the declared engine keeps its attribution on accept");
+  assert.equal(engineClaimOf("accept", "sim", false), undefined, "a real candidate's accept is always a person's");
   for (const name of ENTRY_ACTION_NAMES.filter((n) => n !== "accept")) {
-    assert.equal(engineClaimOf(name, "sim"), undefined, `${name} must drop a body-supplied actor`);
+    assert.equal(engineClaimOf(name, "sim", true), undefined, `${name} must drop a body-supplied actor`);
   }
 });
 

@@ -27,7 +27,7 @@
 import { agingTier, daysInStageAt, slaForStage } from "../aging-policy";
 import { stageHasRole, type StageDef } from "../pipeline-stages";
 import { median } from "../stats";
-import { SIM_TITLE_LIKE } from "@/app/features/shell/simulation/constants";
+import { SIM_TITLE_LIKE } from "@/app/_lib/sim-marker";
 import { cadenceEditable, type DwellCadenceSource } from "@/app/features/insights/analytics/stageDwellGate";
 import { ensureDb } from "./core";
 

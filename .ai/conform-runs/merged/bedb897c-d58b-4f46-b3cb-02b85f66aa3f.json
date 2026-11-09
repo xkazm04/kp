@@ -1,0 +1,117 @@
+{
+ "schema": "conform-run/1",
+ "worker": "bedb897c-d58b-4f46-b3cb-02b85f66aa3f",
+ "subject": "agent-cli-transport",
+ "evaluatedAt": "2026-11-08T04:31:04.458165+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "channels-comms-api",
+   "subject": "agent-cli-transport",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/channels/inbound/[token]/route.ts:19 The only child process this context reaches is the Python CV extractor; a case-insensitive search of app/api/comms and app/api/channels for claude, child_process, stream-json, permission-mode and skip-permissions found no agent-CLI spawn, so nothing here uses a headless coding-agent CLI as a transport.",
+   "techniques": [],
+   "absenceTerms": [
+    "stream-json",
+    "permission-mode",
+    "skip-permissions",
+    "allowedTools"
+   ]
+  },
+  {
+   "context": "devcase-session-api",
+   "subject": "agent-cli-transport",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/devcase/session/[id]/chat/route.ts:118 The chat, submit and source routes only call Python runners through spawnPython and pass an abort signal; no file under app/api/devcase mentions claude, and none uses stream-json, permission-mode or skip-permissions, so the agent-CLI adapter (if the Python LLM layer picks one) sits outside this context.",
+   "techniques": [],
+   "absenceTerms": [
+    "stream-json",
+    "permission-mode",
+    "skip-permissions",
+    "allowedTools"
+   ]
+  },
+  {
+   "context": "devcase-workspace",
+   "subject": "agent-cli-transport",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/tools/devcases/DevTypes.ts:69 This is client UI that only shows provenance labels for a run (llm/partial/deterministic); the listed files spawn nothing, and a search for stream-json, permission-mode, skip-permissions and allowedTools across app/ found none, so the transport's precondition does not hold.",
+   "techniques": [],
+   "absenceTerms": [
+    "stream-json",
+    "permission-mode",
+    "skip-permissions",
+    "allowedTools"
+   ]
+  },
+  {
+   "context": "platform-admin-ops",
+   "subject": "agent-cli-transport",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/sanity-checks.ts:1 Despite its description, sanity-checks.ts reads the analysis trust ledger, and after-response.ts / public-base-url.ts are a Next after() wrapper and a URL resolver; a search of these five files for claude, spawn, child_process and llm found nothing, so no agent CLI is spawned or probed here.",
+   "techniques": [],
+   "absenceTerms": [
+    "stream-json",
+    "permission-mode",
+    "skip-permissions",
+    "allowedTools"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-08T04:31:04.458165+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-cli-transport"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "channels-comms-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T04:31:04.458165+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-cli-transport"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "devcase-session-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T04:31:04.458165+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-cli-transport"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "devcase-workspace",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T04:31:04.458165+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-cli-transport"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "platform-admin-ops",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

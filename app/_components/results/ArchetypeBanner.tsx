@@ -127,8 +127,8 @@ export function ArchetypeBanner({
   return (
     <div className={`${PANEL_ACCENT} p-4`}>
       <div className="flex flex-wrap items-center gap-2">
-        <Sparkles size={16} className="text-coral" aria-hidden />
-        <span className="text-meta uppercase tracking-wide text-coral">{t("archetype.detected")}</span>
+        <Sparkles size={16} className="text-coral-ink" aria-hidden />
+        <span className="text-meta uppercase tracking-wide text-coral-ink">{t("archetype.detected")}</span>
         <span className="rounded-full bg-ink px-2.5 py-0.5 text-sm font-semibold text-white">{label}</span>
         {v2.archetypeNeedsReview ? (
           <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-sm font-semibold text-amber-800">
@@ -179,7 +179,7 @@ export function ArchetypeBanner({
         // checklist item (the CV simply didn't carry these), biggest gap first.
         // Optional — saving with blanks is fine; answers merge into the profile.
         <div className="mt-3 border-t border-coral/20 pt-3">
-          <p className="text-meta uppercase tracking-wide text-coral">
+          <p className="text-meta uppercase tracking-wide text-coral-ink">
             {t("archetype.fillGaps", { count: gaps.length })}
           </p>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">

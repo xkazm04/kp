@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { acknowledgeGigSource, getGigSource, pauseGigSource, resumeGigSource } from "@/app/_lib/db/gigs-sources";
@@ -23,7 +23,7 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 const ACTIONS = ["acknowledge", "pause", "resume"] as const;
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> {
+export const PATCH = withWorkspace(async (ws: string, request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -37,7 +37,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (typeof body.action !== "string" || !(ACTIONS as readonly string[]).includes(body.action)) {
       return jsonRefusal("GIG_INPUT_INVALID", 400, { field: "action", allowed: ACTIONS });
     }
-    const ws = await currentWorkspace();
     const source = getGigSource(ws, id);
     if (!source) return jsonRefusal("GIG_SOURCE_NOT_FOUND", 404);
     const currentHash = gigCatalogEntry(source.adapter).termsHash;
@@ -70,4 +69,4 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   } catch (error) {
     return safeJsonError(error, "api:gigs/sources/[id]", "GIG_STORE_FAILED");
   }
-}
+});

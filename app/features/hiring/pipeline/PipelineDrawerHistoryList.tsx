@@ -8,7 +8,7 @@ import { useTranslations } from "next-intl";
 import type { CandidateTimelineItem, RematchLink } from "@/app/_lib/candidate-timeline";
 import type { PipelineEvent } from "@/app/features/shared/pipelineTypes";
 import { EventDot, useEventVerb, useRelativeTime } from "./PipelineShared";
-import { isRematchKind } from "@/app/features/shared/pipelineRematchLink";
+import { isRematchKind } from "@/app/_lib/pipeline-rematch-link";
 import { PipelineRematchAffordance } from "./PipelineRematchAffordance";
 import { PipelineTimelineItemRow } from "./PipelineTimelineItemRow";
 

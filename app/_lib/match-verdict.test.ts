@@ -66,3 +66,10 @@ test("the rationale is a byte-stable code string derived from the facts — no n
     "match_fit tier=- best=- worst=- skills=2/1/1 score=- scorer=match-scorer.v1"
   );
 });
+
+test("a proof-weights scorer stamp (ADR 0027) is accepted, kept, and named in the rationale", () => {
+  const proof = { ...good, scorerVersion: "proof-weights.1-lam0.8-sd0.05" };
+  assert.deepEqual(coerceMatchReasonFacts(proof), proof);
+  assert.match(matchVerdictRationale(proof), /scorer=proof-weights\.1-lam0\.8-sd0\.05$/);
+  assert.equal(coerceMatchReasonFacts({ ...good, scorerVersion: "proof-weights.1+lam=0.8" }), null, "the shape the add door refuses");
+});

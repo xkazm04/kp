@@ -173,7 +173,7 @@ class SlackTest(unittest.TestCase):
         with mock.patch.dict(thresholds.MATCHING_BARS, {"role_relevance_at5": loosened}):
             loose = thresholds.loose_bars()
             self.assertIn("MATCHING_THRESHOLDS.role_relevance_at5", loose)
-            self.assertEqual(loose["MATCHING_THRESHOLDS.role_relevance_at5"].tightened(), 0.84)
+            self.assertEqual(loose["MATCHING_THRESHOLDS.role_relevance_at5"].tightened(), 0.87)
 
     def test_slack_is_the_distance_below_the_measurement_not_a_free_pass(self):
         bar = thresholds.Bar(value=0.80, why="w", slack=0.10, measured=0.95, measured_at="2026-01-01", source="cmd")
@@ -204,7 +204,7 @@ class TightenCliTest(unittest.TestCase):
                 self.assertEqual(thresholds.main(["--tighten"]), 1)
         text = out.getvalue()
         self.assertIn("role_relevance_at5", text)
-        self.assertIn("0.84", text)
+        self.assertIn("0.87", text)
 
     def test_the_plain_listing_never_fails_the_run(self):
         loosened = replace(thresholds.MATCHING_BARS["role_relevance_at5"], value=0.60)
@@ -237,9 +237,9 @@ class CertifiedMeasurementTest(unittest.TestCase):
 
     def test_the_live_figure_equal_to_the_record_is_certified(self):
         bar = thresholds.all_bars()[_RELEVANCE]
-        self.assertEqual(bar.measured, 0.857)
+        self.assertEqual(bar.measured, 0.886)
         recorded = {_RELEVANCE: thresholds.load_units()[_RELEVANCE]}
-        self.assertEqual(thresholds.certify_live({_RELEVANCE: (0.857, bar.n)}, recorded), [])
+        self.assertEqual(thresholds.certify_live({_RELEVANCE: (0.886, bar.n)}, recorded), [])
 
     def test_a_moved_live_figure_is_one_finding_naming_both_figures_and_the_record_command(self):
         bar = thresholds.all_bars()[_RELEVANCE]
@@ -249,7 +249,7 @@ class CertifiedMeasurementTest(unittest.TestCase):
         text = findings[0]
         self.assertIn(_RELEVANCE, text)
         self.assertIn("0.95", text)
-        self.assertIn("0.857", text)
+        self.assertIn("0.886", text)
         self.assertIn("--record", text)
         self.assertIn("matching_eval", text)
 
@@ -264,7 +264,7 @@ class CertifiedMeasurementTest(unittest.TestCase):
         with mock.patch.object(matching_eval.Report, "aggregate", lifted):
             with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as err:
                 code = matching_eval.main(["--strict", "--no-color"])
-        # 0.95 clears the 0.84 bar, so the ONLY thing failing this run is the stale record.
+        # 0.95 clears the 0.87 bar, so the ONLY thing failing this run is the stale record.
         self.assertEqual(code, 1)
         self.assertIn("--record", err.getvalue())
 

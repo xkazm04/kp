@@ -102,9 +102,9 @@ export function SimControlDockToolbar({
           type="button"
           onClick={openDecisions}
           title={t("openDecisions")}
-          className="focus-ring inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-coral/40 bg-coral/5 px-2.5 text-sm font-semibold text-coral transition-colors hover:bg-coral/10"
+          className="focus-ring inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-coral/40 bg-coral/5 px-2.5 text-sm font-semibold text-coral-ink transition-colors hover:bg-coral/10"
         >
-          <span className="grid h-5 min-w-[1.25rem] place-items-center rounded-full bg-coral px-1 text-meta font-bold text-white nums">
+          <span className="grid h-5 min-w-[1.25rem] place-items-center rounded-full bg-coral-solid px-1 text-meta font-bold text-white nums">
             {awaiting > 99 ? t("countOverflow") : awaiting}
           </span>
           {t("needYou")}

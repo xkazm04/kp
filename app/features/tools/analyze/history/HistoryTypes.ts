@@ -47,7 +47,7 @@ export const PRODUCER_STYLE: Record<AnalysisProducer, string> = {
 export const DISPOSITION_STYLE: Record<string, string> = {
   advance: "bg-moss/10 text-moss",
   hold: "bg-dial-amber/20 text-ink",
-  pass: "bg-coral/10 text-coral",
+  pass: "bg-coral/10 text-coral-ink",
 };
 
 // Distinct, sorted, non-null values of a column. The filter dropdowns no longer

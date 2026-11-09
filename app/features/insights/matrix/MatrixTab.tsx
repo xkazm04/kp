@@ -72,7 +72,7 @@ export function MatrixTab() {
     <section className="stagger-children space-y-4" aria-busy={!data && !error}>
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+          <p className="text-meta uppercase text-coral-ink">{t("eyebrow")}</p>
           <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
           <p className="mt-1 max-w-2xl text-body text-steel">
             {mode === "focus"
@@ -275,7 +275,7 @@ function MatrixGridView({ m }: { m: ReturnType<typeof useMatrixTab> }) {
           </button>
         </div>
       ) : state === "empty" ? (
-        <MatrixEmptyState candidateCount={data!.candidates.length} positionCount={data!.positions.length} />
+        <MatrixEmptyState candidateCount={data!.candidates.length} positionCount={data!.positions.length} job={scopedPosition?.id ?? null} />
       ) : state === "filtered" ? (
         // The dataset has candidates/positions, but the min-fit floor or family filter
         // hid them all — show a recoverable empty state instead of sticky headers over

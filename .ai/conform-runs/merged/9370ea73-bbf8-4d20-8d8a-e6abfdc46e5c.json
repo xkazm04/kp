@@ -1,0 +1,85 @@
+{
+  "schema": "conform-run/1",
+  "worker": "9370ea73-bbf8-4d20-8d8a-e6abfdc46e5c",
+  "subject": "silver-medalist-rediscovery",
+  "evaluatedAt": "2026-11-07T23:51:49.047370+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "candidate-rediscovery",
+      "subject": "silver-medalist-rediscovery",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evidence": "app/_lib/rediscover.ts:114 pickPrior still lets in people whose other-role entry is live (status active) or who reached Hired. The taxonomy puts both groups out of scope, so the Rediscover panel and the alert feed can pitch a role to someone mid-process elsewhere or to your own hire, and rediscover.test.ts:124 pins that behaviour.",
+      "techniques": [
+        {
+          "technique": "prior-outcome-taxonomy",
+          "verdict": "deviation",
+          "evidence": "app/_lib/rediscover.ts:114 'Currently in process' and 'Hired' are ineligible classes. Here they get an 'elsewhere' kind. Also, a person with a rejected prior who is now active in another role is still surfaced as 'rejected', because nothing excludes live candidates as a group. The rest holds: the lookup is tenant-scoped (candidateOutcomes(opts.workspaceId)), the role_closed/declined values match what the writer emits, and a row with no prior is dropped."
+        },
+        {
+          "technique": "band-limited-prior-depth-boost",
+          "verdict": "conformant",
+          "evidence": "app/_lib/rediscovery-rank.ts:26 Half of the 10-point tier step. priorDepthBoost is clamped to [0, band]. The comparator (rank.ts:54) keeps the honest score as the tiebreak, the displayed score stays honest, and rank.test.ts:44 asserts the band guarantee arithmetically. Active 'elsewhere' rows get depth 0 (rediscover.ts:119), but per the taxonomy they should not be ranked at all."
+        },
+        {
+          "technique": "fit-floor-for-readmission",
+          "verdict": "conformant",
+          "evidence": "app/_lib/rediscover.ts:200 Admission uses the raw score, before any boost. SCORE_FLOOR = FIT_PROMISING_FLOOR (rediscover.ts:28), which the pool-fit filter also uses with >=. The Python total is already an integer (matching.py round), so Math.round does not fork the comparator at the boundary. The consent gate runs before the floor (rediscover.ts:157)."
+        },
+        {
+          "technique": "person-level-consent-collapse",
+          "verdict": "conformant",
+          "evidence": "app/_lib/rediscovery-relevance.ts:49 Consent is collapsed per candidate: anonymisation is terminal, grants union to the latest expiry, and opt-out is merged person-wide in withheldCandidateIds. The 'never granted' and 'lapsed' states stay distinct. A read error suppresses everyone and logs it (rediscovery-alert-store.ts:471). The gate runs before ranking (rediscover.ts:157) and also guards the write, the feed read and the outreach door."
+        },
+        {
+          "technique": "read-time-relevance-refilter",
+          "verdict": "deviation",
+          "evidence": "app/_lib/rediscover.ts:326 At read time the feed re-checks only role-published, presence in the target role, and the consent gate. It does not re-check hired or active elsewhere, does not re-run the fit floor, and does not re-run the sweep predicate (pickPrior). There is also no staleness horizon short of the 90-day prune. On the plus side, sweep truncation is bounded, rotated and logged (rediscover.ts:474), and the result cap reports `more`."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "silver-medalist-rediscovery",
+      "context": "candidate-matching-api",
+      "reason": "withdrawn after review: reviewer (sonnet): The route at alerts/route.ts:29 does what the technique asks, reading the feed through one shared render-time refilter (liveRediscoveryAlerts) with consent re-checked; the missing hired/active-elsewhere exclusion lives in rediscover.ts (pickPrior), which is the candidate-rediscovery context, and the"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-07T23:51:49.047370+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "silver-medalist-rediscovery"
+      ],
+      "techniques": [
+        "band-limited-prior-depth-boost",
+        "fit-floor-for-readmission",
+        "person-level-consent-collapse",
+        "prior-outcome-taxonomy",
+        "read-time-relevance-refilter"
+      ],
+      "deviations": 1,
+      "context": "candidate-rediscovery",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-07T23:51:49.047370+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "silver-medalist-rediscovery"
+      ],
+      "techniques": [
+        "read-time-relevance-refilter"
+      ],
+      "deviations": 1,
+      "context": "candidate-matching-api",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

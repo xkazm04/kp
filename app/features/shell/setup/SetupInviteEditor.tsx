@@ -130,7 +130,7 @@ export function InviteEditor({ ctrl, dense = false }: { ctrl: OnboardingCtrl; de
               <button
                 type="button"
                 onClick={() => ctrl.removeInvite(i)}
-                className="focus-ring rounded-full text-steel hover:text-coral"
+                className="focus-ring rounded-full text-steel hover:text-coral-ink"
                 aria-label={t("removeAria", { email: inv.email })}
               >
                 <X size={14} aria-hidden />

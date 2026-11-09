@@ -19,7 +19,7 @@ import { useWalkthroughSource } from "./cohortWalkthroughSource";
 /** How many roles the list draws before it asks the reader to search. */
 const SHOWN = 24;
 const ROLE_BTN = `${PANEL} focus-ring flex h-full w-full flex-col items-start gap-1 px-4 py-3 text-left transition-colors hover:border-coral/50 dark:hover:-rotate-[0.5deg]`;
-const LINK = "font-semibold text-coral underline-offset-2 hover:underline";
+const LINK = "font-semibold text-coral-ink underline-offset-2 hover:underline";
 
 export function CohortRolePicker({ onPick }: { onPick: (jdSlug: string, jdTitle: string) => void }) {
   const t = useTranslations("analyzeCohort.shell.role");

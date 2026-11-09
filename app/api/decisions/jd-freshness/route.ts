@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { safeJsonError } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jdSlugOfJobId } from "@/app/_lib/jd-limits";
 import { jdLastEditedAt } from "@/app/_lib/db/jobs";
@@ -12,11 +12,10 @@ import { jdLastEditedAt } from "@/app/_lib/db/jobs";
 // the same isScoreStale rule the library roster + prep chips use. Server derives
 // the JD fact (workspace-scoped, the honest jdLastEditedAt over jd_revisions), the
 // client renders. Operator-gated + tenant-scoped like the rest of /api/decisions/*.
-export async function GET(request: Request) {
+export const GET = withWorkspace(async (ws: string, request: Request) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
-    const ws = await currentWorkspace();
     const raw = new URL(request.url).searchParams.get("jobs") ?? "";
     // De-duped, trimmed, capped — a corpus/non-JD-backed job resolves to null (no chip).
     const jobIds = [...new Set(raw.split(",").map((s) => s.trim()).filter(Boolean))].slice(0, 200);
@@ -31,4 +30,4 @@ export async function GET(request: Request) {
     // with an unreadable body, on the route the staleness chips depend on.
     return safeJsonError(error, "api:decisions/jd-freshness", "JD_FRESHNESS_LOOKUP_FAILED");
   }
-}
+});

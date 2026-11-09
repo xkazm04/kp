@@ -88,15 +88,26 @@ export function createTtlCache<T>(opts?: { ttlMs?: number; now?: () => number; m
       const value = compute();
       if (store.size >= maxEntries) {
         // Reclaim what the TTL already invalidated first -- an expired entry is
-        // free to drop, a fresh one is a recompute someone will pay for.
-        for (const [k, e] of store) if (e.expiresAt <= t) store.delete(k);
+        // free to drop, a fresh one is a recompute someone will pay for. Every
+        // entry gets the same ttlMs at insert, so insertion order IS expiry order:
+        // the expired entries are exactly a prefix of the Map. Pop that prefix and
+        // stop at the first live head. This used to be a full walk of the Map, and
+        // a full walk fired by a constant bound is the pathological case: once the
+        // live set fills the bound (256 keys inside one TTL window), EVERY miss
+        // walked all 256 entries to reclaim none of them. Popping the prefix costs
+        // what it reclaims plus one look, and drops the same entries. (A clock that
+        // steps backwards can break the ordering; then a later-inserted entry may
+        // expire first and the head is evicted instead -- the bound still holds and
+        // `get` still refuses anything expired, so only the choice of victim moves.)
         // Still full: evict oldest-first. Map iterates in insertion order and every
         // live entry was inserted when it was computed, so the head is the least
         // recently computed key.
-        while (store.size >= maxEntries) {
-          const oldest = store.keys().next();
-          if (oldest.done) break;
-          store.delete(oldest.value);
+        while (store.size > 0) {
+          const head = store.entries().next();
+          if (head.done) break;
+          const [k, e] = head.value;
+          if (e.expiresAt > t && store.size < maxEntries) break;
+          store.delete(k);
         }
       }
       store.set(key, { value, expiresAt: t + ttlMs });

@@ -18,6 +18,10 @@ deterministic fallback so the pipeline never blocks when the CLI is missing.
   catalog key and the page's own eyebrow/title stay "pipeline".
 - `/?tab=decisions` — the Decisions queue, where AI holds/recommendations land for
   a human to approve or reject (`app/features/hiring/decisions/DecisionsTab.tsx`).
+  On a role's level, the "Everyone on this role" table carries a PERSISTED shortlist
+  (ADR 0030): a tick saves `shortlisted`, "Mark as chosen" saves `chosen` with who and when,
+  in `role_shortlist` (`app/_lib/db/role-shortlist.ts`, `/api/decisions/shortlist`). Human-set
+  only, workspace-scoped, deleted with the candidate on erasure.
 - Per-candidate modal — `app/features/hiring/pipeline/candidate/CandidateModal.tsx`
   (see [The candidate modal](#the-candidate-modal)). It replaced the right-side
   candidate drawer in 2026-09; the drawer's section components and its state hook
@@ -303,7 +307,50 @@ an interview or offer column is a supported shape. Pinned by
    or `/api/automation/run`) against a `POLICY` dict (advance/hold/reject
    thresholds). An unscored entry (no match score yet) always
    holds — it is never coerced into a fabricated zero. Applied server-side by
-   `app/_lib/automation-pass.ts` / `app/_lib/automation-run.ts`.
+   `app/_lib/automation-pass.ts` / `app/_lib/automation-run.ts`. The pass's
+   pre-policy scoring sweep and the post-filing score of a fresh applicant
+   (conversational apply, inbound CV) share one scoring-only path,
+   `scoreEntriesForJob` in `app/_lib/entry-scoring.ts`, so with the clock off a new
+   applicant is still on the board with a score — and no decision — moments after
+   applying.
+   **A score-threshold advance is queued for a person, never applied (Q2, owner
+   ruling 2026-11-09; counsel has not reviewed it).** `evaluate_entry` proposes an
+   `advance` in two places: the entry column (any scored entry) and the screening
+   column (a non-early-career score at or above `bau_advance_score`, after
+   `screening_auto_days`). `applyPassDecisions` files that proposal as a pending
+   `screening_review` approval on the entry (`setApproval`, compare-and-swap on the
+   stage and approval the policy saw) whose payload is `policyAdvanceDetail`
+   (`app/_lib/approval-kinds.ts`): `recommendation: "advance"`, the match score as
+   `confidence`, the policy's own reason as `rationale` and `policyAdvance.toStage`.
+   It is marked through the same `markQueuedForApproval` encoding a reject uses, so the
+   preview (`wouldBeQueuedForApproval`) and the commit (`queuedForApproval`) cannot
+   diverge, and `summary.advanced` is 0 in every committed run (as `rejected` is);
+   rows persisted before Q2 keep their real values. No kind and no queue was added.
+   `screening_review` was chosen because every surface already renders and resolves
+   it: the Decisions card reads the payload as an **advance with its reason**
+   (`isQueuedAdvance`, ledger kind `queuedAdvance`, tag `tagQueuedAdvance`), never a
+   rejection. A person's **accept** goes through the ordinary accept — one stage, to the
+   stage the policy named, sealed as a human `advanced` decision with the machine's
+   verdict and reason beside it (`aiRationale`). Out of an ENTRY-role stage the accept
+   takes the generic path (`actOnPipelineEntry`), so a candidate moving into screening is
+   not put on the interview calendar; out of a screening column it keeps the calendar
+   handoff. A person's **decline** is `declineQueuedAdvance` (`db/pipeline.ts`): the
+   approval is cleared, the entry stays, and a `screening_hold` marker with detail
+   `advance_declined` is written. The policy reads it as `advanceDeclined` (for
+   the current stage stint) and holds, so the entry is not proposed again until it
+   moves. The decline door is the pipeline action `decline_advance`, reachable from
+   `POST /api/pipeline/[id]` (`ENTRY_ACTIONS`, `pipeline:write`), `POST /api/pipeline/batch`
+   and `runPipelineEntryAction` (so the two cannot disagree). The actor is the session's
+   human, never the body's (an engine claim is ignored); the stage read from the live entry
+   is the `expectedStage`. It is sealed BEFORE it is written, as its own record kind
+   `advance_declined` (no existing kind fits: `advanced` and `rejected` would both be
+   false), and an unsealable decline answers `PIPELINE_DECISION_NOT_SEALED` 503 with
+   nothing written. Anything that is not a queued policy advance answers
+   `PIPELINE_NO_QUEUED_ADVANCE` 409 and is never treated as a reject. In the UI only the
+   queued-advance card in the candidate decision bar shows **Keep in place** beside Advance;
+   Reject stays separate. Both policy branches hold on any pending approval, so a queued advance is not
+   re-proposed on the next tick. The screen task's own model-verdict advance
+   (`automation-run.ts`, the Q3 gate) is a different door and is unchanged.
    **Aging alerts follow the board's clock.** The pass does not age entries on its
    own: `listActiveEntriesForAutomation` stamps each entry's `agingTier`
    (`none` / `aging` / `stalled`) from `app/_lib/aging-policy.ts` — the same
@@ -566,7 +613,7 @@ an interview or offer column is a supported shape. Pinned by
 | `app/_lib/pipeline-entry-action.ts` | The shared move/decide action behind `/api/pipeline/[id]`, `/api/pipeline/batch` and the command bar (`command/execute.ts`). Both approval writes that land AFTER an await are compare-and-swapped on `setApproval(..., { expectedApprovalKind })` read from the pre-write snapshot: the offer clear (after `dispatchOffer`) answers 409 when the gate moved while the offer went out, and the hybrid handoff's calendar arm answers the same stale 409. A `dispatchOffer` that THROWS is caught and compensated by LEAVING the approval open: the offer row is idempotent, so approving again re-sends the SAME link, the un-sent token is pending rather than orphaned, and the attempt is recorded as an `offer_comms_failed` event (the route answers 502). A human `reject` also fires the `candidate.rejected` ATS webhook (`dispatchAtsEvent`, fire-and-forget beside the rejection comm) — that event was subscribable in the integrations panel and emitted from nowhere until this pass; see [../integrations/README.md](../integrations/README.md#ats--hris-write-back-outbound). The rejection comm is awaited AFTER the reject committed, so its failure is guarded: a throwing `dispatchRejection` records a `rejection_comms_failed` marker (actor named), the result is a 200 with `commsFailed: true`, and the ATS event and group-eval expiry still run (it used to skip both and answer 500 for a reject that had happened). Optional `via: "command_bar"` + `threshold` make the seal carry `policyVersion: "command-bar"` and the typed threshold as a decisive input; without them the manual seal is unchanged. **An accept/reject is sealed BEFORE it is written** (see [the commit door seals first](#the-commit-door-seals-first)): a decision whose record cannot be sealed changes nothing, sends no letter, fires no ATS event, and answers 503 `PIPELINE_DECISION_NOT_SEALED` with the fresh `entry`. The post-commit mirrors and the pre-commit `seal` are injectable (`EntryActionDeps`, any subset) for tests only. |
 | `app/api/pipeline/[id]/consent/route.ts` | The candidate modal's GDPR consent snapshot + append-only audit trail. `requireOperator()` first, like every other pipeline PII surface, and pinned in `app/api/pipeline/batch/authz-parity.test.ts`. |
 | `app/api/pipeline/command/route.ts` + `command/execute.ts` | The natural-language command bar. `POST {text}` previews (nothing runs); `POST {text, confirm:true}` executes. An execute answers `{ count, failed, commsFailed }` always — `failed` is every target the guarded write refused (a lost `expectedStage` CAS) or that threw, `commsFailed` is applied rejections the candidate was not notified about — plus `heldAtOffer` / `droppedOut` when non-zero; the counting loop lives in `execute.ts` so each target lands in exactly one bucket. **One write door:** every target goes through `runPipelineEntryAction` (never the store directly), so a command-bar decision is sealed (`policyVersion: "command-bar"`, the typed threshold in `inputs`), names the session's actor on the event and the seal, fires `candidate.rejected` to the ATS, expires the group-eval cache, and inherits the core's expectedStage CAS and terminal guard. The core's result maps to a bucket: 200 is `count` (plus `commsFailed` when the core says so), a 200 with `routedToHumanRound` is its own `routedToHumanRound` bucket (answered when non-zero; the candidate did not move a column), 422 `PIPELINE_TERMINAL_NOT_ADVANCE` is `heldAtOffer` (the offer step, or a pre-terminal custom column on a composed board), anything else or a throw is `failed` — including the 503 `PIPELINE_DECISION_NOT_SEALED` of a target whose decision record could not be sealed, which the core therefore did not apply. An `advance top N` target carrying a drafted offer (`offer_review`) is held BEFORE the core is asked, so the bar never extends an offer. Pinned by `command/command-one-core.test.ts` (real unit DB, composed axes, and a grep guard that `execute.ts` imports neither `actOnPipelineEntry` nor `dispatchRejection`). `run policy` runs the same global sweep as `POST /api/automation/run`: operator-gated, then throttled per IP (`pipeline-command-policy:<ip>`, 6/10min, pinned in `app/api/rate-limit-contract.test.ts`), recorded through `recordRun` the same way, and answered with the workspace-scoped `decisions` beside a `summary` explicitly labelled `summaryScope: "global"`. A confirmed `reject below` / `advance top` spends its own per-IP window (`pipeline-command-exec:<ip>`, 20/10min → `429 TOO_MANY_REQUESTS`, nothing executed) before any target is touched, because each wave can queue candidate email for the whole matching cohort; the preview is never throttled. Pinned by `app/api/rate-limit-contract.test.ts` and `command/execute-rate-limit.test.ts`. |
-| `app/api/pipeline/command/reverse/route.ts` + `command/reverse.ts` | **Undo a command-bar reject wave.** After a confirmed `reject below N%`, the bar's done panel keeps the reviewed id set and offers an undo; `POST {ids, text}` (or `{ids, threshold}`; at most 200 ids, else 400 `PIPELINE_BATCH_PAYLOAD_INVALID`) answers `{ restored, notified, skipped }`. Gated like the command route (operator, then `pipeline:write`); not rate-limited (it spends and spawns nothing). Per id, `restoreCommandRejection` runs an IMMEDIATE read-plan-write: `planWaveReversal` (`app/_lib/pipeline-command.ts`, pure) restores only an entry still `rejected` whose newest decision is THIS wave's human `rejected` event (matched on `commandRejectDetail(threshold)`, the one literal `execute.ts` writes; the letter's own `rejection_sent` / `rejection_comms_failed` may sit on top), and the UPDATE compare-and-swaps on status AND the stage that event recorded. The candidate comes back `active` on the stage they stood on (a reject never moves the stage), not the screened landing column the per-entry `reinstate` uses for auto-rejections. A hand reject, another threshold's wave, another team's row, a row moved since, or one already undone is skipped and counted, never overwritten, so a second undo is a no-op. Each restore writes a `reinstated` event named for the session's actor (detail `reason:commandWaveReversed`) and is sealed as a NEW decision (`reinstated`, reasonCode `command_wave_reversed`, policyVersion `command-bar`, threshold and `notified` in inputs); the role's group-eval cache is expired. `notified` counts restored candidates who had already been sent the rejection letter: the outbox has no withdrawn state, so the bar tells the recruiter to follow up with them rather than implying the letter was unsent. **Intended side effect:** the `reinstated` event is what `screen-wave.ts`'s reinstatement shield reads, so a wave-restored candidate is spared by the next automated screen-wave (keep-reason `reinstated`); a human can still reject them by hand. Pinned by `command/reverse.test.ts` (real unit DB, cross-workspace + idempotency + the screen-wave case). |
+| `app/api/pipeline/command/reverse/route.ts` + `command/reverse.ts` | **Undo a command-bar reject wave.** After a confirmed `reject below N%`, the bar's done panel keeps the reviewed id set and offers an undo; `POST {ids, text}` (or `{ids, threshold}`; at most 200 ids, else 400 `PIPELINE_BATCH_PAYLOAD_INVALID`) answers `{ restored, notified, skipped, unsealed }`. Gated like the command route (operator, then `pipeline:write`); not rate-limited (it spends and spawns nothing). Per id, `restoreCommandRejection` runs an IMMEDIATE read-plan-write: `planWaveReversal` (`app/_lib/pipeline-command.ts`, pure) restores only an entry still `rejected` whose newest decision is THIS wave's human `rejected` event (matched on `commandRejectDetail(threshold)`, the one literal `execute.ts` writes; the letter's own `rejection_sent` / `rejection_comms_failed` may sit on top), and the UPDATE compare-and-swaps on status AND the stage that event recorded. The candidate comes back `active` on the stage they stood on (a reject never moves the stage), not the screened landing column the per-entry `reinstate` uses for auto-rejections. A hand reject, another threshold's wave, another team's row, a row moved since, or one already undone is skipped and counted, never overwritten, so a second undo is a no-op. Each restore writes a `reinstated` event named for the session's actor (detail `reason:commandWaveReversed`) and is sealed as a NEW decision BEFORE the restore (a failed seal leaves that entry rejected, counted in `unsealed` and in `skipped`; a wave that restored nothing and left an entry unsealed answers 503 `PIPELINE_DECISION_NOT_SEALED`, a partial wave 200; a residual race between the preview and the restore can leave a record for a reversal that did not happen) (`reinstated`, reasonCode `command_wave_reversed`, policyVersion `command-bar`, threshold and `notified` in inputs); the role's group-eval cache is expired. `notified` counts restored candidates who had already been sent the rejection letter: the outbox has no withdrawn state, so the bar tells the recruiter to follow up with them rather than implying the letter was unsent. **Intended side effect:** the `reinstated` event is what `screen-wave.ts`'s reinstatement shield reads, so a wave-restored candidate is spared by the next automated screen-wave (keep-reason `reinstated`); a human can still reject them by hand. Pinned by `command/reverse.test.ts` (real unit DB, cross-workspace + idempotency + the screen-wave case). |
 | `app/features/hiring/pipeline/PipelineHireOutcomeCard.tsx` | The candidate modal card that writes it — a 1..5 button rail, mounted only for a candidate on the terminal-role stage. |
 | `app/features/hiring/decisions/**` | Decisions queue UI, screen-wave modal, group-eval. The wave modal's lifecycle (debounced preview → confirm → commit → 409 → re-preview, with the "the set changed" notice consumed on exactly one preview settle) is the pure reducer `decisionsScreenWaveMachine.ts`; `useDecisionsScreenWave` is only the network around it. A 409 is `commitRefused{reason}` and the total `REFUSAL_EFFECT` table decides: `required` / `expired` / `mismatch` re-preview; `unattributed` (no named approver: sign in or set `KP_OPERATOR_NAME`) disables Commit with that reason in the footer's live line for the modal's life, because no re-preview can fix it; `spent` (an earlier attempt of the commit landed) re-previews and reloads the queue. `WaveResult` / `WaveDecision` are aliases of the contract's read shapes (`ScreenWaveRead`, `ScreenDecisionRead` in `screen-wave-contract.ts`); `sealFailures` (missed Art. 22 seals) is required, and holdout keeps (`reasonCode` `holdout` or `holdoutSealFailed`) are counted from reason codes by `holdoutCount` in `decisionsFloorDisclosure.ts`, since the server sends no holdout count. The simulation walk reads the same two responses through `readWaveResult`. `waveKeepKind` classifies a keep row as `holdout` / `holdoutSealFailed` / `fairness` / `other` against the closed `ScreenReasonCode` set so the lists cannot render a clean-arm keep as an ordinary keep. Reinstate (the reconsider queue's safety valve) folds every path through `decisionsReinstateOutcome.ts` — a refused or never-landed reinstate keeps the row and prints its `{ code, status }` on it via `useErrorMessage`, instead of the old silent no-else. When the pending queue is empty, `DecisionsEmptyHandoff` renders the reconsider count as a button that calls the same `revealReconsider` hop as the header chip, not a static caption. The empty queue has two readings, not one: while a `batch_screen` or `automation` task (the two kinds that write the decisions this queue reads) is queued or running, `DecisionsEmptyHandoff` shows "Decisions are on their way." with the runs' summed `done/total`, a link to Background tasks and the decisions glyph on the `pulse` ambient, instead of "You're all caught up." The decision is the pure `app/_components/glyph/glyphArrival.ts` (`ARRIVAL_KINDS` keyed tab -> depositing task kinds; a tab opts in only once its deposit path is verified). A failed task poll (`loadFailed`) never claims an arrival. `useLiveRefresh` does not fire when a background task writes, so `stepArrival` also reports the landing edge (a watched task left the in-flight set, or reported another item done) exactly once, and the handoff calls the queue's `load` it receives from `DecisionsTab` on that edge. The real entries replace the arriving state without a manual refresh. Every decision the tab issues (the Docket's quick accept/reject, the candidate and analysis modals, the group-eval rationale dialog, all through `useDecisionsQueue`'s `act()`, and the batch bar's `bulkDecideReviews`) goes through ONE pure fold, `decisionsDecideOutcome.ts`: `foldDecideResponse` turns a response into a typed handoff (`queueForSchedule`, `prepTask`, `offerLink`) or a coded failure (`{ code, capability, status }`, never the server's prose), and `foldBatchDecide` does the same for the batch (ok/failed ids, distinct per-id codes, a whole-request failure that overrides them). `handoffFor` is the single post-accept rule both paths apply, so a batch-accepted AI scorecard the plan routed to the human round is queued on Schedule exactly like a one-by-one accept. A refused single decision (a stale-stage 409, a capability 403, a terminal 422, a dropped request) restores the row, toasts the refusal from its code in the reader's language (`decisions.decideFailed` as the fallback) and reloads, instead of the old silent blink back; `act()` still resolves the boolean its awaiting callers rely on. The batch band resolves per-id codes through `useErrorMessage` and never paints the per-id English `reason`. Pinned by `decisionsDecideOutcome.test.ts` and `decisionsBatchRefusal.test.ts`. A failed queue GET folds the JSON body (`FORBIDDEN_CAPABILITY` + `capability`, or `PIPELINE_LIST_FAILED`) through `foldQueueLoadThrow({ status, body })` so a viewer sees "ask for pipeline:write", not a generic load failure. |
 | `app/features/hiring/pipeline/**` | The Orbit (`orbit/`), the page parts it keeps from the kit view (`kit/`: Today, Off the board, Activity, the SLA editor, the `/` search hook, the move vocabulary), the candidate modal, the empty state, and the board state hooks the surface reads. |
@@ -596,6 +643,8 @@ carry: location, seniority, status, target hires, and the roles nobody is on yet
 `orbit/pipelineOrbit.css`. The region carries `data-sim="pipeline-board"`, the guided walk's
 "hired" chapter target.
 
+**Held first-contact letter (comms C2b).** The candidate modal's Overview tab opens with `candidate/outreach/OutreachReleaseCard.tsx` when the application has a held outreach letter: the exact letter and forecast, Approve (the rendered revision; a 409 reads "reload"), and Release (only in `RELEASABLE_STATES`; keyless it reads queued). Logic and API calls: `outreachCard.ts` (`outreachCard.test.ts`). Contract: `docs/features/comms/README.md` §8a. The bulk sheet for a picked cohort is described under [Bulk actions today](#bulk-actions-today).
+
 **The Overview ("The Orbit, Lit", 2026-09-30).** The page opens one level ABOVE the orbit, on the
 owner's pick of the `/contest orbit-overview` (B/1; it replaced the 2026-09-29 /prototype "Core").
 `orbit/overview/OrbitOverview.tsx` is one screen around the orbit drawn small: the waiting-on-a-human
@@ -603,7 +652,7 @@ count as the hero with what it is made of by approval kind (`OverviewHead`); "ne
 on the left (**First up**, `OverviewFirstUp`: of the waiting people who have a stage clock, the one
 furthest over their stage's SLA, else the one nearest it, and an honest line when nobody waits or
 nobody waiting has a clock; then the queues waiting on you) and "in motion today" on the right; the
-totals under it (active, inside the SLA of those the clock measures, hired, open roles + drafts,
+totals under it (active, inside the SLA of those the clock measures, hired, open roles + drafts, and, once there is any, "automated actions this week": a count of scores run, messages and invites sent and policy-pass moves from `pipeline_events` over the trailing 7 days via `GET /api/pipeline/automation-counts` (`_lib/automation-counts.ts`; counts only, no hours or money, absent rather than 0 when there are none),
 `OverviewTotals`). The queues are `deriveRailRows`' rows plus a **decisions** queue, "N people
 waiting on a decision or review" (entries on a stage of the axis with `decision` / `screening_review`
 / `rejection_review`: the Decisions tab's kinds, `DECISIONS_QUEUE_KINDS`, minus the two that have a
@@ -739,8 +788,41 @@ the link panels…) and its per-entry state hook moved in unchanged, arranged in
 | **Activity** | interview outcome (+ transcript), human scorecard, messages with their delivery verdict; the merged history with rematch links |
 | **Record** | the autosaved recruiter note, GitHub evidence / deep-dive, GDPR consent with its audit trail, links to the full match and the profile editor |
 
+**How they work with AI (ADR 0027 S3; plain wording CX S44, 2026-10-22).** The Overview ends
+with the evidence ladder (`candidate/evidence-ladder/`, pure assembly in
+`app/_lib/evidence-ladder/ladder.ts`): watched in the work sample, explained in the follow-up,
+rated in the interview, each read on its own with no total and an empty rung naming why. Its
+intro states the one score link that exists: none of it feeds the match score; the watched
+checks are the evaluation's own inputs, so they count toward the work sample's transfer score;
+the follow-up findings and the AI-tools rating (excluded from interview totals) count toward no
+score. The case's role family picks the wording (`doorRegister`, the candidate door's signal, read
+from `GET /api/devcase/[id]`): a non-technical case reads a role-neutral twin for the one
+software-only line (`reasons.watchedTestGeneral`). Copy is `evidenceLadder.*`, all four locales.
+
 The Scorecard breakdown resolves the ranker's `labelCode` through the shared
 `match.dims.*` translations, with its English label as a fallback for older rows.
+
+**The score always names its source (2026-10-22).** When the role ranking answers
+(`map/useCellMatchData.ts` → `GET /api/jobs/[id]/candidates`, the keyless rule-based
+`recruiter_cli` ranker — no `--weights-llm`, no embeddings), the big number is that live
+total and is captioned `pipeline.candidate.scorecard.ruleBased` ("Rule-based match · no AI")
+with one line on what it weighs (`ruleBasedWeighs`: skills, experience, languages against
+the role). When it does not, the board's own number speaks with its provenance through
+`ScoreProvenanceLabel`. If the live total and the board card's number round differently,
+one more line says what the card shows and from where (`boardShows`, derived by the pure
+`boardDiffersOf` in `scorecard/candidateDetailModel.ts`, pinned by
+`candidateDetailModel.test.ts`); equal numbers add nothing, and an unscored card is not a
+second number.
+
+A stored `match_score` the arrival scorer or the automation sweep filled AFTER the add
+(`app/_lib/entry-scoring.ts`) is no longer labelled "snapshot at add": the fill-only write
+that wins always logs a `scored` pipeline event, so `withCanonicalScores`
+(`app/_lib/match-score-resolve.ts`) reads the earliest one per entry
+(`scoredAtByEntryIds`, `app/_lib/db/pipeline.ts`, one chunked workspace-scoped read, asked
+only for entries whose shown number is the stored column) and `getCanonicalMatchScore`
+returns provenance `{ source: "scored", at }`, rendered as `scoreProvenance.scoredLater`
+("rule-based, scored after add · date"). No schema change; an entry with no such event keeps
+`snapshot`. Pinned by `match-score.test.ts` and `match-score-resolve.test.ts`.
 
 Mechanics. `usePipelineTabState` holds one `CandidateView` (`candidateView.ts`: entry,
 cohort, tab) and `orbit/PipelineOrbitView.tsx` mounts `CandidateModal` through `next/dynamic`.
@@ -757,12 +839,25 @@ The board's 30s poll stays paused while the modal is open.
 (`footer/CandidateFooter.tsx`). It replaced two overlapping interfaces — the Scorecard's
 own action row (Open profile / All actions / Move) and an Actions tab — and holds, in
 order: the move-to-step select (active candidates), the AI actions this step offers, the
-voice-screen and self-scheduling link buttons (active + a screening/interview step), and
-"Move to {next step}". An AI action's progress, result or localized failure, and either
-link panel, open in a tray above the bar (`footer/CandidateFooterTray.tsx`), so the tab
+voice-screen and self-scheduling link buttons (active + a screening/interview step),
+**Work sample** (active + a job, any step), and "Move to {next step}". An AI action's
+progress, result or localized failure, each link panel and the work-sample panel open in
+a tray above the bar (`footer/CandidateFooterTray.tsx`), so the tab
 being read stays in place; "Last result" reopens a closed result. Both moves use the
 guarded `set_stage` (with `expectedStage`) and refresh in place. The profile is reached
 from the Record tab's links.
+
+**Work sample** (`footer/WorkSamplePanel.tsx`, CX S43) sends the role's approved
+assignment to this candidate without a homework column — the default board has none.
+`POST /api/pipeline/[id]/work-sample` (operator + `pipeline:write` + a 30/min limiter)
+calls `sendWorkSample` (`app/_lib/stage-hooks-homework.ts`), the homework arrival's own
+`inviteToCase`: the click is the human gate, so the column's plan gate is not asked, and
+everything else holds — the send gate before publishing, one letter per (entry,
+posting), a stopped intake never reopened, the outbox's real claim. A click never
+designs a case: no approved case answers `no_case`, and the panel links to
+`/?tab=assignments&job=<jobId>`. Each answer is one line (`footer/workSample.ts`): a
+keyless send reads "queued, not sent" with the link to copy (`TokenLinkPanel`, which
+carries `LinkReachNotice`), never a green "sent".
 
 **Which AI actions a step offers** is one rule, `app/_lib/stage-ai-actions.ts`, read by
 the footer, by Settings → Hiring and by the server:
@@ -1092,6 +1187,11 @@ falls back to one localized line pointing at the candidate.
 
 ### Opening a candidate's live link
 
+`TokenLinkPanel` also renders `LinkReachNotice` (`app/_components/LinkReachNotice.tsx`) under the
+link: when the `publicBaseUrl` base is this computer, the local network or the placeholder origin
+(`app/_lib/link-reach.ts`), one quiet line says candidates can't open it, with a "How to fix"
+disclosure. It never blocks the copy and renders nothing for a public base.
+
 `TokenLinkPanel`'s "Open as candidate" opens the LIVE capability link, and several
 of those surfaces stamp an opened/first-seen mark on first fetch — so a recruiter
 peeking burnt the candidate's own first open and the timeline then read as if they
@@ -1184,6 +1284,7 @@ The bulk paths that ship:
 - **The Decisions tab's own batch bar** (`app/features/hiring/decisions/DecisionsBatchBar.tsx`,
   state in `useDecisionsQueue`): batch accept / reject of awaiting reviews through
   `POST /api/pipeline/batch`, folded by `decisionsDecideOutcome.ts`.
+- **Batch outreach from the role bench** (`orbit/ladder/OrbitLadderCompare.tsx`, comms C2b, `74b8e2beb`): the bench's checkboxes are the picked cohort; *Draft outreach for N picked* starts the `batch_outreach` task (`candidate/outreach/useBatchOutreach.ts`), which only DRAFTS held letters. When it finishes, `BulkOutreachSheet` opens on the drafted entries: each letter as the release card renders it (`loadLetter`), its forecast and state, a cohort forecast (send / queue / refuse with reasons), a revision-bound edit (`PATCH /api/outreach-letters/[id]`) and *Approve and release*, which runs the per-letter approve and release doors one at a time and reports released / queued / refused / conflict per letter. Logic: `outreachBulk.ts` (`outreachBulk.test.ts`, `useBatchOutreach.test.ts`).
 - **`POST /api/pipeline/batch`** itself is unchanged: operator gate, `pipeline:write`, per-id
   isolation, and `dryRun: true` answering what a move would set off (`planArrival`) while writing
   nothing. Its only client is the Decisions bar.
@@ -1753,7 +1854,7 @@ reads the body, narrows `body.action` through `entryActionOf` (anything else is 
 | --- | --- | --- |
 | `capability` | every row: `pipeline:write` | a viewer seat is refused 403 `FORBIDDEN_CAPABILITY` (the capability rides as data), as on the batch, command, reverse, stage-migration and stage-sla doors. Open mode is unchanged: no password means every caller folds to owner. |
 | `engineClaim` | `accept` only | `body.actor` (`"sim"`) is forwarded to `runPipelineEntryAction` only where declared. The guided sim sends it on accept and nowhere else (`useSimulationEngine.ts`, `useSimulationWalk.ts`). On a reject it used to file the recruiter's decision as `auto_rejected` sealed `auto:sim` and route it into the Reconsider queue; it is now dropped and the reject stays human. |
-| `reverses` | `reinstate`: `auto_rejected` | a reinstate is refused 409 `PIPELINE_NOT_REINSTATABLE` unless the entry's newest decision event is the machine's `auto_rejected`. The decision events are `auto_rejected`, `rejected` and `reinstated`, and `reinstated` counts explicitly, so an auto-rejection already reversed (by this door or by the human re-add above) is spent. A recruiter's hand reject is reopened through the re-add door, never recorded as "Auto-rejection reversed". The sealed `reinstated` record's `inputs.restoredStage` is the stage the store actually landed the candidate on (this board's screened column), not the literal `Screened`. The rule is one SQL predicate in `app/_lib/db/pipeline.ts` (`newestDecisionIsAutoRejection`), and `listReconsiderQueue` filters by the same predicate, so the Reconsider queue lists a rejected entry only while its newest decision is the machine's `auto_rejected`: an entry auto-rejected, reinstated and then rejected by a recruiter leaves the queue instead of offering a Reinstate the door refuses. |
+| `reverses` | `reinstate`: `auto_rejected` | a reinstate is refused 409 `PIPELINE_NOT_REINSTATABLE` unless the entry's newest decision event is the machine's `auto_rejected`. The decision events are `auto_rejected`, `rejected` and `reinstated`, and `reinstated` counts explicitly, so an auto-rejection already reversed (by this door or by the human re-add above) is spent. A recruiter's hand reject is reopened through the re-add door, never recorded as "Auto-rejection reversed". The sealed `reinstated` record's `inputs.restoredStage` is the stage the store lands the candidate on (this board's screened column, resolved by the door with the store's own expression), not the literal `Screened`. The door seals BEFORE the store commits: a failed seal answers 503 `PIPELINE_DECISION_NOT_SEALED` with the entry still rejected, so the retry is not a 409. If the store then loses a race the 409 stands and one sealed `reinstated` record exists for a reversal that did not happen (pinned by `[id]/reinstate-seal-503.test.ts`). The rule is one SQL predicate in `app/_lib/db/pipeline.ts` (`newestDecisionIsAutoRejection`), and `listReconsiderQueue` filters by the same predicate, so the Reconsider queue lists a rejected entry only while its newest decision is the machine's `auto_rejected`: an entry auto-rejected, reinstated and then rejected by a recruiter leaves the queue instead of offering a Reinstate the door refuses. |
 
 The four move/decide actions (`set_stage`, `accept`, `reject`, `approve_event`) can each
 queue candidate email, so they spend a per-IP window (`pipeline-entry-move:<ip>`,
@@ -1851,6 +1952,50 @@ no bare-letter row keys (the workspace owns `g` as its chord prefix), no "advanc
 beside accept (the product has accept/reject only), the column filters and pager of the
 old table are gone (the head's role filter and the levels replace them), and the bulk
 reject confirm still says "Reject N and notify them?" rather than listing the names.
+
+**The role decision view (CX S45).** `GET /api/decisions/role-view?job=<jobId>`
+(operator-gated, `route(withOperator)`, every read workspace-scoped) returns, for every
+ACTIVE candidate on the role (status `active` and not on the axis's terminal stage, so
+Hired drops out), the canonical match score + provenance, the work sample (transfer score
+read from `dev_submissions.transfer_score`, never the promote card's copy; `grading`
+`template` | `graded` from `devcase-cohort-rank.evaluationCurrency`; the evidence ladder
+in summary: watched acts, debrief supported/total, authorship hold `held` | `cleared` |
+`none`, AI-tools axis rated or not), and the interview scorecards (human average + count,
+the AI interview's average; not-assessed sentinels skipped). Every absent part is a null
+with a reason code (`not_sent`, `not_submitted`, `not_evaluated`, `no_scorecard`, ...),
+never 0, and nothing is folded into one number. Pure assembler
+`app/_lib/role-decision-view.ts`, loader `role-decision-view-server.ts` (a submission
+another team owns reads as absent); pinned by `role-decision-view.test.ts` and
+`role-decision-view-tenancy.test.ts`. Level 1's decide rows show its work-sample part
+beside the fit (`docket/DocketWorkSample.tsx` via `useRoleWorkSamples.ts`): "Work sample
+72 · held" or "— not sent"; grading, watched checks and the debrief are in the tip.
+
+**Everyone on this role (CX S46).** Level 1 now ends with a kit `Section` "Everyone on this
+role" (`docket/DocketRoleOverview.tsx`): a `DataTable` of EVERY active candidate from the same
+role-view read (fetched once per level by `useRoleDecisionView` in `useRoleWorkSamples.ts`; the
+decide rows' work-sample cell folds the same read through `workSamplesOf`). Columns: Candidate,
+Stage, Interview (the interviewers' average + scorecard count, the AI interview's average kept
+apart), Match (number + short provenance, the full provenance in the tip), Work sample (number ·
+held/cleared · template, or "—" with its reason) and AI proposal (what waits, or "— none
+waiting"); their order is the measure's track order, so a narrow sheet folds Interview first,
+then Stage and AI proposal, and Candidate, Match and Work sample never fold. Sortable by ONE
+column at a time (a head button, `aria-sort` on the head cell via the kit's new `Column.sort`);
+there is no total column, and the section's one line says each column is read on its own.
+Unscored sorts last in both directions, never as 0; ties keep the view's order
+(`docket/roleOverviewModel.ts`, pinned by `roleOverviewModel.test.ts`). A row (or its name)
+opens the candidate modal through the decide rows' own door; nothing on the table decides. A
+person with no recommendation waiting opens the same modal without a verdict, its footer
+carrying the stage actions (`useDecisionsCandidate.ts` keeps such a view open while the person
+is on the board's read). Each row carries a shortlist tick (page state only, capped at
+`GROUP_EVAL_CAP`; a kept shortlist needs a schema and is not built); with 2+ ticked, "Compare N
+shortlisted" opens Group evaluation with that explicit selection over the role's FULL active
+cohort (`useGroupEvalOpen` `scope: "role"`, whose live group is read from the queue hook's
+`roleRoster` instead of the key-decision groups, so the coverage note says "N of everyone
+active"). **Every open role** is reachable: level 0 lists, under the board (and under the
+caught-up state), each role with at least one active candidate (`rosterGroups`: status active,
+not on the axis's terminal stage, the role view's own rule) with its active and waiting counts,
+and a row walks into that role's level even when no proposal and no tool waits there. A
+title-only role (no job id) says its people cannot be read side by side.
 
 **Decide opens the candidate modal** — the board's own modal
 (`pipeline/candidate/CandidateModal.tsx`) with a `decision` attached, so a candidate
@@ -2034,6 +2179,41 @@ timezone, and "seven days" is a promise about duration). The candidate is never 
 to infer it — the letter states the deadline **with its timezone**
 (`formatOfferDeadline`, `comms-dispatch.ts`) and the accept page counts down from
 the same server-side instant.
+
+## A failed must-have is a held entry (knockout hold)
+
+Owner ruling Q1 (2026-11-09, `docs/product/oss-1.0-cut.md`). An applicant who answers no to a
+must-have the role states is **not declined**. All three intake doors — conversational apply
+(`app/api/apply/[id]/route.ts`), quick apply (`.../quick/route.ts`) and the lead core behind
+channel webhooks (`app/_lib/lead-intake.ts`) — file a real entry in the opening's workspace
+through the shared core (`application-filing.ts`, option `hold`), behind the existing
+`decision` approval. `approval_detail` carries the failed must-have step ids and a coded reason
+(`app/_lib/knockout-hold.ts`: `knockoutHoldDetail` / `parseKnockoutHold`), so the Decisions
+analysis modal shows the reviewer which must-have failed. No new status, queue or column.
+
+- **At intake:** no letter and no acknowledgement. The applicant is answered `result: "held"`
+  (conversational and quick doors) — a person will review, nothing is decided — and a webhook
+  integrator hears `held` / `knockout_held`. A known applicant is not filed twice (the hold
+  writes nothing onto an existing entry); an applicant with no address still gets an entry, and
+  no letter is owed; the honeypot answers in the held shape and files nothing.
+- **A person rejects (confirms):** the ordinary reject door (`runPipelineEntryAction`, also the
+  batch and command-bar doors) seals the decision like any human rejection — the sealed inputs
+  carry `knockoutFailedIds` and the reason code `knockout` — then sends the one knockout letter
+  (`dispatchKnockoutRejection`, kind `ko_decline`, ref'd to the entry) naming the must-have and
+  how to ask for a review. A repeat reject is refused on the closed entry, so the letter goes
+  once. An entry with no address owes none.
+- **A person accepts (clears):** the hold lifts through the ordinary accept (which, as for any
+  `decision` approval, advances one stage), nothing is sent, and the entry is an ordinary
+  applicant.
+- **Automation leaves it alone:** `executeAutomationPass` excludes a hold from scoring and the
+  policy pass. The Python policy's own "approval already pending" hold now covers the entry column
+  too (Q2 needed it so a queued advance is not re-proposed), but the exclusion stays the first wall.
+  Pinned by `app/_lib/ko-hold-automation.test.ts`.
+- **Before the ruling:** `ko_declined` events and the entry-less `ko_decline` letters stay as
+  written (analytics read them; the 30-day contact sweep of ADR 0019 still covers those
+  letters). A new letter is the entry's own outbox row, under the entry's retention.
+
+Tests: `app/api/apply/[id]/ko-decline-door.test.ts` (every door, confirm, clear, edge cases).
 
 ## Known gaps
 
@@ -2302,6 +2482,13 @@ already states for its own rejections:
    `PIPELINE_DECISION_NOT_SEALED`** with the fresh `entry`;
 3. only then write, with `actOnPipelineEntry`'s `expectedStage` CAS pinned to the stage
    the seal was made against.
+
+The same rule holds on three sibling doors: the **offer extend** (no letter without its
+`offer_terms` record; a retry whose current terms have no record seals again), the
+**hybrid human-round handoff** (sealed before the calendar gate re-arms) and the **human
+scorecard POST** (`/api/interview-prep/scorecard`: 503 and no Decisions gate on a failed
+seal; the retry re-files under the same author+stage key, so no duplicate). Reinstate is
+still best-effort.
 
 There is no `await` between the seal and the write, so nothing in this process can run
 between them. The one residue is the one screen-wave accepts: a write that loses its CAS

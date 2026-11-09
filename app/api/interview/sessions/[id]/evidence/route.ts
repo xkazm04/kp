@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { consentWithholdsPii } from "@/app/_lib/consent";
 import { getInterviewSessionInWorkspace, interviewRecordingRowForSession } from "@/app/_lib/db/interviews";
@@ -29,12 +29,11 @@ import { recordingRetentionDue } from "@/app/_lib/interview-recording";
 // NOTHING HERE IS SCORED. The integrity observations are observations: no ranking, no
 // aggregate verdict, no field a surface could mistake for one (registry:
 // observed-process-is-supporting-not-load-bearing).
-export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const GET = withWorkspace(async (ws: string, _request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { id } = await context.params;
-    const ws = await currentWorkspace();
     const session = getInterviewSessionInWorkspace(id, ws);
     if (!session) return jsonRefusal("INTERVIEW_SESSION_NOT_FOUND", 404);
 
@@ -72,4 +71,4 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
   } catch (error) {
     return safeJsonError(error, "api:interview:sessions/[id]/evidence", "INTERVIEW_LOOKUP_FAILED");
   }
-}
+});

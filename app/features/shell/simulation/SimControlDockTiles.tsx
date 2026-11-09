@@ -70,12 +70,12 @@ export function DeckTile({
       disabled={disabled}
       aria-pressed={active}
       className={`focus-ring group inline-flex h-11 items-center gap-2 rounded-lg border px-3 text-sm font-semibold transition-colors disabled:opacity-50 ${
-        active ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-ink hover:border-coral/40"
+        active ? "border-coral bg-coral/10 text-coral-ink" : "border-stone-200 bg-white text-ink hover:border-coral/40"
       }`}
     >
       <span
         className={`grid h-7 w-7 shrink-0 place-items-center rounded-md border transition-colors ${
-          active ? "border-coral/40 bg-white text-coral" : "border-stone-200 bg-paper text-steel group-hover:text-coral"
+          active ? "border-coral/40 bg-white text-coral-ink" : "border-stone-200 bg-paper text-steel group-hover:text-coral-ink"
         }`}
       >
         <Icon size={15} aria-hidden />

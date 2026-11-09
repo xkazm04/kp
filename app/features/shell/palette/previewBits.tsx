@@ -44,7 +44,7 @@ export function Tiles({ children }: { children: ReactNode }) {
 }
 
 export function Tile({ label, value, tone = "ink" }: { label: string; value: ReactNode; tone?: "ink" | "coral" | "moss" | "steel" }) {
-  const color = tone === "coral" ? "text-coral" : tone === "moss" ? "text-moss" : tone === "steel" ? "text-steel" : "text-ink";
+  const color = tone === "coral" ? "text-coral-ink" : tone === "moss" ? "text-moss" : tone === "steel" ? "text-steel" : "text-ink";
   return (
     <div className="flex min-w-0 flex-col gap-1 rounded-lg border border-stone-200 bg-white px-2.5 py-2 dark:-rotate-[0.4deg]">
       {/* Number first — it is what the eye is here for — then the sentence-case

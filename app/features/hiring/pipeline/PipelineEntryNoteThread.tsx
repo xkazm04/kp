@@ -82,7 +82,7 @@ export function PipelineEntryNoteThread({ entryId }: { entryId: string }) {
       <div className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
         <MessagesSquare size={13} /> {t("noteThreadTitle")}
       </div>
-      {loadFailed ? <p className="mt-1 text-meta text-coral">{t("noteThreadLoadFailed")}</p> : null}
+      {loadFailed ? <p className="mt-1 text-meta text-coral-ink">{t("noteThreadLoadFailed")}</p> : null}
       {notes && notes.length === 0 ? <p className="mt-1 text-meta text-steel">{t("noteThreadEmpty")}</p> : null}
       {notes && notes.length > 0 ? (
         <ul className="mt-1 space-y-2">
@@ -113,7 +113,7 @@ export function PipelineEntryNoteThread({ entryId }: { entryId: string }) {
           {sending ? t("noteThreadSending") : t("noteThreadSend")}
         </button>
         {error ? (
-          <span role="alert" className="text-meta text-coral">
+          <span role="alert" className="text-meta text-coral-ink">
             {error}
           </span>
         ) : null}

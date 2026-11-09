@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jdSlugOfJobId } from "@/app/_lib/jd-limits";
 import { getJobsByIds } from "@/app/_lib/db/jobs";
@@ -67,10 +67,9 @@ function declaredSkillsFrom(payload: unknown, requirements: { skill: string }[])
   return { matched, missing: requirements.length - matched, basis: "declared" };
 }
 
-export async function GET(request: Request) {
+export const GET = withWorkspace(async (ws: string, request: Request) => {
   const denied = await requireOperator();
   if (denied) return denied;
-  const ws = await currentWorkspace();
   const raw = new URL(request.url).searchParams.get("jobs") ?? "";
   const jobIds = [...new Set(raw.split(",").map((s) => s.trim()).filter(Boolean))].slice(0, 50);
   if (jobIds.length === 0) return NextResponse.json({ jobs: {} });
@@ -120,4 +119,4 @@ export async function GET(request: Request) {
     jobs[jobId] = { salaryBand: band, byEntry };
   }
   return NextResponse.json({ jobs });
-}
+});

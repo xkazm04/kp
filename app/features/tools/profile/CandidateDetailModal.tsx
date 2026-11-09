@@ -119,7 +119,7 @@ export function CandidateDetailModal({
               <li key={a.slug}>
                 <Link
                   href={`/history/${a.slug}`}
-                  className="focus-ring flex items-center gap-2 rounded-md px-2 py-1 text-sm text-ink hover:bg-stone-100 hover:text-coral"
+                  className="focus-ring flex items-center gap-2 rounded-md px-2 py-1 text-sm text-ink hover:bg-stone-100 hover:text-coral-ink"
                 >
                   <ScoreBadge score={a.score} />
                   <span className="min-w-0 flex-1 truncate">{format.dateTime(new Date(a.createdAt), { dateStyle: "medium" })}</span>

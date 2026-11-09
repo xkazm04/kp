@@ -25,7 +25,8 @@ import { ACTIONS, CYCLE, GATE_LABEL, STILL, sceneAt, type StatusBeat } from "./d
  * queueing it as `rejection_review` instead. The comment in
  * automation-pass.ts calls this out by name: a rejection is the one
  * irreversible, candidate-visible adverse action, so the pass never applies one
- * on its own. Advances, holds and alerts continue autonomously, and saying so
+ * on its own. Since Q2 neither does it apply an advance: that is queued as a
+ * `screening_review` too. Holds and alerts continue autonomously, and saying so
  * is what makes the claim credible rather than marketing.
  *
  * The beat table (CYCLE, STILL, which beat each mark lands on) and the
@@ -90,7 +91,7 @@ export function GatesQueue() {
           }}
         />
         <div className="absolute z-10 -translate-x-1/2" style={{ left: `${BAR_X}%`, top: "0%" }}>
-          <Part show={s.barrier} reduced={reduced} className="whitespace-nowrap rounded-full bg-coral/10 px-2 py-0.5 font-mono text-meta text-coral">
+          <Part show={s.barrier} reduced={reduced} className="whitespace-nowrap rounded-full bg-coral/10 px-2 py-0.5 font-mono text-meta text-coral-ink">
             {t("gate")}
           </Part>
         </div>
@@ -108,7 +109,7 @@ export function GatesQueue() {
               <Part show={s.proposed} i={i} reduced={reduced} className="min-w-0 flex-1 truncate text-base text-ink">
                 {t(`actions.${a.key}`)}
               </Part>
-              <Part show={met && a.parks} reduced={reduced} className="shrink-0 text-meta font-medium text-coral">
+              <Part show={met && a.parks} reduced={reduced} className="shrink-0 text-meta font-medium text-coral-ink">
                 {t("stops")}
               </Part>
             </Slot>
@@ -132,7 +133,7 @@ export function GatesQueue() {
               className="flex items-center px-3"
             >
               {a.parks ? (
-                <Part show={met} reduced={reduced} className="font-mono text-meta text-coral">
+                <Part show={met} reduced={reduced} className="font-mono text-meta text-coral-ink">
                   {a.kind}
                 </Part>
               ) : (

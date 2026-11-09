@@ -1,23 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteTemplate, editTemplate, getTemplate, setDefaultTemplate } from "@/app/_lib/templates-store";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { validateTemplateUpdate } from "@/app/features/shared/renderTemplate";
 
 
-export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const GET = withWorkspace(async (ws: string, _request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const { id } = await context.params;
   try {
-    const template = getTemplate(id, await currentWorkspace());
+    const template = getTemplate(id, ws);
     if (!template) return jsonRefusal("TEMPLATE_NOT_FOUND", 404);
     return NextResponse.json({ template });
   } catch (error) {
     return safeJsonError(error, "api:templates/[id]", "TEMPLATE_LOAD_FAILED");
   }
-}
+});
 
-export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const PUT = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   // Editing a template or promoting it to the org default mutates shared library
   // state — recruiter-only. Gate before params/body (GET above stays open). Open
   // mode is a no-op.
@@ -25,7 +25,6 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
   if (denied) return denied;
   const { id } = await context.params;
   try {
-    const ws = await currentWorkspace();
     const body = (await request.json()) as { name?: string; body?: string; isDefault?: boolean; expectedUpdatedAt?: string };
     // Promote-to-default is a distinct, single-row state change (clears the flag
     // on every other template), kept separate from a name/body edit — it carries
@@ -58,16 +57,16 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
   } catch (error) {
     return safeJsonError(error, "api:templates/[id]", "TEMPLATE_UPDATE_FAILED");
   }
-}
+});
 
-export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const DELETE = withWorkspace(async (ws: string, _request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   // Deleting a template — including an org-shared one every team can see — is
   // recruiter-only. Gate before params/DB. Open mode is a no-op.
   const denied = await requireOperator();
   if (denied) return denied;
   const { id } = await context.params;
   try {
-    const result = deleteTemplate(id, await currentWorkspace());
+    const result = deleteTemplate(id, ws);
     // Each refusal is a CODE the manager resolves in the reader's language; the
     // store's reason used to be English prose forwarded straight onto the wire.
     if (!result.ok) {
@@ -78,4 +77,4 @@ export async function DELETE(_request: NextRequest, context: { params: Promise<{
   } catch (error) {
     return safeJsonError(error, "api:templates/[id]", "TEMPLATE_DELETE_FAILED");
   }
-}
+});

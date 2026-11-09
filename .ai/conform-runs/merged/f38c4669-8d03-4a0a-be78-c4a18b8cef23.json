@@ -1,0 +1,128 @@
+{
+ "schema": "conform-run/1",
+ "worker": "f38c4669-8d03-4a0a-be78-c4a18b8cef23",
+ "subject": "portable-hiring-records",
+ "evaluatedAt": "2026-10-17T21:30:11.580641+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "ats-sync-egress",
+   "subject": "portable-hiring-records",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/ats/inbound.ts:141 When an external candidate's stage cannot be mapped to the local axis, toAtsEntryInput defaults the stage to 'Accepted' at the head of the funnel rather than preserving an explicit unmapped or null state.",
+   "techniques": [
+    {
+     "technique": "external-identifier-as-the-sync-identity",
+     "verdict": "conformant",
+     "evidence": "app/_lib/ats/field-map.ts:162 fieldMap.paths.externalId is required before storing a field map to ensure the inbound sync identity cannot be omitted."
+    },
+    {
+     "technique": "human-versus-automated-decision-attribution-on-export",
+     "verdict": "conformant",
+     "evidence": "app/_lib/ats-record.ts:165 isAutomatedActor derives the automated boolean from the actor namespace prefix rather than a stored flag, degrading ambiguous actors to automated."
+    },
+    {
+     "technique": "per-tenant-stage-mapping-never-a-shared-assumption",
+     "verdict": "deviation",
+     "evidence": "app/_lib/ats/connections-store.ts:83 ats_connections table is keyed by provider as primary key without workspace_id or org_id, making stage mapping installation-wide rather than per-tenant."
+    },
+    {
+     "technique": "unmapped-stage-stays-null-never-guessed",
+     "verdict": "deviation",
+     "evidence": "app/_lib/ats/inbound.test.ts:74 toAtsEntryInput defaults an unmapped inbound stage to opts.stageFallback ?? 'Accepted' (head of funnel) rather than preserving an explicit null/unmapped state."
+    },
+    {
+     "technique": "versioned-record-envelope",
+     "verdict": "conformant",
+     "evidence": "app/_lib/ats-webhook.ts:98 buildEnvelope stamps each outbound ATS event payload with the explicit ATS_SCHEMA_VERSION ('kp.ats.v1') and metadata headers."
+    }
+   ],
+   "registryProposal": "The technique per-tenant-stage-mapping-never-a-shared-assumption notes in rule 5a that falling back to a shipped default axis when a connection is not yet keyed to the organization is a known limitation to record and close, not a design; clarifying this boundary in the technique specification helps avoid ambiguity."
+  },
+  {
+   "context": "ats-api",
+   "subject": "portable-hiring-records",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/api/ats/candidate/[id]/route.ts:68 The route wraps candidate export audit logging in a try-catch and returns candidate PII even when the audit write fails, violating the requirement that personal-data egress must fail closed if the audit record cannot be written.",
+   "techniques": [
+    {
+     "technique": "external-identifier-as-the-sync-identity",
+     "verdict": "conformant",
+     "evidence": "app/api/ats/connections/route.ts:117 Preserves external identity links on connection deletion unless explicitly requested via forgetLinks=1, protecting existing sync identities from being dropped."
+    },
+    {
+     "technique": "per-tenant-stage-mapping-never-a-shared-assumption",
+     "verdict": "deviation",
+     "evidence": "app/api/ats/connections/route.ts:43 The connections route explicitly manages installation-level configuration where stage mapping is shared across all tenants rather than configured per tenant."
+    },
+    {
+     "technique": "personal-data-egress-audit",
+     "verdict": "deviation",
+     "evidence": "app/api/ats/candidate/[id]/route.ts:70 Audit failure is caught and logged to console.error while returning the candidate record to the caller, making egress audit best-effort rather than a strict precondition."
+    },
+    {
+     "technique": "versioned-record-envelope",
+     "verdict": "conformant",
+     "evidence": "app/api/ats/candidate/ats-candidate-audit.ts:40 The per-candidate export audit explicitly captures and validates the record schemaVersion on egress."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "portable-hiring-records",
+   "context": "pipeline-move-bulk-operations",
+   "reason": "The subject 'portable-hiring-records' specifies invariants for cross-system ATS integrations, sync identity, portable envelopes, and personal data egress audit; pipeline-move-bulk-operations handles internal UI stage movements, layout calculations, and bulk actions on the local board without external record exchange."
+  },
+  {
+   "subject": "portable-hiring-records",
+   "context": "pipeline-board-ui",
+   "reason": "The subject 'portable-hiring-records' applies to portable hiring record exchange and external system integration; pipeline-board-ui is the client-side Kanban board UI surface and does not export, import, or synchronize records across external system boundaries."
+  },
+  {
+   "subject": "portable-hiring-records",
+   "context": "decisions-review-ui",
+   "reason": "The subject 'portable-hiring-records' governs candidate, job, and decision record transport across external integration boundaries; decisions-review-ui renders the internal recruiter decision-making interface and does not export or import records to or from external systems."
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-17T21:30:11.580641+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "portable-hiring-records"
+   ],
+   "techniques": [
+    "external-identifier-as-the-sync-identity",
+    "human-versus-automated-decision-attribution-on-export",
+    "per-tenant-stage-mapping-never-a-shared-assumption",
+    "unmapped-stage-stays-null-never-guessed",
+    "versioned-record-envelope"
+   ],
+   "deviations": 1,
+   "context": "ats-sync-egress",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-17T21:30:11.580641+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "portable-hiring-records"
+   ],
+   "techniques": [
+    "external-identifier-as-the-sync-identity",
+    "per-tenant-stage-mapping-never-a-shared-assumption",
+    "personal-data-egress-audit",
+    "versioned-record-envelope"
+   ],
+   "deviations": 1,
+   "context": "ats-api",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}

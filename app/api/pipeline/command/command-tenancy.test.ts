@@ -62,7 +62,7 @@ test("the command route threads the caller's workspace into preview AND every mu
   const dir = path.dirname(fileURLToPath(import.meta.url));
   const src = readFileSync(path.join(dir, "route.ts"), "utf8");
   // Resolves the caller's tenant once...
-  assert.match(src, /const ws = await currentWorkspace\(\)/, "the route must resolve currentWorkspace()");
+  assert.match(src, /withWorkspace\(async \(ws: string/, "the route must receive the caller's workspace from withWorkspace");
   // ...and scopes the preview/execute set to it (listPipeline(ws) feeds affected()).
   // UPDATED DELIBERATELY (not relaxed): this used to pin the exact two-argument call
   // `affected(cmd, listPipeline(ws))`, which was ALSO the shape of a second bug — with

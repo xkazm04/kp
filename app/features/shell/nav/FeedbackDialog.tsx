@@ -89,7 +89,7 @@ export function FeedbackDialog({ onClose, sourceLabel }: { onClose: () => void; 
             />
           </div>
           {error ? (
-            <p role="alert" className="text-sm font-medium text-coral">
+            <p role="alert" className="text-sm font-medium text-coral-ink">
               {error}
             </p>
           ) : null}

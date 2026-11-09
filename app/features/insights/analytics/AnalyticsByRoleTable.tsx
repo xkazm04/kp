@@ -132,7 +132,7 @@ export function AnalyticsByRoleTable({ data, boardHref }: { data: Analytics; boa
                 <Link
                   href={boardHref({ q: j.jobTitle })}
                   title={t("viewInBoard")}
-                  className="focus-ring rounded underline-offset-2 hover:text-coral hover:underline"
+                  className="focus-ring rounded underline-offset-2 hover:text-coral-ink hover:underline"
                 >
                   {j.jobTitle}
                 </Link>
@@ -140,7 +140,7 @@ export function AnalyticsByRoleTable({ data, boardHref }: { data: Analytics; boa
               {/* null = not attributable to this row: knockout declines are recorded by
                   title before any application exists, so a title several reqs share (or
                   a role-scoped view) cannot be split. A dash with its reason, never a 0. */}
-              <td className={`py-2 text-right ${(j.koDeclined ?? 0) > 0 ? "text-coral" : "text-steel"}`}>
+              <td className={`py-2 text-right ${(j.koDeclined ?? 0) > 0 ? "text-coral-ink" : "text-steel"}`}>
                 {j.koDeclined == null ? <span title={t("koUnattributedTitle")}>—</span> : j.koDeclined}
               </td>
               <td className="py-2 text-right text-steel">{j.total}</td>
@@ -171,7 +171,7 @@ export function AnalyticsByRoleTable({ data, boardHref }: { data: Analytics; boa
                     scroll={false}
                     replace
                     title={t("analyseRoleTitle")}
-                    className="focus-ring whitespace-nowrap rounded text-sm font-semibold text-coral underline-offset-2 hover:underline"
+                    className="focus-ring whitespace-nowrap rounded text-sm font-semibold text-coral-ink underline-offset-2 hover:underline"
                   >
                     {t("analyseRole")}
                   </Link>
@@ -210,7 +210,7 @@ export function AnalyticsByRoleTable({ data, boardHref }: { data: Analytics; boa
                   link: (chunks) => (
                     <Link
                       href={boardHref({ q: query.trim() })}
-                      className="focus-ring rounded font-semibold text-coral underline-offset-2 hover:underline"
+                      className="focus-ring rounded font-semibold text-coral-ink underline-offset-2 hover:underline"
                     >
                       {chunks}
                     </Link>
@@ -232,7 +232,7 @@ export function AnalyticsByRoleTable({ data, boardHref }: { data: Analytics; boa
             link: (chunks) => (
               <Link
                 href={boardHref({ q: query.trim() || undefined })}
-                className="focus-ring rounded font-semibold text-coral underline-offset-2 hover:underline"
+                className="focus-ring rounded font-semibold text-coral-ink underline-offset-2 hover:underline"
               >
                 {chunks}
               </Link>

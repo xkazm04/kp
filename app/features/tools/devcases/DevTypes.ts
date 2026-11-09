@@ -505,5 +505,5 @@ export const LEDGER_CONTROL_IDS = [
 export const COMPLEXITY: Record<string, string> = {
   low: "bg-moss/15 text-moss",
   medium: "bg-amber-100 text-amber-700",
-  high: "bg-coral/15 text-coral",
+  high: "bg-coral/15 text-coral-ink",
 };

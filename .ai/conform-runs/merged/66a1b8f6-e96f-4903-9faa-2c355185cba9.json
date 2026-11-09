@@ -1,0 +1,111 @@
+{
+ "schema": "conform-run/1",
+ "worker": "66a1b8f6-e96f-4903-9faa-2c355185cba9",
+ "subject": "ai-assistance-detection-and-fairness",
+ "evaluatedAt": "2026-10-18T21:15:48.616000+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "devcase-eval",
+   "subject": "ai-assistance-detection-and-fairness",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/tools/devcases/DevEvalPanelChecks.tsx:155 The panel asserts that assistant channels went unused when telemetry was uncaptured, collapsing missing data into candidate inaction.",
+   "techniques": [
+    {
+     "technique": "never-penalise-tool-use-invariant",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/devcases/DevEvalPanelChecks.tsx:155 Collapses uncaptured telemetry into an assertion that assistant channels went unused, violating honest darkness."
+    },
+    {
+     "technique": "observed-process-is-supporting-not-load-bearing",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/devcases/DevEvalPanelScores.tsx:103 Presents process authenticity using colored alert badges rather than neutral factual telemetry."
+    },
+    {
+     "technique": "planted-canary-with-real-ground-truth",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/DevEvalPanelChecks.tsx:48 Coerces unrecognised statuses into unverifiable as the honest default instead of granting a pass."
+    },
+    {
+     "technique": "frozen-naive-baseline-comparison",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/DevEvalPanelChecks.tsx:146 Renders naive baseline similarity as context for interview debriefs without score penalties or color meters."
+    }
+   ]
+  },
+  {
+   "context": "devcase-core",
+   "subject": "ai-assistance-detection-and-fairness",
+   "bundle": "recruiting",
+   "state": "conformant",
+   "evidence": "pipeline/jobfit/devcase/submission_eval.py:335 The evaluation gate combines verifier lead requirements, AI non-inferiority parity, and behaviour-matched peer over-reliance checks to certify fairness.",
+   "techniques": [
+    {
+     "technique": "behaviour-matched-peer-test-for-over-reliance",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/devcase/submission_eval.py:301 Audits over-reliance flags against behaviour-matched peers with identical verification habits to catch tool discrimination."
+    },
+    {
+     "technique": "never-penalise-tool-use-invariant",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/devcase/submission_eval.py:332 Evaluates non-inferiority of AI verifiers against behaviour-matched peers within a declared tolerance margin."
+    },
+    {
+     "technique": "frozen-naive-baseline-comparison",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/devcase/artifact_checks.py:200 Excludes the candidate decision log from delta similarity calculations to avoid inflating scores from boilerplate templates."
+    },
+    {
+     "technique": "planted-canary-with-real-ground-truth",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/devcase/artifact_checks.py:108 Checks seed line descent before grading so complete rewrites are marked unverifiable rather than addressed."
+    },
+    {
+     "technique": "observed-process-is-supporting-not-load-bearing",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/devcase/process_events.py:169 Enforces that process telemetry never infers over-reliance flags or moves decision boundaries on its own."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-18T21:15:48.616000+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "ai-assistance-detection-and-fairness"
+   ],
+   "techniques": [
+    "frozen-naive-baseline-comparison",
+    "never-penalise-tool-use-invariant",
+    "observed-process-is-supporting-not-load-bearing",
+    "planted-canary-with-real-ground-truth"
+   ],
+   "deviations": 1,
+   "context": "devcase-eval",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-18T21:15:48.616000+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "ai-assistance-detection-and-fairness"
+   ],
+   "techniques": [
+    "behaviour-matched-peer-test-for-over-reliance",
+    "frozen-naive-baseline-comparison",
+    "never-penalise-tool-use-invariant",
+    "observed-process-is-supporting-not-load-bearing",
+    "planted-canary-with-real-ground-truth"
+   ],
+   "deviations": 0,
+   "context": "devcase-core",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}

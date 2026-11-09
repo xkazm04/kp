@@ -287,3 +287,11 @@ test("computeCorpusFingerprint is order-independent and set-sensitive", () => {
     computeCorpusFingerprint(["job-1", "job-2"])
   );
 });
+
+test("S1: a dev case splits the scorecard key; no case keeps today's key; other tasks ignore it", () => {
+  const sc = { ...base, task: "scorecard", version: "scorecard-v8" };
+  const today = computeAutomationCacheKey(sc);
+  assert.equal(computeAutomationCacheKey({ ...sc, devCase: false }), today, "no case = the pre-S1 key");
+  assert.notEqual(computeAutomationCacheKey({ ...sc, devCase: true }), today, "a case never shares a no-case scorecard");
+  assert.equal(computeAutomationCacheKey({ ...base, devCase: true }), computeAutomationCacheKey(base));
+});

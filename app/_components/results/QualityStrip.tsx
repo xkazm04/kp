@@ -63,7 +63,7 @@ export function QualityStrip({
       <div className="flex flex-wrap items-center gap-2">
         <AlertTriangle size={16} className="text-amber-600" aria-hidden />
         <span className="text-meta uppercase tracking-wide text-amber-800">{t("title")}</span>
-        <span className="rounded-full bg-amber-600 px-2.5 py-0.5 text-sm font-semibold text-white">
+        <span className="rounded-full bg-amber-700 px-2.5 py-0.5 text-sm font-semibold text-white">
           {t("flagged", { count: warns.length })}
         </span>
         {band ? <TrustBand band={band} /> : null}
@@ -79,7 +79,7 @@ export function QualityStrip({
 // low = coral; the title points the recruiter at the Authenticity lines below.
 function TrustBand({ band }: { band: "high" | "medium" | "low" }) {
   const t = useTranslations("results.quality");
-  const tone = band === "high" ? "bg-moss/10 text-moss" : band === "medium" ? "bg-amber-100 text-amber-800" : "bg-coral/10 text-coral";
+  const tone = band === "high" ? "bg-moss/10 text-moss" : band === "medium" ? "bg-amber-100 text-amber-800" : "bg-coral/10 text-coral-ink";
   const label = band === "high" ? t("trustHigh") : band === "medium" ? t("trustMedium") : t("trustLow");
   return (
     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm font-semibold ${tone}`} title={t("trustTitle")}>

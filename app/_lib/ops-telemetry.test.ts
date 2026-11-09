@@ -78,17 +78,18 @@ test("tailJsonl skips torn and non-object lines instead of failing the whole rea
   );
 });
 
-test("the week window is applied on ts, and a record with no ts is not counted in", () => {
+test("the week window excludes old, undated, and future records", () => {
   const now = Date.parse("2026-09-04T12:00:00.000Z");
   const f = path.join(logDirPath, "analyze.log");
   writeFileSync(f, "");
   appendFileSync(f, line({ ts: new Date(now - 86_400_000).toISOString(), cache_hit: true, duration_ms: 100 }));
   appendFileSync(f, line({ ts: new Date(now - 30 * 86_400_000).toISOString(), cache_hit: true, duration_ms: 9999 }));
+  appendFileSync(f, line({ ts: new Date(now + 86_400_000).toISOString(), cache_hit: false, duration_ms: 9999 }));
   appendFileSync(f, line({ cache_hit: true, duration_ms: 9999 })); // no ts at all
   const t = analyzeTelemetry(now);
   assert.equal(t.sampled, 1, "only the record inside the week counts");
   assert.equal(t.cacheHitRatePct, 100);
-  assert.equal(t.avgDurationMs, 100, "the month-old and undated rows never reach the average");
+  assert.equal(t.avgDurationMs, 100, "the month-old, future, and undated rows never reach the average");
 });
 
 test("comms telemetry counts dead letters by status, not by mere presence", () => {

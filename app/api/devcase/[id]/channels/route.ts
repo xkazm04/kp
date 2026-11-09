@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getDevCase } from "@/app/_lib/db/devcase";
 import { listCasePostings } from "@/app/_lib/db/devcase-case-postings";
 import { postingsView } from "@/app/_lib/devcase-postings-view";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
@@ -17,12 +17,11 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 // AUTHORITY + TENANT: the same gate and the same owner check as GET /api/devcase/[id] -
 // a case from any other workspace answers exactly what an unknown id answers, byte for
 // byte, so this door is no existence oracle the record door is not.
-export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+export const GET = withWorkspace(async (ws: string, _request: Request, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const { id } = await context.params;
   try {
-    const ws = await currentWorkspace();
     const record = getDevCase(id);
     if (!record || record.workspaceId !== ws) {
       return jsonRefusal("DEVCASE_CASE_NOT_FOUND", 404);
@@ -31,4 +30,4 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   } catch (error) {
     return safeJsonError(error, "api:devcase/[id]/channels", "DEVCASE_POSTINGS_FAILED");
   }
-}
+});

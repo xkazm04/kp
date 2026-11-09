@@ -52,7 +52,7 @@ export function MatrixReasoningPopover({
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="flex items-center gap-1 truncate font-semibold text-ink">
-              <Sparkles size={13} className="shrink-0 text-coral" /> {popover.cand.label}
+              <Sparkles size={13} className="shrink-0 text-coral-ink" /> {popover.cand.label}
             </p>
             <p className="truncate text-steel">
               {popover.pos.title}
@@ -100,7 +100,7 @@ export function MatrixReasoningPopover({
                   ) : null}
                   {d.gaps?.length ? (
                     <div>
-                      <p className="text-meta font-semibold uppercase text-coral">{t("gaps")}</p>
+                      <p className="text-meta font-semibold uppercase text-coral-ink">{t("gaps")}</p>
                       <ul className="list-disc pl-4 text-steel">
                         {d.gaps.slice(0, 4).map((s, i) => (
                           <li key={i}>{s}</li>
@@ -127,7 +127,7 @@ export function MatrixReasoningPopover({
         <button
           type="button"
           onClick={onViewFullMatch}
-          className="focus-ring mt-3 inline-flex items-center gap-1 font-semibold text-coral hover:underline"
+          className="focus-ring mt-3 inline-flex items-center gap-1 font-semibold text-coral-ink hover:underline"
         >
           {t("viewFullMatch")} <ExternalLink size={12} />
         </button>

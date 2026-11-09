@@ -39,6 +39,7 @@
    the blur computed `none`. */
 .mk.mk .bar { color: var(--ink); position: fixed; z-index: 70; left: 0; right: 0; top: 0; height: var(--hdr); display: flex; align-items: center; gap: calc(var(--p) * 24); padding: 0 calc(var(--p) * 40); transition: background .3s, box-shadow .3s; }
 .mk.mk .bar.is-stuck { background: rgba(253, 248, 238, .93); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); box-shadow: 0 calc(var(--p) * 8) calc(var(--p) * 26) calc(var(--p) * -14) rgba(23, 32, 42, .5); }
+.mk.mk .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .mk.mk .brand { display: inline-flex; align-items: center; gap: calc(var(--p) * 11); text-decoration: none; }
 .mk.mk .logo { display: grid; place-items: center; width: max(38px, calc(var(--p) * 42)); height: max(38px, calc(var(--p) * 42)); background: var(--coral-d); color: var(--cream); border-radius: calc(var(--p) * 11); font: 800 max(22px, calc(var(--p) * 25))/1 var(--f-disp); box-shadow: 0 calc(var(--p) * 3) 0 var(--ink); }
 .mk.mk .word { font: 800 max(21px, calc(var(--p) * 24))/1 var(--f-disp); letter-spacing: -.02em; }

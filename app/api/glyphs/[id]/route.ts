@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { jsonOk, jsonRefusal } from "@/app/_lib/api-response";
 import { currentSession } from "@/app/_lib/auth/current-user";
 import { glyphArt } from "@/app/_components/glyph/glyphCatalog";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // GET /api/glyphs/[id] — the traced /motionize art for one empty-state glyph.
 //
@@ -28,7 +29,7 @@ async function hasSession(): Promise<boolean> {
   return (await currentSession()) !== null;
 }
 
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withSession(async (_request: Request, { params }: { params: Promise<{ id: string }> }) => {
   if (!(await hasSession())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
   const art = glyphArt(id);
@@ -36,4 +37,4 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const res = jsonOk(art);
   res.headers.set("Cache-Control", CACHE_CONTROL);
   return res;
-}
+});

@@ -22,6 +22,7 @@ Nothing in this module may raise: logging is telemetry, never the request.
 from __future__ import annotations
 
 import json
+import math
 import os
 import secrets
 import stat
@@ -82,7 +83,11 @@ def prompt_ttl_hours() -> float | None:
         hours = float(raw)
     except ValueError:
         return None
-    return hours if hours > 0 else None
+    # float() also accepts "inf" and "nan". "nan" already fails `> 0`; "inf" passed
+    # it and came back as a live TTL whose cutoff is -inf, so nothing was ever swept
+    # while this function reported a retention window - the policy-that-is-not-one
+    # the docstring rules out. Non-finite is malformed.
+    return hours if math.isfinite(hours) and hours > 0 else None
 
 
 def sweep_prompt_artifacts(ttl_hours: float | None = None) -> int:

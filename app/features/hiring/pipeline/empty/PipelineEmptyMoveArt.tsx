@@ -25,7 +25,7 @@
  * WHAT REPLACES THEM. One canvas, three drawings, no ground of their own:
  *
  * - EVERY colour is `currentColor` inherited from a token utility class on the
- *   enclosing `<g>` (`text-steel`, `text-coral`, `text-stone-300`, `text-white`).
+ *   enclosing `<g>` (`text-steel`, `text-coral-ink`, `text-stone-300`, `text-white`).
  *   There is no `fill="#…"`, no `rgba()`, and nothing painted behind the art, so
  *   the card's own background — including its hover wash — shows through and both
  *   themes resolve from `globals.css` with zero per-theme forks.
@@ -92,13 +92,13 @@ function RoleArt() {
         <rect x="24" y="18" width="252" height="74" rx="7" />
         <path d="M151 28v54" strokeLinecap="round" strokeDasharray="2 8" />
       </g>
-      <g className="text-coral" fill="currentColor">
+      <g className="text-coral-ink" fill="currentColor">
         <rect x="42" y="30" width="96" height="10" rx="5" />
       </g>
-      <g className="text-coral" fill="none" stroke="currentColor" strokeWidth={STROKE} strokeLinecap="round">
+      <g className="text-coral-ink" fill="none" stroke="currentColor" strokeWidth={STROKE} strokeLinecap="round">
         <path d="M42 84h58" />
       </g>
-      <g className="text-coral">
+      <g className="text-coral-ink">
         <Pen size={24} {...pen} />
       </g>
     </>
@@ -130,7 +130,7 @@ function CandidatesArt() {
         <rect x="24" y="18" width="68" height="74" rx="7" />
         <path d="M110 20v70" strokeLinecap="round" strokeDasharray="2 8" />
       </g>
-      <g className="text-coral" fill="currentColor">
+      <g className="text-coral-ink" fill="currentColor">
         <rect x="34" y="30" width="40" height="9" rx="4.5" />
       </g>
       <g className="text-steel">
@@ -143,7 +143,7 @@ function CandidatesArt() {
           <path key={row.y} d={`M162 ${row.y}h114`} />
         ))}
       </g>
-      <g className="text-coral" fill="none" stroke="currentColor" strokeWidth="9" strokeLinecap="round">
+      <g className="text-coral-ink" fill="none" stroke="currentColor" strokeWidth="9" strokeLinecap="round">
         {rows.map((row) => (
           <path key={row.y} d={`M162 ${row.y}H${row.fill}`} />
         ))}
@@ -166,7 +166,7 @@ function ChannelsArt() {
         <Megaphone size={24} {...iconBox(22, 66, 28)} />
         <Inbox size={24} {...iconBox(202, 17, 76)} />
       </g>
-      <g className="text-coral" fill="none" stroke="currentColor" strokeWidth={STROKE} strokeLinecap="round">
+      <g className="text-coral-ink" fill="none" stroke="currentColor" strokeWidth={STROKE} strokeLinecap="round">
         <path d="M60 30C126 30 150 55 204 55" />
         <path d="M60 55h144" />
         <path d="M60 80C126 80 150 55 204 55" />

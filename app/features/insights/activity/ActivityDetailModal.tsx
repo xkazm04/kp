@@ -177,7 +177,7 @@ export function ActivityDetailModal({
     >
       <div className="space-y-6">
         <section className="space-y-1">
-          <h3 className="text-meta uppercase text-coral">{t("detailLedger")}</h3>
+          <h3 className="text-meta uppercase text-coral-ink">{t("detailLedger")}</h3>
           <div className="space-y-1 pt-1">
             <Fact label={t("colProvider")}>{row.provider}</Fact>
             <Fact label={t("colModel")}>
@@ -209,7 +209,7 @@ export function ActivityDetailModal({
         </section>
 
         <section className="space-y-2 border-t border-stone-200 pt-5">
-          <h3 className="text-meta uppercase text-coral">{t("detailOutput")}</h3>
+          <h3 className="text-meta uppercase text-coral-ink">{t("detailOutput")}</h3>
           {/* Three answers, in order of what the id IS: a companion turn (its own
               conversation), a tracked run (the task), or nothing at all. */}
           {companionRef ? (

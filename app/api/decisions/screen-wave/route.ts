@@ -1,22 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runScreenWave, ScreenWaveApprovalError } from "@/app/_lib/screen-wave";
-import type { ScreenWaveRefusalReason } from "@/app/_lib/screen-wave-contract";
+import { SCREEN_WAVE_APPROVAL_CODES } from "@/app/_lib/screen-wave-refusal-codes";
 import { DecisionConfigError, validateScreeningOverride } from "@/app/_lib/decision-config-schema";
 import { normalizeSpareList } from "@/app/_lib/screen-wave-spare";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { resolveApprover } from "@/app/_lib/auth/operator-approver";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
-import { jsonRefusal, requireCapabilityCoded, safeJsonError, type RefusalErrorCode } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-
-const SCREEN_WAVE_APPROVAL_CODES = {
-  required: "SCREEN_WAVE_APPROVAL_REQUIRED",
-  expired: "SCREEN_WAVE_APPROVAL_EXPIRED",
-  mismatch: "SCREEN_WAVE_APPROVAL_MISMATCH",
-  spent: "SCREEN_WAVE_APPROVAL_SPENT",
-  unattributed: "SCREEN_WAVE_APPROVAL_UNATTRIBUTED",
-} as const satisfies Record<ScreenWaveRefusalReason, RefusalErrorCode>;
 
 export const maxDuration = 60;
 
@@ -39,7 +31,7 @@ const WAVE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 // chain — so the handler re-verifies the operator session (rejecting the anonymous
 // demo-workspace session) exactly like /api/automation/[task]. The dry-run
 // preview reads the same cohort PII, so it is gated too.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). requireOperator above only
@@ -53,7 +45,6 @@ export async function POST(request: NextRequest) {
     // Tenant (P1): scope the whole wave — cohort read, approval token, commits, and
     // seals — to the caller's team. Without this the wave would rank and reject the
     // DEFAULT team's Screened cohort regardless of who is signed in.
-    const ws = await currentWorkspace();
     const body = (await request.json()) as {
       jobId?: string;
       override?: unknown;
@@ -140,4 +131,4 @@ export async function POST(request: NextRequest) {
     }
     return safeJsonError(error, "api:decisions/screen-wave", "SCREEN_WAVE_FAILED");
   }
-}
+});

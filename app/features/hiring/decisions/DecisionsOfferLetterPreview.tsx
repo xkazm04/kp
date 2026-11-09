@@ -90,7 +90,7 @@ export function OfferLetterPreview({ entryId, ttlDays }: { entryId: string; ttlD
         aria-expanded={open}
         aria-controls={paneId}
         onClick={() => setOpen((v) => !v)}
-        className="focus-ring inline-flex cursor-pointer items-center gap-1 rounded-md text-sm font-semibold text-ink hover:text-coral"
+        className="focus-ring inline-flex cursor-pointer items-center gap-1 rounded-md text-sm font-semibold text-ink hover:text-coral-ink"
       >
         <Mail size={14} aria-hidden /> {t("letterToggle")}
         <ChevronDown size={14} aria-hidden className={open ? "rotate-180 transition-transform" : "transition-transform"} />

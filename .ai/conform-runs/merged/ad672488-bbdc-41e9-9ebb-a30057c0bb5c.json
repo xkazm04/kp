@@ -1,0 +1,83 @@
+{
+ "schema": "conform-run/1",
+ "worker": "ad672488-bbdc-41e9-9ebb-a30057c0bb5c",
+ "subject": "conformance-checking",
+ "evaluatedAt": "2026-10-19T02:00:39.063489+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "e2e-suite",
+   "subject": "conformance-checking",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "e2e/token-doors-axe.spec.ts:110 The documented contrast exception excludes matching elements from every axe rule, creating a broader blind spot than the accepted finding warrants.",
+   "techniques": [
+    {
+     "technique": "checker-false-positive-discipline",
+     "verdict": "deviation",
+     "evidence": "e2e/token-doors-axe.spec.ts:110 The justification concerns color contrast, but the selector exclusion also prevents unrelated rules from inspecting these elements."
+    },
+    {
+     "technique": "claim-write-back",
+     "verdict": "not-applicable",
+     "evidence": "e2e/shell.spec.ts:31 These response-contract checks exercise application requests rather than execute verification commands declared by a repository contract."
+    },
+    {
+     "technique": "declared-deviation-register",
+     "verdict": "deviation",
+     "evidence": "e2e/landing.spec.ts:101 Recorded contrast exceptions have rationale and stale-entry assertions, but accepted findings are filtered from the result instead of emitted as a distinct accepted, dated outcome."
+    },
+    {
+     "technique": "declared-then-proven",
+     "verdict": "conformant",
+     "evidence": "e2e/shell.spec.ts:34 The response-contract test checks the header actually delivered over HTTP, providing execution evidence beyond the configuration declaration."
+    },
+    {
+     "technique": "derived-expectation-needs-an-evidence-floor",
+     "verdict": "conformant",
+     "evidence": "e2e/app-master-hire.spec.ts:288 The source-derived context count must be nonzero before comparison with the dossier and rendered count, preventing an empty derivation from passing through equality."
+    },
+    {
+     "technique": "fixture-repo-testing",
+     "verdict": "not-applicable",
+     "evidence": "e2e/fixtures/mock-personas-bridge.ts:9 The inspected fixtures support application and API integration tests, rather than an assembled repository-conformance checker."
+    },
+    {
+     "technique": "inline-predicate-rung-inference",
+     "verdict": "not-applicable",
+     "evidence": "e2e/shell.spec.ts:85 Claims are implemented directly as Playwright assertions, not supplied through a specification format carrying inline verification commands."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "conformance-checking",
+   "context": "github-repo-intelligence",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-19T02:00:39.063489+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "conformance-checking"
+   ],
+   "techniques": [
+    "checker-false-positive-discipline",
+    "claim-write-back",
+    "declared-deviation-register",
+    "declared-then-proven",
+    "derived-expectation-needs-an-evidence-floor",
+    "fixture-repo-testing",
+    "inline-predicate-rung-inference"
+   ],
+   "deviations": 1,
+   "context": "e2e-suite",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

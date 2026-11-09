@@ -25,7 +25,7 @@ import { mkdtempSync } from "node:fs";
 // Side-effect import: sets KP_DB_PATH to a throwaway file BEFORE ./route.ts pulls in
 // the db layer. Keep it first (ESM evaluates imports in source order).
 import "../../_lib/testing/unit-db.ts";
-import { removeTempDirs } from "../../_lib/testing/tmp-cleanup.ts";
+import { removeTempDirsInHook } from "../../_lib/testing/tmp-cleanup.ts";
 import { POST } from "./route.ts";
 import { hasEvidenceIncomplete, type GithubNote } from "../../_lib/github-evidence.ts";
 
@@ -181,7 +181,7 @@ before(() => {
 
 after(() => {
   globalThis.fetch = realFetch;
-  if (logDir) removeTempDirs(logDir);
+  if (logDir) removeTempDirsInHook([logDir]);
   delete process.env.KP_TRUSTED_PROXY;
   delete process.env.GEMINI_API_KEY;
   delete process.env.GOOGLE_API_KEY;

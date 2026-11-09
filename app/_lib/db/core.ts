@@ -10,6 +10,7 @@ import type { PipelineStage } from "../pipeline-stages";
 import { assertTenancyReady } from "../tenancy";
 import { multiWorkspaceEnabled } from "../workspace-lock";
 import { seedBenchmarkTeam } from "./seed-benchmark-team";
+import { seedInterviewScorecards } from "./seed-interview-scorecards";
 import { adoptedExistingSeed, markSeedRan, seedAlreadyRan } from "./seed-marks";
 import { addColumns, parseAddColumn } from "./add-columns";
 import { fixtureSeedEnabled } from "./seed-gate";
@@ -1173,6 +1174,21 @@ export function ensureDb(): Database.Database {
 
     CREATE INDEX IF NOT EXISTS idx_pipeline_entry_notes_entry ON pipeline_entry_notes (entry_id, workspace_id, created_at);
 
+    -- The role SHORTLIST (db/role-shortlist.ts, ADR 0030, triage T14): which people a human
+    -- ticked 'shortlisted' or marked 'chosen' on a role, with who and when. One row per
+    -- (workspace, role, entry). Human-set only: written by POST /api/decisions/shortlist and
+    -- nothing else. Deleted with the candidate by the erasure scrub (db/pipeline.ts).
+    CREATE TABLE IF NOT EXISTS role_shortlist (
+      workspace_id TEXT NOT NULL,
+      job_id TEXT NOT NULL,
+      entry_id TEXT NOT NULL,
+      state TEXT NOT NULL CHECK (state IN ('shortlisted', 'chosen')),
+      set_by TEXT NOT NULL,
+      set_at TEXT NOT NULL,
+      PRIMARY KEY (workspace_id, job_id, entry_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_role_shortlist_entry ON role_shortlist (entry_id, workspace_id);
+
     -- The Match results the server HOLDS (db/match-runs.ts, ADR 0018 amendment): one row
     -- per (run, job) of every /api/match answer, carrying the verdict facts the server
     -- derived itself. POST /api/pipeline checks a Match add against it before it seals.
@@ -1610,6 +1626,28 @@ export function ensureDb(): Database.Database {
     CREATE UNIQUE INDEX IF NOT EXISTS uq_interview_letters_entry ON interview_letters (workspace_id, entry_id);
     CREATE INDEX IF NOT EXISTS idx_interview_letters_open ON interview_letters (workspace_id, state, requested_at);
 
+    -- Held first-contact outreach (db/outreach-letters.ts, comms scope C2). PII: the
+    -- erasure scrub blanks subject + body and stamps erased_at.
+    CREATE TABLE IF NOT EXISTS outreach_letters (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      entry_id TEXT NOT NULL,
+      state TEXT NOT NULL DEFAULT 'drafted' CHECK(state IN ('drafted','approved','released','delivery_failed','suppressed','discarded')),
+      revision INTEGER NOT NULL DEFAULT 1,
+      subject TEXT,
+      body TEXT,
+      lang TEXT NOT NULL,
+      message_id TEXT NOT NULL,
+      approved_by TEXT,
+      approved_at TEXT,
+      released_at TEXT,
+      erased_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_outreach_letters_entry ON outreach_letters (workspace_id, entry_id);
+    CREATE INDEX IF NOT EXISTS idx_outreach_letters_open ON outreach_letters (workspace_id, state, created_at);
+
     -- Gigs module (app/_lib/gigs/types.ts, stores in db/gigs-*.ts): real paid work found in
     -- the world, drafted by a specialist agent and SENT BY THE OPERATOR. Six tables, every
     -- one workspace-scoped with NO by-id carve-out (a leaked id must not resolve another
@@ -1930,6 +1968,10 @@ export function ensureDb(): Database.Database {
     // only ever held people); `rubric_version` stays NULL = "unknown standard".
     "ALTER TABLE pipeline_entries ADD COLUMN population TEXT NOT NULL DEFAULT 'human'",
     "ALTER TABLE pipeline_entries ADD COLUMN rubric_version INTEGER",
+    // Owner ruling Q10 — which engine wrote a held outreach draft ('llm' | 'template').
+    // NULL = drafted before the source was kept = unknown; the send treats unknown as
+    // possibly model-written and adds the AI-drafted line (comms-dispatch draftedByModel).
+    "ALTER TABLE outreach_letters ADD COLUMN draft_source TEXT",
     // Tenant-level candidate-comms language default (backlog #34): the locale a
     // NULL-locale entry's letters render in (see comms-locale.resolveCommsLocale).
     // DEFAULT 'cs' backfills the existing default workspace — this deployment is
@@ -1960,6 +2002,10 @@ export function ensureDb(): Database.Database {
     // The authority when the session has no user claim (open dev mode, operator
     // password) — mirrors the default_locale per-workspace-scalar pattern.
     "ALTER TABLE workspaces ADD COLUMN onboarding_state TEXT",
+    // First-run data choice (triage T1): 'empty' | 'demo' | NULL. The answer to "start
+    // empty, or explore with demo data?" on a fresh install, recorded so the screen
+    // never comes back (db/demo-seed.ts). NULL = never asked.
+    "ALTER TABLE workspaces ADD COLUMN demo_choice TEXT",
     "ALTER TABLE channel_webhooks ADD COLUMN first_received_at TEXT",
     // E5 metric honesty: `received_count`/`first_received_at` stamp EVERY POST (probes,
     // health-checks, malformed integrations), so they overstate real leads. Track
@@ -2018,6 +2064,13 @@ export function ensureDb(): Database.Database {
     // on every pre-migration row = "no reason recorded".
     "ALTER TABLE llm_usage ADD COLUMN outcome TEXT NOT NULL DEFAULT 'ok'",
     "ALTER TABLE llm_usage ADD COLUMN reason TEXT",
+    // Which role run (role_runs.id) this metered call was made for. Nullable: NULL on
+    // every pre-migration row and on every call outside a role run (the common case).
+    // Stamped from the ambient llm-request-context scope the role-run engine opens
+    // around a stage runner, so the per-run budget ceiling can sum a run's own spend.
+    // Not a foreign key: llm_usage is the tenancy-exempt metering ledger and must keep
+    // its rows if a run is ever deleted.
+    "ALTER TABLE llm_usage ADD COLUMN role_run_id TEXT",
     // A team's EXPLICIT language; NULL = follow organizations.default_locale (see
     // db/workspaces.ts). default_locale stays as the legacy mirror.
     "ALTER TABLE workspaces ADD COLUMN locale_override TEXT",
@@ -2028,6 +2081,9 @@ export function ensureDb(): Database.Database {
   // tokened apply POST — index it like the interview token. Created AFTER the
   // ALTER loop above so a legacy DB already holds the column.
   db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_lead_token ON pipeline_entries (lead_token)`);
+  // The per-run budget read (db/llm.ts sumRoleRunUsage) filters on role_run_id; partial,
+  // because nearly every ledger row is outside a run. After the ALTER loop for legacy DBs.
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_llm_usage_role_run ON llm_usage (role_run_id) WHERE role_run_id IS NOT NULL`);
   // Tenant scope: the board chip / disposition echo filter pipeline_entries by workspace.
   db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_workspace ON pipeline_entries (workspace_id)`);
   // Same single-row public lookup for the self-service erasure token.
@@ -2238,13 +2294,12 @@ export function ensureDb(): Database.Database {
     // separately — its single-column PK must widen to (channel, workspace_id).
     "ALTER TABLE channel_webhooks ADD COLUMN workspace_id TEXT",
     "ALTER TABLE dev_outbox ADD COLUMN workspace_id TEXT",
-    // failure-truth-everywhere: WHY a send dead-lettered. comms.ts already computed a
-    // precise reason per attempt ("http 503", "getaddrinfo ENOTFOUND …", a timeout) and
-    // spent it on a console.error + comms.log line, then wrote the row without it — so
-    // the Comms Center could say a message failed but never why, and the recruiter's
-    // only recourse was server logs. Additive + nullable: legacy `failed` rows keep
-    // reading as "no reason recorded", never as a fabricated one.
+    // failure-truth-everywhere: WHY a send dead-lettered (comms.ts computed it, then dropped it).
+    // Additive + nullable: legacy `failed` rows read as "no reason recorded", never a fabricated one.
     "ALTER TABLE dev_outbox ADD COLUMN failure_detail TEXT",
+    // C1: envelope messageId (null on old rows); newest delivered receipt
+    "ALTER TABLE dev_outbox ADD COLUMN message_id TEXT",
+    "ALTER TABLE dev_outbox ADD COLUMN last_delivered_at TEXT",
     // JD archive (W8-4/JDL1): archived JDs drop out of listJds and the pickers,
     // but loadJd keeps serving them so existing analysis links never 404.
     "ALTER TABLE jds ADD COLUMN archived_at TEXT",
@@ -2575,6 +2630,10 @@ export function ensureDb(): Database.Database {
   // equality column ends the usable prefix at the range.
   db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_entries_ws_created ON pipeline_entries (workspace_id, created_at)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_events_ws_created ON pipeline_events (workspace_id, created_at)`);
+  // Per-entry event lookups (scoredAtByEntryIds on every 30s board poll, the per-entry
+  // timeline, the rejected-lane subselect) filter on entry_id, which no index covered.
+  // Additive: no column change, nothing rewritten.
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_events_entry ON pipeline_events (entry_id)`);
   // Atomic dedup: a (posting, candidate, repo) triple is unique, so two
   // concurrent submits can't both INSERT (double-click / webhook retry storm).
   // Guarded: a legacy DB may already hold duplicate triples that block the
@@ -2644,6 +2703,50 @@ export function ensureDb(): Database.Database {
       created_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_feedback_ws ON feedback (workspace_id, created_at DESC);
+  `);
+  // Role-run ledger (db/role-runs.ts, ADR-0009): new-in-full tables, so a legacy DB simply
+  // gains them on boot (the feedback / jd_revisions pattern). Defined here, not lazily in the
+  // store, so the core-* schema gates see them.
+  db.exec(`
+    -- One run per (job, cycle). The cycle is a free string rather than an integer so
+    -- a caller can key a run on something meaningful ("2026-q4-backfill") without a
+    -- schema change; the default "1" covers the single-run-per-job case.
+    CREATE TABLE IF NOT EXISTS role_runs (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      job_id TEXT NOT NULL,
+      cycle TEXT NOT NULL DEFAULT '1',
+      status TEXT NOT NULL DEFAULT 'running',
+      created_at TEXT NOT NULL,
+      updated_at TEXT
+    );
+
+    -- UNIQUE, not an index for speed: "re-running a role forks a second ledger for it"
+    -- is the defect this prevents. getOrCreateRoleRun reads through it.
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_role_runs_job_cycle
+      ON role_runs (workspace_id, job_id, cycle);
+
+    -- APPEND-ONLY. There is no UPDATE anywhere in this module for this table, and no
+    -- DELETE: an artifact is the record of what the run did at a moment, and a run
+    -- whose history can be edited cannot be the evidence behind a sealed decision.
+    -- Correcting a stage means appending a newer artifact for the same (kind, branch)
+    -- and letting seq order them.
+    CREATE TABLE IF NOT EXISTS role_run_stages (
+      id TEXT PRIMARY KEY,
+      run_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      kind TEXT NOT NULL,
+      branch_ref TEXT,
+      seq INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      payload_json TEXT NOT NULL,
+      produced_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_role_run_stages_run
+      ON role_run_stages (workspace_id, run_id, seq);
+    CREATE INDEX IF NOT EXISTS idx_role_run_stages_branch
+      ON role_run_stages (workspace_id, run_id, branch_ref, seq);
   `);
   // Durable webhook idempotency (db/webhook-claims.ts): one row per claimed delivery on
   // the inbound receiver, the pull pass, the edge drain and the agent-report route, so a
@@ -2719,6 +2822,7 @@ export function ensureDb(): Database.Database {
     `CREATE INDEX IF NOT EXISTS idx_consent_events_workspace ON consent_events (workspace_id)`,
     `CREATE INDEX IF NOT EXISTS idx_channel_webhooks_workspace ON channel_webhooks (workspace_id)`,
     `CREATE INDEX IF NOT EXISTS idx_dev_outbox_workspace ON dev_outbox (workspace_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_dev_outbox_message_id ON dev_outbox (message_id)`,
     `CREATE INDEX IF NOT EXISTS idx_interview_sessions_workspace ON interview_sessions (workspace_id)`,
     `CREATE INDEX IF NOT EXISTS idx_campaign_packs_workspace ON campaign_packs (workspace_id)`,
     `CREATE INDEX IF NOT EXISTS idx_tasks_workspace ON tasks (workspace_id)`,
@@ -2737,53 +2841,22 @@ export function ensureDb(): Database.Database {
   // NULL until the NEXT boot, which is the shape "why is one demo candidate invisible"
   // takes. Pinned by core-boot-tail.test.ts.
   //
-  // KP_EMPTY=1 (npm run dev:empty) skips ALL fixture content — the ČS demo corpus,
-  // candidates, analyses, pipeline, example JD, seed members — so the app boots as a
-  // truly blank tenant for first-run/onboarding verification. Structural bootstrap
-  // above (schema, default workspace/org) still runs: a real deployment has it too.
+  // The demo corpus no longer seeds by default (operator triage T1, 2026-10-22): a fresh
+  // database boots with the structural bootstrap above (schema, default workspace/org)
+  // and nothing else, and the first-run screen offers the demo, which then lands through
+  // seedDemoCorpus() below — the SAME seeders in the SAME order, followed by the same
+  // tenant backfill. KP_SEED_DEMO=1 keeps the old seeded-at-boot behaviour for machines
+  // (Playwright, CI's keyless job, `npm run up -- --demo`); KP_EMPTY=1 still forces blank.
+  // A database that already holds the seeded rows keeps them: nothing here deletes, and
+  // the one-shot seeders are seed_marks-gated, so they never re-seed either way.
   if (fixtureSeedEnabled()) {
-    seedExampleJd(db);
-    seedOrgMembers(db);
-    seedJobs(db);
-    seedCandidates(db);
-    seedAnalyses(db);
-    seedPipeline(db);
-    seedBenchmarkTeam(db); // a 2nd org team so the Phase-2 org benchmark (org_id-join) has cross-team data
-    // A fixture-seeded tenant is an ESTABLISHED demo environment, not a first
-    // run — mark it onboarded so the setup wizard doesn't ambush existing dev
-    // DBs. COALESCE keeps a real recorded state; dev:empty (KP_EMPTY=1) skips
-    // this whole block, so the blank tenant stays NULL and the wizard fires.
-    db.prepare(`UPDATE workspaces SET onboarding_state = COALESCE(onboarding_state, 'completed') WHERE id = 'workspace'`).run();
+    runDemoSeeders(db);
   }
   migratePipelineStages(db); // remap any legacy 7-stage rows to the 5-stage model
   backfillDeclinedStatus(db); // split candidate declines out of overloaded `rejected`
   backfillIntakeEvents(db); // recover the role-intake history that predates intake_events
 
-  // Tenant scope (P2): backfill ANY analyses row missing a workspace_id (legacy
-  // rows AND freshly-seeded ones) to the default workspace. After all seeders so
-  // it's order-independent — a seeded row that didn't stamp the column is caught.
-  db.prepare(`UPDATE analyses SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
-  db.prepare(`UPDATE profiles SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
-  db.prepare(`UPDATE jds SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
-  db.prepare(`UPDATE jd_revisions SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
-  // Jobs: authored openings (a status was set) belong to the default team; seeded
-  // corpus jobs (NULL status) stay workspace_id NULL = the shared reference corpus.
-  db.prepare(`UPDATE jobs SET workspace_id = 'workspace' WHERE workspace_id IS NULL AND status IS NOT NULL`).run();
-  // Pipeline audit trails: backfill each row's workspace from its linked entry (an
-  // entry-less event, e.g. ko_declined, falls back to the default workspace).
-  db.prepare(
-    `UPDATE pipeline_events SET workspace_id = COALESCE((SELECT pe.workspace_id FROM pipeline_entries pe WHERE pe.id = pipeline_events.entry_id), 'workspace') WHERE workspace_id IS NULL`
-  ).run();
-  db.prepare(
-    `UPDATE consent_events SET workspace_id = COALESCE((SELECT pe.workspace_id FROM pipeline_entries pe WHERE pe.id = consent_events.entry_id), 'workspace') WHERE workspace_id IS NULL`
-  ).run();
-  // Channels: inbound webhooks belong to the team that minted them (default). The comms
-  // outbox derives each message's workspace from its referenced entry (ref = entry id),
-  // falling back to the default for entry-less/system messages.
-  db.prepare(`UPDATE channel_webhooks SET workspace_id = 'workspace' WHERE workspace_id IS NULL`).run();
-  db.prepare(
-    `UPDATE dev_outbox SET workspace_id = COALESCE((SELECT pe.workspace_id FROM pipeline_entries pe WHERE pe.id = dev_outbox.ref), 'workspace') WHERE workspace_id IS NULL`
-  ).run();
+  backfillTenantScope(db); // after all seeders — see the function for why
   // Run one create-copy-drop-rename PK widening ATOMICALLY and RESUMABLY. SQLite can't
   // ALTER a PRIMARY KEY, so the three widenings below rebuild their table — and a rebuild
   // written as four bare statements is a boot wedge waiting to happen: a process killed
@@ -2972,6 +3045,74 @@ export function ensureDb(): Database.Database {
   _dbHolder.__kpDb = db;
   runBootMaintenance(db);
   return db;
+}
+
+// The fixture seeders, in the one order they are allowed to run (SEED ORDER, in ensureDb).
+// Shared by the opt-in boot path and the on-demand seedDemoCorpus(), so the two can never
+// drift into seeding different corpora.
+function runDemoSeeders(db: Database.Database): void {
+  seedExampleJd(db);
+  seedOrgMembers(db);
+  seedJobs(db);
+  seedCandidates(db);
+  seedAnalyses(db);
+  seedPipeline(db);
+  seedInterviewScorecards(db); // completed demo interviews: the scorecard arm of kpi:reasons
+  seedBenchmarkTeam(db); // a 2nd org team so the Phase-2 org benchmark (org_id-join) has cross-team data
+  // A fixture-seeded tenant is an ESTABLISHED demo environment, not a first
+  // run — mark it onboarded so the setup wizard doesn't ambush it. COALESCE keeps
+  // a real recorded state; a blank boot never gets here, so its tenant stays NULL
+  // and the wizard fires.
+  db.prepare(`UPDATE workspaces SET onboarding_state = COALESCE(onboarding_state, 'completed') WHERE id = 'workspace'`).run();
+}
+
+// Tenant-column heals over "whatever rows exist". Runs at boot AFTER the seeders, and again
+// at the end of seedDemoCorpus(), which is what keeps a seeded row from ever sitting with a
+// NULL workspace_id: a seeder that did not stamp the column is caught here, in either path.
+// Every statement only touches NULL rows, so a second run is a no-op.
+function backfillTenantScope(db: Database.Database): void {
+  // Tenant scope (P2): backfill ANY analyses row missing a workspace_id (legacy
+  // rows AND freshly-seeded ones) to the default workspace. After all seeders (here and in
+  // seedDemoCorpus) so it's order-independent — a seeded row that didn't stamp the column is caught.
+  db.prepare(`UPDATE analyses SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
+  db.prepare(`UPDATE profiles SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
+  db.prepare(`UPDATE jds SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
+  db.prepare(`UPDATE jd_revisions SET workspace_id = ? WHERE workspace_id IS NULL`).run("workspace");
+  // Jobs: authored openings (a status was set) belong to the default team; seeded
+  // corpus jobs (NULL status) stay workspace_id NULL = the shared reference corpus.
+  db.prepare(`UPDATE jobs SET workspace_id = 'workspace' WHERE workspace_id IS NULL AND status IS NOT NULL`).run();
+  // Pipeline audit trails: backfill each row's workspace from its linked entry (an
+  // entry-less event, e.g. ko_declined, falls back to the default workspace).
+  db.prepare(
+    `UPDATE pipeline_events SET workspace_id = COALESCE((SELECT pe.workspace_id FROM pipeline_entries pe WHERE pe.id = pipeline_events.entry_id), 'workspace') WHERE workspace_id IS NULL`
+  ).run();
+  db.prepare(
+    `UPDATE consent_events SET workspace_id = COALESCE((SELECT pe.workspace_id FROM pipeline_entries pe WHERE pe.id = consent_events.entry_id), 'workspace') WHERE workspace_id IS NULL`
+  ).run();
+  // Channels: inbound webhooks belong to the team that minted them (default). The comms
+  // outbox derives each message's workspace from its referenced entry (ref = entry id),
+  // falling back to the default for entry-less/system messages.
+  db.prepare(`UPDATE channel_webhooks SET workspace_id = 'workspace' WHERE workspace_id IS NULL`).run();
+  db.prepare(
+    `UPDATE dev_outbox SET workspace_id = COALESCE((SELECT pe.workspace_id FROM pipeline_entries pe WHERE pe.id = dev_outbox.ref), 'workspace') WHERE workspace_id IS NULL`
+  ).run();
+}
+
+/**
+ * Seed the demo corpus ON DEMAND — the "Explore with demo data" half of the first-run
+ * choice (db/demo-seed.ts, POST /api/setup/demo). The same fixture seeders the opt-in
+ * boot path runs, in the same order, then the same tenant backfill, all inside ONE
+ * IMMEDIATE transaction so a concurrent writer can neither interleave with it nor see a
+ * half-seeded board. Idempotent: every one-shot seeder is seed_marks-gated and the two
+ * upserting ones only touch rows the product has never written, so a second call adds
+ * nothing. Safe on a database that already holds the structural rows (that is every
+ * database: ensureDb() creates them). Synchronous — no await inside the transaction.
+ */
+export function seedDemoCorpus(db: Database.Database = ensureDb()): void {
+  db.transaction(() => {
+    runDemoSeeders(db);
+    backfillTenantScope(db);
+  }).immediate();
 }
 
 /** The minimum a boot-tail needs from a connection — narrowed so the failure paths below

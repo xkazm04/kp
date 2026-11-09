@@ -1,0 +1,109 @@
+{
+ "schema": "conform-run/1",
+ "worker": "f12f20ca-62e7-417a-a273-dc4f6cd00ca2",
+ "subject": "voice-interview-fidelity",
+ "evaluatedAt": "2026-10-24T06:08:16.775676+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "voice-interview-api",
+   "subject": "voice-interview-fidelity",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/api/interview/connect/route.ts:512 Connect sends a per-job ASR keyword-bias list to the served session, and no null-audio control was run on it; the floor list it pads with (asr-keywords.mjs BASE_ASR_KEYWORDS) also boosts both 'React' and 'Rust', a pair the code's own comment says the recogniser swaps, so the step meant to fix substituted skills can add phantom skills unmeasured.",
+   "techniques": [
+    {
+     "technique": "phantom-terms-and-silence-insertions",
+     "verdict": "deviation",
+     "evidence": "app/api/interview/connect/route.ts:512 Vocabulary biasing ships with no null-audio control. A repo-wide grep found no phantom/null-audio check. The confusable pair React/Rust is boosted together without a measured decision."
+    },
+    {
+     "technique": "language-choice-and-per-turn-drift-detection",
+     "verdict": "conformant",
+     "evidence": "app/api/interview/connect/route.ts:439 The candidate's language is passed into the provider connect config. openai.ts:207-209 then sets the transcription language, so the setting is config and not only prompt text. Per-turn drift detection lives in app/_lib/voice/language-lock.ts, outside this context."
+    },
+    {
+     "technique": "transcript-sampling-that-keeps-the-conclusion",
+     "verdict": "conformant",
+     "evidence": "app/api/interview/complete/route.ts:162 The persistence cap keeps head and tail and adds an in-band omission marker (interview-transcript.ts:97-110). It cuts on turn boundaries and never drops the final turns. The split is even, which the technique allows."
+    },
+    {
+     "technique": "entity-fidelity-not-aggregate-error-rate",
+     "verdict": "deviation",
+     "evidence": "app/api/interview/complete/route.ts:424 Scoring is gated only on status, candidate mode and a non-empty transcript. No entity-restricted error rate or deletion check runs before the scorecard is built. The lexicon exists only in the interview-sim harness."
+    }
+   ]
+  },
+  {
+   "context": "voice-stt-package",
+   "subject": "voice-interview-fidelity",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:204 The on-device whisper.cpp adapter, which its own header says is built for first-round interview audio, runs the recogniser with no speech-detection (VAD) gate and drops nothing that lands in non-speech stretches, so text written over a candidate's silence comes back as transcript.",
+   "techniques": [
+    {
+     "technique": "phantom-terms-and-silence-insertions",
+     "verdict": "deviation",
+     "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:204 Step 5 (do not transcribe what was not detected as speech) is not realised. Neither the adapter nor useStt has VAD or silence gating."
+    },
+    {
+     "technique": "language-choice-and-per-turn-drift-detection",
+     "verdict": "conformant",
+     "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:197 The language goes into the engine config (-l, and language_code on AssemblyAI). An English-only model asked for another language is refused rather than returning fluent wrong-language text."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "voice-interview-fidelity",
+   "context": "interview-tools-api",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "voice-interview-fidelity",
+   "context": "tests-scoring-fairness",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "voice-interview-fidelity",
+   "context": "interview-lab-harness",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-24T06:08:16.775676+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "voice-interview-fidelity"
+   ],
+   "techniques": [
+    "entity-fidelity-not-aggregate-error-rate",
+    "language-choice-and-per-turn-drift-detection",
+    "phantom-terms-and-silence-insertions",
+    "transcript-sampling-that-keeps-the-conclusion"
+   ],
+   "deviations": 1,
+   "context": "voice-interview-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T06:08:16.775676+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "voice-interview-fidelity"
+   ],
+   "techniques": [
+    "language-choice-and-per-turn-drift-detection",
+    "phantom-terms-and-silence-insertions"
+   ],
+   "deviations": 1,
+   "context": "voice-stt-package",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

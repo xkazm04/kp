@@ -29,7 +29,7 @@
 .k-letter__block.k-letter__decide { margin-top: 28px; }
 .k-letter__label { font-size: var(--text-micro); color: var(--k-quiet); margin-bottom: 6px; }
 .k-letter__line { font-size: var(--text-body); color: var(--k-quiet); margin: 0 0 6px; }
-.k-letter__line.is-needs { color: var(--color-coral); font-weight: 600; }
+.k-letter__line.is-needs { color: var(--color-coral-ink); font-weight: 600; }
 .k-letter__acts { display: flex; gap: 12px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
 .k-letter__foot { margin: 24px 0 0; font-size: var(--text-micro); color: var(--k-quiet); }
 .k-letter__foot a { color: var(--k-ink); text-decoration: underline; text-underline-offset: 3px; }

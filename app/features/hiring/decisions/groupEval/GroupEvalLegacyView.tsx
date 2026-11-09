@@ -57,7 +57,7 @@ export function LegacyView({ evaluation }: { evaluation: GroupEvalPayload }) {
                 {c.verdict ? <p className="mt-0.5 text-base text-ink">{c.verdict}</p> : null}
                 <div className="mt-1 grid gap-1 text-base sm:grid-cols-2">
                   {c.strengths.length ? <p><span className="font-semibold text-moss">+ </span>{c.strengths.slice(0, 3).join("; ")}</p> : null}
-                  {c.gaps.length ? <p><span className="font-semibold text-coral">! </span>{c.gaps.slice(0, 3).join("; ")}</p> : null}
+                  {c.gaps.length ? <p><span className="font-semibold text-coral-ink">! </span>{c.gaps.slice(0, 3).join("; ")}</p> : null}
                 </div>
               </div>
             ))}

@@ -6,6 +6,7 @@ import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { extractConfigKeys, scrubKeyMaterial, shapeVerdict } from "../../test/verdict.ts";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 export const maxDuration = 90;
 
@@ -32,7 +33,7 @@ const KEY_PROBE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 // either way), and raw provider/SDK text NEVER reaches the client — shapeVerdict
 // maps the error class to a stable code and scrubs residual key bytes.
 
-export async function POST(request: NextRequest) {
+export const POST = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). requireOperator above proves a
@@ -92,4 +93,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

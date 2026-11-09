@@ -73,3 +73,16 @@
   .cn-ledger .k-table { --m-fig: 0px; }
   .cn-ledger__narrow { display: inline; font-weight: 600; }
 }
+
+/* the offer to send the letters that waited for a sender: the alarm's card, plus a clearable list */
+.cn-ledger__backlog-acts { display: grid; gap: 8px; align-self: center; justify-items: start; }
+.cn-ledger__backlog-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; max-height: 280px; overflow-y: auto; }
+.cn-ledger__backlog-list label { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; font-size: var(--text-body); color: var(--k-ink); }
+.cn-ledger__backlog-list li { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: var(--text-body); color: var(--k-quiet); }
+.cn-ledger__backlog-list input { accent-color: var(--color-coral); }
+.cn-ledger__backlog-who { font-weight: 600; }
+.cn-ledger__backlog-when { font-size: var(--text-meta); color: var(--k-quiet); }
+.cn-ledger__backlog-answer { display: grid; gap: 4px; }
+@container (max-width: 640px) {
+  .cn-ledger__backlog-acts { grid-column: 2; }
+}

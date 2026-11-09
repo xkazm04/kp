@@ -43,7 +43,7 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
       {isWindowDragging ? (
         <div className="animate-fade-in pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-coral/5" aria-hidden>
           <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-coral bg-white/90 px-10 py-8 shadow-panel">
-            <UploadCloud className="h-8 w-8 text-coral" />
+            <UploadCloud className="h-8 w-8 text-coral-ink" />
             <div className="flex flex-col items-center gap-0.5 text-center">
               <span className="text-base font-semibold text-ink">{t("dropCvAnywhere")}</span>
               {/* The routing carve-out (idea-9f3a1c52): a file released on the Job
@@ -75,7 +75,7 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
           structurally, not just from the prose above. */}
       <div className="mt-5 grid gap-4 xl:grid-cols-4">
         <AnalyzeColumn
-          icon={<FileText className="h-4 w-4 text-coral" aria-hidden />}
+          icon={<FileText className="h-4 w-4 text-coral-ink" aria-hidden />}
           heading={t("colCv")}
           status={statuses.cvStatus}
           required
@@ -96,7 +96,7 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
 
       {/* Every file that did not go in, by name and reason — one line per file. */}
       {intake.refusals.length > 0 ? (
-        <ul role="alert" className="mt-3 space-y-0.5 text-sm text-coral">
+        <ul role="alert" className="mt-3 space-y-0.5 text-sm text-coral-ink">
           {intake.refusals.map((line, index) => (
             <li key={`${index}-${line}`}>{line}</li>
           ))}

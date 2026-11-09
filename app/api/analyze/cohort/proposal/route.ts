@@ -1,4 +1,4 @@
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonOk, jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
@@ -39,14 +39,13 @@ function cohortProposalDeps(signal: AbortSignal): ProposalDeps {
 // shape as /api/jobs/[id]/candidates); the unknown-JD 404 answers before it, free.
 // Never on the wire: payload_json, the CV text, cv_hash. The session is re-verified
 // (requireOperator) before the seat is asked, like every cohort door.
-export async function GET(request: Request) {
+export const GET = withWorkspace(async (ws: string, request: Request) => {
   const opDenied = await requireOperator();
   if (opDenied) return opDenied;
   const denied = await requireCapabilityCoded("read", requireCapability);
   if (denied) return denied;
   const jd = new URL(request.url).searchParams.get("jd")?.trim() ?? "";
   try {
-    const ws = await currentWorkspace();
     // 404 for an unknown AND for another team's JD: indistinguishable to a non-holder.
     if (!jd || !loadJd(jd, ws)) return jsonRefusal("JD_NOT_FOUND", 404);
     if (!rateLimit(`analyze-cohort-proposal:${clientIpFrom(request.headers)}`, { limit: 30, windowMs: 10 * 60_000 })) {
@@ -58,4 +57,4 @@ export async function GET(request: Request) {
   } catch (error) {
     return safeJsonError(error, "api:analyze/cohort/proposal", "COHORT_PROPOSAL_FAILED");
   }
-}
+});

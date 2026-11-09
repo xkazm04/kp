@@ -68,7 +68,7 @@ function ChainLink({ tab, label }: { tab: WorkspaceTabId; label: string }) {
     <button
       type="button"
       onClick={() => router.push(buildTabSwitchUrl(tab, search.toString()))}
-      className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline"
+      className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-coral-ink hover:underline"
     >
       {label} <ArrowRight size={13} aria-hidden />
     </button>

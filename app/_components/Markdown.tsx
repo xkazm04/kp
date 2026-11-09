@@ -40,7 +40,7 @@ function inline(text: string, keyBase: string): ReactNode[] {
       const href = safeLinkHref(m[3]);
       out.push(
         href ? (
-          <a key={key} href={href} target="_blank" rel="noopener noreferrer" className="font-medium text-coral underline decoration-coral/40 underline-offset-2 hover:decoration-coral">
+          <a key={key} href={href} target="_blank" rel="noopener noreferrer" className="font-medium text-coral-ink underline decoration-coral/40 underline-offset-2 hover:decoration-coral">
             {inline(m[2], key)}
           </a>
         ) : (

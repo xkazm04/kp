@@ -48,8 +48,11 @@ test("missing jobId and a malformed override are jsonRefusal 400s with a code", 
 
 test("a 409 approval refusal keeps reason and adds a SCREEN_WAVE_APPROVAL_* code", () => {
   assert.match(src, /jsonRefusal\(SCREEN_WAVE_APPROVAL_CODES\[error\.reason\], 409, \{ reason: error\.reason \}\)/);
+  // The map has ONE definition, shared with the role-run gate commit route.
+  assert.match(src, /import \{ SCREEN_WAVE_APPROVAL_CODES \} from "@\/app\/_lib\/screen-wave-refusal-codes"/);
+  const codes = readFileSync(path.join(HERE, "../../../_lib/screen-wave-refusal-codes.ts"), "utf8");
   for (const reason of ["required", "expired", "mismatch", "spent", "unattributed"]) {
-    assert.match(src, new RegExp(`${reason}: "SCREEN_WAVE_APPROVAL_${reason.toUpperCase()}"`));
+    assert.match(codes, new RegExp(`${reason}: "SCREEN_WAVE_APPROVAL_${reason.toUpperCase()}"`));
   }
 });
 

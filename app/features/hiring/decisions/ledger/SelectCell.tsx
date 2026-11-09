@@ -19,7 +19,7 @@ export function SelectCell({ row, selected, onToggle }: { row: LedgerRow; select
       onClick={onToggle}
       className={`${BTN_GHOST} cursor-pointer p-0.5`}
     >
-      {selected ? <CheckSquare size={15} className="text-coral" aria-hidden /> : <Square size={15} className="text-steel" aria-hidden />}
+      {selected ? <CheckSquare size={15} className="text-coral-ink" aria-hidden /> : <Square size={15} className="text-steel" aria-hidden />}
     </button>
   );
 }

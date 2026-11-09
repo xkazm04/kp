@@ -131,7 +131,7 @@ export function AnalyticsTab() {
       {/* Tier 2: the error affordance, nested under the always-rendering header
           and switcher instead of replacing the whole tab. */}
       {error ? (
-        <div role="alert" className="flex flex-wrap items-center gap-3 text-base text-coral">
+        <div role="alert" className="flex flex-wrap items-center gap-3 text-base text-coral-ink">
           <span>{error}</span>
           <button
             type="button"

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { REFUSAL_ERRORS, jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -29,7 +29,7 @@ const BATCH_CAP = 200; // guard a runaway payload; the board rarely selects this
 
 // Only the board's three cohort actions are batchable. accept/reject may extend an
 // offer (offer_review) via the shared action, exactly like the single route.
-const BATCH_ACTIONS = new Set(["set_stage", "accept", "reject"]);
+const BATCH_ACTIONS = new Set(["set_stage", "accept", "reject", "decline_advance"]);
 
 type BatchItem = { id: string; action: string; expectedStage?: string; toStage?: string };
 // `code` is what the client renders (errors.<CODE>, in the reader's language);
@@ -101,7 +101,7 @@ function coerceItem(raw: unknown): BatchItem | null {
 // drive the board through the per-card routes) are unaffected; set + valid
 // operator session → allow; the anonymous demo-workspace cookie the proxy waves
 // through → 401. The refusal is the shared { error } envelope the client renders.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). requireOperator above only
@@ -111,7 +111,6 @@ export async function POST(request: NextRequest) {
   // silently mutating the board.
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (under) return under;
-  const ws = await currentWorkspace();
   try {
     // Throttle the NUMBER of batch calls (each fans out to up to BATCH_CAP entries),
     // not each entry — this IS the one-action-many-candidates path.
@@ -188,4 +187,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:pipeline:batch", "PIPELINE_ACTION_FAILED");
   }
-}
+});

@@ -128,7 +128,7 @@ export function StageDwellPanel({
                       <Link
                         href={boardHref(m.link)}
                         title={t("viewInBoard")}
-                        className={`focus-ring rounded-md text-sm font-medium underline-offset-2 hover:underline nums ${m.tone === "over" ? "text-coral" : "text-ink"}`}
+                        className={`focus-ring rounded-md text-sm font-medium underline-offset-2 hover:underline nums ${m.tone === "over" ? "text-coral-ink" : "text-ink"}`}
                       >
                         {pastLabel}
                       </Link>

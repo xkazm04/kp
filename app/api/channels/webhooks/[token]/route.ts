@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { revokeChannelWebhook } from "@/app/_lib/db/channels";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded } from "@/app/_lib/api-response";
@@ -19,7 +19,7 @@ import { jsonThrottled } from "@/app/_lib/throttle-response";
 // is still not a probe for which receivers exist.
 const RECEIVER_WRITE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 
-export async function DELETE(request: Request, context: { params: Promise<{ token: string }> }) {
+export const DELETE = withWorkspace(async (ws: string, request: Request, context: { params: Promise<{ token: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("org:manage", requireOrgCapability);
@@ -29,7 +29,7 @@ export async function DELETE(request: Request, context: { params: Promise<{ toke
     return jsonThrottled(rateLimitRetryAfterMs(limitKey), RECEIVER_WRITE_RATE_LIMIT.windowMs);
   }
   const { token } = await context.params;
-  const revoked = revokeChannelWebhook(token, await currentWorkspace());
+  const revoked = revokeChannelWebhook(token, ws);
   if (!revoked) return jsonRefusal("CHANNEL_WEBHOOK_NOT_FOUND", 404);
   return NextResponse.json({ ok: true });
-}
+});

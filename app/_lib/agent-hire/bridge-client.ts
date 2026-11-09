@@ -1,4 +1,5 @@
 import { readTextWithLimit } from "../request-body";
+import { BRIDGE_CIRCUIT_OPEN_MESSAGE, bridgeCircuitOpen, recordBridgeFailure, recordBridgeSuccess } from "./bridge-breaker";
 import { markBridgeOk, resolveBridge, type ResolvedBridge } from "./bridge-store";
 
 // Personas bridge client (WP1) — server-side fetch helpers, NEVER from the
@@ -319,6 +320,9 @@ export async function dispatchPersonaRequest(
   if (!bridge.apiKey) {
     return { ok: false, error: "Personas is not paired — no API key configured (pair first, or set PERSONAS_BRIDGE_KEY)." };
   }
+  // Fail fast while Personas has been timing out / erroring, instead of paying the full
+  // BRIDGE_TIMEOUT_MS on every dispatch (bridge-breaker.ts).
+  if (bridgeCircuitOpen()) return { ok: false, error: BRIDGE_CIRCUIT_OPEN_MESSAGE };
   try {
     const r = await fetch(`${bridge.baseUrl}/api/kp/persona-requests`, {
       method: "POST",
@@ -353,15 +357,22 @@ export async function dispatchPersonaRequest(
     // Checked BEFORE `!r.ok`: a redirect is not an HTTP status to report back
     // (status 0), and it must never read as an acceptance of the hire.
     if (isRedirectResponse(r)) return { ok: false, error: REDIRECT_ERROR };
-    if (!r.ok) return upstreamFailure(r.status);
+    if (!r.ok) {
+      // A 5xx is Personas failing; a 4xx (401 dead key, refusal) is Personas answering.
+      if (r.status >= 500) recordBridgeFailure();
+      else recordBridgeSuccess();
+      return upstreamFailure(r.status);
+    }
     const read = await readBridgeJson<unknown>(r);
     if (!read.ok) return tooLargeFailure();
     const body = unwrapEnvelope(read.value) as { requestId?: unknown; autoApproved?: unknown } | null;
     const requestId = typeof body?.requestId === "string" ? body.requestId : "";
     if (!requestId) return { ok: false, error: "Personas accepted the request but returned no requestId." };
     markBridgeOk();
+    recordBridgeSuccess();
     return { ok: true, requestId, ...(body?.autoApproved === true ? { autoApproved: true } : {}) };
   } catch (e) {
+    recordBridgeFailure();
     return failure(e);
   }
 }

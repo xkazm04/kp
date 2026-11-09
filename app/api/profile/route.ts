@@ -13,7 +13,7 @@ import {
   spawnPython,
 } from "@/app/_lib/python-runner";
 import type { ProfileCliOutput } from "@/app/features/shared/profileTypes";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 import { PROFILE_BUILD_TIMEOUT_MS } from "@/app/_lib/applicant-profile";
@@ -139,12 +139,11 @@ function resolveLineage(sourceAnalysisSlug: unknown, workspaceId: string): Profi
   return { sourceAnalysisSlug: src.slug, sourceCvHash: src.cvHash, sourceAnalyzedAt: src.analyzedAt };
 }
 
-export async function GET(request: NextRequest) {
+export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
   try {
     // ?id=<candidateId> → a single profile (label/archetype/completeness + payload),
     // used by the Decisions analysis-summary modal and the Profile editor (edit /
     // duplicate hydration). No id → the full list.
-    const ws = await currentWorkspace();
     const id = request.nextUrl.searchParams.get("id");
     if (id) {
       const rec = getProfileRecord(id, ws);
@@ -182,9 +181,9 @@ export async function GET(request: NextRequest) {
     // the server log and the caller gets the code (api-contracts.md §1.1).
     return safeJsonError(error, "api:profile:list", "PROFILE_LIST_FAILED");
   }
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   // Before the body read and before the spawn, so a throttled caller costs neither.
   if (!rateLimit(`profile-save:${clientIpFrom(request.headers)}`, PROFILE_RATE_LIMIT)) {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
@@ -213,7 +212,6 @@ export async function POST(request: NextRequest) {
     // IMMEDIATE transaction, which is what holds if two builds race across the spawn.
     // A dry-run preview (persist:false) writes nothing and is never refused.
     const persist = body.persist !== false;
-    const ws = await currentWorkspace();
     const lineage = persist ? resolveLineage(body.sourceAnalysisSlug, ws) : undefined;
     const existingId = lineage ? findProfileIdBySourceCvHash(lineage.sourceCvHash, ws) : null;
     if (existingId) return jsonRefusal("PROFILE_EXISTS", 409, { id: existingId });
@@ -236,9 +234,9 @@ export async function POST(request: NextRequest) {
     // A spawn/store fault carries the temp workdir path, PYTHON_CMD and SQLITE_* text.
     return safeJsonError(error, "api:profile:create", "PROFILE_BUILD_FAILED");
   }
-}
+});
 
-export async function PUT(request: NextRequest) {
+export const PUT = withWorkspace(async (ws: string, request: NextRequest) => {
   if (!rateLimit(`profile-save:${clientIpFrom(request.headers)}`, PROFILE_RATE_LIMIT)) {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
@@ -262,7 +260,6 @@ export async function PUT(request: NextRequest) {
     if (!body.id) {
       return NextResponse.json({ error: "Profile id is required." }, { status: 400 });
     }
-    const ws = await currentWorkspace();
     if (!getProfileRecord(body.id, ws)) {
       return NextResponse.json({ error: "Profile not found." }, { status: 404 });
     }
@@ -300,15 +297,15 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:profile:update", "PROFILE_UPDATE_FAILED");
   }
-}
+});
 
-export async function DELETE(request: NextRequest) {
+export const DELETE = withWorkspace(async (ws: string, request: NextRequest) => {
   try {
     const id = request.nextUrl.searchParams.get("id");
     if (!id) {
       return NextResponse.json({ error: "Profile id is required." }, { status: 400 });
     }
-    const ok = deleteProfile(id, await currentWorkspace());
+    const ok = deleteProfile(id, ws);
     if (!ok) {
       return NextResponse.json({ error: "Profile not found." }, { status: 404 });
     }
@@ -316,4 +313,4 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:profile:delete", "PROFILE_DELETE_FAILED");
   }
-}
+});

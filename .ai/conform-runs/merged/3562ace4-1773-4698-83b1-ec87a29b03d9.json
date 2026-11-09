@@ -1,0 +1,139 @@
+{
+  "schema": "conform-run/1",
+  "worker": "3562ace4-1773-4698-83b1-ec87a29b03d9",
+  "subject": "voice-io",
+  "evaluatedAt": "2026-11-07T01:00:44.926949+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "studio-dialog-kit",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evidence": "app/_components/studio/StudioVoiceBar.tsx:118 The kit wires the two pipelines independently: dictation has a live meter and appends to an editable draft without sending, and read-aloud has a one-door normalizer, opt-in auto-speak and stop-on-switch. Each degrades on its own sticky unavailable latch, which matches the golden path's two-pipeline, degrade-never-block shape.",
+      "techniques": [
+        {
+          "technique": "stt-pipeline",
+          "verdict": "conformant",
+          "evidence": "app/_components/studio/StudioVoiceBar.tsx:118 There is a continuously visible level meter while listening, painted only when the level is really measured, so a flat bar never gives a false diagnosis. The capture is toggled explicitly, and mic errors render from their code."
+        },
+        {
+          "technique": "tts-pipeline",
+          "verdict": "conformant",
+          "evidence": "app/_components/studio/useStudioSpeech.ts:127 'Stop means now' extends to a session switch. Synthesis is aborted and the element released through the voice-tts package, and the surface only uses speak, stop and resume."
+        },
+        {
+          "technique": "speech-ready-text",
+          "verdict": "conformant",
+          "evidence": "app/_components/studio/useStudioSpeech.ts:102 There is one door before the engine, so markdown is not voiced. An empty result means there is nothing to say."
+        },
+        {
+          "technique": "engine-abstraction",
+          "verdict": "conformant",
+          "evidence": "app/_components/studio/useStudioDictation.ts:76 The surface talks to the host route and never names an engine."
+        },
+        {
+          "technique": "portable-provider-package",
+          "verdict": "conformant",
+          "evidence": "app/_components/studio/useStudioSpeech.ts:4 Both hooks are thin wrappers over the portable packages/voice-tts and packages/voice-stt. Only surface policy lives in the kit."
+        },
+        {
+          "technique": "voice-ux-integration",
+          "verdict": "conformant",
+          "evidence": "app/_components/studio/studioVoiceIo.ts:77 Auto-speak is OFF by default, primed on mount and silent in a hidden tab. A missing capability is drawn as a struck glyph with its reason (StudioVoiceBar.tsx:103)."
+        },
+        {
+          "technique": "transcript-normalization",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/studio/studioVoiceIo.ts:100 Only the join point is touched. The destination is an editable draft that a model reads, which is the technique's 'destination is a model' exclusion, so no rewrite pass belongs here."
+        },
+        {
+          "technique": "spoken-intent-parsing",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/studio/studioVoiceIo.ts:85 The transcript never crosses into a typed command; it is free text that the user edits."
+        },
+        {
+          "technique": "bounded-playback-wait",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/studio/useStudioSpeech.ts:107 The speak call is fire-and-forget, so nothing waits on playback."
+        },
+        {
+          "technique": "transcript-handoff-receipts",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/studio/StudioVoiceBar.tsx:49 The destination is the product's own text field, which is the technique's first exclusion. No clipboard is involved."
+        },
+        {
+          "technique": "duplex-agent-sessions",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/studio/StudioComposer.tsx:29 The kit is turn-based. A full-call relay arrives as a consumer slot, so no duplex session is hosted here."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "voice-io",
+      "context": "shell-companion-voice",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "voice-io",
+      "context": "interview-lab-harness",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "voice-io",
+      "context": "voice-interview-api",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "voice-io",
+      "context": "voice-interview-session",
+      "reason": "withdrawn after review: reviewer (sonnet): The deviation rests on app/_lib/voice/asr-keywords.mjs, which is not one of this context's files, and the comment there names two measured confusions (React→Rust and PostgreSQL→'później SQL'), not the single one the evidence says; the other technique anchors (candidate-brief, types, discarded-turns)"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-07T01:00:44.926949+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "voice-io"
+      ],
+      "techniques": [
+        "decode-time-vocabulary-biasing",
+        "duplex-agent-sessions",
+        "engine-abstraction",
+        "transcript-normalization"
+      ],
+      "deviations": 1,
+      "context": "voice-interview-session",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-07T01:00:44.926949+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "voice-io"
+      ],
+      "techniques": [
+        "bounded-playback-wait",
+        "duplex-agent-sessions",
+        "engine-abstraction",
+        "portable-provider-package",
+        "speech-ready-text",
+        "spoken-intent-parsing",
+        "stt-pipeline",
+        "transcript-handoff-receipts",
+        "transcript-normalization",
+        "tts-pipeline",
+        "voice-ux-integration"
+      ],
+      "deviations": 0,
+      "context": "studio-dialog-kit",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

@@ -6,6 +6,7 @@ import { currentOrgId } from "@/app/_lib/auth/session";
 import { DEFAULT_ORG_ID } from "@/app/_lib/db/organizations";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // A webhook config body is one URL, one secret and a short event list. 16 KB is far more
 // than any real one and still refuses a body sent purely to make the server hold it.
@@ -24,13 +25,13 @@ const MAX_CONFIG_BODY_BYTES = 16 * 1024;
 // Authentication alone (any valid session) is NOT authorization here: without this,
 // any org member could re-point the webhook to exfiltrate PII or clear the secret so
 // deliveries go unsigned. Open mode (no KP_OPERATOR_PASSWORD) stays open for local dev.
-export async function GET() {
+export const GET = withSession(async () => {
   const denied = await requireOperator();
   if (denied) return denied;
   return NextResponse.json({ config: getAtsConfig() });
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). requireOperator above proves a
@@ -73,4 +74,4 @@ export async function POST(request: NextRequest) {
     // language. This used to forward `error.message` verbatim on the 500.
     return safeJsonError(error, "api:ats/config", "ATS_CONFIG_SAVE_FAILED");
   }
-}
+});

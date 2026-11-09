@@ -1,0 +1,119 @@
+{
+ "schema": "conform-run/1",
+ "worker": "cb84113d-1fae-40f1-92d3-4f4ac55afd67",
+ "subject": "admission-queue",
+ "evaluatedAt": "2026-10-19T12:26:03.334507+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "devcase-live-work-surface",
+   "subject": "admission-queue",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/devcase/apply/[token]/liveWorkSync.ts:221 The live event buffer grows without an enforced depth bound or shed policy, so failed synchronization can accumulate an unlimited backlog despite the decoder's restoration limits.",
+   "techniques": [
+    {
+     "technique": "admission-vocabulary",
+     "verdict": "deviation",
+     "evidence": "app/devcase/apply/[token]/liveWorkSync.ts:294 Flush erases reasoned refusals, including the receiving route's PAYLOAD_TOO_LARGE response, into a generic exception and subsequently false; callers cannot distinguish refusal from transport failure."
+    },
+    {
+     "technique": "admit-on-the-expanded-cost",
+     "verdict": "deviation",
+     "evidence": "app/devcase/apply/[token]/liveWorkDraft.ts:64 Candidate-writable JSON is fully materialized before any size or count check; subsequent filtering and truncation cannot protect the parsing allocation."
+    },
+    {
+     "technique": "budget-includes-the-callers-own-cache",
+     "verdict": "not-applicable",
+     "evidence": "app/devcase/apply/[token]/LiveWorkSurface.tsx:64 This path persists browser storage rather than calculating admission capacity from platform-free and allocator-reserved resources; no pooling denominator is involved."
+    },
+    {
+     "technique": "depth-bounds-and-shed",
+     "verdict": "deviation",
+     "evidence": "app/devcase/apply/[token]/liveWorkSync.ts:221 Recording appends without checking depth; MAX_PENDING_EVENTS applies only when decoding a restored draft, rather than when admitting live events."
+    },
+    {
+     "technique": "load-aware-admission",
+     "verdict": "not-applicable",
+     "evidence": "app/devcase/apply/[token]/LiveWorkSurface.tsx:207 This browser component schedules telemetry delivery; it does not promote expensive jobs onto a host execution pool whose pressure would select admission."
+    },
+    {
+     "technique": "priority-and-fairness",
+     "verdict": "not-applicable",
+     "evidence": "app/devcase/apply/[token]/liveWorkDraft.ts:50 Drafts and their local buffers are scoped to one candidate token; this context does not arbitrate a shared queue containing competing origins or urgency classes."
+    },
+    {
+     "technique": "queue-cardinality",
+     "verdict": "not-applicable",
+     "evidence": "app/devcase/apply/[token]/liveWorkSync.ts:269 The buffer delivers to its session endpoint rather than dispatching waiters among worker pools; worker fungibility and queue partitioning are not decisions made here."
+    },
+    {
+     "technique": "refusal-without-release",
+     "verdict": "not-applicable",
+     "evidence": "app/devcase/apply/[token]/liveWorkSync.ts:311 Delivery uses retryable HTTP requests while retaining local state; no correlated refusal tears down an expensive population of long-lived transport callers."
+    },
+    {
+     "technique": "remediation-derived-bounds",
+     "verdict": "not-applicable",
+     "evidence": "app/devcase/apply/[token]/LiveWorkSurface.tsx:22 The relevant storage threshold rejects a write rather than killing or restarting this component; no destructive watchdog threshold governs its backlog."
+    },
+    {
+     "technique": "resource-denominated-bounds",
+     "verdict": "deviation",
+     "evidence": "app/devcase/apply/[token]/liveWorkSync.ts:227 Live edits accept arbitrary-length contents without charging an aggregate resource budget; limits applied during draft restoration do not bound live persistence or outgoing payloads."
+    },
+    {
+     "technique": "self-paced-intake",
+     "verdict": "deviation",
+     "evidence": "app/devcase/apply/[token]/liveWorkSync.ts:257 An eight-second flush interval exists, but each flush takes the entire backlog without a per-drain cap; the receiving route retains only the first 500 events."
+    },
+    {
+     "technique": "speculative-work-admission",
+     "verdict": "not-applicable",
+     "evidence": "app/devcase/apply/[token]/liveWorkSync.ts:323 The inspected work records candidate actions and delivers their requested submission or chat; it contains no speculative prefetch or redundant fan-out class."
+    },
+    {
+     "technique": "wait-telemetry",
+     "verdict": "deviation",
+     "evidence": "app/devcase/apply/[token]/liveWorkSync.ts:272 The outgoing batch carries occurrence timestamps but no promotion timestamp or separate buffer-wait measurement, leaving synchronization wait unreported."
+    },
+    {
+     "technique": "zero-depth-admission",
+     "verdict": "not-applicable",
+     "evidence": "app/devcase/apply/[token]/liveWorkSync.ts:223 Event recording proceeds asynchronously with intentionally buffered delivery; there is no synchronous caller deadline near one service time that would select zero depth."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-19T12:26:03.334507+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "admission-queue"
+   ],
+   "techniques": [
+    "admission-vocabulary",
+    "admit-on-the-expanded-cost",
+    "budget-includes-the-callers-own-cache",
+    "depth-bounds-and-shed",
+    "load-aware-admission",
+    "priority-and-fairness",
+    "queue-cardinality",
+    "refusal-without-release",
+    "remediation-derived-bounds",
+    "resource-denominated-bounds",
+    "self-paced-intake",
+    "speculative-work-admission",
+    "wait-telemetry",
+    "zero-depth-admission"
+   ],
+   "deviations": 1,
+   "context": "devcase-live-work-surface",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

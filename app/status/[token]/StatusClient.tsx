@@ -6,6 +6,7 @@ import { Bot, Check, RefreshCw, UserRound } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
+import { EmployerBrand } from "@/app/_components/EmployerBrand";
 import { BTN_GHOST, BTN_PRIMARY_LG } from "@/app/_components/ui/recipes";
 import {
   RECORDING_BACKSTOP_DAYS,
@@ -218,10 +219,11 @@ export function StatusClient({
           status link is now ?lang=-pinned, but a forwarded/bookmarked link (or a
           stale NEXT_LOCALE cookie from an earlier visit) can still land them in
           a language they don't read — and this page has no other chrome. */}
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex items-center justify-end gap-3">
+        <EmployerBrand className="mr-auto" />
         <LanguageSwitcher />
       </div>
-      <p className="text-meta uppercase tracking-wide text-coral">{t("eyebrow")}</p>
+      <p className="text-meta uppercase tracking-wide text-coral-ink">{t("eyebrow")}</p>
       {error && !view ? (
         // Only take over the page on the INITIAL load failure — a transient poll
         // error after a good render must never wipe an already-shown status.
@@ -469,7 +471,7 @@ export function StatusClient({
                 </button>
               )}
               {recordingStep === "failed" ? (
-                <p role="alert" className="mt-2 text-base font-semibold text-coral">
+                <p role="alert" className="mt-2 text-base font-semibold text-coral-ink">
                   {t("recording.failed")}
                 </p>
               ) : null}

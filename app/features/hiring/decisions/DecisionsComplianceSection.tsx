@@ -53,7 +53,7 @@ export function ComplianceSection() {
             <span
               role={saveState === "failed" ? "alert" : "status"}
               aria-live={saveState === "failed" ? "assertive" : "polite"}
-              className={`shrink-0 text-meta ${saveState === "failed" ? "font-semibold text-coral" : "text-steel"}`}
+              className={`shrink-0 text-meta ${saveState === "failed" ? "font-semibold text-coral-ink" : "text-steel"}`}
             >
               {saveState === "failed" ? t("saveFailed") : t("saved")}
             </span>
@@ -118,11 +118,11 @@ export function ComplianceSection() {
           </ul>
         </div>
         <div>
-          <p className="text-meta font-semibold uppercase tracking-wide text-coral">{t("postureCeilingTitle")}</p>
+          <p className="text-meta font-semibold uppercase tracking-wide text-coral-ink">{t("postureCeilingTitle")}</p>
           <ul className="mt-1 space-y-1">
             {[t("ceiling1", { standard }), t("ceiling2")].map((line, i) => (
               <li key={i} className="flex gap-1.5 text-sm text-steel">
-                <X size={14} className="mt-0.5 shrink-0 text-coral" /> <span>{line}</span>
+                <X size={14} className="mt-0.5 shrink-0 text-coral-ink" /> <span>{line}</span>
               </li>
             ))}
           </ul>

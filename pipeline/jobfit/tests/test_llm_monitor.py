@@ -521,6 +521,15 @@ class OneVocabularyTest(unittest.TestCase):
         self.assertIs(monitor._reason_code, degradation.reason_code)
         self.assertIs(monitor.FAILURE_REASONS, degradation.FAILURE_REASONS)
 
+    def test_the_cli_default_model_label_has_one_spelling(self) -> None:
+        # Two literals by necessity (monitor cannot import the adapter: base -> monitor ->
+        # adapter -> base is a cycle). Nothing else pinned the monitor copy, which labels
+        # every emit_error / emit_result row for a default install, so it could drift alone.
+        from pipeline.jobfit.llm.adapters import claude_cli
+
+        self.assertEqual(monitor._CLI_DEFAULT_MODEL, claude_cli.CLI_DEFAULT_MODEL_LABEL)
+        self.assertEqual(monitor._ledger_model("claude_cli", None), claude_cli.CLI_DEFAULT_MODEL_LABEL)
+
     def test_a_failed_call_is_a_subset_of_why_the_template_served(self) -> None:
         # The split monitor used to keep by maintaining two literals: why the CALL died
         # is a strict subset of why the TEMPLATE served (the extra word is unusable_output,

@@ -215,7 +215,7 @@ export const SUBMISSION_STATUS_TONE: Record<SubmissionStatus, StatusTone> = {
 export const RECOMMENDATION_CHIP_CLASS: Record<InterviewRecommendation, string> = {
   advance: "bg-moss/15 text-moss",
   hold: "bg-dial-amber/20 text-ink",
-  reject: "bg-coral/10 text-coral",
+  reject: "bg-coral/10 text-coral-ink",
 };
 
 // ---- Resolvers ---------------------------------------------------------------

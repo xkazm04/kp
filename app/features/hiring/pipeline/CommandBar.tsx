@@ -234,8 +234,8 @@ export function CommandBar({ onExecuted }: { onExecuted: () => void }) {
           {/* The two truthful counts a bulk action owes the recruiter: who was NOT
               actioned, and who was actioned but never told. Both are silent
               otherwise — a lost CAS looks identical to a success from here. */}
-          {result.failed ? <p className="mt-1 text-meta text-coral">{t("doneFailed", { count: result.failed })}</p> : null}
-          {result.commsFailed ? <p className="mt-1 text-meta text-coral">{t("doneCommsFailed", { count: result.commsFailed })}</p> : null}
+          {result.failed ? <p className="mt-1 text-meta text-coral-ink">{t("doneFailed", { count: result.failed })}</p> : null}
+          {result.commsFailed ? <p className="mt-1 text-meta text-coral-ink">{t("doneCommsFailed", { count: result.commsFailed })}</p> : null}
           {/* advance-top stops at Offer: say who was held and where the work continues,
               instead of silently swallowing part of the requested N. */}
           {result.heldAtOffer ? <p className="mt-1 text-meta text-steel">{t("doneHeldAtOffer", { count: result.heldAtOffer })}</p> : null}
@@ -257,11 +257,11 @@ export function CommandBar({ onExecuted }: { onExecuted: () => void }) {
               <Undo2 size={13} /> {busy ? t("undoRunning") : t("undoWave")}
             </button>
           ) : null}
-          {undone && "error" in undone ? <p className="mt-1 text-meta text-coral">{undone.error}</p> : null}
+          {undone && "error" in undone ? <p className="mt-1 text-meta text-coral-ink">{undone.error}</p> : null}
           {undone && !("error" in undone) ? (
             <div className="mt-2 border-t border-stone-100 pt-2">
               <p className="text-meta text-ink">{t("undoneRestored", { count: undone.restored })}</p>
-              {undone.notified ? <p className="mt-1 text-meta text-coral">{t("undoneNotified", { count: undone.notified })}</p> : null}
+              {undone.notified ? <p className="mt-1 text-meta text-coral-ink">{t("undoneNotified", { count: undone.notified })}</p> : null}
               {undone.skipped ? <p className="mt-1 text-meta text-steel">{t("undoneSkipped", { count: undone.skipped })}</p> : null}
             </div>
           ) : null}

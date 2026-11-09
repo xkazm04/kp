@@ -67,14 +67,16 @@ const SENDABLE_CASE_STATUS = "approved";
 export type HomeworkArrivalOutcome =
   /** The hook does not govern this arrival. */
   | { outcome: "skipped"; reason: "no_job" | "no_jd" | "agent_population" }
-  /** An assignment letter already exists for this (entry, posting) — the idempotence guard. */
-  | { outcome: "already_invited" }
+  /** An assignment letter already exists for this (entry, posting) — the idempotence guard.
+   *  `url` is the candidate's RELATIVE apply link (`/devcase/apply/<token>`), so a person
+   *  who asked again can still copy the link the letter carried. */
+  | { outcome: "already_invited"; url: string }
   /** No case yet and the column gates case creation for a human: the lifecycle is
    *  parked at its own `awaiting_approval` gate. Nothing was sent. */
   | { outcome: "case_pending"; lifecycleId: string; stage: string }
   /** Published (or reused) a posting and mailed it; `delivery` is the outbox's real
    *  claim, forwarded verbatim — never narrowed or upgraded on the way out. */
-  | { outcome: "invited"; delivery: OutboxStatus; postingId: string }
+  | { outcome: "invited"; delivery: OutboxStatus; postingId: string; url: string }
   /** Nothing was sent, and the reason is on the server log. The move still stands. */
   | { outcome: "failed"; reason: HomeworkRefusal };
 
@@ -147,6 +149,43 @@ export async function runHomeworkArrival(
   }
 }
 
+export type WorkSampleSendOutcome =
+  /** The role has no APPROVED assignment yet — nothing is designed from a click; the
+   *  owner creates one under Assignments for this role. */
+  | { outcome: "no_case" }
+  | Extract<HomeworkArrivalOutcome, { outcome: "already_invited" | "invited" | "failed" | "skipped" }>;
+
+/**
+ * THE OWNER'S "Send work sample" (CX S43) — the candidate drawer's door to the SAME
+ * send the homework column performs on arrival, for a board with no homework column.
+ *
+ * The click IS the human gate, so the column's plan-step gate is not consulted; every
+ * other rule the arrival enforces still holds, because this is the arrival's own
+ * `inviteToCase`: the send gate (consent, erasure, halt) before anything is published,
+ * an AI agent never sent anything, a stopped intake never reopened, one letter per
+ * (entry, posting) read off the outbox, and the outbox's REAL delivery claim handed
+ * back untouched. What it deliberately does NOT do is design a case — a click that
+ * silently spent a design run would be a surprise; no approved case answers `no_case`.
+ *
+ * Async and awaited OUTSIDE any transaction (publish + a comms round trip). Throws only
+ * on a store fault, which the route answers with a code.
+ */
+export async function sendWorkSample(
+  entry: PipelineEntry,
+  workspaceId: string,
+  opts: { origin?: string | null } = {}
+): Promise<WorkSampleSendOutcome> {
+  const jobId = (entry.jobId ?? "").trim();
+  if (!jobId) return { outcome: "no_case" };
+  const gate = entryContactability(entry, CASE_INVITE_KIND);
+  if (!gate.ok && gate.reason === "agent_population") return { outcome: "skipped", reason: "agent_population" };
+  const existing = listDevCasesForJob(jobId, workspaceId).find((c) => c.status === SENDABLE_CASE_STATUS);
+  if (!existing) return { outcome: "no_case" };
+  const res = await inviteToCase(entry, existing, workspaceId, opts.origin ?? null);
+  // inviteToCase never designs, so it never parks a lifecycle; the narrowing is total.
+  return res.outcome === "case_pending" ? { outcome: "no_case" } : res;
+}
+
 /** Ensure the case is live on an apply token and mail it to THIS candidate, once. */
 async function inviteToCase(
   entry: PipelineEntry,
@@ -199,13 +238,14 @@ async function inviteToCase(
   // row twice and a retried poll all resolve to the same (entry, posting) pair. A case
   // legitimately re-published after a close mints a new token and so is a new letter,
   // which is the behaviour we want.
-  if (alreadyInvited(entry.id, posting.token, workspaceId)) return { outcome: "already_invited" };
+  const url = `/devcase/apply/${posting.token}`;
+  if (alreadyInvited(entry.id, posting.token, workspaceId)) return { outcome: "already_invited", url };
 
-  const link = `${publicBaseUrl(origin)}/devcase/apply/${posting.token}`;
+  const link = `${publicBaseUrl(origin)}${url}`;
   // The delivery claim is the dispatcher's, handed back untouched: `queued` when no
   // relay is configured, `failed` when the relay threw. Never upgraded to "sent" here.
   const delivery = await dispatchCaseInvite(entry, link, { workspaceId });
-  return { outcome: "invited", delivery, postingId: posting.id };
+  return { outcome: "invited", delivery, postingId: posting.id, url };
 }
 
 /**
@@ -236,13 +276,15 @@ async function designThenInvite(
   workspaceId: string,
   opts: HomeworkArrivalOptions
 ): Promise<HomeworkArrivalOutcome> {
-  // The need is built off the JOB'S SAVED JD, which is also what ties the resulting case
-  // back to this job: `resolveCaseJobId` re-derives `jd-<slug>` from `need.jdSlug` and
-  // verifies the opening exists, so the case this designs is found by
-  // `listDevCasesForJob` on every later arrival instead of being orphaned.
+  // The need is built off the JOB'S SAVED JD when it has one, else off the job row itself
+  // (a seeded job may never have had a JD). What ties the resulting case back to this job
+  // is `need.jobId`: `resolveCaseJobId` verifies the row exists in this workspace and
+  // stores it, so the case is found by `listDevCasesForJob` on every later arrival
+  // instead of being orphaned and designed again. `jdSlug` rides along when a JD exists.
   const slug = jdSlugOfJobId(jobId);
   const jd = slug ? loadJd(slug, workspaceId) : null;
-  if (!jd) return { outcome: "skipped", reason: "no_jd" };
+  const job = getJob(jobId, workspaceId);
+  if (!jd && !job) return { outcome: "skipped", reason: "no_jd" };
 
   const gate = homeworkGate(stage, workspaceId);
 
@@ -253,11 +295,11 @@ async function designThenInvite(
     return refuse(entry, "billing", "the case-design allowance is exhausted");
   }
 
-  const job = getJob(jobId, workspaceId);
   const need = {
-    title: jd.title || job?.title || "Work-sample assignment",
-    jdSlug: jd.slug,
-    jdText: jd.body ?? "",
+    title: jd?.title || job?.title || "Work-sample assignment",
+    jobId,
+    ...(jd ? { jdSlug: jd.slug } : {}),
+    jdText: jd?.body ?? job?.description ?? "",
     roleFamily: job?.roleFamily || "software_engineering",
     stack: [] as string[],
     responsibilities: [] as string[],

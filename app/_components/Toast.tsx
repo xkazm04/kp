@@ -38,7 +38,7 @@ const emptySubscribe = () => () => {};
 
 const TONE: Record<ToastVariant, { border: string; icon: typeof Info; iconColor: string }> = {
   success: { border: "border-moss/50", icon: CheckCircle2, iconColor: "text-moss" },
-  error: { border: "border-coral/50", icon: AlertTriangle, iconColor: "text-coral" },
+  error: { border: "border-coral/50", icon: AlertTriangle, iconColor: "text-coral-ink" },
   info: { border: "border-stone-300", icon: Info, iconColor: "text-steel" },
 };
 

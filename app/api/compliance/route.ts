@@ -1,5 +1,5 @@
 import { getActiveRegimeId } from "@/app/_lib/decision-config-store";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { consentRetentionMonths } from "@/app/_lib/consent";
 import { normalizeRegimeId } from "@/app/_lib/compliance-regimes";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
@@ -23,7 +23,7 @@ import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 // would be a caller-supplied workspace id — which would let anyone enumerate any
 // team's legal posture. A wrong answer that is also enumerable is worse than the
 // gated one. The prop path is the real answer.
-export async function GET() {
+export const GET = withWorkspace(async (ws: string) => {
   // TENANCY — read the regime for the CALLER's workspace. Bare, getActiveRegimeId()
   // always answered for the default workspace: a team that had set its jurisdiction
   // to `us` still saw "EU equal-treatment directives / processed under GDPR" on its
@@ -52,10 +52,10 @@ export async function GET() {
       // Normalized at this read boundary as well as in the store: this value is rendered
       // as a legal framework, so a stale or hand-edited row must land on the EU default
       // rather than paint an empty jurisdiction (compliance-regimes.test.ts).
-      jurisdiction: normalizeRegimeId(getActiveRegimeId(await currentWorkspace())),
+      jurisdiction: normalizeRegimeId(getActiveRegimeId(ws)),
       consentRetentionMonths: consentRetentionMonths(),
     });
   } catch (error) {
     return safeJsonError(error, "api:compliance", "COMPLIANCE_LOOKUP_FAILED");
   }
-}
+});

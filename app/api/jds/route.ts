@@ -7,13 +7,12 @@ import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { canDeleteJd, jdDeleteActor } from "@/app/_lib/jds-delete-access";
 import { currentUser } from "@/app/_lib/auth/current-user";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 
-export async function GET(request: Request) {
+export const GET = withWorkspace(async (ws: string, request: Request) => {
   try {
-    const ws = await currentWorkspace();
     // The picker has been sending `?limit=JD_LIBRARY_LIMIT` since the library got a
     // stated bound, and this handler took no Request at all — the parameter was
     // unreadable by construction and the answer was always a 200-row slice. Read it
@@ -81,9 +80,9 @@ export async function GET(request: Request) {
   } catch (error) {
     return safeJsonError(error, "api:jds", "JD_LIST_FAILED");
   }
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withWorkspace(async (ws: string, request: Request) => {
   // Writing a JD to the library is a recruiter write, so it re-verifies the operator
   // here (defense in depth — `/api/jds/*` is already behind the session gate in
   // public-routes.ts, GET above included; the only open surface is the /jds/[slug]
@@ -109,7 +108,7 @@ export async function POST(request: Request) {
     // certain, and the delete door has nothing else to match on. Null in open dev
     // and for an operator-password session (neither carries a user id); those
     // callers already resolve as admin, so the door still works for them.
-    const saved = saveJd({ title: fields.title, body: fields.body }, await currentWorkspace(), (await currentUser()).userId);
+    const saved = saveJd({ title: fields.title, body: fields.body }, ws, (await currentUser()).userId);
     return NextResponse.json({ ...saved, title: fields.title, body: fields.body });
   } catch (error) {
     // Never forward raw SQLite text (e.g. "UNIQUE constraint failed: jds.slug")
@@ -117,4 +116,4 @@ export async function POST(request: Request) {
     // message + stable code instead. Every JD/template sibling routes here too.
     return safeJsonError(error, "api:jds", "JD_SAVE_FAILED");
   }
-}
+});

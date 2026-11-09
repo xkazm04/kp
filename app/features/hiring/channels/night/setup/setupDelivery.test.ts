@@ -10,7 +10,7 @@ import {
   canSaveEdge, canSaveRelay, drainOutcome, edgeCursorValue, edgeSaveBody, edgeView, relayDirty, relaySaveBody, relaySaveOutcome, relayScene, relayTestGate, relayTestOutcome,
 } from "./setupDelivery.ts";
 
-const relay = (over: Partial<RelayState> = {}): RelayState => ({ url: "https://relay.example.com/hooks/kp", hasSecret: true, envConfigured: false, version: 3, relay: "configured", ...over });
+const relay = (over: Partial<RelayState> = {}): RelayState => ({ url: "https://relay.example.com/hooks/kp", hasSecret: true, envConfigured: false, version: 3, relay: "configured", linkBase: null, ...over });
 const edge = (over: Partial<EdgeState> = {}): EdgeState => ({
   url: "https://edge.example.workers.dev", hasSecret: true, sealed: false, cursor: 12, lastDrainAt: null, lastHeartbeatAt: null, pending: null,
   lastErrorKind: null, nudgeTarget: null, envConfigured: false, offline: false, ...over,

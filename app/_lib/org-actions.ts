@@ -5,8 +5,9 @@ import { localeCookieOptions } from "@/i18n/cookie";
 import { isLocale, LOCALE_COOKIE, type Locale } from "@/i18n/locales";
 import { requireOrgCapability } from "./auth/current-user";
 import { currentWorkspace } from "./auth/current-workspace";
-import { setOrganizationLocale } from "./db/organizations";
+import { DEFAULT_ORG_ID, setOrganizationLocale, setOrganizationName } from "./db/organizations";
 import { getWorkspaceOrgId, setWorkspaceDefaultLocale } from "./db/workspaces";
+import { readOrgName } from "./org-name-server";
 import { isOrgCurrency, ORG_CURRENCY_COOKIE, ORG_NAME_COOKIE, sanitizeOrgName } from "./org-settings";
 
 // One year — the org identity should persist across sessions, matching the
@@ -42,23 +43,36 @@ async function orgManageDenied(): Promise<boolean> {
   return (await requireOrgCapability("org:manage")) !== null;
 }
 
-/** Persist the organization name in the `kp_org_name` cookie. Called from the
- *  Organization settings page. Sanitized (trim + clamp) before write so the
- *  cookie can't hold an oversized or whitespace-only value; the effective read
- *  falls back to the default when it's empty.
+/** Persist the organization name on the caller's organization row
+ *  (`organizations.name`). Called from the Organization settings page and the setup
+ *  wizard. Sanitized (trim + clamp) before write; an empty name restores the
+ *  "unnamed" placeholder, and every reader then falls back to the brand/seed default.
  *
- *  The name's STORAGE is deliberately a per-browser cookie (owner decision, kept):
- *  that is not what the gate is about. Branding the company is an administrator's
- *  act whatever it is stored in, and leaving one of the tab's two settings ungated
- *  would teach the next reader that the check is decorative. */
+ *  DECISION 2026-10-22 (owner): the name is stored IN THE DATABASE, per organization.
+ *  It used to be "deliberately a per-browser cookie (owner decision, kept)", which
+ *  meant a second browser or a teammate saw an empty company. That decision is
+ *  reversed: the `kp_org_name` cookie is no longer written, and a legacy cookie is
+ *  migrated into the row on first read (org-name-server.ts `readOrgName`).
+ *
+ *  Branding the company is an administrator's act, so the write takes `org:manage`. */
 export async function setOrgName(name: string): Promise<OrgSettingResult> {
   if (await orgManageDenied()) return { ok: false, code: "ORG_SETTINGS_FORBIDDEN" };
-  (await cookies()).set(ORG_NAME_COOKIE, sanitizeOrgName(name), {
-    path: "/",
-    maxAge: ONE_YEAR_SECONDS,
-    sameSite: "lax",
-  });
+  // An unlinked legacy workspace (org_id NULL) is the single-tenant install: it names
+  // the default org, the one the seed and the open-dev session already belong to.
+  const orgId = getWorkspaceOrgId(await currentWorkspace()) ?? DEFAULT_ORG_ID;
+  setOrganizationName(orgId, sanitizeOrgName(name));
+  // The legacy copy must not outlive the write, or the next read would migrate it back.
+  (await cookies()).delete(ORG_NAME_COOKIE);
   return { ok: true };
+}
+
+/** The caller's organization name for the client forms (Organization tab, setup
+ *  wizard), or "" while the org has no name of its own. Reads the row, migrating a
+ *  legacy cookie once. Any signed-in caller may read; the route gate on server
+ *  actions is the session itself. */
+export async function getOrgName(): Promise<string> {
+  const orgId = getWorkspaceOrgId(await currentWorkspace());
+  return readOrgName(orgId);
 }
 
 /** Persist the organization's salary currency in the `kp_org_currency` cookie —

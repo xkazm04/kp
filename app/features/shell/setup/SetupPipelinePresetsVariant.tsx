@@ -114,7 +114,7 @@ export function SetupPipelinePresetsVariant({ edit }: { edit: SetupPipelineEdit 
               {removed.map((stage) => (
                 <li key={stage.id}>
                   {displayLabel(stage)}
-                  {edit.occupants(stage) > 0 ? <span className="ml-1 text-coral">{t("occupiedHint", { count: edit.occupants(stage) })}</span> : null}
+                  {edit.occupants(stage) > 0 ? <span className="ml-1 text-coral-ink">{t("occupiedHint", { count: edit.occupants(stage) })}</span> : null}
                 </li>
               ))}
             </ul>
@@ -156,7 +156,7 @@ export function SetupPipelinePresetsVariant({ edit }: { edit: SetupPipelineEdit 
           disabled={edit.atMax}
           className={`${BTN_SECONDARY} mt-2 h-8 gap-1.5 px-2.5 text-sm font-semibold`}
         >
-          <Plus size={13} className="text-coral" aria-hidden /> {t("addStep")}
+          <Plus size={13} className="text-coral-ink" aria-hidden /> {t("addStep")}
         </button>
       </div>
     </div>

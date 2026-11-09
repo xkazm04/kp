@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { teamBenchmark } from "@/app/_lib/db/org-benchmarks";
 import { safeJsonError } from "@/app/_lib/api-response";
 
@@ -25,11 +25,10 @@ import { safeJsonError } from "@/app/_lib/api-response";
 //      wrong number a benchmark must not produce" statsFrom() was rewritten to avoid.
 // If a windowed benchmark is ever wanted it needs its own basis (completed-in-window, with
 // the floor recomputed per window) — not a `days` param bolted onto this one.
-export async function GET() {
+export const GET = withWorkspace(async (workspaceId: string) => {
   try {
-    const workspaceId = await currentWorkspace();
     return NextResponse.json(teamBenchmark(workspaceId));
   } catch (error) {
     return safeJsonError(error, "api:benchmarks", "BENCHMARK_FAILED");
   }
-}
+});

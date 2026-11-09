@@ -412,6 +412,12 @@ async function runDeploy() {
     console.error("No agent_id in response:", JSON.stringify(data).slice(0, 400));
     process.exit(1);
   }
+  // The id is written into .env: refuse anything that is not a plain token, so a response
+  // cannot smuggle a newline and with it a second variable.
+  if (typeof agentId !== "string" || !/^[A-Za-z0-9_-]+$/.test(agentId)) {
+    console.error("Unexpected agent_id in response; not writing it to .env.");
+    process.exit(1);
+  }
 
   writeFileSync(envPath, upsertEnv(envText, "ELEVENLABS_AGENT_ID", agentId), "utf8");
   console.log(`✓ Created agent ${agentId}`);

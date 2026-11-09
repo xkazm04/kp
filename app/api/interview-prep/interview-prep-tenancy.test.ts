@@ -90,13 +90,14 @@ test("all four verbs of /api/interview-prep pass the resolved workspace into get
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/(^|[^:])\/\/.*$/gm, "$1");
   for (const verb of ["GET", "PUT", "POST", "PATCH"]) {
-    const start = src.indexOf(`export async function ${verb}(`);
+    const handlerRe = (v: string) => new RegExp(`export (?:async function|const) ${v}\\b`);
+    const start = src.search(handlerRe(verb));
     assert.ok(start >= 0, `${verb} handler must exist`);
     const next = ["GET", "PUT", "POST", "PATCH"]
-      .map((v) => src.indexOf(`export async function ${v}(`, start + 1))
-      .filter((i) => i > start);
+      .map((v) => src.slice(start + 1).search(handlerRe(v)) + start + 1)
+      .filter((i) => i > start + 1);
     const body = src.slice(start, next.length ? Math.min(...next) : src.length);
-    assert.match(body, /currentWorkspace\(\)/, `${verb} must resolve the tenant`);
+    assert.match(body, /withWorkspace\(async \(ws: string/, `${verb} must receive the tenant from withWorkspace`);
     assert.match(
       body,
       /getInterviewPrep\(\s*entry\s*,\s*(ws|await currentWorkspace\(\))\s*\)/,

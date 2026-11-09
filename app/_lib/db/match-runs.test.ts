@@ -67,3 +67,11 @@ test("the weights fingerprint ignores key order and separates baseline from an o
   assert.notEqual(matchWeightsHash({ skills: 60, career: 40 }), matchWeightsHash({ skills: 61, career: 39 }));
   assert.notEqual(matchWeightsHash(null), matchWeightsHash({ skills: 60 }));
 });
+
+test("the scorer version a run was filed under is stored: a proof score is distinguishable from an old-arithmetic one", () => {
+  const proofFacts = { ...FACTS, scorerVersion: "proof-weights.1-lam0.8-sd0.05" };
+  const runId = recordMatchRun({ workspaceId: ws, candidateId: "c-ver", weights: null, results: [{ jobId: "jp", facts: proofFacts }, { jobId: "jl", facts: FACTS }] });
+  const stored = ensureDb().prepare(`SELECT job_id, scorer_version FROM match_run_results WHERE run_id = ? ORDER BY job_id`).all(runId);
+  assert.deepEqual(stored, [{ job_id: "jl", scorer_version: "match-scorer.v1" }, { job_id: "jp", scorer_version: "proof-weights.1-lam0.8-sd0.05" }]);
+  assert.deepEqual(loadMatchRunFacts({ workspaceId: ws, runId, candidateId: "c-ver", jobId: "jp" }), proofFacts);
+});

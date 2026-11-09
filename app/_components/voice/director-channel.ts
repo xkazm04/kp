@@ -43,7 +43,10 @@ export const MAX_TURNS_PER_REQUEST = 50;
 /** Observations per request — the server's MAX_DIRECTOR_CLIENT_EVENTS_PER_REQUEST. */
 export const MAX_EVENTS_PER_REQUEST = 20;
 /** Observations held while the director is unreachable. Past this the OLDEST are
- *  dropped: they are telemetry, and an unbounded queue on a 45-minute call is not. */
+ *  dropped: they are telemetry, and an unbounded queue on a 45-minute call is not.
+ *  Every drop is COUNTED at the site that makes it (`droppedEvents`): a record thin
+ *  in focus departures because the queue spent them must not read the same as a
+ *  candidate who never left the tab. */
 export const MAX_QUEUED_EVENTS = 60;
 /** Consecutive answered-but-progressless exchanges before the pump stops for this
  *  trigger. Without it a server that persists nothing (at its per-session event
@@ -69,6 +72,11 @@ export type DirectorChannelOptions = {
   /** Injected so tests can stamp deterministic turn times. */
   now?: () => Date;
 };
+
+/** Observations this channel discarded, by cause, for the life of the channel.
+ *  `evicted` is the queue cap's designed spend during an outage; `flushed` is what
+ *  `close()` found still queued (or what arrived after it). Monotonic. */
+export type DroppedEvents = { evicted: number; flushed: number };
 
 export type DirectorChannel = {
   /** Queue a finalized turn and return the seq it was given. */
@@ -96,6 +104,8 @@ export type DirectorChannel = {
   readonly closed: boolean;
   /** Turns queued but not yet acknowledged. */
   readonly pendingTurns: number;
+  /** What the observation queue discarded so far, by cause (a copy). */
+  readonly droppedEvents: DroppedEvents;
   /** The seq the next recorded turn will take. */
   readonly nextSeq: number;
 };
@@ -111,6 +121,9 @@ export function createDirectorChannel(options: DirectorChannelOptions): Director
   let held = 0;
   let pending: DirectorTurn[] = [];
   let events: DirectorClientEvent[] = [];
+  const dropped: DroppedEvents = { evicted: 0, flushed: 0 };
+  // Log the TRANSITION into evicting, never each drop: one line per outage.
+  let evicting = false;
   const tools: Array<{ call: DirectorToolCall; resolve: (result: string) => void }> = [];
 
   const hasWork = () => pending.length > 0 || events.length > 0 || tools.length > 0 || heartbeatDue;
@@ -162,6 +175,7 @@ export function createDirectorChannel(options: DirectorChannelOptions): Director
       const before = pending.length;
       pending = pending.filter((t) => t.seq > ack);
       events = events.slice(sentEvents.length);
+      if (sentEvents.length > 0) evicting = false;
       const progressed = pending.length < before || sentEvents.length > 0 || waiting !== null;
       progressless = progressed ? 0 : progressless + 1;
       try {
@@ -203,8 +217,19 @@ export function createDirectorChannel(options: DirectorChannelOptions): Director
       return seq;
     },
     recordEvent(event) {
+      if (closed) {
+        dropped.flushed += 1;
+        return;
+      }
       events.push(event);
-      if (events.length > MAX_QUEUED_EVENTS) events = events.slice(-MAX_QUEUED_EVENTS);
+      if (events.length > MAX_QUEUED_EVENTS) {
+        dropped.evicted += events.length - MAX_QUEUED_EVENTS;
+        events = events.slice(-MAX_QUEUED_EVENTS);
+        if (!evicting) {
+          evicting = true;
+          console.warn(`[voice] director unreachable: observation queue full at ${MAX_QUEUED_EVENTS}, dropping oldest`);
+        }
+      }
       flush();
     },
     callTool(call) {
@@ -231,6 +256,8 @@ export function createDirectorChannel(options: DirectorChannelOptions): Director
     close() {
       closed = true;
       heartbeatDue = false;
+      dropped.flushed += events.length;
+      events = [];
       while (tools.length > 0) {
         const waiting = tools.shift();
         waiting?.resolve(TOOL_RESULT_FALLBACK);
@@ -241,6 +268,9 @@ export function createDirectorChannel(options: DirectorChannelOptions): Director
     },
     get pendingTurns() {
       return pending.length;
+    },
+    get droppedEvents() {
+      return { ...dropped };
     },
     get nextSeq() {
       return nextSeq;

@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 
 import { fnv1a } from "./hash.ts";
 import { candidateSetFingerprint, groupEvalDedupeKey } from "./group-eval-dedupe.ts";
-import { selectionCacheKey } from "@/app/features/hiring/decisions/groupEval/cache-key";
+import { selectionCacheKey } from "@/app/_lib/group-eval-cache-key";
 
 // The digests below are a COMPATIBILITY CONTRACT, not a spec of what FNV-1a
 // "should" produce. They were captured from the two implementations this module
-// replaced (group-eval-dedupe.ts's and groupEval/cache-key.ts's), which were
+// replaced (group-eval-dedupe.ts's and group-eval-cache-key.ts's), which were
 // byte-identical in output despite differing in source. Every persisted
 // `group_evals.role_key` for a selection run, and every in-flight `group_eval`
 // task dedupe key, embeds one of these. If a change here turns this test red the

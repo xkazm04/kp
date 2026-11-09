@@ -1,0 +1,112 @@
+{
+ "schema": "conform-run/1",
+ "worker": "e118f853-7d06-47ed-94b0-0b9209d947a5",
+ "subject": "candidate-consent-and-retention",
+ "evaluatedAt": "2026-10-18T00:44:26.968149+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "consent-erasure-privacy",
+   "subject": "candidate-consent-and-retention",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/consent.ts:38 Consent lifecycle states omit withdrawal and fail open when expiry is missing, while the legal-claims carve-out holds decision records indefinitely without an end date.",
+   "techniques": [
+    {
+     "technique": "retention-ttl-and-derived-disclosure",
+     "verdict": "conformant",
+     "evidence": "app/_lib/consent.ts:28 Candidate-facing retention months are derived from enforced TTL days and rounded up via Math.ceil so disclosure never understates the window."
+    },
+    {
+     "technique": "read-time-gate-not-just-the-sweep",
+     "verdict": "deviation",
+     "evidence": "app/_lib/consent.ts:68 Treats missing expiry as active rather than withholding, and ConsentStatus lacks a withdrawn state."
+    },
+    {
+     "technique": "one-transaction-scrub-across-linked-records",
+     "verdict": "conformant",
+     "evidence": "app/_lib/erasure-full-scrub.test.ts:257 Regression test asserts that every workspace-scoped table is reached by the single-transaction erasure or listed in ERASURE_EXEMPT."
+    },
+    {
+     "technique": "deep-redact-verbatim-quote-containers",
+     "verdict": "conformant",
+     "evidence": "app/_lib/consent.ts:220 Recursively traverses container subtrees to blank strings and empty arrays while preserving structural shape and scores."
+    },
+    {
+     "technique": "anonymise-but-retain-the-aggregate-signal",
+     "verdict": "conformant",
+     "evidence": "app/_lib/consent.ts:148 Masks candidate labels to initials with stopword stripping so pipeline history remains legible without identifying candidates."
+    },
+    {
+     "technique": "legal-claims-carve-out-from-erasure",
+     "verdict": "deviation",
+     "evidence": "app/_lib/erasure-full-scrub.test.ts:277 Retained carve-out tables require a written reason but carry no limitation period or end date, leaving retention indefinite."
+    }
+   ],
+   "registryProposal": "Clarify in the standard whether consent withdrawal belongs under read-time-gate-not-just-the-sweep or warrants its own named technique, as the golden path mandates append-only withdrawal transitions distinct from expiry."
+  },
+  {
+   "context": "gdpr-data-erasure-page",
+   "subject": "candidate-consent-and-retention",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/data/[token]/DataClient.tsx:86 When an erased candidate revisits the self-service page, the nulled token causes a 404 that renders as a dead-link error rather than confirming erasure, and the receipt omits a retention end date for the legal-claims carve-out.",
+   "techniques": [
+    {
+     "technique": "retention-ttl-and-derived-disclosure",
+     "verdict": "conformant",
+     "evidence": "app/data/[token]/DataClient.tsx:158 Dynamically derives rendered held-data categories from the candidate's actual record using renderableHeldCategories rather than a static template."
+    },
+    {
+     "technique": "one-transaction-scrub-across-linked-records",
+     "verdict": "deviation",
+     "evidence": "app/data/[token]/DataClient.tsx:38 The token is nulled upon erasure, so a candidate re-visiting the link gets a 404 dead link error on initial load instead of an idempotent receipt."
+    },
+    {
+     "technique": "legal-claims-carve-out-from-erasure",
+     "verdict": "deviation",
+     "evidence": "app/data/[token]/DataClient.tsx:216 The post-erasure receipt mentions retaining a sealed decision log for legal defense, but omits any end date for the carve-out retention."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-18T00:44:26.968149+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-consent-and-retention"
+   ],
+   "techniques": [
+    "anonymise-but-retain-the-aggregate-signal",
+    "deep-redact-verbatim-quote-containers",
+    "legal-claims-carve-out-from-erasure",
+    "one-transaction-scrub-across-linked-records",
+    "read-time-gate-not-just-the-sweep",
+    "retention-ttl-and-derived-disclosure"
+   ],
+   "deviations": 1,
+   "context": "consent-erasure-privacy",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-18T00:44:26.968149+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-consent-and-retention"
+   ],
+   "techniques": [
+    "legal-claims-carve-out-from-erasure",
+    "one-transaction-scrub-across-linked-records",
+    "retention-ttl-and-derived-disclosure"
+   ],
+   "deviations": 1,
+   "context": "gdpr-data-erasure-page",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}

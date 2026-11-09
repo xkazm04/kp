@@ -106,7 +106,7 @@ export default async function DiagramsPage({
                 <PlantUml source={it.source} scale="natural" className="mt-4" expandable />
               )
             ) : (
-              <p className="mt-4 text-sm text-coral">{t("readError", { file: it.file })}</p>
+              <p className="mt-4 text-sm text-coral-ink">{t("readError", { file: it.file })}</p>
             )}
           </section>
         ))}

@@ -71,6 +71,6 @@ test("the runner declares a budget for every intake thread", () => {
 });
 
 test("INTAKE_TURN_TIMEOUT is a declared refusal", () => {
-  const responses = read("../../_lib/api-response.ts");
+  const responses = read("../../_lib/api-response.ts") + read("../../_lib/api-errors/store-errors.ts") + read("../../_lib/api-errors/refusal-errors.ts");
   assert.match(responses, /INTAKE_TURN_TIMEOUT:/, "the code must exist in REFUSAL_ERRORS");
 });

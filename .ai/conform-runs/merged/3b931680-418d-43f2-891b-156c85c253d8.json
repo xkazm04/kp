@@ -1,0 +1,72 @@
+{
+ "schema": "conform-run/1",
+ "worker": "3b931680-418d-43f2-891b-156c85c253d8",
+ "subject": "conversational-assessment-validation",
+ "evaluatedAt": "2026-10-27T22:03:58.282659+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "interview-simulator",
+   "subject": "conversational-assessment-validation",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/interview-sim/situations.ts:84 Evaluative praise such as \"great answer\" (lexicon en.praise_leading) sits on the reliability axis, is always on (detectors.ts ALWAYS_ON_INVARIANTS) and is gated at full pass, which the technique explicitly rules out: a single praise turn is a style lapse to be counted, and gating it makes the reliability gate red for taste.",
+   "techniques": [
+    {
+     "technique": "deterministic-reliability-invariants-at-full-pass",
+     "verdict": "deviation",
+     "evidence": "app/_lib/interview-sim/lexicon.ts:245 The core is well realized: an ordered refusal/violation pair at sentence and clause granularity (containmentHits with splitContrast), a two-tier hard/soft leak check keyed to the director's own vocabulary, a bigram loop detector, a language lock-and-follow check that exempts the opener, always-on invariants, four states, coverage that fails closed to INCONCLUSIVE, and a withdrawn rule kept as a non-gating measurement (cross-block.ts). The deviation is that evaluative praise is on the full-pass reliability gate. The technique says praise is deliberately not on that list and belongs in the ungated band. A second gap: the report shows PASS with no ~3/n upper bound beside it."
+    },
+    {
+     "technique": "candidate-behaviour-persona-bank",
+     "verdict": "conformant",
+     "evidence": "app/_lib/interview-sim/situations.ts:4 35 situations, each a behaviour paired with a required response (`handles`), validated on load. They cover normal and adversarial behaviours, the hiring quartet, a benign near-miss, and a three-step escalation after four rapport turns. Delivery of the stimulus is verified: undelivered is not_provoked/not_evaluable, never a pass. Gaps: there is no accommodation-request variant of the sensitive disclosure, no per-behaviour severity tiers outside escalates_within_call, and no frozen-core plus seeded rotating sample (the seed only orders the run)."
+    },
+    {
+     "technique": "judged-quality-as-a-separate-axis",
+     "verdict": "conformant",
+     "evidence": "app/_lib/interview-sim/judge.ts:2 The judge answers binary per-conversation facts and never sees the private brief. It must cite evidence, and unverified evidence becomes null, which means not_evaluable. The rubric is versioned and the run refuses a judge that is the interviewer's model (JudgeIndependenceError). Quality is reported apart and is never a gate or an average. A double-barrelled closes_properly is labelled as a lower bound."
+    },
+    {
+     "technique": "persona-by-behaviour-heatmap",
+     "verdict": "conformant",
+     "evidence": "app/_lib/interview-sim/verdict-run.ts:189 heatmap.md puts the margins first (by behaviour, fixture and language), sorted worst-reliability-first with ties going to the larger group. The behaviour x fixture cross carries n per cell and marks cells under 3 as thin. Repeated runs become rates. The fixed reading order is applied in readingOrder(), and a limits line says this is not a claim about a real population."
+    },
+    {
+     "technique": "prompt-change-regression-baseline",
+     "verdict": "conformant",
+     "evidence": "app/_lib/interview-sim/baseline-diff.ts:6 The diff is cell by cell (situation x invariant) into nonlocal/targeted regression, intended/nonlocal improvement, binomial noise against the baseline's own spread, and not_comparable. A baseline is pinned by briefSha, directorVersion, interviewer engine, situationSha and judge rubric version, and a reliability regression is blocking. baseline-diff.ts sits in the context directory but is not on its listed file set."
+    },
+    {
+     "technique": "guardrail-ablation-self-test",
+     "verdict": "deviation",
+     "evidence": "app/_lib/interview-sim/instrument.ts:2 The instrument can only be built through the production builders. A search of app/_lib/interview-sim for ablat, transform and wording found no with-rule/without-rule arm, no per-wording arm, no no-provocation arm and no record of rejected wordings kept beside the director brief. The only --ablate is in the Python eval (pipeline/jobfit/eval/interview_optimize.py, outside this context). That flag strips a guardrail to check that the optimizer loop re-derives it, which is not this technique's experiment."
+    }
+   ],
+   "registryProposal": "The technique bans praise from the full-pass gate because a per-turn pattern cannot see rationing. This repo deliberately gates a narrow, declarative detector for praise that grades the person or the answer, and records its known misses. The standard could say explicitly whether such a narrow grading-praise form counts as a soft verdict, belonging to the no-verdict invariant, or as taste, belonging to the ungated band. As written, the two readings overlap."
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-27T22:03:58.282659+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "conversational-assessment-validation"
+   ],
+   "techniques": [
+    "candidate-behaviour-persona-bank",
+    "deterministic-reliability-invariants-at-full-pass",
+    "guardrail-ablation-self-test",
+    "judged-quality-as-a-separate-axis",
+    "persona-by-behaviour-heatmap",
+    "prompt-change-regression-baseline"
+   ],
+   "deviations": 1,
+   "context": "interview-simulator",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -1,0 +1,79 @@
+{
+  "schema": "conform-run/1",
+  "worker": "0ed47f7f-4c7e-421a-8e19-a9b8e4cb7cfc",
+  "subject": "selection-score-calibration",
+  "evaluatedAt": "2026-10-25T03:13:47.403816+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "pipeline-actions-commands",
+      "subject": "selection-score-calibration",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evidence": "app/_lib/pipeline-entry-action.ts:587 A command-bar `reject below N%` is sealed as a human `rejected` record (policyVersion \"command-bar\"), and the clean arm (heldOutEntryIds in decision-record-store.ts:681-682) subtracts only `auto_rejected` records, so a holdout-spared candidate later rejected by a typed score threshold stays in the clean arm as a negative that the score produced.",
+      "techniques": [
+        {
+          "technique": "deterministic-holdout-clean-arm",
+          "verdict": "deviation",
+          "evidence": "app/_lib/pipeline-entry-action.ts:587 Step 9 says the arm is sparings minus later score-caused rejections. This core writes a threshold-driven bulk reject with the human kind, which the arm's subtraction (kind = auto_rejected only) cannot see, so the reject is not removed from the arm."
+        },
+        {
+          "technique": "label-leakage-taxonomy",
+          "verdict": "deviation",
+          "evidence": "app/_lib/pipeline-command.ts:114 The command bar picks the rejected set purely by score below a typed cutoff, so it is a score-caused path. Downstream it is not given its own leakage level: it gets the same record kind as a hand reject, and the holdout surface's 'score did NOT mechanically produce their outcome' claim is wrong for these rows."
+        },
+        {
+          "technique": "outcome-axis-selection-advance-versus-hire",
+          "verdict": "conformant",
+          "evidence": "app/_lib/pipeline-stages.ts:171 The advance-axis positive set (calibrationAdvancedStages) comes from the stage ROLE gate, never from a display name. pipeline-status.ts:41 keeps declined, rematched and role_closed as statuses separate from rejected, so non-merit terminals can be excluded."
+        }
+      ],
+      "registryProposal": "The holdout technique's step 9 says 'minus the set of automated rejections'. It should instead say 'minus every rejection whose target set was selected by the score, including human-confirmed threshold bulk actions'. A recruiter-confirmed 'reject below N%' is exactly the case a kind-based subtraction misses."
+    }
+  ],
+  "declined": [
+    {
+      "subject": "selection-score-calibration",
+      "context": "match-score-shared-types",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "selection-score-calibration",
+      "context": "score-metric-display",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor (scoreDial.logic.ts:16) is only the VERDICT_BANDS table, so it does not itself show that calibration is out of scope, and the not-applicable rests on a grep for absence; the context also renders verdict words like 'excellent' for a raw score, and whether those overstate an uncalibrated sc"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-25T03:13:47.403816+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "selection-score-calibration"
+      ],
+      "techniques": [
+        "deterministic-holdout-clean-arm",
+        "label-leakage-taxonomy",
+        "outcome-axis-selection-advance-versus-hire"
+      ],
+      "deviations": 1,
+      "context": "pipeline-actions-commands",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-10-25T03:13:47.403816+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "selection-score-calibration"
+      ],
+      "techniques": [
+        "reliability-bins-and-proper-scoring"
+      ],
+      "deviations": 0,
+      "context": "score-metric-display",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

@@ -1,0 +1,207 @@
+{
+ "schema": "conform-run/1",
+ "worker": "000497eb-d5e5-44d1-8653-0be07b409624",
+ "subject": "fleet-orchestration",
+ "evaluatedAt": "2026-10-24T04:43:19.833852+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "interview-simulator",
+   "subject": "fleet-orchestration",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "app/_lib/interview-sim/runner.ts:229 Contrary to the stale not-applicable verdict, the simulator is a fleet of model-driven sessions: a capped worker pool fans situations out, each writes its own dump file, and the run index accounts for ran/skipped/errored, so most of the subject's techniques are realized here.",
+   "techniques": [
+    {
+     "technique": "parallel-dispatch",
+     "verdict": "conformant",
+     "evidence": "app/_lib/interview-sim/runner.ts:229 Concurrency is capped at opts.workers over one shared queue. Each conversation writes only its own `${s.id}.json`, so write sets are disjoint by construction."
+    },
+    {
+     "technique": "result-harvest",
+     "verdict": "conformant",
+     "evidence": "app/_lib/interview-sim/runner.ts:232 The run record counts ran, errored and skipped. runConversation never throws, so every roster member lands with an endedBy."
+    },
+    {
+     "technique": "inherited-state-provenance",
+     "verdict": "conformant",
+     "evidence": "app/_lib/interview-sim/runner.ts:190 A prior dump is reused only when the instrument and situation identity match. Stale or errored dumps are re-run fresh, never handed to the new attempt."
+    },
+    {
+     "technique": "durable-fleet-state",
+     "verdict": "conformant",
+     "evidence": "app/_lib/interview-sim/runner.ts:221 Each result is persisted atomically the moment it finishes, and the index is rebuilt from disk, so an interrupted run resumes."
+    },
+    {
+     "technique": "session-registry",
+     "verdict": "conformant",
+     "evidence": "app/_lib/interview-sim/types.ts:66 One closed end-state vocabulary. It keeps cap-fired (max_turns) and provider failure (error) apart from protocol ends."
+    },
+    {
+     "technique": "completion-claim-verification",
+     "verdict": "conformant",
+     "evidence": "app/_lib/interview-sim/detectors.ts:319 Parent-side deterministic detectors read the record, not the interviewer's own claim. An undecidable record is not_evaluable, never a pass."
+    },
+    {
+     "technique": "soft-budget-under-the-hard-cap",
+     "verdict": "conformant",
+     "evidence": "app/_lib/interview-sim/detectors.ts:323 There are two limits: the clock and agenda in the brief, and the harness maxCalls cap. A cap-fired run is treated as truncated and fails 'completed'. Caveat: the cap is sized from the clock budget rather than the reverse, and no aggregate cap-fired fraction is printed."
+    },
+    {
+     "technique": "worker-trajectory-anatomy",
+     "verdict": "conformant",
+     "evidence": "app/_lib/interview-sim/engine.ts:255 The recovery budget is set at dispatch, in model calls, and it kills the run (ends max_turns). The judge deliberately does not get the private brief (judge.ts:7), which is in tension with 'give the watcher the spec'."
+    },
+    {
+     "technique": "lifecycle-signals",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/interview-sim/runner.ts:219 Each session is an awaited in-process promise that always resolves with an endedBy. Nothing can go silent, so there is nothing for a sweeper to find."
+    },
+    {
+     "technique": "heterogeneous-model-panels",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/interview-sim/engine.ts:481 The two models play different roles (interviewer and candidate). They do not answer one question as a panel."
+    }
+   ],
+   "registryProposal": "worker-trajectory-anatomy says to give the supervisor the worker's brief. An evaluation harness here deliberately keeps the private brief from its judge, so a judge built from the brief cannot grade the brief's own wording (judge.ts:7). The technique could name instrument-contamination as the case where the watcher gets the requirements but not the brief text."
+  },
+  {
+   "context": "devcase-orchestration",
+   "subject": "fleet-orchestration",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/devcase-orchestrator.ts:27 Fleet orchestration does not apply here. The devcase module drives one case through a stage machine inside a single background task, calling one LLM or Python step at a time, and its 'sessions' are human candidate attempts gated by session keys rather than a fleet of autonomous agent sessions. A search of app/_lib found no hibernation, session-registry, spawn-many or agent-session constructs.",
+   "techniques": [],
+   "absenceTerms": [
+    "hibernat",
+    "sessionRegistry",
+    "spawnMany",
+    "agentSession"
+   ]
+  },
+  {
+   "context": "agents-api",
+   "subject": "fleet-orchestration",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/agents/dispatch/spec-bounds.ts:26 The dispatch door sends the executor a hard maxTurns ceiling, and nothing in it derives a smaller budget for the agent's mission or system prompt. Execution reports only carry success or failure, so the fraction of runs where the cap fired cannot be measured and a cap-truncated run counts as a normal one.",
+   "techniques": [
+    {
+     "technique": "soft-budget-under-the-hard-cap",
+     "verdict": "deviation",
+     "evidence": "app/api/agents/dispatch/spec-bounds.ts:26 Only one limit (the enforced cap). There is no derived budget in the brief and no cap-fired instrument. Mitigation: Personas authors the final agent brief."
+    },
+    {
+     "technique": "session-registry",
+     "verdict": "conformant",
+     "evidence": "app/api/agents/[id]/refresh/route.ts:104 Push and pull both go through the one transitionHiredAgent door, which compare-and-swaps on the status the decision was computed from and writes a ledger row."
+    },
+    {
+     "technique": "lifecycle-signals",
+     "verdict": "conformant",
+     "evidence": "app/api/agents/report/[token]/route.ts:134 Push reports are the primary signal, with poll refresh as the fallback. A liveness receipt is stamped before parsing, and silence is derived at read time as check_reporter (agentsWorkforceLogic.ts, outside this context), not written as a death."
+    },
+    {
+     "technique": "absent-status-passthrough",
+     "verdict": "conformant",
+     "evidence": "app/api/agents/[id]/refresh/route.ts:93 A poll word with no mapping leaves the row unchanged. Nothing invents a status."
+    },
+    {
+     "technique": "durable-fleet-state",
+     "verdict": "conformant",
+     "evidence": "app/api/agents/dispatch/mint.ts:91 The durable row is minted before the outbound call. A bridge failure moves it to failed through the door (mint.ts:120), so no dispatch is lost from the roster."
+    }
+   ]
+  },
+  {
+   "context": "shell-setup-wizard",
+   "subject": "fleet-orchestration",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/shell/setup/setupSteps.ts:51 This is a client-side onboarding wizard over a fixed step list: it persists a draft and probes the companion's state. It never dispatches, registers or supervises agent sessions; a search of the setup directory found no fleet, worker, heartbeat, hibernation or session-registry constructs.",
+   "techniques": [],
+   "absenceTerms": [
+    "fleet",
+    "worker",
+    "heartbeat",
+    "hibernat",
+    "sessionRegistry"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "fleet-orchestration",
+   "context": "task-automation-engine",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-24T04:43:19.833852+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "fleet-orchestration"
+   ],
+   "techniques": [
+    "completion-claim-verification",
+    "durable-fleet-state",
+    "heterogeneous-model-panels",
+    "inherited-state-provenance",
+    "lifecycle-signals",
+    "parallel-dispatch",
+    "result-harvest",
+    "session-registry",
+    "soft-budget-under-the-hard-cap",
+    "worker-trajectory-anatomy"
+   ],
+   "deviations": 0,
+   "context": "interview-simulator",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T04:43:19.833852+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "fleet-orchestration"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "devcase-orchestration",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T04:43:19.833852+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "fleet-orchestration"
+   ],
+   "techniques": [
+    "absent-status-passthrough",
+    "durable-fleet-state",
+    "lifecycle-signals",
+    "session-registry",
+    "soft-budget-under-the-hard-cap"
+   ],
+   "deviations": 1,
+   "context": "agents-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T04:43:19.833852+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "fleet-orchestration"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "shell-setup-wizard",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

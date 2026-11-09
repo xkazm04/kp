@@ -42,6 +42,7 @@ export function useWorkspaceCommandPaletteItems({
   simResume,
   simStop,
   askCandi,
+  finishSetup,
   capabilities,
   nav,
   t,
@@ -60,6 +61,10 @@ export function useWorkspaceCommandPaletteItems({
   /** Opens the companion dock seeded with the query. Null on the deep-link pages,
    *  which render the palette without the workspace shell (and so without a dock). */
   askCandi: ((query: string) => void) | null;
+  /** Reopens the first-run wizard (live mode). Null unless setup is unfinished AND
+   *  the shell that listens for the request is mounted - the deep-link pages have
+   *  no listener, so offering it there would open nothing. */
+  finishSetup: (() => void) | null;
   /** What this caller may do here (navCapabilities.ts), or null while unknown —
    *  which offers everything, the same fail-open the nav takes. */
   capabilities: readonly Capability[] | null;
@@ -183,6 +188,12 @@ export function useWorkspaceCommandPaletteItems({
         href: buildUrl({ ...clearedTabScopedParams(), tab: "intake", [NEW_INTAKE_PARAM]: "new" }, search),
       });
     }
+    // "Finish setup" - the palette's twin of the Settings button. Offered only while
+    // the stored setup flag says unfinished (a door, not a to-do list).
+    const finishLabel = t("finishSetupAction");
+    if (finishSetup && (!q || finishLabel.toLowerCase().includes(q) || "setup onboarding".includes(q))) {
+      navOut.push({ key: "action-finish-setup", group: "actions", label: finishLabel, sub: t("finishSetupSub"), action: finishSetup });
+    }
     const tasksItem = tasksPaletteItem(q, tasks("label"), search);
     if (tasksItem && (q || !recentTabs.includes("tasks"))) navOut.push(tasksItem);
     // "Ask Candi: <query>" — the palette's ONE non-navigation answer to a query
@@ -216,5 +227,5 @@ export function useWorkspaceCommandPaletteItems({
     }
     return q ? out.concat(navOut) : out;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- tabLabel is stable per locale; nav/t hooks re-render on locale change anyway
-  }, [query, hits, search, recents, recentTabs, simRunning, simStart, simPaused, simPause, simResume, simStop, askCandi, locale, capabilities]);
+  }, [query, hits, search, recents, recentTabs, simRunning, simStart, simPaused, simPause, simResume, simStop, askCandi, finishSetup, locale, capabilities]);
 }

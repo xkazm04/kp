@@ -5,6 +5,7 @@ import { getUserById } from "@/app/_lib/db/users";
 import { getMembership } from "@/app/_lib/db/memberships";
 import { addMemberToWorkspace, changeMemberRole, removeMemberFromWorkspace, type MemberOpResult } from "@/app/_lib/org-service";
 import { canAssignRole, isMemberRole } from "@/app/_lib/auth/roles";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // One person's membership on one team (P2) — the write path behind the Workspaces
 // console, where a member can belong to several teams at once.
@@ -39,7 +40,7 @@ async function guard(workspaceId: string, userId: string): Promise<NextResponse 
   return null;
 }
 
-export async function PUT(request: NextRequest, context: { params: Promise<{ id: string; userId: string }> }) {
+export const PUT = withSession(async (request: NextRequest, context: { params: Promise<{ id: string; userId: string }> }) => {
   const { id, userId } = await context.params;
   const denied = await guard(id, userId);
   if (denied) return denied;
@@ -71,13 +72,13 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       : addMemberToWorkspace(userId, id, body.role);
   if (!r.ok) return NextResponse.json({ error: r.reason, code: r.reason }, { status: opStatus(r.reason) });
   return NextResponse.json({ ok: true });
-}
+});
 
-export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string; userId: string }> }) {
+export const DELETE = withSession(async (_request: NextRequest, context: { params: Promise<{ id: string; userId: string }> }) => {
   const { id, userId } = await context.params;
   const denied = await guard(id, userId);
   if (denied) return denied;
   const r = removeMemberFromWorkspace(userId, id);
   if (!r.ok) return NextResponse.json({ error: r.reason, code: r.reason }, { status: opStatus(r.reason) });
   return NextResponse.json({ ok: true });
-}
+});

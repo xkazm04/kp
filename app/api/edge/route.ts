@@ -5,6 +5,7 @@ import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentSession, requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { currentOrgId } from "@/app/_lib/auth/session";
 import { DEFAULT_ORG_ID } from "@/app/_lib/db/organizations";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // The edge pairing (docs/concepts/local-first-edge.md §3.2) — the UI-backed twin of
 // KP_EDGE_URL / KP_EDGE_SECRET, shaped exactly like /api/comms/relay because it is
@@ -14,13 +15,13 @@ import { DEFAULT_ORG_ID } from "@/app/_lib/db/organizations";
 // OPERATOR-only, for the same reason as the relay: this decides which remote queue
 // this installation will accept inbound candidate events from, and holds the secret
 // that authenticates it. GET never returns the secret — only `hasSecret`.
-export async function GET() {
+export const GET = withSession(async () => {
   const denied = await requireOperator();
   if (denied) return denied;
   return NextResponse.json({ config: getEdgeConfig() });
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). requireOperator above proves a
@@ -61,4 +62,4 @@ export async function POST(request: NextRequest) {
     }
     return safeJsonError(error, "api:edge", "EDGE_SAVE_FAILED");
   }
-}
+});

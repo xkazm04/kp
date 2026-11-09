@@ -18,7 +18,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { assertPublicHttpsEndpoint } from "./safe-url.ts";
-import { isPrivateAddress, assertDeliverableWebhookUrl } from "./ats-egress-guard.ts";
+import { isPrivateAddress, assertDeliverableWebhookUrl, assertPublicHttpsEndpointResolved } from "./ats-egress-guard.ts";
 
 // --- The write-boundary guard the ATS config store now delegates to -------------
 // (validateUrl -> assertPublicHttpsEndpoint). These are the exact SSRF pivots from
@@ -70,6 +70,36 @@ test("isPrivateAddress flags every non-public range (v4, v6, IPv4-mapped)", () =
   }
 });
 
+// The HEX spellings are the ones that matter: the WHATWG URL parser serializes
+// `[::ffff:169.254.169.254]` as `[::ffff:a9fe:a9fe]`, and dns.lookup hands an IP
+// literal back verbatim, so a guard that only unwrapped the dotted form let
+// `http://[::ffff:169.254.169.254]/` through the posting import to the metadata host.
+test("isPrivateAddress unwraps every IPv4-in-IPv6 spelling and flags the v6-only special ranges", () => {
+  for (const ip of [
+    "::ffff:a9fe:a9fe", // IPv4-mapped metadata, as URL + dns.lookup spell it
+    "::ffff:7f00:1", // IPv4-mapped loopback
+    "::ffff:0:a00:1", // SIIT-translated 10.0.0.1
+    "::7f00:1", // IPv4-compatible loopback
+    "::127.0.0.1",
+    "64:ff9b::a9fe:a9fe", // NAT64 metadata
+    "64:ff9b:1::1", // local-use NAT64
+    "2002:a9fe:a9fe::1", // 6to4 around metadata
+    "2001::1", // Teredo
+    "2001:db8::1", // documentation
+    "100::1", // discard-only
+    "fec0::1", // site-local
+    "ff02::1", // multicast
+    "0:0:0:0:0:ffff:7f00:1", // uncompressed
+    "not-an-ip", // malformed fails closed
+    "1:2:3:4:5:6:7:8:9",
+  ]) {
+    assert.equal(isPrivateAddress(ip), true, `${ip} should be private`);
+  }
+  for (const ip of ["::ffff:808:808", "64:ff9b::808:808", "2002:808:808::1", "2a00:1450:4001:80b::200e"]) {
+    assert.equal(isPrivateAddress(ip), false, `${ip} should be public`);
+  }
+});
+
 test("isPrivateAddress allows genuine public addresses", () => {
   for (const ip of [
     "93.184.216.34", // example.com
@@ -85,6 +115,27 @@ test("isPrivateAddress allows genuine public addresses", () => {
 // --- Delivery-time guard rejects string-level pivots BEFORE any DNS lookup -------
 // (These reject in the assertPublicHttpsEndpoint stage, so the test never touches
 // the network. The DNS-resolution branch is covered by isPrivateAddress above.)
+
+// A URL with userinfo passes every store-side check, and Node's fetch then throws
+// "Request cannot be constructed from a URL that includes credentials: <the URL>" —
+// which the connector probes and test routes render as their failure reason. The
+// guard refuses it first, before any lookup, and names neither half of the pair.
+test("assertPublicHttpsEndpointResolved refuses embedded credentials without echoing them", async () => {
+  let looked = 0;
+  const lookup = async () => {
+    looked++;
+    return [{ address: "93.184.216.34" }];
+  };
+  for (const raw of ["https://ops:s3cret-token@ats.example.com/v1", "https://only-user@ats.example.com/v1"]) {
+    await assert.rejects(assertPublicHttpsEndpointResolved(raw, "ATS base URL", lookup), (e: Error) => {
+      assert.match(e.message, /credentials/);
+      assert.doesNotMatch(e.message, /s3cret|ops|only-user/);
+      return true;
+    });
+  }
+  assert.equal(looked, 0);
+  assert.equal(await assertPublicHttpsEndpointResolved("https://ats.example.com/v1", "ATS base URL", lookup), "https://ats.example.com/v1");
+});
 
 test("assertDeliverableWebhookUrl rejects http/IP/internal without hitting the network", async () => {
   await assert.rejects(assertDeliverableWebhookUrl("http://hooks.example.com/x"), /https/);

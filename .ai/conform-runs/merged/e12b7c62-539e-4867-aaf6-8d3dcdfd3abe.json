@@ -1,0 +1,65 @@
+{
+ "schema": "conform-run/1",
+ "worker": "e12b7c62-539e-4867-aaf6-8d3dcdfd3abe",
+ "subject": "design-tokens",
+ "evaluatedAt": "2026-10-27T22:20:31.737789+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "invite-accept-flow",
+   "subject": "design-tokens",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/invite/[token]/AcceptForm.tsx:131 The form uses the named type recipes in some places (text-display, text-body, text-meta) but in five places reaches past them to the stock `text-sm` size step and adds its own weight (`font-semibold`, `font-medium`), which is the 'recipes, not ingredients' failure the repo itself counts as five raw-text-size debts.",
+   "techniques": [
+    {
+     "technique": "token-taxonomy",
+     "verdict": "deviation",
+     "evidence": "app/invite/[token]/AcceptForm.tsx:131 Uses a raw type-scale step (`text-sm`) plus a hand-picked weight instead of a named text recipe. The same happens at lines 203, 218, 238 and 254. Recipes are used correctly at lines 111, 124, 192 and 235."
+    },
+    {
+     "technique": "theme-architecture",
+     "verdict": "conformant",
+     "evidence": "app/invite/[token]/AcceptForm.tsx:192 Colours come only from role tokens (ink, steel, coral-ink), and globals.css gives coral-ink a separate dark-theme value. Searching for dark:, useTheme, hex, rgba and style= found nothing in AcceptForm.tsx or page.tsx, so the form never branches on the theme."
+    },
+    {
+     "technique": "token-enforcement",
+     "verdict": "conformant",
+     "evidence": "app/_components/ui/style-debt.json:2348 This file's raw type sizes are capped at a baseline of 5 by the style-debt ratchet (style-debt.test.ts), so the debt is counted and cannot grow. That is the ratchet the technique asks for, not a permanent warning."
+    },
+    {
+     "technique": "motion-tokens",
+     "verdict": "not-applicable",
+     "evidence": "app/invite/[token]/AcceptForm.tsx:111 The loading state is plain static text. Searching both files for transition, animate and motion found nothing that moves."
+    },
+    {
+     "technique": "cross-language-token-parity",
+     "verdict": "not-applicable",
+     "evidence": "app/invite/[token]/AcceptForm.tsx:31 The only numeric constants in the scripts are a network timeout and a password-length fallback. No visual token is read from JS, so there is no mirror that could drift."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-27T22:20:31.737789+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "design-tokens"
+   ],
+   "techniques": [
+    "cross-language-token-parity",
+    "motion-tokens",
+    "theme-architecture",
+    "token-enforcement",
+    "token-taxonomy"
+   ],
+   "deviations": 1,
+   "context": "invite-accept-flow",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

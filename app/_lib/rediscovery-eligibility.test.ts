@@ -81,7 +81,7 @@ test("source guard: rank, write, read and send all run the SAME predicate", () =
   // The feed route reads ONLY through liveRediscoveryAlerts — never the raw list, never a half-gate.
   assert.doesNotMatch(route, /\bsuppressedCandidateIds\b|\boptedOutCandidateIds\b/);
   assert.doesNotMatch(route, /\blistRediscoveryAlerts\(/, "the raw list must not reach the wire");
-  assert.match(route, /liveRediscoveryAlerts\(await currentWorkspace\(\)\)/, "GET reads the gated projection");
+  assert.match(route, /liveRediscoveryAlerts\(ws\)/, "GET reads the gated projection");
   assert.match(route, /liveRediscoveryAlerts\(ws\)/, "POST returns the gated projection");
 
   // The Reach-out send door reads the same gate, not the two halves.

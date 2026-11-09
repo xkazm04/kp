@@ -79,7 +79,7 @@ export function PipelineTimelineItemRow({ item }: { item: CandidateTimelineItem 
         {item.kind === "analysis" && item.slug ? (
           <Link
             href={`/history/${encodeURIComponent(item.slug)}`}
-            className="focus-ring ml-1.5 font-semibold text-coral hover:underline"
+            className="focus-ring ml-1.5 font-semibold text-coral-ink hover:underline"
           >
             {t("openReport")}
           </Link>

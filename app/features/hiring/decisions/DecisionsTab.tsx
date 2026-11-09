@@ -35,12 +35,12 @@ export function DecisionsTab() {
     selectionDrift, selectMode, setSelectMode, selectedReviewIds,
     toggleReviewSelect, exitSelectMode, selectAllReviews, clearSelectedReviews,
     bulkBusy, bulkResult, confirmingBulkReject, setConfirmingBulkReject, bulkDecideReviews,
-    visibleGroups, act, decide, staleSinceOf,
+    visibleGroups, roleRoster, stageOrder, act, decide, staleSinceOf,
     peersOf, peerFactsOf, load,
   } = useDecisionsQueue();
   // The candidate modal a ledger row's Decide opens — the board's own modal, with
   // the recommendation and the ladder attached.
-  const candidate = useDecisionsCandidate({ visibleAiReviews, act, staleSinceOf, peersOf, peerFactsOf });
+  const candidate = useDecisionsCandidate({ visibleAiReviews, entries, act, staleSinceOf, peersOf, peerFactsOf });
 
   const pendingHeaderCount = activeFilter
     ? visibleAiReviews.length + visibleGroups.reduce((n, g) => n + g.entries.length, 0)
@@ -108,7 +108,9 @@ export function DecisionsTab() {
         evaluated={evaluated}
         isBusy={groupEval.isBusy}
         onCandidate={setSummaryEntry}
-        onGroupEval={(g, selection) => groupEval.open(g, false, selection)}
+        onGroupEval={(g, selection, scope) => groupEval.open(g, false, selection, scope)}
+        roleRoster={roleRoster}
+        stageOrder={stageOrder}
         onScreenWave={(jobId, title) => setWaveRole({ jobId, title })}
         armIds={armIds}
         armJobId={armJobId}

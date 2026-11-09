@@ -1,0 +1,34 @@
+{
+  "schema": "conform-run/1",
+  "worker": "494c0219-e70c-4e3b-b0f3-05e22b3be863",
+  "subject": "retrieval",
+  "evaluatedAt": "2026-10-30T22:25:56.796290+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "retrieval",
+      "context": "jobs-posting-campaign",
+      "reason": "withdrawn after review: reviewer (sonnet): The evidence says this context POSTs to /api/jobs/ingest and relies on jobsIngestAdPanelLogic.ts:76 (a Claude CLI child). That file is not in the context's file list, and none of the context's files reference /api/jobs/ingest or that module, so this claim is about a different context. The not-applic"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-30T22:25:56.796290+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "retrieval"
+      ],
+      "techniques": [
+        "ranking-budgets",
+        "relevance-floors",
+        "retrieval-triggering"
+      ],
+      "deviations": 0,
+      "context": "jobs-posting-campaign",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

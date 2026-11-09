@@ -92,7 +92,7 @@ export function RunOfShow({
                           onClick={() => setBlock(w.question, null)}
                           aria-label={t("removeFromPlanAria")}
                           title={t("removeFromPlan")}
-                          className="focus-ring mt-0.5 shrink-0 rounded p-0.5 text-steel hover:text-coral"
+                          className="focus-ring mt-0.5 shrink-0 rounded p-0.5 text-steel hover:text-coral-ink"
                         >
                           <X size={13} aria-hidden />
                         </button>

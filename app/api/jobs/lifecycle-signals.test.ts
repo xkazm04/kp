@@ -44,7 +44,7 @@ test("the posting modal renders the zero-withdrawal and failed-withdrawal close 
 
 test("GET /api/jobs/[id] exists and is scoped like the list query", () => {
   const src = read("[id]", "route.ts");
-  assert.match(src, /export async function GET/);
+  assert.match(src, /export (?:async function|const) GET\b/);
   assert.match(src, /jobVisibleToWorkspace\(id, ws\)/, "a point-fetch must not hand out what the list wouldn't");
   assert.match(src, new RegExp(STATUS_404_SRC), "an invisible/unknown job must 404, not leak existence");
 });

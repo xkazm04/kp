@@ -1,0 +1,166 @@
+{
+ "schema": "conform-run/1",
+ "worker": "abdbf623-9ab6-45bf-9d0b-433557ffd493",
+ "subject": "interview-calendar-integrity",
+ "evaluatedAt": "2026-10-24T23:23:06.299673+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "interview-scheduling-api",
+   "subject": "interview-calendar-integrity",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/api/schedule/[token]/route.ts:367 The confirm-time re-check is three-valued and lets an unknown result proceed, but the null branch is never recorded on the booking (confirmScheduleInvite takes no verification flag and schedule_invites has no such column), so the recruiter cannot tell which bookings were made without a verified calendar; the event write also relies on Google's unstated notification default, and a test pins that.",
+   "techniques": [
+    {
+     "technique": "re-check-at-confirm-time",
+     "verdict": "deviation",
+     "evidence": "app/api/schedule/[token]/route.ts:367 Re-check runs at booking and only a definite false refuses (409 with re-offer), but the unknown branch books with nothing recorded on the invite, which breaks the 'record the branch taken on the booking' rule and the technique's tell."
+    },
+    {
+     "technique": "three-valued-free-busy-unknown-is-not-free",
+     "verdict": "conformant",
+     "evidence": "app/api/schedule/route.ts:85 The recruiter read carries the full checked/not_connected/unavailable/needs_reconnect status alongside the slots, and an unknown result falls back to the unfiltered pre-integration list."
+    },
+    {
+     "technique": "audience-scoped-calendar-disclosure",
+     "verdict": "conformant",
+     "evidence": "app/api/schedule/[token]/route.ts:181 The public token wire carries one bit; calendarStatus and droppedForConflict go only to the workspace-authenticated recruiter route (route.ts:85-86)."
+    },
+    {
+     "technique": "real-duration-conflict-window",
+     "verdict": "conformant",
+     "evidence": "app/api/schedule/[token]/route.ts:142 Both suggestion and confirm read the invite's stored durationMin, and the store refuses on real-interval overlap or the coarse hour inside the .immediate() transaction (route.ts:219)."
+    },
+    {
+     "technique": "idempotent-event-lifecycle-with-orphan-surfacing",
+     "verdict": "deviation",
+     "evidence": "app/api/schedule/calendar-writeback.test.ts:154 One event per interview (reschedule PATCHes, close deletes, a failed delete becomes 'orphaned' with the handle kept), but the provider notification setting is deliberately omitted and the test pins its absence instead of stating sendUpdates=none explicitly, which the technique names as a failure."
+    }
+   ]
+  },
+  {
+   "context": "candidate-self-scheduling-page",
+   "subject": "interview-calendar-integrity",
+   "bundle": "recruiting",
+   "state": "conformant",
+   "evidence": "app/schedule/[token]/SlotPicker.tsx:112 The candidate surface renders exactly one derived bit (checked or not checked) with no hidden count and no failure cause, and on a 409 it re-offers the current times, so the candidate is neither shown the interviewer's schedule density nor left at a dead end.",
+   "techniques": [
+    {
+     "technique": "audience-scoped-calendar-disclosure",
+     "verdict": "conformant",
+     "evidence": "app/schedule/[token]/SlotPicker.tsx:112 One bit of copy; no busy count, no integration name or error."
+    },
+    {
+     "technique": "three-valued-free-busy-unknown-is-not-free",
+     "verdict": "conformant",
+     "evidence": "app/schedule/[token]/use-schedule-invite.ts:107 Strict equality: an absent or unknown value renders the cautious 'not confirmed' copy and never the affirmative one."
+    },
+    {
+     "technique": "re-check-at-confirm-time",
+     "verdict": "conformant",
+     "evidence": "app/schedule/[token]/use-schedule-invite.ts:188 A confirm-time refusal re-fetches and shows the current slots in place, not a dead end."
+    }
+   ]
+  },
+  {
+   "context": "interview-planning-rubric",
+   "subject": "interview-calendar-integrity",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/interview-planned-minutes.ts:74 plannedInterviewMinutes is the single source for the invite's durationMin, which every conflict check reads. But an entry with no follow-ups, no kit and no grounded prep gets the 5-minute quick-screen floor, so the interview is conflict-checked against the interviewer's calendar as a 5-minute interval: the silent, undershooting default the technique says produces confident, wrong all-clears.",
+   "techniques": [
+    {
+     "technique": "real-duration-conflict-window",
+     "verdict": "deviation",
+     "evidence": "app/_lib/interview-planned-minutes.ts:74 One duration source shared by mint, grid book and conflict check (good), but an unknown length falls to QUICK_SCREEN_MIN=5 on the normal path, not a documented legacy fallback."
+    }
+   ]
+  },
+  {
+   "context": "db-jobs-devcase-interviews",
+   "subject": "interview-calendar-integrity",
+   "bundle": "recruiting",
+   "state": "not-applicable",
+   "evidence": "app/_lib/db/interviews.ts:451 interview_sessions stores tokenized voice-interview runs with no slot time, calendar event handle or free/busy state; a case-insensitive search of app/_lib/db for freeBusy, fetchBusy, slotStillFree, calendarEvent and busyInterval found nothing (the scheduled-interview calendar state lives in app/_lib/schedule-store.ts and app/_lib/calendar/).",
+   "techniques": [],
+   "absenceTerms": [
+    "freeBusy",
+    "fetchBusy",
+    "slotStillFree",
+    "calendarEvent",
+    "busyInterval"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "interview-calendar-integrity",
+   "context": "interview-execution-scoring",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-24T23:23:06.299673+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "interview-calendar-integrity"
+   ],
+   "techniques": [
+    "audience-scoped-calendar-disclosure",
+    "idempotent-event-lifecycle-with-orphan-surfacing",
+    "re-check-at-confirm-time",
+    "real-duration-conflict-window",
+    "three-valued-free-busy-unknown-is-not-free"
+   ],
+   "deviations": 1,
+   "context": "interview-scheduling-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T23:23:06.299673+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "interview-calendar-integrity"
+   ],
+   "techniques": [
+    "audience-scoped-calendar-disclosure",
+    "re-check-at-confirm-time",
+    "three-valued-free-busy-unknown-is-not-free"
+   ],
+   "deviations": 0,
+   "context": "candidate-self-scheduling-page",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T23:23:06.299673+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "interview-calendar-integrity"
+   ],
+   "techniques": [
+    "real-duration-conflict-window"
+   ],
+   "deviations": 1,
+   "context": "interview-planning-rubric",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T23:23:06.299673+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "interview-calendar-integrity"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "db-jobs-devcase-interviews",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

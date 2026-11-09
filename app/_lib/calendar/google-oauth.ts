@@ -46,14 +46,31 @@ export class GoogleOAuthError extends Error {
 
 export type GoogleOAuthConfig = { clientId: string; clientSecret: string; redirectUri: string };
 
+/** The OAuth client the owner saved in Settings > Integrations (google-client-store.ts),
+ *  already decrypted. Passed in rather than read here, so this module stays DB-free. */
+export type StoredGoogleClient = { clientId: string; clientSecret: string };
+
 /** Read the configured client, or null when this deployment has no Google integration.
  *  Null is a legitimate state — the whole feature is optional — so callers branch on it
- *  rather than treating it as an error. */
-export function googleOAuthConfig(baseUrl: string, env: NodeJS.ProcessEnv = process.env): GoogleOAuthConfig | null {
+ *  rather than treating it as an error.
+ *
+ *  PRECEDENCE: the client saved through the guided setup wins over the env pair, because
+ *  saving it is the newer, deliberate act of the owner; an env-only deployment (no stored
+ *  client) behaves exactly as before. Route callers go through `googleOAuthConfigFor`
+ *  (google-client-store.ts), which supplies `stored` for the workspace. */
+export function googleOAuthConfig(
+  baseUrl: string,
+  env: NodeJS.ProcessEnv = process.env,
+  stored: StoredGoogleClient | null = null
+): GoogleOAuthConfig | null {
+  const redirectUri = `${baseUrl.replace(/\/+$/, "")}${GOOGLE_OAUTH_CALLBACK_PATH}`;
+  const storedId = (stored?.clientId ?? "").trim();
+  const storedSecret = (stored?.clientSecret ?? "").trim();
+  if (storedId && storedSecret) return { clientId: storedId, clientSecret: storedSecret, redirectUri };
   const clientId = (env.GOOGLE_OAUTH_CLIENT_ID ?? "").trim();
   const clientSecret = (env.GOOGLE_OAUTH_CLIENT_SECRET ?? "").trim();
   if (!clientId || !clientSecret) return null;
-  return { clientId, clientSecret, redirectUri: `${baseUrl.replace(/\/+$/, "")}${GOOGLE_OAUTH_CALLBACK_PATH}` };
+  return { clientId, clientSecret, redirectUri };
 }
 
 // PKCE (RFC 7636), which Google now recommends for every OAuth client including

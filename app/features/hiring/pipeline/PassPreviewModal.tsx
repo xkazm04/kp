@@ -34,6 +34,11 @@ type Preview = {
 // Art. 22). The would-be rejects still render first and loudest: they are the
 // rows that will land in the recruiter's approval queue, and the reason each one
 // carries says so ("Would be queued for approval: …").
+//
+// Q2 (owner ruling 2026-11-09): the same holds for an ADVANCE. The pass queues it as a
+// pending approval and moves nothing, so the advance rows below forecast a queued
+// approval (their reason reads "Would be queued for approval: …") and the commit
+// button files approvals, it does not move candidates.
 /** A refused commit, as the machine half the route answered with (never its English
  *  sentence). gated-doors-clients-read-the-refusal: POST /api/automation/run is
  *  capability-gated, and this modal - the screen the commit button lives on - said
@@ -164,7 +169,7 @@ export function PassPreviewModal({
               in the reader's language - a capability refusal also names the
               permission the operator has to ask for. */}
           {commitError ? (
-            <p role="alert" className="mr-auto basis-full text-sm font-semibold text-coral">
+            <p role="alert" className="mr-auto basis-full text-sm font-semibold text-coral-ink">
               {capabilityAwareReason(errMsg, commitError, t("previewCommitFailed"))}
             </p>
           ) : null}
@@ -263,7 +268,7 @@ export function PassPreviewModal({
         ) : null}
         {rejects.length > 0 ? (
           <section>
-            <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
+            <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral-ink">
               <XCircle size={13} aria-hidden /> {t("previewRejectsQueued", { count: rejects.length })}
             </p>
             <ul className="mt-1.5 space-y-1">

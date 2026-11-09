@@ -7,6 +7,7 @@ import { jsonRefusal, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { extractConfigKeys, scrubKeyMaterial, shapeVerdict } from "./verdict.ts";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 export const maxDuration = 90;
 
@@ -26,7 +27,7 @@ const CANARY_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
 // retries and all. The verdict is the payload (200 either way); only a broken
 // spawn is a 500.
 
-export async function POST(request: NextRequest) {
+export const POST = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). requireOperator above proves a
@@ -83,4 +84,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

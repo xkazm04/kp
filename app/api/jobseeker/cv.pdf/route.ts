@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { currentSession } from "@/app/_lib/auth/current-user";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentUserId } from "@/app/_lib/auth/session";
 import { getJobseekerProfile } from "@/app/_lib/db/jobseeker-profiles";
@@ -21,7 +21,7 @@ import { cvPrintPath } from "@/app/features/jobseeker/cv/cvQuery";
 // 20/10min per IP, and renders run one at a time behind cv-pdf.ts's queue.
 const PDF_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 
-export async function GET(request: Request): Promise<NextResponse> {
+export const GET = withWorkspace(async (ws: string, request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   if (!rateLimit(`jobseeker-cv-pdf:${clientIpFrom(request.headers)}`, PDF_RATE_LIMIT)) {
@@ -34,7 +34,7 @@ export async function GET(request: Request): Promise<NextResponse> {
   let fileName = "CV.pdf";
   let title = "CV";
   try {
-    const [session, ws] = await Promise.all([currentSession(), currentWorkspace()]);
+    const session = await currentSession();
     const profile = getJobseekerProfile(currentUserId(session), ws);
     if (!profile) return jsonRefusal("JOBSEEKER_PROFILE_MISSING", 404);
     fileName = cvPdfFileName(profile.profile.displayName);
@@ -58,4 +58,4 @@ export async function GET(request: Request): Promise<NextResponse> {
       "Cache-Control": "no-store",
     },
   });
-}
+});

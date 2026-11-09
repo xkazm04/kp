@@ -85,8 +85,21 @@ deterministic twin by design, `capabilities.py:111-116`); the job-seeker seats
 `role_research_cli.py:81`; pinned, needs `web_research`, `capabilities.py:129`);
 and the gig seats `gig_brief` (`gig-brief-v4`, `gig_brief_cli.py:93`),
 `gig_plan` (`gig-plan-v1`, `gig_plan_cli.py:89`), `gig_report` (`gig-report-v1`,
-`gig_report_cli.py:69`), `gig_proposal` (`gig-proposal-v3`, `gig_proposal_cli.py:56`).
+`gig_report_cli.py:69`), `gig_proposal` (`gig-proposal-v3`, `gig_proposal_cli.py:56`). The client-facing proposal track of the gig plan stamps its own variant,
+`gig-plan-v2-proposal` (`app/_lib/gigs/plans.ts:49`), and Cohort Studio's comparative pass
+(Analyze v2, code decides the claims, the LLM writes prose only) runs `cohort-compare-v1`
+(`cohort_compare.py:31`; no TS twin).
 The `*` catch-all is the first section (`modelsRoutingSections.ts:19`).
+
+### Registry defaults for providers named without a model
+
+`DEFAULT_MODELS` (`capabilities.py`) is the one place a provider's default model id is
+declared: `anthropic` `claude-haiku-4-5`, `openai` `gpt-5.4-mini`, `gemini` `gemini-3.8-flash`;
+azure, openrouter, ollama and qwen have none by design. `gemini.py` reads it and
+`app/_lib/github/usage.ts` mirrors it under `test_prompt_version_sync.py`.
+
+Drift check: `npm run llm:matrix:check` fails when a `*PROMPT_VERSION` literal or a
+`DEFAULT_MODELS` id exists in source and is not named in this file.
 
 ## The shared degrade contract
 

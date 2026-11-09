@@ -72,7 +72,7 @@ export function RouteError({
   return (
     <main className="flex min-h-screen items-center justify-center bg-paper p-6">
       <div role="alert" className={`${PANEL} animate-fade-in w-full max-w-md p-7 text-center`}>
-        <AlertTriangle size={22} className="mx-auto text-coral" aria-hidden />
+        <AlertTriangle size={22} className="mx-auto text-coral-ink" aria-hidden />
         <p className={`mt-3 ${EYEBROW}`}>{t("errorEyebrow")}</p>
         <h1 className="mt-1 font-serif text-h2 text-ink">{t("errorTitle")}</h1>
         <p className={`mt-2 ${INTRO}`}>{t("errorBody")}</p>
@@ -96,7 +96,7 @@ export function RouteError({
           </Link>
         </div>
         {reportError ? (
-          <p role="alert" className="mt-3 text-sm font-medium text-coral">
+          <p role="alert" className="mt-3 text-sm font-medium text-coral-ink">
             {reportError}
           </p>
         ) : report === "sent" ? (

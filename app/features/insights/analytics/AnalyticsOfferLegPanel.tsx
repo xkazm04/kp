@@ -53,7 +53,7 @@ export function OfferLegPanel({
             </li>
             <li className="flex items-baseline justify-between gap-2">
               <span className="text-steel">{t("declined")}</span>
-              <span className="font-medium text-coral">{t("countPct", { count: offers.declined, pct: offers.declineRatePct ?? 0 })}</span>
+              <span className="font-medium text-coral-ink">{t("countPct", { count: offers.declined, pct: offers.declineRatePct ?? 0 })}</span>
             </li>
             <li className="flex items-baseline justify-between gap-2">
               <span className="text-steel">{t("expired")}</span>
@@ -68,7 +68,7 @@ export function OfferLegPanel({
                   <Link
                     href={boardHref({ stage: offerStage })}
                     title={t("viewPending")}
-                    className="focus-ring rounded font-medium text-ink underline-offset-2 hover:text-coral hover:underline"
+                    className="focus-ring rounded font-medium text-ink underline-offset-2 hover:text-coral-ink hover:underline"
                   >
                     {offers.pending}
                   </Link>

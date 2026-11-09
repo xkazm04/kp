@@ -23,7 +23,7 @@ import {
   resolveAuditTimeZone,
   type Decision,
   type DecisionPage,
-} from "./analyticsDecisionLogTypes";
+} from "@/app/_lib/analytics-decision-types";
 import {
   collectDecisionTrail,
   decisionCsvRows,

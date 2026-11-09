@@ -1,0 +1,136 @@
+{
+ "schema": "conform-run/1",
+ "worker": "ffdf1f84-a24a-463a-b615-bf3572e51a8f",
+ "subject": "pipeline-stage-modelling",
+ "evaluatedAt": "2026-10-24T22:26:00.183161+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "about-product",
+   "subject": "pipeline-stage-modelling",
+   "bundle": "recruiting",
+   "state": "not-applicable",
+   "evidence": "app/features/insights/about/stage/stages.ts:29 In this context 'stage' means an animation beat in an explainer scene, not a pipeline column. A search of app/features/insights/about for stageHasRole, screeningGateIndex, getPipelineAxis and PIPELINE_STAGES found no hits, so the context neither reads nor edits a board axis.",
+   "techniques": [],
+   "absenceTerms": [
+    "stageHasRole",
+    "screeningGateIndex",
+    "getPipelineAxis",
+    "PIPELINE_STAGES"
+   ]
+  },
+  {
+   "context": "pipeline-actions-events",
+   "subject": "pipeline-stage-modelling",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/hiring/pipeline/empty/PipelineEmptyState.tsx:92 The per-column meaning line on the empty board is keyed by the five shipped stage ids (Accepted, Screened, Interview, Offer, Hired). Any column a team adds or composes gets the generic fallback 'nothing here yet', and no line exists per role.",
+   "techniques": [
+    {
+     "technique": "one-sentence-meaning-per-stage",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/pipeline/empty/PipelineEmptyState.tsx:92 The meaning comes from shipped-id catalog keys with a placeholder fallback, and is neither authored per stage nor defaulted per role. The en copy ('the offer', 'slots and scorecards') describes the column rather than what the candidate is waiting for."
+    },
+    {
+     "technique": "retired-stage-tombstones-and-migration",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/pipelineEventCatalog.ts:87 A board-shape move is its own event kind with its own glyph (:223), not 'moved'. The comment at :83-86 states the reason the technique gives."
+    },
+    {
+     "technique": "stage-role-vocabulary-not-stage-names",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/empty/pipelineEmptyMoves.ts:41 The inflow lane is resolved by the entry role, not by index 0 or a name. agingBucket resolves terminal by role on the axis too, but boardSignature falls back to DEFAULT_STAGE_AXIS when a caller omits the axis (pipelineRenderDiet.ts:163), and usePipelineBoardData, outside this context, omits it."
+    }
+   ]
+  },
+  {
+   "context": "shell-setup-pipeline",
+   "subject": "pipeline-stage-modelling",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/shell/setup/SetupPipelineJourneyView.tsx:83 Each stop's meaning line is the role's catalog sentence, never a per-stage one, and add() at setupPipelineEdit.ts:96 creates a column with no sentence. So every custom column shows the generic custom-role sentence, which is the case the technique says to prompt against.",
+   "techniques": [
+    {
+     "technique": "one-sentence-meaning-per-stage",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/setup/SetupPipelineJourneyView.tsx:83 The meaning is per role and none is per stage; stage creation never requires a sentence."
+    },
+    {
+     "technique": "entry-and-terminal-role-requirements",
+     "verdict": "conformant",
+     "evidence": "app/features/shell/setup/setupPipelineEdit.ts:64 Entry and terminal cannot be removed or re-roled, and canMove only swaps middle columns, so 'entry first, terminal last' holds by construction. axisProblems is surfaced as well."
+    },
+    {
+     "technique": "stage-role-vocabulary-not-stage-names",
+     "verdict": "conformant",
+     "evidence": "app/features/shell/setup/setupPipelinePresets.ts:42 Presets edit the loaded axis by role, and activePipelinePreset compares id:role and not labels (:94). An added step defaults to inert 'custom' rather than a plausible role (setupPipelineEdit.ts:93-96)."
+    },
+    {
+     "technique": "retired-stage-tombstones-and-migration",
+     "verdict": "conformant",
+     "evidence": "app/features/shell/setup/setupPipelineEdit.ts:73 An occupied column cannot be removed in the wizard, and the added work-sample id is minted against live and retired ids (setupPipelinePresets.ts:62), so it never reuses a tombstone. The lean preset drops columns without that occupancy check, but the server's stage-migration refuses an unmapped occupied removal."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "pipeline-stage-modelling",
+   "context": "pipeline-api",
+   "reason": "evidence leans on command/route.ts, which is not a tracked file"
+  },
+  {
+   "subject": "pipeline-stage-modelling",
+   "context": "pipeline-candidate-drawer",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-24T22:26:00.183161+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "pipeline-stage-modelling"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "about-product",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T22:26:00.183161+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "pipeline-stage-modelling"
+   ],
+   "techniques": [
+    "one-sentence-meaning-per-stage",
+    "retired-stage-tombstones-and-migration",
+    "stage-role-vocabulary-not-stage-names"
+   ],
+   "deviations": 1,
+   "context": "pipeline-actions-events",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T22:26:00.183161+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "pipeline-stage-modelling"
+   ],
+   "techniques": [
+    "entry-and-terminal-role-requirements",
+    "one-sentence-meaning-per-stage",
+    "retired-stage-tombstones-and-migration",
+    "stage-role-vocabulary-not-stage-names"
+   ],
+   "deviations": 1,
+   "context": "shell-setup-pipeline",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

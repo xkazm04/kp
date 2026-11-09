@@ -7,15 +7,16 @@ import { getUserByEmail } from "@/app/_lib/db/users";
 import { listInvitesForOrg } from "@/app/_lib/db/invites";
 import { inviteMember } from "@/app/_lib/org-service";
 import { isMemberRole, canAssignRole } from "@/app/_lib/auth/roles";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // Redeemable pending invites for the org (status=pending and not past
 // expires_at). members:manage-gated — viewing invites is part of managing members.
-export async function GET() {
+export const GET = withSession(async () => {
   const denied = await requireCapability("members:manage");
   if (denied) return denied;
   const orgId = (await currentUser()).orgId ?? DEFAULT_ORG_ID;
   return NextResponse.json({ invites: listInvitesForOrg(orgId, "pending") });
-}
+});
 
 // Minting an invite writes a row AND hands back a capability link that seats its
 // holder in this org. members:manage gates WHO may mint; nothing bounded HOW MANY,
@@ -28,7 +29,7 @@ const INVITE_MINT_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
 
 // Invite a member (P0). members:manage. Returns the tokenized accept link so the
 // UI can copy/share it (no email relay is configured in this app).
-export async function POST(request: NextRequest) {
+export const POST = withSession(async (request: NextRequest) => {
   const denied = await requireCapability("members:manage");
   if (denied) return denied;
   const actor = await currentUser();
@@ -62,4 +63,4 @@ export async function POST(request: NextRequest) {
       : NextResponse.json({ error: result.reason }, { status: 409 });
   }
   return NextResponse.json({ invite: result.invite });
-}
+});

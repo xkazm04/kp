@@ -25,9 +25,14 @@ type JobOutcome = { status: "ok" | "skipped"; summary: unknown; log?: string } |
 const JOB_HANDLERS: Record<Exclude<SchedulerJobName, "policy_pass">, () => Promise<JobOutcome>> = {
   // Interview reminders (AUTO6) — verbatim the body the hand-written block ran.
   reminders: async () => {
-    const { sendDueInterviewReminders } = await import("./app/_lib/interview-reminders");
+    const { sendDueInterviewReminders, sendDueScheduleNudges } = await import("./app/_lib/interview-reminders");
     const n = await sendDueInterviewReminders();
-    return n ? { status: "ok", summary: { sent: n }, log: `interview reminders sent: ${n}` } : null;
+    // The pending-link "book your interview" nudge rides the same heartbeat; its
+    // count is reported separately so the summary stays honest about what was sent.
+    const nudges = await sendDueScheduleNudges();
+    return n || nudges
+      ? { status: "ok", summary: { sent: n, nudges }, log: `interview reminders sent: ${n}, booking nudges sent: ${nudges}` }
+      : null;
   },
   // The seeker's job-market scan (WP4c, app/_lib/jobseeker/scan.ts). Fan-out is per
   // WORKSPACE: the one cross-tenant read is the id list (`-- tenancy:global`, ids only);
@@ -164,6 +169,22 @@ const JOB_HANDLERS: Record<Exclude<SchedulerJobName, "policy_pass">, () => Promi
       status: "ok",
       summary: totals,
       log: `gig sync: ${totals.workspaces} workspace(s), drafted ${totals.drafted}, failed ${totals.failed}, running ${totals.running}, unreachable ${totals.unreachable}; outcomes accepted ${totals.accepted}, rejected ${totals.rejected}, unreadable ${totals.pollUnreadable}`,
+    };
+  },
+  // Role runs (ADR-0011): one live pass over every `running` run - producers over the keyless
+  // floor (role-run-live.ts). Parks at the three human gates and at each run's LLM budget; a
+  // run already being advanced by a route call is skipped. OFF by default (a created
+  // schedule is not consent to spend model calls). `null` when nothing was produced - at a
+  // short cadence an empty row every tick would be noise.
+  role_run_advance: async () => {
+    const { tickRoleRuns } = await import("./app/_lib/role-run-live");
+    const t = await tickRoleRuns();
+    if (t.produced === 0 && t.failed === 0 && t.parkedOnBudget === 0) return null;
+    if (t.failed > 0 && t.produced === 0) throw new Error(`role_run_advance: ${t.failed} run(s) failed to advance`);
+    return {
+      status: "ok",
+      summary: t,
+      log: `role runs: ${t.runs} running, ${t.produced} stage(s) produced, ${t.parkedOnBudget} parked on budget, ${t.failed} failed`,
     };
   },
 };
@@ -453,6 +474,15 @@ export async function startClock(): Promise<void> {
       if (lapsed) console.log("[clock] offers lapsed (expired):", lapsed);
     } catch (e) {
       console.error("[clock] offer lapse sweep failed:", e);
+    }
+    // Offers whose pipeline entry has closed (rejected / role closed / …) — lapsed BEFORE
+    // the reminder sweep below, so a closed entry's candidate is not nudged in the same tick.
+    try {
+      const { lapseOffersOfClosedEntries } = await import("./app/_lib/offers-store");
+      const closed = lapseOffersOfClosedEntries();
+      if (closed) console.log("[clock] offers lapsed (entry closed):", closed);
+    } catch (e) {
+      console.error("[clock] closed-entry offer lapse sweep failed:", e);
     }
     // Proactive offer-expiry reminders (idea-29361408 follow-up) — the heads-up sent at
     // T-48h before the lapse above, so a candidate who forgot doesn't lose a live offer

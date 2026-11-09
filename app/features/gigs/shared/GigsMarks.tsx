@@ -23,7 +23,7 @@ export type MarkKind = (typeof MARK_KINDS)[number];
 
 const TONE: Record<MarkKind, string> = {
   accepted: "text-moss",
-  rejected: "text-coral",
+  rejected: "text-coral-ink",
   duplicate: "text-dial-amber",
   no_response: "text-steel",
   pending: "text-steel",
@@ -87,8 +87,8 @@ export function RateLine({ cell, compact = false, lead = true }: { cell: GigKpiC
 const DIFFICULTY_TONE: Record<GigDifficulty, string> = {
   easy: "text-moss",
   moderate: "text-dial-amber",
-  hard: "text-coral",
-  very_hard: "text-coral",
+  hard: "text-coral-ink",
+  very_hard: "text-coral-ink",
   unrated: "text-steel",
 };
 

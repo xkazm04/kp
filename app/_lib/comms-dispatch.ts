@@ -1,10 +1,10 @@
 import { sendComm, type OutboundMessage } from "./comms";
 import { recordOutbox, type OutboxEntry } from "./db/devcase";
-import { isSimTitle } from "@/app/features/shell/simulation/constants";
+import { isSimTitle } from "@/app/_lib/sim-marker";
 import type { OutboxStatus } from "./comms-status";
 import type { DeliveryClaim } from "./comms-truth";
 import type { PipelineEntry } from "./db/core";
-import { KO_DECLINE_CONTACT_RETENTION_DAYS, ensureErasureToken, ensureOptOutToken, entryProfileGaps, recordAutomationEvent } from "./db/pipeline";
+import { ensureErasureToken, ensureOptOutToken, entryProfileGaps, recordAutomationEvent } from "./db/pipeline";
 import { buildRejectionFeedback, renderRejectionFeedback } from "./rejection-feedback";
 import { outreachHaltFor, recordOutreachSend } from "./outreach-state-store";
 import type { HaltReason } from "./outreach-halt";
@@ -13,6 +13,7 @@ import { candidateOutreachSuppression } from "./rediscovery-alert-store";
 import { extractDeliverableAddress, extractRecipientName, recipientRefusal } from "./comms-recipient";
 import { buildIcs } from "./export-utils";
 import { publicBaseUrl, publicOriginIsFallback } from "./public-base-url.ts";
+import { warnLinkBaseOnce } from "./link-base-warning.ts";
 import { resolveCommsLocale } from "./comms-locale";
 import { commsTranslator, type CommsTranslator } from "./comms-translator";
 import { namespaceTranslator } from "./catalog-translator";
@@ -21,6 +22,7 @@ import type { Locale } from "@/i18n/locales";
 import { pinLinkLocale } from "./candidate-link-locale";
 import { INTERVIEW_TZ } from "./schedule-slots";
 import { DEFAULT_INTERVIEW_MINUTES } from "./calendar/constants";
+import { assertVoiceInterviewEnabled } from "./voice/enabled";
 import { dateFormatter } from "./date-format.ts";
 
 // Direction #3 — real comms delivery for the hiring pipeline. Routes recruiter
@@ -105,7 +107,15 @@ function candidateLocale(locale: string | null | undefined, workspaceId?: string
 // NEXT_PUBLIC_APP_BASE_URL set; when nothing resolves, warn loudly instead of
 // silently shipping a dead link (the footer still renders — never silently drop
 // a legal affordance).
-async function candidateLinkBase(): Promise<string> {
+let fallbackOriginWarned = false;
+
+/** Test seam: the once-per-process latch of the fallback-origin warning. */
+export function resetCandidateLinkBaseWarnForTests(): void {
+  fallbackOriginWarned = false;
+}
+
+/** Exported for the link-base test; callers inside this module use it directly. */
+export async function candidateLinkBase(): Promise<string> {
   let origin: string | null = null;
   try {
     // next/headers is request-scoped: inside a route handler it yields the real
@@ -122,12 +132,16 @@ async function candidateLinkBase(): Promise<string> {
   } catch {
     /* no ambient request (scheduler/heartbeat) — rely on the env override */
   }
-  const base = publicBaseUrl(origin);
+  const fallback = publicOriginIsFallback(origin);
+  // Not a fallback: warnLinkBaseOnce logs once per process when the configured or request
+  // base is loopback. A fallback gets the [comms] line below instead, never both.
+  const base = fallback ? publicBaseUrl(origin) : warnLinkBaseOnce(origin);
   // publicBaseUrl now always returns an absolute origin (it falls back to the canonical
   // site default rather than the old ""), so a candidate link is never a dead relative
   // path. But a fallback means nothing deployment-specific was configured — the link uses
   // the DEFAULT origin, which may be wrong for this deploy — so still warn loudly.
-  if (publicOriginIsFallback(origin)) {
+  if (fallback && !fallbackOriginWarned) {
+    fallbackOriginWarned = true;
     console.warn(
       "[comms] no public origin configured — candidate links use the default site origin, which may be wrong for this deploy. Set APP_BASE_URL (or NEXT_PUBLIC_APP_BASE_URL) for detached sends."
     );
@@ -187,15 +201,32 @@ type CandidateCommTarget = {
 async function candidateFooters(
   entry: CandidateCommTarget,
   t: CommsTranslator,
-  locale: Locale
+  locale: Locale,
+  aiDrafted: boolean
 ): Promise<{ text: string; unsubscribeUrl: string | null }> {
-  if (entry.anonymizedAt || !entry.id) return { text: "", unsubscribeUrl: null };
+  // The AI-drafted line does NOT depend on the tokens: a letter with no erasure or opt-out
+  // token (anonymized, no id, or a store that refused to mint) still says a model wrote it.
+  const noTokens = { erasureToken: null, optOutToken: null };
+  if (entry.anonymizedAt || !entry.id) return renderCandidateFooters(t, locale, "", noTokens, { aiDrafted });
   const workspaceId = entry.workspaceId ?? undefined;
   const erasureToken = ensureErasureToken(entry.id, workspaceId);
   const optOutToken = ensureOptOutToken(entry.id, workspaceId);
-  if (!erasureToken && !optOutToken) return { text: "", unsubscribeUrl: null };
+  if (!erasureToken && !optOutToken) return renderCandidateFooters(t, locale, "", noTokens, { aiDrafted });
   const base = await candidateLinkBase();
-  return renderCandidateFooters(t, locale, base, { erasureToken, optOutToken });
+  return renderCandidateFooters(t, locale, base, { erasureToken, optOutToken }, { aiDrafted });
+}
+
+/** Did a model write (the start of) this draft? The ONE reading of a stored draft source,
+ *  used by every letter that carries model text and by the offer preview, so the send and
+ *  the preview cannot disagree. Owner ruling Q10 (2026-11-09).
+ *
+ *  Only a source that is POSITIVELY deterministic ("template", or "deterministic") is
+ *  `false`. Anything else, including no stored source at all (a draft written before the
+ *  source was kept) and a source word this build does not know, is `true`: we do not claim
+ *  "not AI" for text we cannot prove no model wrote. A person editing a draft does not
+ *  change its stored source, so a draft that began as a model's keeps the line. */
+export function draftedByModel(source: unknown): boolean {
+  return !(source === "template" || source === "deterministic");
 }
 
 /** The footer TEXT for given tokens, with no minting and no request read: what
@@ -205,7 +236,8 @@ export function renderCandidateFooters(
   t: CommsTranslator,
   locale: Locale,
   base: string,
-  tokens: { erasureToken: string | null; optOutToken: string | null }
+  tokens: { erasureToken: string | null; optOutToken: string | null },
+  opts: { aiDrafted?: boolean } = {}
 ): { text: string; unsubscribeUrl: string | null } {
   const { erasureToken, optOutToken } = tokens;
   // ?lang= pins each page to the language the LETTER is written in, exactly as the status
@@ -215,6 +247,9 @@ export function renderCandidateFooters(
   // browser opened the erasure explainer (a legal affordance) in a language they never
   // chose, while the other link in the same letter opened in Czech.
   const lines: string[] = [];
+  // Owner ruling Q10: a letter a model drafted says so, as its own paragraph ahead of the
+  // two legal links. Plain statement, no link, no token: it is present whenever asked for.
+  if (opts.aiDrafted) lines.push(t("aiDraftedFooter"));
   if (erasureToken) {
     lines.push(t("dataFooter", { link: `${base}/data/${encodeURIComponent(erasureToken)}?lang=${locale}` }));
   }
@@ -338,7 +373,18 @@ export function delivered(outcome: DispatchOutcome): boolean {
 async function sendCandidateComm(
   entry: CandidateCommTarget,
   t: CommsTranslator,
-  msg: { subject: string; body: string; kind: string; ref?: string; workspaceId?: string | null },
+  msg: {
+    subject: string;
+    body: string;
+    kind: string;
+    ref?: string;
+    workspaceId?: string | null;
+    messageId?: string;
+    /** A model drafted this letter (Q10): the footer block adds the AI-drafted line. A typed
+     *  field, never inferred from the body. Omitted = false: only the dispatchers that carry
+     *  model text set it, from `draftedByModel(storedSource)`. */
+    aiDrafted?: boolean;
+  },
   // The language the letter is written in — carried so the footer's own link is pinned to
   // it. Passed rather than re-derived: `t` cannot report the locale it was built for.
   locale: Locale
@@ -361,7 +407,7 @@ async function sendCandidateComm(
       workspaceId: msg.workspaceId,
     }));
   }
-  const footers = await candidateFooters(entry, t, locale);
+  const footers = await candidateFooters(entry, t, locale, msg.aiDrafted === true);
   const recorded = await sendCommUnlessSim({
     to,
     subject: msg.subject,
@@ -376,6 +422,9 @@ async function sendCandidateComm(
     // why kp cannot set those itself). The visible link in the body is the half a
     // candidate reads; this is the one their mail client offers them.
     unsubscribeUrl: footers.unsubscribeUrl ?? undefined,
+    // A caller releasing an already-identified message (a held outreach draft) passes
+    // its id, so the outbox row, the envelope and the Idempotency-Key all name it.
+    messageId: msg.messageId,
   }, entry.jobTitle);
   return dispatchOutcome(recorded);
 }
@@ -494,7 +543,12 @@ export type OutreachResult =
  *  gate FAILS CLOSED on an unreadable consent state. */
 export async function dispatchOutreach(
   entry: PipelineEntry,
-  draft: { subject?: unknown; body?: unknown }
+  // `source` is the draft's stored source ("llm" | "template"); absent = unknown = a model
+  // may have written it (draftedByModel).
+  draft: { subject?: unknown; body?: unknown; source?: unknown },
+  // A RELEASED draft (outreach-release.ts, comms scope C2): the message id minted when the
+  // letter was drafted, and the person who approved it, named on the `outreach_sent` event.
+  release?: { messageId: string; actor: string }
 ): Promise<OutreachResult> {
   const suppress = candidateOutreachSuppression(entry.candidateId, {
     givenAt: entry.consentGivenAt,
@@ -519,7 +573,12 @@ export async function dispatchOutreach(
   const role = entry.jobTitle ?? t("aRole");
   const subject = String(draft.subject ?? t("outreach.subjectFallback", { role })).trim();
   const body = String(draft.body ?? "").trim();
-  const { status } = await sendCandidateComm(entry, t, { subject, body, kind: "outreach" }, locale);
+  const { status } = await sendCandidateComm(
+    entry,
+    t,
+    { subject, body, kind: "outreach", messageId: release?.messageId, aiDrafted: draftedByModel(draft.source) },
+    locale
+  );
   // Keyed on the outbox row (REC-10), not on call resolution. A relay 5xx still
   // resolves — `sendCandidateComm` dead-letters and returns `failed` without throwing
   // — and that must not consume the one-shot `outreach_sent` marker automation-run
@@ -531,7 +590,7 @@ export async function dispatchOutreach(
   // dead-letter look like a contact, and `sends > 0` is what later distinguishes a
   // reply from a fresh application.
   recordOutreachSend(entry.id, entry.workspaceId);
-  recordAutomationEvent(entry.id, "outreach_sent", entry.jobTitle ?? "", entry.workspaceId);
+  recordAutomationEvent(entry.id, "outreach_sent", entry.jobTitle ?? "", entry.workspaceId, release?.actor);
   return { sent: true, status: status === "sent" ? "sent" : "queued" };
 }
 
@@ -609,7 +668,9 @@ export async function dispatchRejection(entry: PipelineEntry, opts?: { automated
  */
 export async function dispatchInterviewLetter(
   entry: PipelineEntry,
-  letter: { text: string; locale: Locale; statusToken: string | null }
+  // `source` is the letter draft's source ("model" | "template"). Its caller does not pass it
+  // today, so the letter is treated as possibly model-written and carries the Q10 line.
+  letter: { text: string; locale: Locale; statusToken: string | null; source?: unknown }
 ): Promise<OutboxStatus> {
   const t = await commsTranslator(letter.locale);
   const role = (entry.jobTitle ?? "").trim();
@@ -619,46 +680,49 @@ export async function dispatchInterviewLetter(
     const link = `${await candidateLinkBase()}/status/${encodeURIComponent(letter.statusToken)}?lang=${letter.locale}`;
     lines.push("", t("interviewLetter.statusLine", { link }));
   }
-  return (await sendCandidateComm(entry, t, { subject, body: lines.join("\n"), kind: "interview_letter" }, letter.locale)).status;
+  return (
+    await sendCandidateComm(
+      entry,
+      t,
+      { subject, body: lines.join("\n"), kind: "interview_letter", aiDrafted: draftedByModel(letter.source) },
+      letter.locale
+    )
+  ).status;
 }
 
-/** Tell a KO-declined lead the outcome — entry-less by design. Leads are
- *  declined BEFORE any pipeline entry exists (lead-intake's knockout gate, and the
- *  conversational door's own), so the one identity in hand is the email; `ref` is
- *  omitted and the envelope ships null context (comms-envelope handles a missing
- *  entry). EVERY door sends it whenever an address is in hand: the gate is automatic,
- *  so the letter names the must-have and carries the human-review route (a reply
- *  reaches a person — the same promise as status.decisions.humanReviewNote). Webhook
- *  candidates additionally saw only "submitted" on a third-party board.
+/** The letter for a knockout rejection a PERSON confirmed (owner ruling Q1, 2026-11-09):
+ *  it names the must-have(s) that ended the application and says how to ask for a review.
  *
- *  TENANT (comms-tenancy-pair): with no entry there is nothing for recordOutbox to
- *  derive a workspace from, so the row used to land in the DEFAULT team's Comms
- *  Center — for a non-default team, in a board its recruiters cannot see, while the
- *  decline itself was correctly recorded (recordKnockoutDecline) in their own. The
- *  caller holds the authoritative tenant (the webhook's / the opening's team) and
- *  passes it here, so the notice and the decline record file together. */
-export async function dispatchKnockoutDecline(input: {
-  email: string;
-  name?: string | null;
-  jobTitle?: string | null;
-  locale?: string | null;
-  /** The team that owns the declined lead. Omitted ⇒ the default workspace. */
-  workspaceId?: string | null;
-  /** The KO step ids the candidate answered no to. The letter NAMES them (in the
-   *  letter's language) and carries the human-review route — the decline is automatic,
-   *  so the person it affects is told which must-have it was and who to ask. */
-  failedKoIds?: readonly string[];
-}): Promise<DispatchOutcome> {
-  const locale = candidateLocale(input.locale, input.workspaceId);
+ *  It is sent from the CONFIRM only — pipeline-entry-action.ts calls it once, after the
+ *  decision is sealed and written — never at intake: a failed must-have files a held
+ *  entry (knockout-hold.ts) and the candidate hears nothing until a person decides. So
+ *  the letter may say a person reviewed it, and it does not claim an automatic decision.
+ *
+ *  The entry now exists and carries the contact, so the letter goes through the ordinary
+ *  candidate send: ref'd to the entry (its erasure and expiry scrub the row with the
+ *  entry), the data footer and the opt-out headers included. Returns null when no letter
+ *  is owed — an anonymous applicant or a lead with no address on file; the label is not
+ *  an address, and a relay could only dead-letter it. */
+export async function dispatchKnockoutRejection(
+  entry: PipelineEntry,
+  failedKoIds: readonly string[]
+): Promise<DispatchOutcome | null> {
+  if (!(entry.contact ?? "").trim()) return null;
+  const locale = candidateLocale(entry.locale, entry.workspaceId);
   const t = await commsTranslator(locale);
   const ta = await namespaceTranslator(locale, "apply");
-  const name = (input.name ?? "").trim() || t("there");
-  const role = input.jobTitle ?? t("theRole");
+  const name = (entry.candidateLabel ?? "").trim() || t("there");
+  const role = entry.jobTitle ?? t("theRole");
   const subject = t("koDecline.subject", { role });
-  const named = koMustHaveNames(input.failedKoIds ?? [], ta);
+  const named = koMustHaveNames(failedKoIds, ta);
   const mustHaves = (named.length > 0 ? named : [t("koDecline.mustHaveFallback")]).map((n) => `- ${n}`).join("\n");
-  const body = t("koDecline.body", { name, role, team: t("team"), mustHaves, days: KO_DECLINE_CONTACT_RETENTION_DAYS });
-  return dispatchOutcome(await sendCommUnlessSim({ to: input.email, subject, body, kind: "ko_decline", workspaceId: input.workspaceId }, input.jobTitle));
+  const body = t("koDecline.body", { name, role, team: t("team"), mustHaves });
+  const outcome = await sendCandidateComm(entry, t, { subject, body, kind: "ko_decline" }, locale);
+  // As dispatchRejection: a dead letter or a refusal is not a sent letter, so the
+  // timeline never claims the candidate was told when nothing went.
+  if (!delivered(outcome)) return outcome;
+  recordAutomationEvent(entry.id, "rejection_sent", "manual reject · knockout letter", entry.workspaceId);
+  return outcome;
 }
 
 /**
@@ -707,7 +771,8 @@ export function composeOfferLetter(
  */
 export async function dispatchOffer(
   entry: PipelineEntry,
-  draft: { subject?: unknown; body?: unknown },
+  // `verdictSource` is the engine word automation-run stamps into the approval detail.
+  draft: { subject?: unknown; body?: unknown; verdictSource?: unknown },
   responseLink: string,
   opts?: { expiresAt?: string | null; startDate?: string | null }
 ): Promise<DispatchOutcome> {
@@ -720,7 +785,7 @@ export async function dispatchOffer(
     locale,
     t,
   });
-  const outcome = await sendCandidateComm(entry, t, { subject, body, kind: "offer" }, locale);
+  const outcome = await sendCandidateComm(entry, t, { subject, body, kind: "offer", aiDrafted: draftedByModel(draft.verdictSource) }, locale);
   // `offer_sent` is what analytics counts as "offers extended" and what the timeline
   // shows the recruiter: a dead-lettered or refused letter is neither. The caller
   // (extendDraftedOffer) routes that verdict into its compensation branch.
@@ -924,6 +989,32 @@ export async function dispatchInterviewReminder(
   }
 }
 
+/** The one "book your interview" nudge to a candidate whose self-scheduling link is
+ *  still un-booked (schedule-nudge sweep, interview-reminders.ts). `link` must be
+ *  ABSOLUTE. Like the reminder, a throw means delivery did not complete; the
+ *  sweep's bounded retry owns what happens next. No automation event: the Outbox row
+ *  (kind schedule_nudge) is the audit record, and the pipeline event catalog is a
+ *  published vocabulary this nudge does not extend. */
+export async function dispatchScheduleNudge(
+  entry: { id?: string | null; candidateLabel?: string | null; jobTitle?: string | null; locale?: string | null },
+  link: string,
+  opts?: { workspaceId?: string | null }
+): Promise<void> {
+  const locale = candidateLocale(entry.locale, opts?.workspaceId);
+  const t = await commsTranslator(locale);
+  const name = greetName(entry, t);
+  const role = entry.jobTitle ?? t("theRole");
+  const subject = t("interviewNudge.subject", { role });
+  const body = t("interviewNudge.body", { name, role, link: pinLinkLocale(link, locale), team: t("team") });
+  await sendCandidateComm(entry, t, {
+    subject,
+    body,
+    kind: "schedule_nudge",
+    ref: entry.id ?? link,
+    workspaceId: opts?.workspaceId,
+  }, locale);
+}
+
 /** Deliver the freshly-minted voice-screen link TO the candidate. Without this the
  *  link only ever opened in the recruiter's own browser tab — the headline voice
  *  feature was undeliverable end-to-end. Routes through the same sendComm channel
@@ -943,6 +1034,8 @@ export async function dispatchInterviewInvite(
   // event. Without it both landed on the default team.
   opts?: { durationMin?: number | null; workspaceId?: string | null }
 ): Promise<OutboxStatus> {
+  // Switched off (KP_VOICE_INTERVIEW): no voice-interview invite leaves the install.
+  assertVoiceInterviewEnabled();
   const locale = candidateLocale(entry.locale, opts?.workspaceId);
   const t = await commsTranslator(locale);
   const name = greetName(entry, t);

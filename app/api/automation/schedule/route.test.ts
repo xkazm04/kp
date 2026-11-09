@@ -121,6 +121,7 @@ test("GET keeps every legacy field AND adds jobs[] — one entry per registered 
     "interview_recording_retention",
     "gig_scan",
     "gig_sync",
+    "role_run_advance",
   ]);
   for (const job of body.jobs) {
     assert.equal(typeof job.labelKey, "string");
@@ -218,7 +219,7 @@ test("with the job-seeker module OFF, its scan job is neither listed nor writabl
     const body = await json(await GET());
     assert.deepEqual(
       body.jobs.map((j) => j.name),
-      ["policy_pass", "reminders", "interview_recording_retention", "gig_scan", "gig_sync"],
+      ["policy_pass", "reminders", "interview_recording_retention", "gig_scan", "gig_sync", "role_run_advance"],
       "jobseeker_scan is not part of an install that leaves the module off"
     );
     const res = await post({ job: "jobseeker_scan", enabled: false });

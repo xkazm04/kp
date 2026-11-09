@@ -124,6 +124,13 @@ writeFileSync(path.join(UNIT_DB_DIR, "pid"), String(process.pid));
 
 process.env.KP_DB_PATH = path.join(UNIT_DB_DIR, "kp.sqlite");
 
+// The unit suite is written against the seeded demo corpus (the ČS roster, the job
+// catalog, the seeded board). Since operator triage T1 (2026-10-22) a fresh database seeds
+// it only on the KP_SEED_DEMO=1 opt-in (db/seed-gate.ts), so the harness opts in — the same
+// corpus every test saw before the flip. A test about the BLANK default deletes it before
+// its first ensureDb() (db/demo-seed.test.ts); KP_EMPTY=1 still wins over it.
+process.env.KP_SEED_DEMO ??= "1";
+
 /** The isolated SQLite file every store in this process opens. */
 export const UNIT_DB_PATH = process.env.KP_DB_PATH;
 
