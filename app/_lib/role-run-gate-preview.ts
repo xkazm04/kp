@@ -1,6 +1,7 @@
 import { readParkedGate } from "./role-run-engine.ts";
 import { SCREEN_WAVE_APPROVAL_MAX_AGE_MS, roleRunGateToken, type RoleRunGate } from "./role-run-gates.ts";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces.ts";
+import { getPipelineEntriesByIds } from "./db/pipeline.ts";
 
 // The gate PREVIEW: what a recruiter is shown, and the token that signs exactly that.
 //
@@ -21,7 +22,27 @@ export type RoleRunGateSubject = {
   parked: unknown;
 };
 
+/**
+ * One candidate row of the read-only display block: who, what the machine proposes at this gate,
+ * and its stated reason. DISPLAY ONLY. It is built AFTER the subject set is derived and is never
+ * an input to the token, the policy version or the commit: ADR-0011 §3 still holds, the server
+ * derives the signed set and the body names only the gate and the branch.
+ *
+ * `reasonCode` is a CODE read off the parked artifact (the screening pass's reason code), never
+ * prose and never a colleague's filed scorecard or verdict (the offer draft's `basis` is left
+ * out on purpose). Null = the artifact holds no reason; the panel says so in words.
+ */
+export type RoleRunGateDisplayRow = {
+  entryId: string;
+  /** The workspace-scoped pipeline entry's label; null when the entry is not in this workspace. */
+  candidateName: string | null;
+  proposal: { kind: "advance" | "hold" | "reject_proposed" | "invite" | "offer"; detail: string | null };
+  reasonCode: string | null;
+};
+
 export type RoleRunGatePreview = RoleRunGateSubject & {
+  /** Read-only; outside everything the token signs. */
+  display: RoleRunGateDisplayRow[];
   token: string;
   issuedAt: number;
   expiresAt: number;
@@ -57,6 +78,35 @@ export function resolveRoleRunGateSubject(
   return { gate, branchRef, policyVersion: policy, subjectRefs, parked: parked.payload };
 }
 
+const asRows = (v: unknown): Record<string, unknown>[] =>
+  (Array.isArray(v) ? v : []).filter((r): r is Record<string, unknown> => typeof r === "object" && r !== null);
+const str = (v: unknown): string | null => (typeof v === "string" && v.length > 0 ? v : null);
+
+/** Pure: the display rows for one parked payload, names looked up through `nameOf`. */
+export function buildGateDisplay(gate: RoleRunGate, payload: unknown, nameOf: (entryId: string) => string | null): RoleRunGateDisplayRow[] {
+  const p = (typeof payload === "object" && payload !== null ? payload : {}) as Record<string, unknown>;
+  const out: RoleRunGateDisplayRow[] = [];
+  for (const row of asRows(p[SUBJECT_LIST[gate]])) {
+    const entryId = str(row.entryId);
+    if (!entryId) continue;
+    const candidateName = nameOf(entryId);
+    if (gate === "rejection") {
+      const route = row.route === "advance" || row.route === "reject_proposed" ? row.route : "hold";
+      out.push({ entryId, candidateName, proposal: { kind: route, detail: null }, reasonCode: str(row.reasonCode) });
+    } else if (gate === "interview_invite") {
+      const detail = [str(row.status), str(row.slotAt)].filter(Boolean).join(" · ") || null;
+      out.push({ entryId, candidateName, proposal: { kind: "invite", detail }, reasonCode: null });
+    } else {
+      const terms = (typeof row.terms === "object" && row.terms !== null ? row.terms : {}) as Record<string, unknown>;
+      const days = typeof terms.ttlDays === "number" ? terms.ttlDays : row.ttlDays;
+      const ttl = typeof days === "number" ? `${days}d` : null;
+      const detail = [str(terms.band), str(terms.currency), ttl].filter(Boolean).join(" · ") || null;
+      out.push({ entryId, candidateName, proposal: { kind: "offer", detail }, reasonCode: null });
+    }
+  }
+  return out;
+}
+
 export function previewRoleRunGate(
   runId: string,
   gate: RoleRunGate,
@@ -65,8 +115,11 @@ export function previewRoleRunGate(
   now: number = Date.now()
 ): RoleRunGatePreview {
   const subject = resolveRoleRunGateSubject(runId, gate, branchRef, workspaceId);
+  const entries = getPipelineEntriesByIds(subject.subjectRefs, workspaceId);
+  const display = buildGateDisplay(gate, subject.parked, (id) => entries.get(id)?.candidateLabel ?? null);
   return {
     ...subject,
+    display,
     token: roleRunGateToken(runId, gate, subject.policyVersion, subject.subjectRefs, now),
     issuedAt: now,
     expiresAt: now + SCREEN_WAVE_APPROVAL_MAX_AGE_MS,

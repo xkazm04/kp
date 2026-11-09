@@ -18568,7 +18568,7 @@
   },
   "roleRun": {
     "heading": "Exécution du poste",
-    "intro": "L'exécution conduit ce poste de l'annonce au projet d'offre. Elle s'arrête à trois portes humaines ; personne n'est refusé, invité ni ne reçoit d'offre avant que vous ne décidiez.",
+    "intro": "L'exécution conduit ce poste de l'annonce au projet d'offre. Elle s'arrête à trois portes humaines. Votre décision ici est consignée au registre ; l’action sur le tableau reste la vôtre.",
     "noRun": "Aucune exécution n'a encore été lancée pour ce poste.",
     "start": "Lancer l'exécution",
     "starting": "Lancement…",
@@ -18611,6 +18611,16 @@
     "policy": "Politique {policy}",
     "subjects": "{count, plural, one {# décision} other {# décisions}}",
     "previewHeading": "Candidats de ce lot",
+    "unknownCandidate": "Candidat sans nom",
+    "noReason": "aucun motif consigné",
+    "reason": "motif : {code}",
+    "proposal": {
+      "advance": "proposé : avancer",
+      "hold": "proposé : mettre en attente",
+      "reject_proposed": "proposé : refuser",
+      "invite": "proposé : inviter",
+      "offer": "proposé : offre"
+    },
     "review": "Examiner le lot",
     "previewing": "Chargement…",
     "approve": "Approuver le lot",

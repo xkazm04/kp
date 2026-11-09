@@ -18568,7 +18568,7 @@
   },
   "roleRun": {
     "heading": "Rollenlauf",
-    "intro": "Der Lauf führt diese Rolle von der Ausschreibung bis zum Angebotsentwurf. Er hält an drei menschlichen Toren an; niemand wird abgelehnt, eingeladen oder bekommt ein Angebot, bevor Sie entscheiden.",
+    "intro": "Der Lauf führt diese Rolle von der Ausschreibung bis zum Angebotsentwurf. Er hält an drei menschlichen Toren an. Ihre Entscheidung hier wird im Protokoll festgehalten; die Aktion auf dem Board bleibt bei Ihnen.",
     "noRun": "Für diese Rolle wurde noch kein Lauf gestartet.",
     "start": "Lauf starten",
     "starting": "Wird gestartet…",
@@ -18611,6 +18611,16 @@
     "policy": "Richtlinie {policy}",
     "subjects": "{count, plural, one {# Entscheidung} other {# Entscheidungen}}",
     "previewHeading": "Kandidaten in diesem Stapel",
+    "unknownCandidate": "Unbenannte Person",
+    "noReason": "kein Grund erfasst",
+    "reason": "Grund: {code}",
+    "proposal": {
+      "advance": "Vorschlag: weiter",
+      "hold": "Vorschlag: zurückstellen",
+      "reject_proposed": "Vorschlag: ablehnen",
+      "invite": "Vorschlag: einladen",
+      "offer": "Vorschlag: Angebot"
+    },
     "review": "Stapel prüfen",
     "previewing": "Wird geladen…",
     "approve": "Stapel freigeben",

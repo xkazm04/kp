@@ -103,3 +103,16 @@ test("without a named approver the batch stops on the registered code and commit
   const still = await loadRoleRunForJob(routedFetch, jobId);
   assert.ok(still.ok && still.value?.gates[0]?.gate === "rejection", "H5 stays a human step: the gate is still parked");
 });
+
+test("a preview row carries the display block; a missing reason stays null, a missing block is an empty list", async () => {
+  const stub = (display?: unknown) => async () =>
+    new Response(JSON.stringify({ subjectRefs: ["e1"], policyVersion: "p", expiresAt: 1, ...(display ? { display } : {}) }), { status: 200 });
+  const row = { entryId: "e1", candidateName: "Ada", proposal: { kind: "reject_proposed", detail: null }, reasonCode: null };
+  const withBlock = await previewGateBatch(stub([row]), "r", { gate: "rejection", branchRefs: ["e1"] });
+  assert.ok(withBlock.ok);
+  assert.deepEqual(withBlock.value[0].display, [row]);
+  assert.equal(withBlock.value[0].display[0].reasonCode, null, "the panel renders this as the no-reason words, never blank");
+  const without = await previewGateBatch(stub(), "r", { gate: "rejection", branchRefs: ["e1"] });
+  assert.ok(without.ok);
+  assert.deepEqual(without.value[0].display, []);
+});

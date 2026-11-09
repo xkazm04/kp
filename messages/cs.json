@@ -18568,7 +18568,7 @@
   },
   "roleRun": {
     "heading": "Běh role",
-    "intro": "Běh provede tuto roli od inzerátu až po návrh nabídky. Zastaví se u tří lidských bran; dokud se nerozhodnete, nikdo není zamítnut, pozván ani osloven nabídkou.",
+    "intro": "Běh provede tuto roli od inzerátu až po návrh nabídky. Zastaví se u tří lidských bran. Rozhodnutí tady se zapíše do záznamu; akci na nástěnce provádíte dál vy.",
     "noRun": "Pro tuto roli ještě nebyl spuštěn žádný běh.",
     "start": "Spustit běh",
     "starting": "Spouštím…",
@@ -18611,6 +18611,16 @@
     "policy": "Pravidla {policy}",
     "subjects": "{count, plural, one {# rozhodnutí} few {# rozhodnutí} many {# rozhodnutí} other {# rozhodnutí}}",
     "previewHeading": "Kandidáti v této dávce",
+    "unknownCandidate": "Nepojmenovaný kandidát",
+    "noReason": "důvod není zaznamenán",
+    "reason": "důvod: {code}",
+    "proposal": {
+      "advance": "návrh: posunout dál",
+      "hold": "návrh: pozdržet",
+      "reject_proposed": "návrh: zamítnout",
+      "invite": "návrh: pozvat",
+      "offer": "návrh: nabídnout"
+    },
     "review": "Zkontrolovat dávku",
     "previewing": "Načítám…",
     "approve": "Schválit dávku",

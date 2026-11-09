@@ -18568,7 +18568,7 @@
   },
   "roleRun": {
     "heading": "Role run",
-    "intro": "The run takes this role from posting to offer draft. It stops at three human gates; nothing is rejected, invited or offered until you decide.",
+    "intro": "The run takes this role from posting to offer draft. It stops at three human gates. Deciding here records your decision in the ledger; the board action stays yours to take.",
     "noRun": "No run has been started for this role.",
     "start": "Start run",
     "starting": "Starting…",
@@ -18611,6 +18611,16 @@
     "policy": "Policy {policy}",
     "subjects": "{count, plural, one {# decision} other {# decisions}}",
     "previewHeading": "Candidates in this batch",
+    "unknownCandidate": "Unnamed candidate",
+    "noReason": "no reason recorded",
+    "reason": "reason: {code}",
+    "proposal": {
+      "advance": "proposed: advance",
+      "hold": "proposed: hold",
+      "reject_proposed": "proposed: reject",
+      "invite": "proposed: invite",
+      "offer": "proposed: offer"
+    },
     "review": "Review batch",
     "previewing": "Loading…",
     "approve": "Approve batch",

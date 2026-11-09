@@ -251,5 +251,15 @@ The commit already continues the run, so the panel only re-reads afterwards: no 
 run** is offered only when nothing is parked (resume after the LLM budget was raised). A refusal is shown
 as its registered code through `errors.<CODE>`; without a named approver that is
 `SCREEN_WAVE_APPROVAL_UNATTRIBUTED`, the batch stops and the gate stays parked. The approval stays a human
-step: the approver is server-bound, nothing in the panel names one. Test:
+step: the approver is server-bound, nothing in the panel names one.
+
+**What Review shows.** One row per candidate: name, what the machine proposes at this gate, and its
+stated reason. The preview response carries them as a `display` block built in
+`app/_lib/role-run-gate-preview.ts` (`buildGateDisplay`) from the parked artifact plus the
+workspace-scoped pipeline entry: the screening route and reason **code**, the invite status and slot, the
+offer terms. It is display only and sits outside everything signed: the subject set, policy version and
+token are derived without it (ADR-0011 §3), and the commit never reads it. An artifact with no reason
+(invites and offer drafts hold none) reads "no reason recorded" in words; an entry outside the workspace
+has no name. A filed scorecard recommendation (offer `basis`) is deliberately not surfaced. The commit
+stays ledger-only: the board action is still the person's. Test:
 `roleRunPanelClient.test.ts` walks a run on `job-001` through all three gates against the real routes.

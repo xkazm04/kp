@@ -108,11 +108,24 @@ function GateBatch({ batch, p }: { batch: RoleRunGateBatch; p: ReturnType<typeof
 
       {preview ? (
         <ul className="space-y-1" aria-label={t("previewHeading")}>
-          {preview.map((row) => (
-            <li key={row.branchRef} className="text-meta text-ink">
-              <code>{row.branchRef}</code> · {t("subjects", { count: row.subjectRefs.length })}
-            </li>
-          ))}
+          {preview.flatMap((row) =>
+            row.display.length > 0
+              ? row.display.map((d) => (
+                  <li key={`${row.branchRef}:${d.entryId}`} className="text-meta text-ink">
+                    <span className="font-semibold">{d.candidateName ?? t("unknownCandidate")}</span>
+                    {" · "}
+                    {t(`proposal.${d.proposal.kind}`)}
+                    {d.proposal.detail ? ` (${d.proposal.detail})` : ""}
+                    {" · "}
+                    {d.reasonCode ? t("reason", { code: d.reasonCode }) : t("noReason")}
+                  </li>
+                ))
+              : [
+                  <li key={row.branchRef} className="text-meta text-ink">
+                    {t("unknownCandidate")} · {t("subjects", { count: row.subjectRefs.length })}
+                  </li>,
+                ]
+          )}
         </ul>
       ) : null}
 

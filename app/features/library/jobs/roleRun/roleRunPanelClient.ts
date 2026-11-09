@@ -101,7 +101,15 @@ export async function commitGateBatch(
   return { committed, refusal: null };
 }
 
-export type BatchPreview = { branchRef: string; subjectRefs: string[]; policyVersion: string; expiresAt: number };
+export type BatchDisplayRow = {
+  entryId: string;
+  candidateName: string | null;
+  proposal: { kind: "advance" | "hold" | "reject_proposed" | "invite" | "offer"; detail: string | null };
+  reasonCode: string | null;
+};
+
+/** `display` is read-only context for the reviewer; it is not part of what the token signs. */
+export type BatchPreview = { branchRef: string; subjectRefs: string[]; policyVersion: string; expiresAt: number; display: BatchDisplayRow[] };
 
 /** What approving this gate's batch would sign: one read-only preview per parked branch. Writes
  *  nothing and spends nothing; a branch that stopped being parked reads as the refusal. */
@@ -112,13 +120,13 @@ export async function previewGateBatch(
 ): Promise<PanelResult<BatchPreview[]>> {
   const out: BatchPreview[] = [];
   for (const branchRef of batch.branchRefs) {
-    const preview = await call<{ subjectRefs: string[]; policyVersion: string; expiresAt: number }>(
+    const preview = await call<{ subjectRefs: string[]; policyVersion: string; expiresAt: number; display?: BatchDisplayRow[] }>(
       fetchFn,
       `/api/role-runs/${encodeURIComponent(runId)}/gate/preview`,
       json({ gate: batch.gate, branchRef })
     );
     if (!preview.ok) return preview;
-    out.push({ branchRef, subjectRefs: preview.value.subjectRefs, policyVersion: preview.value.policyVersion, expiresAt: preview.value.expiresAt });
+    out.push({ branchRef, subjectRefs: preview.value.subjectRefs, policyVersion: preview.value.policyVersion, expiresAt: preview.value.expiresAt, display: preview.value.display ?? [] });
   }
   return { ok: true, value: out };
 }
