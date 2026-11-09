@@ -234,10 +234,11 @@ export const COMPANION_ACTIONS: readonly CompanionActionSpec[] = [
       const found = await resolveEntryByLabel(params, ctx.workspaceId);
       if (!found.ok) return found.outcome;
       // The board's own cohort drafter, with a cohort of one (tasks.ts
-      // `batch_outreach` → runAutomationTask → dispatchOutreach). That door is
-      // the Outbox: the draft is recorded `queued` and nothing dequeues it. It is
-      // reused rather than reimplemented precisely so Candi adds NO send path of
-      // her own — see the Outbox note in docs/features/companion/README.md.
+      // `batch_outreach` → runAutomationTask → the outreach branch), which writes a
+      // HELD outreach_letters draft and sends nothing: the letter leaves only when a
+      // named person approves and releases it (comms §8a). It is reused rather than
+      // reimplemented precisely so Candi adds NO send path of her own — see the
+      // Outbox note in docs/features/companion/README.md.
       const { startTask } = await import("./tasks");
       const task = startTask("batch_outreach", { entryIds: [found.id] }, ctx.workspaceId);
       return { key: "outreachQueued", values: { candidate: found.label }, ref: task.id };

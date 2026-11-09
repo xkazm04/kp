@@ -4,6 +4,8 @@ import { CommsBodyRejectedError, CommsSuppressedError, commsSendSuppression, sen
 import { entryContactability } from "./comms-contactability";
 import { isDeliverableAddress } from "./comms-recipient";
 import { isRelayConfigured } from "./comms-relay";
+import { outreachLetterByEntry } from "./db/outreach-letters";
+import { outreachResendRefusal } from "./outreach-approval";
 
 // THE BACKLOG OFFER — letters that waited for a sender.
 //
@@ -46,6 +48,7 @@ export const BACKLOG_SKIP_REASONS = [
   "recipient_invalid",
   "suppressed",
   "body_rejected",
+  "not_approved",
 ] as const;
 export type BacklogSkipReason = (typeof BACKLOG_SKIP_REASONS)[number];
 
@@ -183,6 +186,13 @@ async function sendOne(ws: string, id: string, actor: string): Promise<BacklogRe
   } else {
     const gate = commsSendSuppression({ ...message, ref: original.ref ?? undefined });
     if (gate) return skipped(id, "suppressed", gate);
+  }
+  // After contactability, so a candidate who may not be contacted at all is named as such.
+  // A queued first contact leaves only while a named person's approval still covers this
+  // exact letter to this exact address (comms §8a); a cleared approval is a skip.
+  if (original.kind === "outreach") {
+    const letter = original.ref ? outreachLetterByEntry(original.ref, ws) : null;
+    if (outreachResendRefusal(letter, original, original.recipient)) return skipped(id, "not_approved");
   }
 
   let sent: OutboxEntry;

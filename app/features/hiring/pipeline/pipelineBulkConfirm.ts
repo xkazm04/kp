@@ -1,8 +1,9 @@
 // Two-step confirms for the two DESTRUCTIVE bulk actions on the pipeline board's
 // select-mode bar:
 //   • reject   — emails N candidates (irreversible)
-//   • outreach — WHEN a relay is configured, dispatchOutreach relays each drafted
-//                letter immediately, so "draft N" IS "send N"
+//   • outreach — drafts N HELD letters (N model calls). Nothing is sent: each letter
+//                leaves only when a named person approves and releases it (comms
+//                README §8a), so "draft N" is no longer "send N"
 // Both arm a confirm rather than fire on the first click.
 //   • move     — (challenge-r06 blast-radius-computation) when its dry-run preview
 //                says the move sets something off: AI interview invites, work-sample

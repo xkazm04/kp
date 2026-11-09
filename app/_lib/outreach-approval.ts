@@ -103,6 +103,40 @@ export function outreachSendRefusal(
   return now === letter.approvedDigest ? null : "OUTREACH_APPROVAL_STALE";
 }
 
+/** The outbox row a re-send door (Comms Center resend, backlog flush) is about to send
+ *  again: `ref` is the application, `messageId` the letter's own message identity. */
+export type OutreachResendRow = { ref?: string | null; messageId?: string | null };
+
+/**
+ * May a stored `outreach` outbox row be sent AGAIN, to `recipient`? Null = yes. Pure.
+ *
+ * The rule: the original approval covers the identical message to the identical approved
+ * recipient - the row must be this application's letter (the message id minted with it),
+ * the approval must still stand and name a person, and the digest of the letter with
+ * `recipient` must equal the stored one. A corrected address nobody approved fails the
+ * digest; so does a letter whose approval was since cleared (re-opened, edited, erased).
+ * The re-send never re-opens the letter: it sends nothing and the letter stays as it is.
+ */
+export function outreachResendRefusal(
+  letter: OutreachGateLetter | null,
+  row: OutreachResendRow,
+  recipient: string | null
+): "OUTREACH_RESEND_NOT_APPROVED" | null {
+  const refused = "OUTREACH_RESEND_NOT_APPROVED" as const;
+  if (!letter || !row.ref || letter.entryId !== row.ref || letter.erasedAt) return refused;
+  if (!row.messageId || letter.messageId !== row.messageId) return refused;
+  if (!namedOutreachApprover(letter.approvedBy) || !letter.approvedDigest || letter.subject == null || letter.body == null) return refused;
+  const digest = outreachApprovalDigest({
+    letterId: letter.id,
+    messageId: letter.messageId,
+    recipient,
+    subject: letter.subject,
+    body: letter.body,
+    lang: letter.lang,
+  });
+  return digest === letter.approvedDigest ? null : refused;
+}
+
 /** Thrown by the send seam when outreachSendRefusal answers. Nothing was sent or recorded. */
 export class OutreachApprovalError extends Error {
   readonly code: OutreachSendRefusal;

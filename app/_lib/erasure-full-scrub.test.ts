@@ -413,6 +413,39 @@ test("erasure blanks the interview feedback letter's texts and keeps the row as 
   raw.close();
 });
 
+// The held first-contact outreach (comms §8a): subject and body are written TO this person,
+// and the approval digest is a hash over their address and that text, so a guess of either
+// can be confirmed against it. Erasure blanks all three and keeps the row as the record.
+test("erasure blanks the outreach letter's text AND its approval digest, and keeps the row", async () => {
+  const { outreachLetterApprove, outreachLetterById, outreachLetterDraft } = await import("./db/outreach-letters.ts");
+  const { outreachApprovalDigest } = await import("./outreach-approval.ts");
+  const Database = (await import("better-sqlite3")).default;
+  const { entry } = createPipelineEntry({
+    candidateId: "c-outreach-" + process.pid,
+    candidateLabel: NAME,
+    jobId: "job-outreach-" + process.pid,
+    jobTitle: "Data Engineer",
+    stage: "Screened",
+    contact: EMAIL,
+  });
+  const { letter } = outreachLetterDraft({ entryId: entry.id, subject: "A role for " + NAME, body: "Dear " + NAME + ", a role.", lang: "en" }, "workspace");
+  const digest = outreachApprovalDigest({ letterId: letter.id, messageId: letter.messageId, recipient: EMAIL, subject: letter.subject, body: letter.body, lang: "en" });
+  const approved = outreachLetterApprove(letter.id, { revision: 1, approvedBy: "human:Petra", digest }, "workspace");
+  assert.ok(approved?.approvedDigest, "the approval stored its digest pre-erasure");
+
+  assert.ok(anonymizeEntry(entry.id, "erasure"));
+
+  const after = outreachLetterById(letter.id, "workspace")!;
+  assert.ok(after, "the row survives as the record that a letter was drafted");
+  assertScrubbed(JSON.stringify(after), "outreach_letters");
+  assert.ok(after.erasedAt, "the erasure is stamped on the row");
+  assert.equal(after.approvedBy, "human:Petra", "who approved is still on record");
+  const raw = new Database(TMP);
+  const row = raw.prepare("SELECT subject, body, approved_digest FROM outreach_letters WHERE id = ?").get(letter.id);
+  assert.deepEqual(row, { subject: null, body: null, approved_digest: null }, "text and digest are NULL on disk, not merely hidden");
+  raw.close();
+});
+
 test("a draft that lands after the erasure cannot write the text back", async () => {
   const { interviewLetterById, interviewLetterRequest, interviewLetterSaveDraft } = await import("./db/interview-letters.ts");
   const { entry } = createPipelineEntry({

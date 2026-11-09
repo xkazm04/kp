@@ -9,6 +9,8 @@ import { SIM_COMMS_CHANNEL } from "@/app/_lib/comms-dispatch";
 import { isDeliverableAddress } from "@/app/_lib/comms-recipient";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { outreachLetterByEntry } from "@/app/_lib/db/outreach-letters";
+import { outreachResendRefusal } from "@/app/_lib/outreach-approval";
 
 
 // In-flight resends for the current process, keyed by outbox id, so a double-click
@@ -27,6 +29,8 @@ const RESEND_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 
 /** The comms kind dispatchCaseInvite writes (stage-hooks-homework.ts reads it back). */
 const CASE_INVITE_KIND = "case_invite";
+/** The comms kind dispatchOutreach writes: a held letter a named person approved. */
+const OUTREACH_KIND = "outreach";
 /** The apply link dispatchCaseInvite interpolates: `${base}/devcase/apply/<token>`. */
 const APPLY_LINK_TOKEN = /\/devcase\/apply\/([A-Za-z0-9_-]+)/g;
 
@@ -100,6 +104,15 @@ export const POST = withWorkspace(async (ws: string, request: Request, context: 
     // the coded reason.
     if (original.kind === CASE_INVITE_KIND && caseInviteLinkIsDead(original.body, ws)) {
       return jsonRefusal("POSTING_CLOSED", 410);
+    }
+    // A first contact leaves only under a named person's approval (comms §8a). A resend of
+    // the identical letter to the approved address is covered by it; a corrected address,
+    // or a letter whose approval was since cleared, is not.
+    if (original.kind === OUTREACH_KIND) {
+      const letter = original.ref ? outreachLetterByEntry(original.ref, ws) : null;
+      if (outreachResendRefusal(letter, original, correctedRecipient ?? original.recipient)) {
+        return jsonRefusal("OUTREACH_RESEND_NOT_APPROVED", 409);
+      }
     }
     // Per-IP, AFTER the cheap refusals (in-flight, unknown id, missing fields) so a
     // rejected click costs no budget, and BEFORE the dedup read and the relay call.

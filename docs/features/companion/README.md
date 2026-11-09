@@ -484,14 +484,12 @@ matches nothing refuses, and a label matching two people (or one person on two
 roles) refuses as *ambiguous* rather than guessing which human was meant.
 
 > **The Outbox note.** `draft_outreach` reuses `batch_outreach` rather than
-> reimplementing the letter, so Candi adds **no send path of her own**. That means
-> it inherits `dispatchOutreach`'s behaviour exactly: `queued` in the local outbox
-> by default, and **relayed if the deploy has `COMMS_WEBHOOK_URL` configured** —
-> identical to pressing "Draft outreach" on the board. The companion introduces no
-> new relay and no new bypass; it also does not introduce a second, stricter rule
-> for the same action, which would have been the more surprising outcome. If a
-> deploy wants "the companion may never relay", that is a change to
-> `dispatchOutreach`'s contract, not to this path.
+> reimplementing the letter, so Candi adds **no send path of her own**. It inherits
+> the outreach branch's behaviour exactly: it writes a **held** `outreach_letters`
+> draft and sends nothing, relay or not — the letter leaves only when a named person
+> approves and releases it (`docs/features/comms/README.md` §8a), identical to
+> pressing "Draft outreach" on the board. The companion introduces no new relay and
+> no new bypass, and no second rule for the same action.
 
 ## The proposal lifecycle
 
