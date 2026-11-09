@@ -1,0 +1,102 @@
+{
+ "schema": "conform-run/1",
+ "worker": "906730a9-162d-445d-bd76-ac3c36cda039",
+ "subject": "agent-host-experience",
+ "evaluatedAt": "2026-11-08T00:46:19.072081+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "agents-api",
+   "subject": "agent-host-experience",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/agents/dispatch/mint.ts:127 When Personas does not answer within the 5s bridge deadline, the dispatch door (and hire-from-need, which passes the same 502 body through to the Personas App master) reports the hire as failed even though Personas may already have queued it, and a retry mints a fresh hired_agents row and a second persona request instead of saying the outcome is unknown.",
+   "techniques": [
+    {
+     "technique": "journey-shaped-tool-surface",
+     "verdict": "deviation",
+     "evidence": "app/api/agents/dispatch/mint.ts:120 hire-from-need is shaped as a journey (route.ts:6 'ONE call from a need to a persona', closed HIRE_* codes, the scan-timeout refusal says a retry joins the in-flight scan). Step 6 is violated, though: a dispatch abandoned at its deadline is recorded and answered as failed, not unknown, so the caller's retry can double the delegation."
+    },
+    {
+     "technique": "peer-agent-delegation",
+     "verdict": "conformant",
+     "evidence": "app/api/agents/report/[token]/route.ts:20 kp delegates long-running work to a Personas peer and treats its reports as untrusted. Each hire has its own token as the grant, the body is capped, rate-limited and shape-parsed, and lifecycle claims go through a CAS transition that refuses illegal moves."
+    },
+    {
+     "technique": "agent-ui-event-stream",
+     "verdict": "not-applicable",
+     "evidence": "app/api/companion/[id]/message/route.ts:24 The product's own agent (the companion) is a single request/response per turn that returns the stored turn list. Its proposals are filed and resolved on a separate door, so there is no multi-surface live run and the technique's 'when not to use' applies."
+    },
+    {
+     "technique": "portable-view-spec",
+     "verdict": "not-applicable",
+     "evidence": "app/api/companion/[id]/message/route.ts:122 Companion blocks are an in-app vocabulary that only kp's own dock renders. No outside host or interop format consumes them (no MCP/tool server in the repo), so nothing is projected."
+    }
+   ],
+   "registryProposal": "The subject assumes the outside agent reaches the product through a tool protocol. Here an outside agent (Personas App master) reaches a journey-shaped HTTP door (hire-from-need) that is gated by a shared machine token, and the product also delegates to that same peer. The techniques could say explicitly whether a plain HTTP 'machine door' for a known peer falls under journey-shaped-tool-surface."
+  },
+  {
+   "context": "jobs-ai-coach-fit",
+   "subject": "agent-host-experience",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/library/jobs/JobsAgentFitTab.tsx:16 These are panels inside kp's own front end, where consent is already home (depth-handoff's own exclusion). A search of app/features/library/jobs for tool-protocol and view-resource vocabulary found no outward tool, view or stream surface, so the subject's outside-tier precondition does not hold.",
+   "techniques": [],
+   "absenceTerms": [
+    "mcp",
+    "tools/list",
+    "structuredContent",
+    "ui://"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "agent-host-experience",
+   "context": "agent-hire-app-master",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "agent-host-experience",
+   "context": "task-automation-engine",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "agent-host-experience",
+   "context": "e2e-suite",
+   "reason": "A Playwright suite (including the app-master-hire spec against a mock Personas bridge) exercises the agent-hire surfaces but does not itself realize any of this subject's techniques. Any verdict would repeat the agents-api judgement on test files."
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-08T00:46:19.072081+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-host-experience"
+   ],
+   "techniques": [
+    "agent-ui-event-stream",
+    "journey-shaped-tool-surface",
+    "peer-agent-delegation",
+    "portable-view-spec"
+   ],
+   "deviations": 1,
+   "context": "agents-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T00:46:19.072081+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-host-experience"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "jobs-ai-coach-fit",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

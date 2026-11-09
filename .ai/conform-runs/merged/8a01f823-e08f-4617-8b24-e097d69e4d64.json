@@ -1,0 +1,90 @@
+{
+  "schema": "conform-run/1",
+  "worker": "8a01f823-e08f-4617-8b24-e097d69e4d64",
+  "subject": "prompt-assembly",
+  "evaluatedAt": "2026-11-06T01:15:58.855433+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "devcase-eval",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/tools/devcases/DevEvalPanelChecks.tsx:9 This context only renders evaluation results that the Python devcase pipeline already produced. Its 'prompt' hits refer to the candidate's captured prompt signals, not to assembling a prompt, and a case-insensitive search of app/features/tools/devcases and app/features/tools/interview for systemPrompt, buildPrompt, max_tokens, compaction and cache_control found nothing.",
+      "techniques": [],
+      "absenceTerms": [
+        "systemPrompt",
+        "buildPrompt",
+        "max_tokens",
+        "compaction",
+        "cache_control"
+      ]
+    },
+    {
+      "context": "auth-session-rbac",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/_lib/auth/session.ts:4 This context issues and checks HMAC session tokens and roles and never calls a model. The only 'llm' text in app/_lib/auth is a comment about who may read the llm_usage table, and a case-insensitive search for systemPrompt, buildPrompt, max_tokens, compaction and cache_control found nothing.",
+      "techniques": [],
+      "absenceTerms": [
+        "systemPrompt",
+        "buildPrompt",
+        "max_tokens",
+        "compaction",
+        "cache_control"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "prompt-assembly",
+      "context": "voice-provider-io",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "prompt-assembly",
+      "context": "shell-setup-wizard",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor setupSteps.ts:42 is a comment about importing the companion-brain probe module and does not show that prompt assembly is absent. The evidence also says the wizard only GETs or POSTs the companion brain status, but setupOnboardingFinish.ts and the hooks also call /api/brand, /api/org/invit"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-06T01:15:58.855433+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "prompt-assembly"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "devcase-eval",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-06T01:15:58.855433+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "prompt-assembly"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "auth-session-rbac",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-06T01:15:58.855433+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "prompt-assembly"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "shell-setup-wizard",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

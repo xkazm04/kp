@@ -1,0 +1,163 @@
+{
+ "schema": "conform-run/1",
+ "worker": "0ff13d19-f540-423c-ad31-325314c0561a",
+ "subject": "accessibility",
+ "evaluatedAt": "2026-11-07T03:33:03.538581+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "shell-nav",
+   "subject": "accessibility",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/shell/nav/NavSectionRail.tsx:212 The rail declares a vertical tablist, but every rail button stays independently tabbable and no arrow, Home or End handler exists anywhere in app/features/shell/nav (grep found none), so the composite promises tab-strip keys it does not deliver.",
+   "techniques": [
+    {
+     "technique": "keyboard-navigation-models",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/nav/NavSectionRail.tsx:212 The tablist is N tab stops with no roving tabindex and no arrows. The preferences role=\"menu\" (NavRailPreferences.tsx:113) also has no arrow keys and does not move focus into the menu on open."
+    },
+    {
+     "technique": "live-region-architecture",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/nav/NavSectionRail.tsx:208 A component-owned region is fed from render with the whole polled attention tally. That is an ambient count announced as news, it has no shared provider, and an unchanged string cannot be re-voiced."
+    },
+    {
+     "technique": "hidden-but-mounted-inertness",
+     "verdict": "conformant",
+     "evidence": "app/features/shell/nav/navDrawerA11y.ts:25 The off-canvas drawer is made inert at the <aside> root from the same isMobile/open condition that hides it, so both channels close together."
+    },
+    {
+     "technique": "name-and-description-wiring",
+     "verdict": "conformant",
+     "evidence": "app/features/shell/nav/NavPanelItem.tsx:161 The badge-only slice button gets a translated name that begins with the visible count (\"# need attention. View them.\"), so the label stays in the name."
+    }
+   ]
+  },
+  {
+   "context": "feedback-status-primitives",
+   "subject": "accessibility",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_components/Tooltip.tsx:98 The tooltip wires aria-describedby onto a wrapper span rather than the focused child control, so the description never reaches the control. IconAction's hint is only delivered through this tooltip, so it is lost to screen-reader users everywhere IconAction is used.",
+   "techniques": [
+    {
+     "technique": "name-and-description-wiring",
+     "verdict": "deviation",
+     "evidence": "app/_components/Tooltip.tsx:98 The description is attached to a generic wrapper, not to the button or link that takes focus."
+    },
+    {
+     "technique": "live-region-architecture",
+     "verdict": "deviation",
+     "evidence": "app/_components/Toast.tsx:74 Each toast card is its own live region that mounts already holding its message, with no persistent provider. A deduped re-fire only bumps the nonce (toast-store.ts:56) with identical text, so a repeated error is not re-voiced."
+    },
+    {
+     "technique": "primitive-level-a11y",
+     "verdict": "conformant",
+     "evidence": "app/_components/IconAction.tsx:40 The icon-only primitive requires a label prop that becomes aria-label, so a nameless glyph button cannot compile."
+    },
+    {
+     "technique": "preference-respect",
+     "verdict": "conformant",
+     "evidence": "app/_components/Toast.tsx:70 Under the shared useReducedMotion signal the slide and scale become an opacity settle, so the feedback is replaced rather than removed."
+    },
+    {
+     "technique": "keyboard-navigation-models",
+     "verdict": "conformant",
+     "evidence": "app/_components/useDialogA11y.ts:148 The shared dialog hook hands focus back to the trigger when the dialog unmounts, instead of dropping it to body."
+    }
+   ]
+  },
+  {
+   "context": "table-components",
+   "subject": "accessibility",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_components/table/FilterMenu.tsx:50 The listbox's active descendant is kept as an array index. If the options prop refreshes or reorders while the popup is open, the remembered position silently points at a different option and Enter picks it.",
+   "techniques": [
+    {
+     "technique": "keyboard-navigation-models",
+     "verdict": "deviation",
+     "evidence": "app/_components/table/FilterMenu.tsx:50 The active position is keyed by index, not option identity. Each option also wraps a focusable <button> (line 118), adding tab stops inside a listbox whose role=\"option\" children are presentational."
+    },
+    {
+     "technique": "live-region-architecture",
+     "verdict": "deviation",
+     "evidence": "app/_components/table/TableStatus.tsx:49 Each table owns its own region, fed from render rather than from events. A repeat with identical text (a filter change that leaves the count the same) is not re-voiced."
+    },
+    {
+     "technique": "a11y-verification",
+     "verdict": "deviation",
+     "evidence": "app/_components/table/filter-a11y.test.ts:25 The guards regex-match source text for attributes instead of asserting computed roles, names or focus. That is the attribute-proxy trap that gate-sees-target names."
+    },
+    {
+     "technique": "name-and-description-wiring",
+     "verdict": "conformant",
+     "evidence": "app/_components/table/ColumnHead.tsx:62 The icon-only sort button gets a translated name that includes the column."
+    },
+    {
+     "technique": "primitive-level-a11y",
+     "verdict": "conformant",
+     "evidence": "app/_components/table/ColumnHead.tsx:52 The primitive exposes sort state on the header cell itself, so every consumer inherits it."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-07T03:33:03.538581+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "accessibility"
+   ],
+   "techniques": [
+    "hidden-but-mounted-inertness",
+    "keyboard-navigation-models",
+    "live-region-architecture",
+    "name-and-description-wiring"
+   ],
+   "deviations": 1,
+   "context": "shell-nav",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T03:33:03.538581+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "accessibility"
+   ],
+   "techniques": [
+    "keyboard-navigation-models",
+    "live-region-architecture",
+    "name-and-description-wiring",
+    "preference-respect",
+    "primitive-level-a11y"
+   ],
+   "deviations": 1,
+   "context": "feedback-status-primitives",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T03:33:03.538581+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "accessibility"
+   ],
+   "techniques": [
+    "a11y-verification",
+    "keyboard-navigation-models",
+    "live-region-architecture",
+    "name-and-description-wiring",
+    "primitive-level-a11y"
+   ],
+   "deviations": 1,
+   "context": "table-components",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

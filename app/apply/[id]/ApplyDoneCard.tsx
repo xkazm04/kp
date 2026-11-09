@@ -27,7 +27,9 @@ export function ApplyDoneCard({ done, onRestart }: { done: ApplyOutcome; onResta
           : t("thanksApplying")}
       </p>
       <p className="mt-1 text-base text-steel">{done.message}</p>
-      {done.result === "declined" ? <ApplyDeclineDetail names={done.failedKoNames ?? []} reviewByEmail={Boolean(done.reviewByEmail)} /> : null}
+      {done.result === "declined" || done.result === "held" ? (
+        <ApplyDeclineDetail names={done.failedKoNames ?? []} reviewByEmail={Boolean(done.reviewByEmail)} held={done.result === "held"} />
+      ) : null}
       {/* idea-e76a6fb2 — a tokenized link so the applicant can track their
           status instead of going dark after applying. */}
       {done.result === "accepted" && done.statusToken ? (

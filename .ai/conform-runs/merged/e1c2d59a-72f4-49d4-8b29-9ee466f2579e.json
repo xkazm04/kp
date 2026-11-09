@@ -1,0 +1,140 @@
+{
+  "schema": "conform-run/1",
+  "worker": "e1c2d59a-72f4-49d4-8b29-9ee466f2579e",
+  "subject": "mcp-tools",
+  "evaluatedAt": "2026-11-04T04:32:19.511134+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "cv-analyze-workspace",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/tools/analyze/useAnalyzeForm.ts:23 The workspace is a recruiter UI that calls first-party HTTP routes through AnalyzeApi, not a tool protocol; a case-insensitive search of app/features/tools/analyze for mcp, modelcontextprotocol, tools/call, tools/list and callTool found 0 hits.",
+      "techniques": [],
+      "absenceTerms": [
+        "mcp",
+        "modelcontextprotocol",
+        "tools/call",
+        "tools/list",
+        "callTool"
+      ]
+    },
+    {
+      "context": "models-keys-and-routing",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/settings/models/ModelsKeysPanel.tsx:129 This settings UI manages provider API keys and per-capability model routing through first-party /api/llm routes; it registers no tool servers and lists no tool catalog. A case-insensitive search of app/features/settings/models for mcp, modelcontextprotocol, tools/call, tools/list and callTool found 0 hits.",
+      "techniques": [],
+      "absenceTerms": [
+        "mcp",
+        "modelcontextprotocol",
+        "tools/call",
+        "tools/list",
+        "callTool"
+      ]
+    },
+    {
+      "context": "security-agent-gates",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "scripts/agent/dispatch.mjs:53 The agent dispatcher sends one prompt to the Messages API or the claude CLI and gets back a patch. It exposes and consumes no tool-protocol server, catalog or tool results, and the secret and actions gates are static scanners. A case-insensitive search of scripts/agent and scripts/security for mcp, modelcontextprotocol, tools/call, tools/list and callTool found 0 hits.",
+      "techniques": [],
+      "absenceTerms": [
+        "mcp",
+        "modelcontextprotocol",
+        "tools/call",
+        "tools/list",
+        "callTool"
+      ],
+      "registryProposal": "The dispatcher fences untrusted issue text with a label the text cannot close (dispatch.mjs:409-440). That is the untrusted-result-handling discipline applied to prompt input rather than to tool results, so it belongs to a prompt-safety subject, not mcp-tools."
+    },
+    {
+      "context": "auth-session-rbac",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/_lib/auth/require-operator.ts:71 The auth layer guards HTTP routes with HMAC sessions and roles. It mints no per-consumer tool-server tokens and has no tool door for authentication-and-scoping or first-party-agent-is-a-principal to apply to. A case-insensitive search of app/_lib/auth (and of all app/_lib) for mcp, modelcontextprotocol, tools/call, tools/list and callTool found 0 hits.",
+      "techniques": [],
+      "absenceTerms": [
+        "mcp",
+        "modelcontextprotocol",
+        "tools/call",
+        "tools/list",
+        "callTool"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "mcp-tools",
+      "context": "shared-api-utilities",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor app/_lib/rate-limit.ts:44 is just the rateLimit() signature, and that file is not among the context's listed files. The line does not show that the context has no tool server or tool-call client, and the evidence generalizes to all of app/_lib, which also holds the voice, interview-sim an"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-04T04:32:19.511134+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "mcp-tools"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "shared-api-utilities",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-04T04:32:19.511134+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "mcp-tools"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "cv-analyze-workspace",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-04T04:32:19.511134+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "mcp-tools"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "models-keys-and-routing",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-04T04:32:19.511134+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "mcp-tools"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "security-agent-gates",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-04T04:32:19.511134+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "mcp-tools"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "auth-session-rbac",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

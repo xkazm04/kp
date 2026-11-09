@@ -66,13 +66,7 @@ export default async function Human() {
             you={t("trust.art.human.you")}
             lockedNote={t("trust.art.human.lockedNote")}
             legendLocked={ts("human.legendLocked")}
-            legendDelegable={ts("human.legendDelegable")}
-            log={{
-              none: ts("human.logNone"),
-              screen: ts("human.logOne", { stage: gates.screen }),
-              offer: ts("human.logOne", { stage: gates.offer }),
-              both: ts("human.logTwo", { first: gates.screen, second: gates.offer })
-            }}
+            statusNote={ts("human.logNone")}
           />
         </div>
 

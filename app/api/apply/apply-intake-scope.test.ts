@@ -17,10 +17,11 @@
 //     which both resolve stageWithRole("entry", …), landed correctly. All doors now file
 //     through application-filing.ts, which holds the one copy of that rule.
 //
-//  3. KO AUDIT — the knockout decline persists the applicant's name on an entry-less
-//     ko_declined event, and pipeline_events bounds the event DETAIL but not the
-//     candidate_label. The route's MAX_NAME_LENGTH check sat BELOW the KO gate, so a
-//     declined POST wrote a body-sized name straight into the recruiter's feed.
+//  3. KO HOLD — a failed must-have files the applicant's name on a HELD entry (owner
+//     ruling Q1) and on the events written for it, and pipeline_events bounds the event
+//     DETAIL but not the candidate_label. The route's MAX_NAME_LENGTH check once sat
+//     BELOW the KO gate (when it wrote an entry-less ko_declined event), so a KO POST
+//     wrote a body-sized name straight into the recruiter's feed.
 //
 // Source-contract test (the repo pattern — see apply-error-hygiene.test.ts):
 // importing the route pulls in `next/server`, which the unit runner cannot resolve.
@@ -36,9 +37,10 @@ const route = read("[id]/route.ts");
 
 test("conversational apply drops a filled honeypot before any candidate write", () => {
   const dropAt = route.indexOf("if (isHoneypotFilled(body))");
-  const firstWriteAt = route.indexOf("recordKnockoutDecline({");
-  assert.ok(dropAt > 0 && dropAt < firstWriteAt, "the bot gate must precede even knockout audit writes");
-  assert.match(route.slice(dropAt, route.indexOf("const answers = body.answers", dropAt)), /result: "declined"/);
+  const firstWriteAt = route.indexOf("await fileApplication({");
+  assert.ok(dropAt > 0 && firstWriteAt > 0 && dropAt < firstWriteAt, "the bot gate must precede even the knockout hold's filing");
+  // The honeypot answers in the shape of the live KO outcome (held), so a bot cannot tell it apart.
+  assert.match(route.slice(dropAt, route.indexOf("const answers = body.answers", dropAt)), /result: "held"/);
   assert.match(read("[id]/quick/route.ts"), /if \(isHoneypotFilled\(body\)\)/);
 });
 
@@ -95,16 +97,16 @@ test("a fresh application lands on the workspace axis's ENTRY column, not a hard
   }
 });
 
-test("the name cap runs BEFORE the knockout decline persists that name", () => {
+test("the name cap runs BEFORE the knockout hold persists that name", () => {
   const capAt = route.indexOf("if (name.length > MAX_NAME_LENGTH)");
-  const declineAt = route.indexOf("recordKnockoutDecline({");
+  const holdAt = route.indexOf("const heldFiling = await fileApplication({");
   assert.ok(capAt > 0, "the name cap exists");
-  assert.ok(declineAt > 0, "the KO audit write exists");
-  assert.ok(capAt < declineAt, "an oversized name must be rejected before it is written to the audit event");
-  // …and the audit reuses the already-capped value rather than re-reading the raw body.
-  assert.match(route, /candidateLabel: providedName \|\| null/);
+  assert.ok(holdAt > 0, "the KO hold filing exists");
+  assert.ok(capAt < holdAt, "an oversized name must be rejected before it is written to the held entry and its events");
+  // …and the hold reuses the already-capped value rather than re-reading the raw body.
+  assert.match(route.slice(holdAt, holdAt + 600), /name: providedName,/);
   assert.ok(
-    !/candidateLabel: String\(answers\.name/.test(route),
+    !/name: String\(answers\.name/.test(route),
     "re-parsing the raw name here bypasses the cap above"
   );
   // Non-vacuity: the store bounds the event DETAIL but not the label, which is why

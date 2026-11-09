@@ -1,0 +1,59 @@
+{
+ "schema": "conform-run/1",
+ "worker": "ca10466e-666e-491e-ba0e-cbe460aaf129",
+ "subject": "scoring-rubrics",
+ "evaluatedAt": "2026-10-30T22:36:12.634280+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "score-metric-display",
+   "subject": "scoring-rubrics",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_components/FactorChartBody.tsx:39 The per-factor breakdown bars are coloured using the composite's 50/75 scoreTone thresholds, applied to each dimension's own ratio. It also plots normalized ratios, not contributions, so the bars never visibly sum to the dial. Both break the score-explanation rendering contract.",
+   "techniques": [
+    {
+     "technique": "score-explanation",
+     "verdict": "deviation",
+     "evidence": "app/_components/FactorChartBody.tsx:39 Bands a dimension with the composite's thresholds, which the technique names as a failure. ScoreDial makes it worse: its verdict word comes from VERDICT_BANDS (40/55/70/85), its readout colour from scoreTone (50/75, ScoreDial.tsx:74), and its arc colour from bandColor (index 1 = 40-55 -> mid, ScoreDial.tsx:29). So a score of 45 reads 'Developing' in coral beside an amber arc segment. The chart also shows no top gap phrased as an action."
+    },
+    {
+     "technique": "unmeasured-honesty",
+     "verdict": "deviation",
+     "evidence": "app/_components/ScoreDial.tsx:64 A non-finite or garbled score is coerced to 0 and shown as the 'Early' floor verdict, which is absence as the floor. ScoreBadge does it right (ScoreBadge.tsx:31 renders a null score as an em-dash, never a verdict), so the context is split. factorPoints (app/_lib/factor-points.ts:42, `raw[id] ?? 0`) also zero-fills a missing factor before FactorChartBody draws it."
+    },
+    {
+     "technique": "normalization",
+     "verdict": "conformant",
+     "evidence": "app/_components/FactorChartBody.tsx:90 Fixed anchors: the Y-axis is pinned to [0,1] of each factor's own declared max, not auto-scaled. Ratios are clamped, and the tooltip keeps the raw value/max, so a clamped bar can still be read in native units."
+    },
+    {
+     "technique": "rubric-stability",
+     "verdict": "deviation",
+     "evidence": "app/_components/FactorChart.tsx:9 The chart's per-factor ceilings (FACTOR_MAXES 25/30/23/12/10) are a TS twin of the Python maxima (pipeline/jobfit/pipeline.py:967 clamp, gemini.py:166 prompt). The only test, factor-points.test.ts:58, pins the TS copy against its own values, and grep found no parity fixture run against both sides. The band side is sound: scoreDial.logic.ts:16 is one table, and scoreBandIndex is derived from it and pinned by tests."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-30T22:36:12.634280+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "scoring-rubrics"
+   ],
+   "techniques": [
+    "normalization",
+    "rubric-stability",
+    "score-explanation",
+    "unmeasured-honesty"
+   ],
+   "deviations": 1,
+   "context": "score-metric-display",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -1,0 +1,127 @@
+{
+ "schema": "conform-run/1",
+ "worker": "e85b00c6-b764-47dd-a2d8-91846192a694",
+ "subject": "supply-chain",
+ "evaluatedAt": "2026-11-07T00:05:39.112046+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "jd-ledger",
+   "subject": "supply-chain",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/library/jds/jdsLedgerArtifacts.ts:7 This context is a client table and detail view over JD rows and build artifacts that the server already stored. I searched app/features/library/jds for child_process, tarball, unzip, lockfile and pickle and found nothing: no dependency manifest, archive, subprocess, secret scan or foreign-state loader, so no supply-chain crossing is owned here.",
+   "techniques": [],
+   "absenceTerms": [
+    "child_process",
+    "tarball",
+    "unzip",
+    "lockfile",
+    "pickle"
+   ]
+  },
+  {
+   "context": "jd-library-core",
+   "subject": "supply-chain",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/library/jds/jdsEditClient.ts:3 This is the shell, hooks and edit client of the JD library tab, which talk to the app's own JD API. I searched app/features/library/jds for child_process, tarball, unzip, lockfile and pickle and found nothing, so no dependency, archive, secret or third-party-code crossing lives here.",
+   "techniques": [],
+   "absenceTerms": [
+    "child_process",
+    "tarball",
+    "unzip",
+    "lockfile",
+    "pickle"
+   ]
+  },
+  {
+   "context": "decisions-review-ui",
+   "subject": "supply-chain",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/hiring/decisions/useDecisionsQueue.ts:1 This is a React review surface over the app's own pipeline API. I searched app/features/hiring/decisions for child_process, tarball, unzip, lockfile and pickle and found nothing. Its only 'spawn' hits are comments, and its third-party imports are framework packages governed by the repo-wide dependency gates.",
+   "techniques": [],
+   "absenceTerms": [
+    "child_process",
+    "tarball",
+    "unzip",
+    "lockfile",
+    "pickle"
+   ]
+  },
+  {
+   "context": "about-product",
+   "subject": "supply-chain",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/insights/about/chapters.ts:2 This is a static, animated product explainer: chapter structure plus catalog strings. I searched app/features/insights/about for child_process, tarball, unzip, lockfile and pickle and found nothing, so it has no supply-chain boundary of its own.",
+   "techniques": [],
+   "absenceTerms": [
+    "child_process",
+    "tarball",
+    "unzip",
+    "lockfile",
+    "pickle"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "supply-chain",
+   "context": "github-repo-intelligence",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-07T00:05:39.112046+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "supply-chain"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "jd-ledger",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T00:05:39.112046+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "supply-chain"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "jd-library-core",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T00:05:39.112046+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "supply-chain"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "decisions-review-ui",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T00:05:39.112046+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "supply-chain"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "about-product",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

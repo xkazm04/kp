@@ -1,0 +1,60 @@
+{
+ "schema": "conform-run/1",
+ "worker": "a8b5e86e-bdc1-436a-8dc5-6f9e2ce82a99",
+ "subject": "scheduling",
+ "evaluatedAt": "2026-10-30T22:30:15.541840+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "interview-scheduling-api",
+   "subject": "scheduling",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/schedule/[token]/route.ts:186 These routes book interview slots when a request arrives (confirm, reschedule, RSVP, invite minting, OAuth). No durable schedule, reconciliation loop, recurrence rule or event subscription is defined here: a case-insensitive grep of app/api/schedule and app/api/calendar for setInterval, cron, next_run, nextRun and cooldown found zero hits, so the subject's precondition (machinery that decides when deferred work fires) does not hold in this context.",
+   "techniques": [
+    {
+     "technique": "cooldown-and-debounce",
+     "verdict": "not-applicable",
+     "evidence": "app/api/schedule/[token]/route.ts:197 The only suppression here is a per-IP HTTP rate limit on a public door, which belongs to the rate-limiting subject. It does not suppress refires of a trigger reacting to a condition or event."
+    },
+    {
+     "technique": "missed-run-semantics",
+     "verdict": "not-applicable",
+     "evidence": "app/api/schedule/[token]/route.ts:227 Link expiry is checked lazily when a request arrives. No loop wakes after downtime to decide what missed due times are worth."
+    },
+    {
+     "technique": "overlap-and-reentrancy",
+     "verdict": "not-applicable",
+     "evidence": "app/api/schedule/route.ts:210 Idempotency here is per request, against a booking row. There is no scheduled run that could come due while still executing."
+    }
+   ],
+   "absenceTerms": [
+    "setInterval",
+    "cron",
+    "nextRun",
+    "cooldown"
+   ],
+   "registryProposal": "The context map files interview self-scheduling (calendar booking) under the same word as the job-scheduling subject. A disambiguating use_when or not-applicable trigger such as \"calendar or slot booking for humans, not deferred work\" would stop this pair from being re-judged every sweep."
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-30T22:30:15.541840+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "scheduling"
+   ],
+   "techniques": [
+    "cooldown-and-debounce",
+    "missed-run-semantics",
+    "overlap-and-reentrancy"
+   ],
+   "deviations": 0,
+   "context": "interview-scheduling-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

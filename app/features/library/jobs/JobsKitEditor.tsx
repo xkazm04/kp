@@ -22,6 +22,8 @@ import {
 import type { KitAdjustment } from "@/app/_lib/interview-kit-validate";
 import { JobsKitCompetency } from "./JobsKitCompetency";
 import { JobsKitFaq } from "./JobsKitFaq";
+import { useVoiceEnabled } from "@/app/_lib/voice/use-voice-enabled";
+import { voiceSurfaceVisible } from "@/app/_lib/voice/enabled";
 import {
   addCompetency,
   canAddCompetency,
@@ -45,6 +47,7 @@ const ADJUSTMENT_MAX: Record<KitAdjustment, number> = {
 export function JobsKitEditor({ k }: { k: JobKitLogic }) {
   const { t, draft, setDraft, baseAtOpen, dirty, check } = k;
   const mustAskHintId = useId();
+  const voiceOn = voiceSurfaceVisible(useVoiceEnabled());
   if (!draft) return null;
 
   const problemText = (p: KitDraftProblem): string => {
@@ -101,7 +104,7 @@ export function JobsKitEditor({ k }: { k: JobKitLogic }) {
               {k.publishing === baseAtOpen.id ? t("publishing") : t("publishThis", { version: baseAtOpen.version })}
             </button>
           ) : null}
-          {baseAtOpen ? (
+          {baseAtOpen && voiceOn ? (
             <button
               type="button"
               onClick={() => void k.rehearse(baseAtOpen.id)}

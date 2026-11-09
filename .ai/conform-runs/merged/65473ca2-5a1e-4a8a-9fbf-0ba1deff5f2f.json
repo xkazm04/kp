@@ -1,0 +1,261 @@
+{
+ "schema": "conform-run/1",
+ "worker": "65473ca2-5a1e-4a8a-9fbf-0ba1deff5f2f",
+ "subject": "status-vocabulary",
+ "evaluatedAt": "2026-11-06T05:18:16.645295+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "member-ui-helpers",
+   "subject": "status-vocabulary",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/shared/memberUi.ts:72 Role colour lives in a switch-with-default that is separate from the role labels (roleLabel), uses raw palette shades, and sends viewer and any future role to a default branch, so colour and label can drift apart and a new role compiles without a colour decision.",
+   "techniques": [
+    {
+     "technique": "status-color-mapping",
+     "verdict": "deviation",
+     "evidence": "app/features/shared/memberUi.ts:72 The colour table runs parallel to the label lookup, is not total over MemberRole (default branch), and returns class strings instead of a Badge tone role."
+    },
+    {
+     "technique": "reserved-attention-hue",
+     "verdict": "deviation",
+     "evidence": "app/features/shared/memberUi.ts:81 hiring_manager gets the same amber classes as Badge caution, which StatusChip uses for 'waiting' (a person must act), so a role identity wears the attention hue."
+    },
+    {
+     "technique": "vocabulary-chain-integrity",
+     "verdict": "deviation",
+     "evidence": "app/features/shared/memberUi.ts:87 Hand-copied second authority of app/_lib/db/users.ts UserStatus rather than derived from it; nothing gates their agreement."
+    },
+    {
+     "technique": "epistemic-marks",
+     "verdict": "deviation",
+     "evidence": "app/features/shared/memberUi.ts:103 An unknown status is drawn as a muted neutral status tone, not as a separate epistemic mark (the repo has no epistemic mark family). The neutral direction itself is correct for a state vocabulary."
+    },
+    {
+     "technique": "untrusted-label-rendering",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/memberUi.ts:62 Every label is a catalog key resolved through a typed translator. These helpers render no user-authored text."
+    }
+   ]
+  },
+  {
+   "context": "org-management-api",
+   "subject": "status-vocabulary",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/repo-scan/route.ts:32 The list route's wire projection widens the closed RepoScanStatus (and the errorCode/fallbackClass classes) to bare strings, so GET /api/repo-scan's response type has lost the union at the serialization seam, while the detail route keeps it.",
+   "techniques": [
+    {
+     "technique": "vocabulary-chain-integrity",
+     "verdict": "deviation",
+     "evidence": "app/api/repo-scan/route.ts:32 publicRepoScanView's parameter type widens RepoScanStatus to string, and the inferred response carries a bare string."
+    },
+    {
+     "technique": "vocabulary-evolution-checklist",
+     "verdict": "deviation",
+     "evidence": "app/api/org/members/[userId]/route.ts:60 Door validation re-lists members as literals instead of deriving them from the UserStatus authority, and the error does not name the allowed members. A new member must be remembered here by hand."
+    }
+   ]
+  },
+  {
+   "context": "workspace-member-admin",
+   "subject": "status-vocabulary",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/settings/workspace/WorkspaceMembersTable.tsx:142 The custom-permissions marker hand-composes coral token classes, the hue this same tab reserves for failures, instead of resolving a semantic role through Badge, so a neutral fact reads as an alert.",
+   "techniques": [
+    {
+     "technique": "status-color-mapping",
+     "verdict": "deviation",
+     "evidence": "app/features/settings/workspace/WorkspaceMembersTable.tsx:142 Colour picked at the call site with no tone role. Coral means failed load elsewhere in the tab (WorkspaceTab.tsx comment at 311)."
+    },
+    {
+     "technique": "epistemic-marks",
+     "verdict": "deviation",
+     "evidence": "app/features/settings/workspace/WorkspaceTab.tsx:308 Partial or incomplete data is shown as a screen-level amber notice instead of a mark on the values that are missing."
+    },
+    {
+     "technique": "reserved-attention-hue",
+     "verdict": "deviation",
+     "evidence": "app/features/settings/workspace/WorkspaceTab.tsx:300 An informational locked-feature note uses the amber band that StatusChip assigns to 'waiting for a person'."
+    },
+    {
+     "technique": "timestamp-display",
+     "verdict": "conformant",
+     "evidence": "app/features/settings/workspace/WorkspaceDetailPanel.tsx:271 Fixed moment goes through the shared useDateFormat named-shape primitive, which binds the locale internally (next-intl)."
+    },
+    {
+     "technique": "untrusted-label-rendering",
+     "verdict": "conformant",
+     "evidence": "app/features/settings/workspace/WorkspaceMembersTable.tsx:97 The user-typed name renders as an escaped text node with truncation; no hue or logic is keyed on it."
+    },
+    {
+     "technique": "vocabulary-chain-integrity",
+     "verdict": "deviation",
+     "evidence": "app/features/settings/workspace/workspaceAdminLoad.ts:21 The DTO types status with memberUi's hand-copied MemberStatus rather than the db UserStatus authority. The unknown path is counted honestly in workspaceAdminHelpers."
+    }
+   ]
+  },
+  {
+   "context": "feedback-status-primitives",
+   "subject": "status-vocabulary",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_components/Badge.tsx:215 An unrecognised verdict in an approval vocabulary (advance/hold/reject) renders its raw labelized token in a calm neutral tone instead of degrading toward the least-approved member, which is the 'raw spelling' lie the technique names.",
+   "techniques": [
+    {
+     "technique": "status-color-mapping",
+     "verdict": "deviation",
+     "evidence": "app/_components/Badge.tsx:215 The unknown direction for an approval vocabulary is neutral plus raw token. TONE_CLASS at line 27 is properly keyed by the BadgeTone union."
+    },
+    {
+     "technique": "vocabulary-chain-integrity",
+     "verdict": "deviation",
+     "evidence": "app/_components/Badge.tsx:143 Takes a bare string, and its labels are hardcoded English literals, so the catalog layer is bypassed and there is no union-keyed table."
+    },
+    {
+     "technique": "claim-rests-on-its-source",
+     "verdict": "deviation",
+     "evidence": "app/_components/Badge.tsx:147 Any status that is not ok/empty/error, including an unknown or corrupt one, is asserted to be the known member 'Disabled'."
+    },
+    {
+     "technique": "reserved-attention-hue",
+     "verdict": "deviation",
+     "evidence": "app/_components/StatusChip.tsx:43 'A person must act' maps to the shared caution amber, which also paints low confidence, wide band, template fallback, hold and stale (LoadStatus). The hue is not reserved."
+    },
+    {
+     "technique": "epistemic-marks",
+     "verdict": "deviation",
+     "evidence": "app/_components/LoadStatus.tsx:48 Stale is drawn as an amber warning status pill with an alert icon rather than a separate outline or hatch mark. It does carry its age."
+    },
+    {
+     "technique": "timestamp-display",
+     "verdict": "conformant",
+     "evidence": "app/_components/LoadStatus.tsx:39 The elapsed vocabulary comes from the platform via next-intl with the app locale bound. There is no future clamp and no shared ticker, but it renders only after a client-side failure."
+    },
+    {
+     "technique": "untrusted-label-rendering",
+     "verdict": "conformant",
+     "evidence": "app/_components/Tooltip.tsx:33 The tooltip primitive accepts text only and renders it as a text node. Badge likewise renders {label} as text."
+    }
+   ]
+  },
+  {
+   "context": "invite-accept-flow",
+   "subject": "status-vocabulary",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/invite/[token]/AcceptForm.tsx:196 The invite role crosses the wire as a bare string and is cast into MemberRole without the existing isMemberRole guard, so an off-vocabulary role reaches the typed catalog lookup unchecked.",
+   "techniques": [
+    {
+     "technique": "vocabulary-chain-integrity",
+     "verdict": "deviation",
+     "evidence": "app/invite/[token]/AcceptForm.tsx:196 Preview.role is declared string (line 15) and an unchecked cast stands in for a gate, although isMemberRole exists in app/_lib/auth/roles.ts."
+    },
+    {
+     "technique": "claim-rests-on-its-source",
+     "verdict": "deviation",
+     "evidence": "app/invite/[token]/AcceptForm.tsx:80 When the server sends no role, the page tells the invitee they join as Recruiter, a claim no source made."
+    },
+    {
+     "technique": "untrusted-label-rendering",
+     "verdict": "conformant",
+     "evidence": "app/invite/[token]/AcceptForm.tsx:192 The org name (operator-typed) is interpolated as an ICU argument and rendered as escaped text, with a localized fallback."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-06T05:18:16.645295+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "status-vocabulary"
+   ],
+   "techniques": [
+    "epistemic-marks",
+    "reserved-attention-hue",
+    "status-color-mapping",
+    "untrusted-label-rendering",
+    "vocabulary-chain-integrity"
+   ],
+   "deviations": 1,
+   "context": "member-ui-helpers",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T05:18:16.645295+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "status-vocabulary"
+   ],
+   "techniques": [
+    "vocabulary-chain-integrity",
+    "vocabulary-evolution-checklist"
+   ],
+   "deviations": 1,
+   "context": "org-management-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T05:18:16.645295+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "status-vocabulary"
+   ],
+   "techniques": [
+    "epistemic-marks",
+    "reserved-attention-hue",
+    "status-color-mapping",
+    "timestamp-display",
+    "untrusted-label-rendering",
+    "vocabulary-chain-integrity"
+   ],
+   "deviations": 1,
+   "context": "workspace-member-admin",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T05:18:16.645295+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "status-vocabulary"
+   ],
+   "techniques": [
+    "claim-rests-on-its-source",
+    "epistemic-marks",
+    "reserved-attention-hue",
+    "status-color-mapping",
+    "timestamp-display",
+    "untrusted-label-rendering",
+    "vocabulary-chain-integrity"
+   ],
+   "deviations": 1,
+   "context": "feedback-status-primitives",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T05:18:16.645295+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "status-vocabulary"
+   ],
+   "techniques": [
+    "claim-rests-on-its-source",
+    "untrusted-label-rendering",
+    "vocabulary-chain-integrity"
+   ],
+   "deviations": 1,
+   "context": "invite-accept-flow",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

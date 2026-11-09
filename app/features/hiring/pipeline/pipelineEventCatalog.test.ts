@@ -111,3 +111,17 @@ test("useEventVerb no longer de-underscores a raw English kind", () => {
   );
   assert.match(src, /t\("unknownKind", \{ kind: ev\.kind \}\)/);
 });
+
+// Q3 (2026-11-09) removed the WRITE path of `offer_auto_extended`; the kind is kept
+// as a reader so a timeline row written before the removal still renders its label.
+test("a legacy offer_auto_extended event still renders its localized label and reason", () => {
+  assert.equal(isEventKind("offer_auto_extended"), true);
+  assert.ok(EVENT_CATALOG.offer_auto_extended, "the icon/tone entry is kept");
+  for (const loc of LOCALES) {
+    const m = JSON.parse(readFileSync(resolve(ROOT, `messages/${loc}.json`), "utf8")) as {
+      pipeline: { events: Record<string, string>; eventReasons: Record<string, string> };
+    };
+    assert.ok(m.pipeline.events.offer_auto_extended, `${loc}: the kind's verb is kept`);
+    assert.ok(m.pipeline.eventReasons.offerAutoExtended, `${loc}: the coded reason text is kept`);
+  }
+});

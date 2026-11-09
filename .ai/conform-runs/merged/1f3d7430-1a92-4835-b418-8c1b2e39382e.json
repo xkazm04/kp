@@ -1,0 +1,245 @@
+{
+ "schema": "conform-run/1",
+ "worker": "1f3d7430-1a92-4835-b418-8c1b2e39382e",
+ "subject": "table",
+ "evaluatedAt": "2026-11-07T03:26:06.873264+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "devcase-workspace",
+   "subject": "table",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/tools/devcases/useDevTabData.ts:51 The free-text title filter sends a server request after a 250ms debounce instead of waiting for an explicit commit, the bar has no clear-all action, and old-predicate rows stay on screen while the new query loads, so the filtering contract is broken on a server-paged ledger.",
+   "techniques": [
+    {
+     "technique": "filtering",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/devcases/useDevTabData.ts:51 Free text commits on a debounce over a server round trip, which the technique names as the guess it forbids. There is no single clear-all (only the job chip clears). useLoader keeps the previous predicate's rows until the new answer lands."
+    },
+    {
+     "technique": "loading-and-empty-states",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/devcases/DevCasesTable.tsx:201 When a filter is active the 'no matches' row renders whenever the list is empty, without checking state.failed or whether a fetch has settled. A ?job= deep link shows 'No assignments match' before the first answer arrives, or when it fails. Also, the uncapped i*30ms fade delay with fill 'both' (line 157) hides row 500 for about 15s after Load more."
+    },
+    {
+     "technique": "client-server-split",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/casesPage.ts:20 Filter, order and window all run server-side (all-server regime); the client only builds the URL."
+    },
+    {
+     "technique": "sorting",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/devcase-ledger.ts:163 Fixed default order, newest first, with the row id as a unique tiebreaker."
+    },
+    {
+     "technique": "pagination",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/useDevTabData.ts:57 A filter change resets the window. The server learns 'truncated' with limit+1 and the footer says the list is cut. Sizes come from a fixed set of three (casesPage.ts:7)."
+    },
+    {
+     "technique": "performance",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/DevCasesTable.tsx:155 Rows are keyed by identity and the window is capped at 500 by the door."
+    },
+    {
+     "technique": "grid-keyboard-model",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/DevCasesTable.tsx:161 A native table whose cells are read-only apart from one open button per row; no grid role is needed."
+    }
+   ]
+  },
+  {
+   "context": "analyze-workspace",
+   "subject": "table",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/tools/analyze/history/HistoryTab.tsx:109 History search applies a server-filtered query on a 250ms debounce rather than an explicit commit, and by design (comment at lines 161-162) it keeps the previous predicate's rows on screen while the new filter loads.",
+   "techniques": [
+    {
+     "technique": "filtering",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/analyze/history/HistoryTab.tsx:109 Keystroke-plus-debounce commit on a round-trip filter, and old-predicate rows stay visible during a filter change. Done well: the reqGen latest-wins token covers both success and failure, a single clear-all exists, the dropdowns commit on change onto the applied query, and the matched count reads the applied predicate."
+    },
+    {
+     "technique": "loading-and-empty-states",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/analyze/history/HistoryTab.tsx:171 The error branch and the first-load branch (rows == null, line 182) render in place of HistoryFilterBar, so the toolbar chrome is unmounted during the first fetch, after a failure, and during retry (setRows(null) at line 121). Done well: a delayed reveal-quiet ghost, error kept separate from empty with a retry, and empty typed by cause (no runs vs no match plus clear)."
+    },
+    {
+     "technique": "client-server-split",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/analyze/history/historyQuery.ts:6 All-server regime: filter, order and window are applied together on the server, and facets come from the whole workspace."
+    },
+    {
+     "technique": "pagination",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/analyze/history/HistoryTab.tsx:131 Keyset load-more under the applied query. A stale generation is dropped and pages merge by slug. A cut page says 'shown, newest first' instead of claiming a total."
+    },
+    {
+     "technique": "sorting",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/analyses.ts:252 Total order with the unique slug as tiebreaker, matching the keyset cursor."
+    },
+    {
+     "technique": "performance",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/analyze/history/HistoryTable.tsx:46 Rows are keyed by identity and the window is bounded."
+    }
+   ]
+  },
+  {
+   "context": "matrix-focus",
+   "subject": "table",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/export-utils.ts:17 The ranking CSV export (MatchResults.tsx:18 imports toCsv) goes through a shared encoder that applies the guard before quoting, but its trigger set leaves out the line-feed and the full-width = + - @ forms the technique requires.",
+   "techniques": [
+    {
+     "technique": "export-escapes-for-its-consumer",
+     "verdict": "deviation",
+     "evidence": "app/_lib/export-utils.ts:17 Done well: one shared encoder, guard before quote, numbers exempted by type. Missing: the \\n trigger and the full-width trigger forms. A job title or reasons line from another system can open as a formula."
+    },
+    {
+     "technique": "loading-and-empty-states",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/matrix/focus/MatchResults.tsx:52 A failed re-rank keeps the ranking on screen. Empty is explained by cause through NoMatchesExplainer (line 147)."
+    },
+    {
+     "technique": "performance",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/matrix/focus/MatchResults.tsx:180 Ranked rows are keyed by job identity; MatchCard is not memoized, so the index prop costs nothing extra."
+    },
+    {
+     "technique": "grid-keyboard-model",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/matrix/focus/MatchJobCompare.tsx:54 The 2-4 column compare view is a native read-only table."
+    }
+   ]
+  },
+  {
+   "context": "results-core",
+   "subject": "table",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "app/_components/results/compare/CompareTab.tsx:339 The only table here is the static, read-only CV-variant compare table. It has a caption and scoped row and column headers, and most data-grid techniques do not apply. Golden-path miss outside the techniques: numeric cells are left-aligned.",
+   "techniques": [
+    {
+     "technique": "grid-keyboard-model",
+     "verdict": "conformant",
+     "evidence": "app/_components/results/compare/CompareTab.tsx:339 Native table, read-only cells, scoped headers plus an sr-only caption (line 168)."
+    },
+    {
+     "technique": "loading-and-empty-states",
+     "verdict": "conformant",
+     "evidence": "app/_components/results/compare/CompareTab.tsx:72 There is no fetch. A payload that cannot be compared gets a named empty state with an upload prompt instead of a broken table."
+    },
+    {
+     "technique": "sorting",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/results/compare/CompareTab.tsx:21 Rows follow a fixed score taxonomy; there is no sortable axis."
+    },
+    {
+     "technique": "pagination",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/results/compare/CompareTab.tsx:206 At most nine fixed metric rows; nothing to page."
+    },
+    {
+     "technique": "export-escapes-for-its-consumer",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/results/ReportActions.tsx:42 The only export is a markdown dossier, not a CSV of table rows."
+    },
+    {
+     "technique": "clipboard-range-round-trip",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/results/ReportActions.tsx:36 The clipboard carries a report link, not a cell range."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "table",
+   "context": "form-controls",
+   "reason": "Its files (TextInput, Select, Checkbox, RichTextEditor, SegmentedControl) contain no table. A not-applicable verdict would fail the directory re-search, though: app/_components also holds kit/DataTable.tsx, table/ColumnHead.tsx, table/useTableSort.ts and chat/ChatTable.tsx, which match aria-sort/thead. Judging Select's keyboard keys as table filtering controls would be a guess."
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-07T03:26:06.873264+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "table"
+   ],
+   "techniques": [
+    "client-server-split",
+    "filtering",
+    "grid-keyboard-model",
+    "loading-and-empty-states",
+    "pagination",
+    "performance",
+    "sorting"
+   ],
+   "deviations": 1,
+   "context": "devcase-workspace",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T03:26:06.873264+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "table"
+   ],
+   "techniques": [
+    "client-server-split",
+    "filtering",
+    "loading-and-empty-states",
+    "pagination",
+    "performance",
+    "sorting"
+   ],
+   "deviations": 1,
+   "context": "analyze-workspace",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T03:26:06.873264+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "table"
+   ],
+   "techniques": [
+    "export-escapes-for-its-consumer",
+    "grid-keyboard-model",
+    "loading-and-empty-states",
+    "performance"
+   ],
+   "deviations": 1,
+   "context": "matrix-focus",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T03:26:06.873264+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "table"
+   ],
+   "techniques": [
+    "clipboard-range-round-trip",
+    "export-escapes-for-its-consumer",
+    "grid-keyboard-model",
+    "loading-and-empty-states",
+    "pagination",
+    "sorting"
+   ],
+   "deviations": 0,
+   "context": "results-core",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -73,7 +73,7 @@ export function useDecisionsQueue() {
   // the candidate modal opened from the ledger reads the route across them.
   const [axis, setAxis] = useState<readonly StageDef[]>(DEFAULT_BOARD_AXIS);
   const [error, setError] = useState<string | null>(null);
-  const [resolving, setResolving] = useState<Record<string, "accept" | "reject" | "approve_event">>({});
+  const [resolving, setResolving] = useState<Record<string, DecideAction>>({});
   // Candidates whose screening was accepted THIS sitting — accepting silently
   // queues them on Schedule (approvalKind flips to "calendar" server-side), so
   // the banner below narrates the handoff and offers the jump. Session-local on

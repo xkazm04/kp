@@ -1,0 +1,69 @@
+{
+ "schema": "conform-run/1",
+ "worker": "10ce6120-603b-4b29-9897-8218302986b3",
+ "subject": "voice-io",
+ "evaluatedAt": "2026-11-07T01:21:41.887779+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "shell-setup-wizard",
+   "subject": "voice-io",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/shell/setup/setupSteps.ts:51 The first-run wizard's closed step vocabulary has no voice step, and a case-insensitive grep of app/features/shell/setup/ for tts, microphone, elevenlabs, getUserMedia, speechSynthesis, audio and transcri found zero files. Every 'voice' hit refers to prose register, and the companion step asks for consent to a memory folder, not to speech.",
+   "techniques": [
+    {
+     "technique": "voice-setup-experience",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shell/setup/setupSteps.ts:51 This wizard does not build first-run voice onboarding, so the technique's precondition does not hold."
+    }
+   ],
+   "absenceTerms": [
+    "tts",
+    "microphone",
+    "elevenlabs",
+    "getUserMedia",
+    "speechSynthesis"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "voice-io",
+   "context": "shell-companion-voice",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "voice-io",
+   "context": "interview-lab-harness",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "voice-io",
+   "context": "voice-interview-session",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "voice-io",
+   "context": "voice-interview-api",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-07T01:21:41.887779+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "voice-io"
+   ],
+   "techniques": [
+    "voice-setup-experience"
+   ],
+   "deviations": 0,
+   "context": "shell-setup-wizard",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

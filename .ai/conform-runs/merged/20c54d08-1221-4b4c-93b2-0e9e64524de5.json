@@ -1,0 +1,57 @@
+{
+  "schema": "conform-run/1",
+  "worker": "20c54d08-1221-4b4c-93b2-0e9e64524de5",
+  "subject": "voice-io",
+  "evaluatedAt": "2026-11-03T23:16:58.528245+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "voice-io",
+      "context": "voice-interview-session",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "voice-io",
+      "context": "shell-companion-voice",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "voice-io",
+      "context": "interview-tools-api",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "voice-io",
+      "context": "interview-lab-harness",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "voice-io",
+      "context": "voice-provider-io",
+      "reason": "withdrawn after review: reviewer (sonnet): The TTS cache key claim is accurate at app/_lib/tts-cache.ts:113, but tts-cache.ts and stt.ts are not in this context's files (app/_lib/voice/* realtime/provider code), and none of those files import them. The verdict therefore covers a different context (the /api/tts and /api/stt routes). I also co"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-03T23:16:58.528245+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "voice-io"
+      ],
+      "techniques": [
+        "duplex-agent-sessions",
+        "engine-abstraction",
+        "on-device-vs-cloud",
+        "portable-provider-package",
+        "stt-pipeline",
+        "tts-pipeline"
+      ],
+      "deviations": 1,
+      "context": "voice-provider-io",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

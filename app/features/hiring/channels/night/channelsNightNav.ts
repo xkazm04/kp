@@ -2,7 +2,8 @@
  * The Night Post's level machine (pure; pinned by channelsNightNav.test.ts).
  *
  * The surface is a STACK of levels, the root always the plumbing:
- *   L0 the plumbing (the district) · L1 one channel's setup · L2 the ledger · L3 one message.
+ *   L0 the plumbing (the district) · L1 one channel's setup, or the connectors deck · L2 the ledger ·
+ *   L3 one message.
  * A push opens a level over the current one, a pop returns, popTo is a breadcrumb click,
  * replaceTop is a sideways step (the next channel, the next message). The generic half (the
  * reducer's rules, how each layer is on screen) is the kit's level stack
@@ -24,6 +25,16 @@ export function isNightChannel(value: string | null | undefined): value is Night
   return value != null && (NIGHT_CHANNELS as readonly string[]).includes(value);
 }
 
+/** The connectors deck (night/connectors/): the studio's outside connections (delivery, the ATS,
+ *  the calendar). A level 1 like a channel's setup, but not one of the six buildings: it has no
+ *  place in the stepper. `focus` is the part a need or a deep link opens it on. */
+export const DECK_FOCI = ["delivery", "ats", "calendar"] as const;
+export type DeckFocus = (typeof DECK_FOCI)[number];
+
+export function isDeckFocus(value: string | null | undefined): value is DeckFocus {
+  return value != null && (DECK_FOCI as readonly string[]).includes(value);
+}
+
 /** A ledger verdict filter: one verdict, "dead" (everything that needs you), or none. */
 export type LedgerVerdict = CommsVerdict | "dead" | null;
 const LEDGER_VERDICTS: readonly string[] = ["queued", "sent", "recovered", "failed", "bounced", "orphaned", "dead"];
@@ -32,10 +43,22 @@ export type NightEntry =
   | { level: 0 }
   /** `focus` is a receiver token the level opens on (a needs-you item, a deep link). */
   | { level: 1; channel: NightChannel; focus: string | null }
+  | DeckEntry
   /** `from` is the channel the ledger was opened from (its scope and its way back). */
   | { level: 2; verdict: LedgerVerdict; role: string | null; from: NightChannel | null }
   /** `list` is the ordered ids the message was opened from, for prev / next. */
   | { level: 3; id: string; list: readonly string[] };
+
+export type DeckEntry = { level: 1; deck: "connectors"; focus: DeckFocus | null };
+export type ChannelEntry = Extract<NightEntry, { channel: NightChannel }>;
+
+export function isDeckEntry(entry: NightEntry): entry is DeckEntry {
+  return entry.level === 1 && "deck" in entry;
+}
+
+export function deckEntry(focus: DeckFocus | null = null): DeckEntry {
+  return { level: 1, deck: "connectors", focus };
+}
 
 export type NightLevel = NightEntry["level"];
 export type NightStack = readonly NightEntry[];
@@ -48,7 +71,10 @@ export type NightAction = LevelAction<NightEntry>;
 /** Two entries name the same place (the fields that make a level what it is). */
 export function sameEntry(a: NightEntry, b: NightEntry): boolean {
   if (a.level !== b.level) return false;
-  if (a.level === 1 && b.level === 1) return a.channel === b.channel;
+  if (a.level === 1 && b.level === 1) {
+    if (isDeckEntry(a) || isDeckEntry(b)) return isDeckEntry(a) && isDeckEntry(b);
+    return a.channel === b.channel;
+  }
   if (a.level === 2 && b.level === 2) return a.verdict === b.verdict && a.role === b.role;
   if (a.level === 3 && b.level === 3) return a.id === b.id;
   return true;
@@ -71,8 +97,10 @@ export function nightReduce(stack: NightStack, action: NightAction): NightStack 
   return levelReduce(stack, action, { root: NIGHT_ROOT, same: sameEntry });
 }
 
-/** The channel that owns a level (for the building focus returns to, and the frame's ground). */
-export function channelOf(entry: NightEntry): NightChannel | "book" | null {
+/** The channel that owns a level (for the building focus returns to, and the frame's ground). The
+ *  deck belongs to the studio: its connections are the studio's. */
+export function channelOf(entry: NightEntry): NightChannel | "book" | "studio" | null {
+  if (isDeckEntry(entry)) return "studio";
   if (entry.level === 1) return entry.channel;
   if (entry.level === 2 || entry.level === 3) return "book";
   return null;
@@ -93,6 +121,7 @@ export function stepMessage(entry: Extract<NightEntry, { level: 3 }>, delta: 1 |
 
 /** A React key per layer: its depth and the place it shows (a swap to another place remounts). */
 export function layerKey(entry: NightEntry, depth: number): string {
+  if (isDeckEntry(entry)) return `${depth}:d:${entry.deck}`;
   if (entry.level === 1) return `${depth}:c:${entry.channel}`;
   if (entry.level === 2) return `${depth}:l`;
   if (entry.level === 3) return `${depth}:m:${entry.id}`;
@@ -112,6 +141,7 @@ const KEY = /^[\w.-]{1,128}$/;
  *   comms | ledger            the ledger (L2)       `comms` is the old Communications section
  *   dead | <verdict>          the ledger, filtered  `dead` = everything that needs you
  *   <channel>[:<token>]       that channel (L1), opened on one receiver
+ *   connectors[:<part>]       the connectors deck (L1), opened on delivery / ats / calendar
  *   msg:<id>                  one message (L3) over the ledger
  *   plumbing                  the plumbing (L0)
  */
@@ -129,12 +159,17 @@ export function parseNightArrival(raw: string | null): NightStack | null {
     return [NIGHT_ROOT[0], { level: 2, verdict: head as LedgerVerdict, role: null, from: null }];
   }
   if (isNightChannel(head)) return [NIGHT_ROOT[0], { level: 1, channel: head, focus: key }];
+  if (head === "connectors") {
+    if (key !== null && !isDeckFocus(key)) return [NIGHT_ROOT[0], deckEntry()];
+    return [NIGHT_ROOT[0], deckEntry(key)];
+  }
   if (head === "msg" && key !== null) return [NIGHT_ROOT[0], LEDGER_ALL, { level: 3, id: key, list: [key] }];
   return null;
 }
 
 /** The inverse: the `?sec=` value that lands on this entry (the role scope is not addressable). */
 export function nightArrivalParam(entry: NightEntry): string {
+  if (isDeckEntry(entry)) return entry.focus ? `connectors:${entry.focus}` : "connectors";
   if (entry.level === 1) return entry.focus ? `${entry.channel}:${entry.focus}` : entry.channel;
   if (entry.level === 2) return entry.verdict ?? "comms";
   if (entry.level === 3) return `msg:${entry.id}`;

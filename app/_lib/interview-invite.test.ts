@@ -20,6 +20,8 @@ import { latestInterviewByEntry } from "./db/interviews.ts";
 import { ensureDb } from "./db/core.ts";
 
 after(() => cleanupUnitDb());
+// The AI voice interview ships off (voice/enabled.ts); these cases exercise it ON.
+process.env.KP_VOICE_INTERVIEW = "1";
 
 let seq = 0;
 function entry(contact: string) {

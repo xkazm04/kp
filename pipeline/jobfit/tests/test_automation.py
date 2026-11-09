@@ -79,6 +79,29 @@ class PolicyTest(unittest.TestCase):
     def test_screened_with_pending_approval_holds(self):
         self.assertEqual(self.ev(approvalKind="screening_review", daysInStage=9)["action"], "hold")
 
+    def test_queued_entry_column_advance_is_held_not_reproposed(self):
+        # Q2: the pass QUEUES an entry-column advance as an approval on the entry. The
+        # entry branch used to ignore a pending approval, so the queued entry was proposed
+        # again on every tick. A pending approval of ANY kind now holds it (which also
+        # keeps a knockout `decision` hold out of the policy's hands).
+        proposed = self.ev(stage="Accepted", matchScore=80)
+        self.assertEqual((proposed["action"], proposed["toStage"]), ("advance", "Screened"))
+        for kind in ("screening_review", "decision"):
+            d = self.ev(stage="Accepted", matchScore=80, approvalKind=kind)
+            self.assertEqual((d["action"], d["toStage"]), ("hold", None), kind)
+
+    def test_declined_advance_is_not_reproposed_in_either_column(self):
+        # A person declined the queued advance: no new grounds, no second proposal.
+        for stage, extra in (("Accepted", {}), ("Screened", {"daysInStage": 9})):
+            self.assertEqual(self.ev(stage=stage, matchScore=80, **extra)["action"], "advance", stage)
+            d = self.ev(stage=stage, matchScore=80, advanceDeclined=True, **extra)
+            self.assertEqual((d["action"], d["toStage"]), ("hold", None), stage)
+
+    def test_screening_column_advance_names_its_reason_and_target(self):
+        d = self.ev(matchScore=80, daysInStage=3)
+        self.assertEqual((d["action"], d["toStage"]), ("advance", "Interview"))
+        self.assertIn("BAU score 80", d["reason"])
+
     def test_interview_always_manual(self):
         self.assertEqual(self.ev(stage="Interview", daysInStage=9)["action"], "hold")
 
@@ -275,6 +298,9 @@ class StageRolePolicyTest(unittest.TestCase):
         # shipped stages + an unknown one is digested; the digest was taken on the tree
         # BEFORE the role switch (d57d380b8), so any change of action/toStage/reason/
         # alerts on the legacy path fails here.
+        # RE-DIGESTED for Q2 (owner ruling 2026-11-09): the ONE intended change is the entry
+        # column holding on a pending approval (it used to advance regardless), so the
+        # queued advance is not re-proposed every tick. Only the Accepted x approval rows moved.
         import hashlib
 
         rows = []
@@ -288,7 +314,7 @@ class StageRolePolicyTest(unittest.TestCase):
                             rows.append([stage, arch, score, days, appr, d["action"], d["toStage"], d["reason"], d["alerts"]])
         digest = hashlib.sha256(json.dumps(rows, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
         self.assertEqual(len(rows), 672)
-        self.assertEqual(digest, "a6ae0f22d12a21ccf180d0672b9c61d05a37e08d97877a5291bf6e1fd418dde9")
+        self.assertEqual(digest, "68e3f0a1fd0eceff82827555853edb9b10751c7d5db1aee2974c256ca05f486e")
 
     def test_reject_is_reached_only_from_a_screening_role(self):
         floor = automation.POLICY["bau_reject_score"]

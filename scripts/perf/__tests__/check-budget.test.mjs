@@ -29,6 +29,7 @@ import {
   record,
   resolveSpecifier,
   tighten,
+  walkGraph,
 } from '../check-budget.mjs';
 
 let passed = 0;
@@ -90,6 +91,34 @@ function makeTempDir(prefix) {
   tempDirs.push(d);
   return d;
 }
+
+// --- eager versus deferred (ADR 0032) ----------------------------------------
+
+function makeGraph() {
+  const dir = makeTempDir('kp-perf-graph-');
+  const w = (f, lines) => fs.writeFileSync(path.join(dir, f), lines.join(String.fromCharCode(10)) + String.fromCharCode(10));
+  w('entry.ts', ["import { s } from './static.ts';", "const L = () => import('./lazy.ts');"]);
+  w('static.ts', ['export const s = 1;']);
+  w('lazy.ts', ["import { d } from './deep.ts';", 'export const l = d;']);
+  w('deep.ts', ['export const d = 1;']);
+  return dir;
+}
+
+check('a dynamic import is a deferred edge: it and what only it reaches are not counted', () => {
+  const dir = makeGraph();
+  const { files } = walkGraph(path.join(dir, 'entry.ts'), dir);
+  const names = [...files].map((f) => path.basename(f)).sort();
+  assert.deepEqual(names, ['entry.ts', 'static.ts']);
+  const all = walkGraph(path.join(dir, 'entry.ts'), dir, { deferred: true });
+  assert.equal(all.modules, 4, 'the union is still available to --explain');
+});
+
+check('a static edge still counts, including a module that is also imported dynamically elsewhere', () => {
+  const dir = makeGraph();
+  fs.writeFileSync(path.join(dir, 'static.ts'), "import './lazy.ts';" + String.fromCharCode(10) + 'export const s = 1;');
+  const { modules } = walkGraph(path.join(dir, 'entry.ts'), dir);
+  assert.equal(modules, 4, 'lazy.ts is reached statically through static.ts, so it is eager');
+});
 
 // --- the budget file must be believable ---------------------------------------
 

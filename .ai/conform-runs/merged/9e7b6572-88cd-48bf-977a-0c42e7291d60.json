@@ -1,0 +1,77 @@
+{
+ "schema": "conform-run/1",
+ "worker": "9e7b6572-88cd-48bf-977a-0c42e7291d60",
+ "subject": "telemetry-pii-redaction",
+ "evaluatedAt": "2026-11-02T22:02:05.459741+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "ops-observability",
+   "subject": "telemetry-pii-redaction",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/sentry-client.ts:43 The only scrub on the error-boundary path to Sentry rewrites capability-token routes and credential shapes, but has no keyed field drop and no mail-address or quoted-span pattern, so a candidate email or name inside an error message leaves for the hosted sink unredacted.",
+   "techniques": [
+    {
+     "technique": "denylist-plus-pattern-pass",
+     "verdict": "deviation",
+     "evidence": "app/_lib/sentry-client.ts:43 The pattern pass covers only token routes and secrets: no mail-address, digit-run or quoted-span pattern, and no keyed denylist pass at any depth. In this recruiting product, user content carries emails and names."
+    },
+    {
+     "technique": "emit-site-inventory",
+     "verdict": "deviation",
+     "evidence": "app/_lib/sentry-client.ts:21 The block comment names part of the payload (request URL, transaction, message, stack). It is not an inventory with a disposition for each field: user, contexts, extras, request headers/body and console breadcrumbs go unmentioned."
+    },
+    {
+     "technique": "hook-coverage-gaps",
+     "verdict": "deviation",
+     "evidence": "app/_lib/sentry-client.ts:19 There is a capture wrapper (good), and the wrapper names one hook gap. The beforeSend hooks in instrumentation-client.ts and instrumentation.ts never scrub exception values. Server onRequestError passes the raw error to captureRequestError, and client global-handler errors skip the wrapper. The gaps are not written at the installation site, and the two init configs are separate literal copies."
+    },
+    {
+     "technique": "redact-at-the-cap",
+     "verdict": "deviation",
+     "evidence": "app/_lib/sentry-client.ts:65 Unknown thrown kinds are stringified rather than dropped with a marker naming the kind. A custom toString can print exactly the fields that should not leave, and only the token/secret scrub stands behind it. There is no guard on the scrub itself and no marker that tells a cap drop apart from a sensitive drop."
+    },
+    {
+     "technique": "redaction-invariants-as-tests",
+     "verdict": "deviation",
+     "evidence": "app/_lib/sentry-client.test.ts:58 Absence assertions and a source guard on the wrapper exist. The only survival case checks name/digest: no clean record is shown surviving byte-for-byte, there are no distinct planted values per inventory field, and nothing covers email/name leakage."
+    },
+    {
+     "technique": "correlation-preserving-redaction",
+     "verdict": "conformant",
+     "evidence": "app/_lib/sentry-client.test.ts:19 Token-bearing route segments collapse to a type marker and the collapsed path then runs through the secret scrub, as the routes case prescribes. No keyed derivative exists anywhere, but the segments are credentials and Sentry carries its own event/session handles."
+    },
+    {
+     "technique": "exclusion-bounds-reads-not-output",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/sentry-client.ts:61 The outbound payload is a copied error value, not a composed artifact, so the technique's precondition does not hold."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-02T22:02:05.459741+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "telemetry-pii-redaction"
+   ],
+   "techniques": [
+    "correlation-preserving-redaction",
+    "denylist-plus-pattern-pass",
+    "emit-site-inventory",
+    "exclusion-bounds-reads-not-output",
+    "hook-coverage-gaps",
+    "redact-at-the-cap",
+    "redaction-invariants-as-tests"
+   ],
+   "deviations": 1,
+   "context": "ops-observability",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
