@@ -15494,39 +15494,51 @@
       "subject": "agent-addressable-ui",
       "bundle": "software-engineering",
       "state": "deviation",
-      "evaluatedAt": "2026-10-19",
-      "evaluatedTs": "2026-10-19T01:33:37.684Z",
-      "worker": "f641a683-6621-4d0b-8735-8a2ca172b671",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T23:57:31.828Z",
+      "worker": "3fe9fbb0-2eff-47b9-86eb-9a9f39a8dbf8",
       "techniques": [
-        {
-          "technique": "agent-pasteable-reference-format",
-          "verdict": "deviation",
-          "evidence": "app/_dev-inspector/DevInspectorImpl.tsx:56 Temporary textarea is removed in the try block rather than a finally block, and copyText returns a boolean without reporting the specific rung or providing pre-selected text on failure."
-        },
-        {
-          "technique": "build-time-source-stamping",
-          "verdict": "deviation",
-          "evidence": "scripts/dev-inspector/source-loc-loader.cjs:58 Falls back to a bare filename when outside rootDir (and defaults rootDir to process.cwd) instead of treating root path resolution as a required input without fallback."
-        },
         {
           "technique": "call-site-vs-implementation-resolution",
           "verdict": "deviation",
-          "evidence": "app/_dev-inspector/devLocate.ts:78 When all stamped ancestors are library code, pickDefaultIndex falls back to index 0 (innermost element) rather than the outermost boundary and does not signal that no product call site was found."
+          "evidence": "app/_dev-inspector/devLocate.ts:78 Most of the walk is right: segment-delimited matching (`/${path}` against '/seg/'), the inspector's own chrome classed as library and HUD events ignored, Alt+right-click for the innermost element with the mapping printed in the chrome, two outlines, dimmed library rungs, copyable rungs, deduped chain. But the all-library case does exactly what the technique names as a failure: it returns the innermost entry (index 0), not the outermost, and does not label it."
+        },
+        {
+          "technique": "agent-pasteable-reference-format",
+          "verdict": "deviation",
+          "evidence": "app/_dev-inspector/DevInspectorImpl.tsx:201 Good parts: it copies a bare project-relative `path:line` (a single line, never a range, column dropped), and failure looks different from success ('Copy failed' vs 'Copied ✓'). Missing parts: no visible-text anchor, and no innermost second line when the walk moved. The manual rung shows the text but does not pre-select it. The fallback textarea is not removed if execCommand throws (DevInspectorImpl.tsx:55-56)."
         },
         {
           "technique": "framework-internals-independence",
           "verdict": "conformant",
-          "evidence": "app/_dev-inspector/devLocate.ts:66 Climbs the ancestor chain using standard DOM parentElement and closest without inspecting React fibers or debug metadata."
+          "evidence": "app/_dev-inspector/devLocate.ts:66 Resolution reads only the stamp attribute and DOM ancestor traversal. A grep of app/_dev-inspector/ for _debug, __react and Fiber found nothing."
         },
         {
           "technique": "opt-in-instrumentation-gate",
           "verdict": "conformant",
-          "evidence": "scripts/dev-inspector/source-loc-loader.cjs:29 Loader re-checks DEV_INSPECT before requiring Babel lazily, complementing the next.config.ts registration gate and the layout NODE_ENV check."
+          "evidence": "app/_dev-inspector/DevInspector.tsx:45 The overlay gate is a build-time NODE_ENV fold around a dynamic import(), pinned by dev-inspector-bundle.test.ts. Outside the context: registration happens only under DEV_INSPECT=1 (next.config.ts:168), the loader re-checks the flag (source-loc-loader.cjs:92), and @babel/core is required lazily. The flag is an invocation env value set by package.json dev:inspect."
+        },
+        {
+          "technique": "build-time-source-stamping",
+          "verdict": "deviation",
+          "evidence": "scripts/dev-inspector/source-loc-loader.cjs:58 Falls back to a bare filename when outside rootDir (and defaults rootDir to process.cwd) instead of treating root path resolution as a required input without fallback.",
+          "carriedFrom": "2026-10-19"
         },
         {
           "technique": "uninstrumented-degradation",
           "verdict": "deviation",
-          "evidence": "app/_dev-inspector/devInspectorUi.tsx:181 The HUD renders the same 'Hover a component…' text when hovering an unstamped element as when idle, and armed mode does not time out on its own."
+          "evidence": "app/_dev-inspector/devInspectorUi.tsx:181 The HUD renders the same 'Hover a component…' text when hovering an unstamped element as when idle, and armed mode does not time out on its own.",
+          "carriedFrom": "2026-10-19"
+        }
+      ],
+      "registryProposal": "The uninstrumented-degradation technique could name useSyncExternalStore with a no-op subscribe as an acceptable 're-probe on arm' realization: getSnapshot re-runs on every render, and arming causes a render. Without that note, a reviewer cannot tell whether render-coupled probing satisfies the 're-probe when arming' rule.",
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "app/_dev-inspector/devLocate.ts:78 When all stamped ancestors in the chain are library-internal, pickDefaultIndex falls back to the innermost element at index 0 rather than the outermost boundary and fails to indicate that no product call site was found.",
+          "evaluatedAt": "2026-10-19T01:33:37.684Z",
+          "worker": "f641a683-6621-4d0b-8735-8a2ca172b671",
+          "reason": "replaced by 3fe9fbb0-2eff-47b9-86eb-9a9f39a8dbf8"
         }
       ]
     },

@@ -1,0 +1,60 @@
+{
+ "schema": "conform-run/1",
+ "worker": "3fe9fbb0-2eff-47b9-86eb-9a9f39a8dbf8",
+ "subject": "agent-addressable-ui",
+ "evaluatedAt": "2026-11-09T23:57:31.828383+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "dev-inspector",
+   "subject": "agent-addressable-ui",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_dev-inspector/devLocate.ts:78 When every stamped ancestor is library code, the resolver quietly hands back the innermost primitive as if it were the call site. It does not fall back to the outermost boundary, and nothing tells the operator that no product call site was found.",
+   "techniques": [
+    {
+     "technique": "call-site-vs-implementation-resolution",
+     "verdict": "deviation",
+     "evidence": "app/_dev-inspector/devLocate.ts:78 Most of the walk is right: segment-delimited matching (`/${path}` against '/seg/'), the inspector's own chrome classed as library and HUD events ignored, Alt+right-click for the innermost element with the mapping printed in the chrome, two outlines, dimmed library rungs, copyable rungs, deduped chain. But the all-library case does exactly what the technique names as a failure: it returns the innermost entry (index 0), not the outermost, and does not label it."
+    },
+    {
+     "technique": "agent-pasteable-reference-format",
+     "verdict": "deviation",
+     "evidence": "app/_dev-inspector/DevInspectorImpl.tsx:201 Good parts: it copies a bare project-relative `path:line` (a single line, never a range, column dropped), and failure looks different from success ('Copy failed' vs 'Copied \u2713'). Missing parts: no visible-text anchor, and no innermost second line when the walk moved. The manual rung shows the text but does not pre-select it. The fallback textarea is not removed if execCommand throws (DevInspectorImpl.tsx:55-56)."
+    },
+    {
+     "technique": "framework-internals-independence",
+     "verdict": "conformant",
+     "evidence": "app/_dev-inspector/devLocate.ts:66 Resolution reads only the stamp attribute and DOM ancestor traversal. A grep of app/_dev-inspector/ for _debug, __react and Fiber found nothing."
+    },
+    {
+     "technique": "opt-in-instrumentation-gate",
+     "verdict": "conformant",
+     "evidence": "app/_dev-inspector/DevInspector.tsx:45 The overlay gate is a build-time NODE_ENV fold around a dynamic import(), pinned by dev-inspector-bundle.test.ts. Outside the context: registration happens only under DEV_INSPECT=1 (next.config.ts:168), the loader re-checks the flag (source-loc-loader.cjs:92), and @babel/core is required lazily. The flag is an invocation env value set by package.json dev:inspect."
+    }
+   ],
+   "registryProposal": "The uninstrumented-degradation technique could name useSyncExternalStore with a no-op subscribe as an acceptable 're-probe on arm' realization: getSnapshot re-runs on every render, and arming causes a render. Without that note, a reviewer cannot tell whether render-coupled probing satisfies the 're-probe when arming' rule."
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-09T23:57:31.828383+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-addressable-ui"
+   ],
+   "techniques": [
+    "agent-pasteable-reference-format",
+    "call-site-vs-implementation-resolution",
+    "framework-internals-independence",
+    "opt-in-instrumentation-gate"
+   ],
+   "deviations": 1,
+   "context": "dev-inspector",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

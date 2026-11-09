@@ -12721,12 +12721,11 @@
           "changedAt": "2026-10-22",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/_dev-inspector/devLocate.ts:78 When all stamped ancestors in the chain are library-internal, pickDefaultIndex falls back to the innermost element at index 0 rather than the outermost boundary and fails to indicate that no product call site was found.",
-          "evaluatedAt": "2026-10-19",
-          "evaluatedAgainst": "sha256-b2:eeacc7371e042d65",
-          "evaluatedRevision": 3,
-          "revisionsBehind": 3,
-          "stale": true
+          "evidence": "app/_dev-inspector/devLocate.ts:78 When every stamped ancestor is library code, the resolver quietly hands back the innermost primitive as if it were the call site. It does not fall back to the outermost boundary, and nothing tells the operator that no product call site was found.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:fcac6e51b4916eeb",
+          "evaluatedRevision": 6,
+          "revisionsBehind": 3
         },
         {
           "subject": "native-shell-integration",
