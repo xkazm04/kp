@@ -263,10 +263,7 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
     // "Filed" means at least one rating: the same predicate the reveal (GET) and the gate
     // below ask. A card with none would otherwise open the colleagues' records for nothing.
     if (!isFiledScorecard(scorecard)) {
-      return NextResponse.json(
-        { error: "Rate at least one competency before filing a scorecard.", code: "INTERVIEW_SCORECARD_RATINGS_REQUIRED" },
-        { status: 400 },
-      );
+      return jsonRefusal("INTERVIEW_SCORECARD_RATINGS_REQUIRED", 400);
     }
 
     const key = await scorecardKey(pipelineEntry?.stage ?? null);

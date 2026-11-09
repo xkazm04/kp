@@ -1473,6 +1473,7 @@
     "INTERVIEW_ALREADY_COMPLETED": "Cet entretien est déjà terminé.",
     "INTERVIEW_NOT_RESCORABLE": "Cet entretien ne peut pas être réévalué.",
     "INTERVIEW_SCORECARD_UNGROUNDED": "Le scoreur n'a pas pu fonder un verdict sur la transcription ; rien n'a été enregistré. Réessayez la réévaluation plus tard.",
+    "INTERVIEW_SCORECARD_RATINGS_REQUIRED": "Évaluez au moins une compétence avant de déposer une fiche d'évaluation.",
     "INTERVIEW_CONSENT_REQUIRED": "Le consentement à l'enregistrement est requis avant de démarrer l'entretien.",
     "INTERVIEW_PROVIDER_INVALID": "Ce fournisseur vocal n'est pas connu de ce serveur.",
     "INTERVIEW_PROVIDER_UNCONFIGURED": "Le fournisseur vocal n'est pas configuré sur ce serveur, l'appel ne peut donc pas démarrer.",
