@@ -22,6 +22,7 @@ import type { Locale } from "@/i18n/locales";
 import { pinLinkLocale } from "./candidate-link-locale";
 import { INTERVIEW_TZ } from "./schedule-slots";
 import { DEFAULT_INTERVIEW_MINUTES } from "./calendar/constants";
+import { assertVoiceInterviewEnabled } from "./voice/enabled";
 import { dateFormatter } from "./date-format.ts";
 
 // Direction #3 — real comms delivery for the hiring pipeline. Routes recruiter
@@ -988,6 +989,8 @@ export async function dispatchInterviewInvite(
   // event. Without it both landed on the default team.
   opts?: { durationMin?: number | null; workspaceId?: string | null }
 ): Promise<OutboxStatus> {
+  // Switched off (KP_VOICE_INTERVIEW): no voice-interview invite leaves the install.
+  assertVoiceInterviewEnabled();
   const locale = candidateLocale(entry.locale, opts?.workspaceId);
   const t = await commsTranslator(locale);
   const name = greetName(entry, t);

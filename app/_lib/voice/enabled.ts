@@ -51,3 +51,17 @@ export function isVoiceInterviewPath(pathname: string): boolean {
 export function voiceSurfaceVisible(enabled: boolean | null | undefined): boolean {
   return enabled === true;
 }
+
+/** Thrown by the two code paths that put a voice-interview link in front of a candidate. */
+export class VoiceInterviewOffError extends Error {
+  constructor() {
+    super("the AI voice interview is switched off (KP_VOICE_INTERVIEW is not 1)");
+    this.name = "VoiceInterviewOffError";
+  }
+}
+
+/** Fail-closed backstop under the doors: no invite is minted or mailed with the flag off,
+ *  whatever caller reached the function. The env is a parameter for tests. */
+export function assertVoiceInterviewEnabled(env: Env = process.env): void {
+  if (!voiceInterviewEnabled(env)) throw new VoiceInterviewOffError();
+}
