@@ -23752,16 +23752,32 @@
       "context": "jobseeker-api",
       "subject": "quality-gates",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-11-04",
-      "evaluatedTs": "2026-11-04T02:40:53.368Z",
-      "techniques": [],
-      "withdrawn": {
-        "worker": "489fa1af-758f-42e3-9ee7-884da49c9664",
-        "state": "not-applicable",
-        "at": "2026-11-04T02:41:28.150186+00:00",
-        "reason": "reviewer (sonnet): The anchor profile/route.ts:32 is an ordinary handler line that does not show the absence of any gate, ratchet or suppression; the claim rests only on a keyword search. The search terms were narrow, and app/api/jobseeker/cvs/cvs-route.test.ts:88 and :95 read route source files, so the 'readFileSync "
-      }
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T02:53:59.764Z",
+      "worker": "2dae1eec-0436-4578-ae8c-de8189d34696",
+      "techniques": [
+        {
+          "technique": "chokepoint-tag-registry",
+          "verdict": "deviation",
+          "evidence": "app/api/rate-limit-contract.test.ts:2738 Row to call site holds, since a row whose call is gone fails, but call site to row does not: the only tree walkers in this file cover startTask, the 429 envelope and Retry-After. All jobseeker limiters I listed do currently have rows."
+        },
+        {
+          "technique": "prose-rule-drift",
+          "verdict": "deviation",
+          "evidence": "app/api/rate-limit-contract.test.ts:2236 The stated rule is untrue and unmechanised: GET on profile, dialogs, dialogs/[id] and sources has no limiter and nothing fails. Those are store reads, so the routes are not shown to be defective; the claim outruns any check."
+        },
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "app/api/rate-limit-contract.test.ts:2742 read() normalises line endings only, so a commented-out limiter still satisfies indexOf, the refusal window and the ordering checks. Traced by reading the assertions, not executed. The same file strips comments for its startTask walker, so this raw read is unexplained."
+        },
+        {
+          "technique": "renameable-detector-keys",
+          "verdict": "conformant",
+          "evidence": "app/api/rate-limit-contract.test.ts:2781 Rows pin the whole call and key template, so re-keying a jobseeker bucket turns the row red instead of slipping past it."
+        }
+      ]
     },
     "9179c3cd-8c4f-4065-b76a-70cd6ece2944/quality-gates": {
       "context": "workspace-config-api",
@@ -29254,6 +29270,32 @@
           "technique": "assert-the-schedule-not-the-stopwatch",
           "verdict": "conformant",
           "evidence": "app/features/shell/simulation/simRunControl.test.ts:54 The ordering claim is proved from a recorded sequence, with no clock involved."
+        }
+      ]
+    },
+    "c8b4831a-b4ff-4d94-9fb0-5c588c4c9c24/quality-gates": {
+      "context": "pipeline-entry-types",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T02:53:59.764Z",
+      "worker": "2dae1eec-0436-4578-ae8c-de8189d34696",
+      "techniques": [
+        {
+          "technique": "severity-by-construction",
+          "verdict": "deviation",
+          "evidence": "app/features/shared/profileTypes.ts:134 Called a gate, but its exit code reaches no merge decision: a search of .github found zero schemas:check references, and pipeline/jobfit/tests/test_codegen_contract_constants.py:12-13 says CI never runs it."
+        },
+        {
+          "technique": "vacuous-by-evaluation",
+          "verdict": "deviation",
+          "evidence": "package.json:25 The generator rewrites taxonomy.generated.ts before next build reads it, so no drift input can make the build fail as the comment claims."
+        },
+        {
+          "technique": "prose-rule-drift",
+          "verdict": "conformant",
+          "evidence": "app/features/shared/decisionsTypes.ts:12 The Decisions Entry is a Pick<> of the board Entry, so the single-source rule for that shape is mechanised by tsc rather than left as prose."
         }
       ]
     }

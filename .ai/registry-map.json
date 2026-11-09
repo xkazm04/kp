@@ -21553,7 +21553,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/rate-limit-contract.test.ts:2738 The limiter contract iterates only its declared rows and no walker reconciles rateLimit call sites or /me doors back to ROUTES, so a new jobseeker door with no row or no limiter fails nothing here, while the rows that do exist are matched against raw source.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a5b34d39a4b8edd3",
+          "evaluatedRevision": 56
         },
         {
           "subject": "agent-runtime-assembly",
@@ -27171,7 +27175,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shared/profileTypes.ts:134 The comment names two enforcers that do not refuse drift, since no workflow or hook runs schemas:check and the build regenerates the file first; the drift is actually caught by test_generated_ts_is_in_sync in the gated Python suite, so the property holds but its stated enforcement is false.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a5b34d39a4b8edd3",
+          "evaluatedRevision": 56
         },
         {
           "subject": "eval-harness",

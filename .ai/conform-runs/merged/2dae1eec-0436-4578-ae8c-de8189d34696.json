@@ -1,0 +1,151 @@
+{
+ "schema": "conform-run/1",
+ "worker": "2dae1eec-0436-4578-ae8c-de8189d34696",
+ "subject": "quality-gates",
+ "evaluatedAt": "2026-11-09T02:53:59.764968+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "devcase-eval",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/tools/devcases/DevTab.approve-error.test.ts:27 This guard reads the approve() body as raw text with no comment stripping, so an in-memory probe that replaced the real runAction call with a bare fetch and a comment naming runAction(\"approve\", ...) still matched, meaning the green does not prove the call exists.",
+   "techniques": [
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/devcases/DevTab.approve-error.test.ts:27 A presence probe over raw text, where over-detection is the unsafe direction, with no normalisation and no stated reason; the hook file's comments sit inside the slice. Probe run in memory only, nothing written."
+    },
+    {
+     "technique": "renameable-detector-keys",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/devcases/DevTab.approve-error.test.ts:29 The absence needle keys on a local variable name and spacing: `if (res.ok) {` or `if(r.ok){` is the same silent gate and clears the check."
+    },
+    {
+     "technique": "gate-liveness",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/DevTab.approve-error.test.ts:20 The instrument is asserted before the result: a moved or renamed function fails loudly rather than leaving an empty haystack."
+    },
+    {
+     "technique": "decidable-in-a-window",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/DevTab.approve-error.test.ts:21 The rule is decidable from one file and a bounded region, and the guard is scoped to that region."
+    }
+   ]
+  },
+  {
+   "context": "jobseeker-api",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/rate-limit-contract.test.ts:2738 The limiter contract iterates only its declared rows and no walker reconciles rateLimit call sites or /me doors back to ROUTES, so a new jobseeker door with no row or no limiter fails nothing here, while the rows that do exist are matched against raw source.",
+   "techniques": [
+    {
+     "technique": "chokepoint-tag-registry",
+     "verdict": "deviation",
+     "evidence": "app/api/rate-limit-contract.test.ts:2738 Row to call site holds, since a row whose call is gone fails, but call site to row does not: the only tree walkers in this file cover startTask, the 429 envelope and Retry-After. All jobseeker limiters I listed do currently have rows."
+    },
+    {
+     "technique": "prose-rule-drift",
+     "verdict": "deviation",
+     "evidence": "app/api/rate-limit-contract.test.ts:2236 The stated rule is untrue and unmechanised: GET on profile, dialogs, dialogs/[id] and sources has no limiter and nothing fails. Those are store reads, so the routes are not shown to be defective; the claim outruns any check."
+    },
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "deviation",
+     "evidence": "app/api/rate-limit-contract.test.ts:2742 read() normalises line endings only, so a commented-out limiter still satisfies indexOf, the refusal window and the ordering checks. Traced by reading the assertions, not executed. The same file strips comments for its startTask walker, so this raw read is unexplained."
+    },
+    {
+     "technique": "renameable-detector-keys",
+     "verdict": "conformant",
+     "evidence": "app/api/rate-limit-contract.test.ts:2781 Rows pin the whole call and key template, so re-keying a jobseeker bucket turns the row red instead of slipping past it."
+    }
+   ]
+  },
+  {
+   "context": "pipeline-entry-types",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/shared/profileTypes.ts:134 The comment names two enforcers that do not refuse drift, since no workflow or hook runs schemas:check and the build regenerates the file first; the drift is actually caught by test_generated_ts_is_in_sync in the gated Python suite, so the property holds but its stated enforcement is false.",
+   "techniques": [
+    {
+     "technique": "severity-by-construction",
+     "verdict": "deviation",
+     "evidence": "app/features/shared/profileTypes.ts:134 Called a gate, but its exit code reaches no merge decision: a search of .github found zero schemas:check references, and pipeline/jobfit/tests/test_codegen_contract_constants.py:12-13 says CI never runs it."
+    },
+    {
+     "technique": "vacuous-by-evaluation",
+     "verdict": "deviation",
+     "evidence": "package.json:25 The generator rewrites taxonomy.generated.ts before next build reads it, so no drift input can make the build fail as the comment claims."
+    },
+    {
+     "technique": "prose-rule-drift",
+     "verdict": "conformant",
+     "evidence": "app/features/shared/decisionsTypes.ts:12 The Decisions Entry is a Pick<> of the board Entry, so the single-source rule for that shape is mechanised by tsc rather than left as prose."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "quality-gates",
+   "context": "shell-setup-pipeline",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-09T02:53:59.764968+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "decidable-in-a-window",
+    "gate-liveness",
+    "match-the-resolved-artifact",
+    "renameable-detector-keys"
+   ],
+   "deviations": 1,
+   "context": "devcase-eval",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T02:53:59.764968+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "chokepoint-tag-registry",
+    "match-the-resolved-artifact",
+    "prose-rule-drift",
+    "renameable-detector-keys"
+   ],
+   "deviations": 1,
+   "context": "jobseeker-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T02:53:59.764968+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "prose-rule-drift",
+    "severity-by-construction",
+    "vacuous-by-evaluation"
+   ],
+   "deviations": 1,
+   "context": "pipeline-entry-types",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
