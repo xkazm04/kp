@@ -7635,7 +7635,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "pipeline/jobfit/matrix_cli.py:1 The 'matrix' and 'ranking' that matched this subject are product scoring of candidates against jobs, and this context is the system under test: 'judge packet', 'anchor set', 'pairwise' and 'worst-of-N' had zero hits across pipeline/jobfit, while 'harness' and 'bench' appear only in comments citing pipeline/jobfit/eval or the taxonomy linter.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "agent-memory",
@@ -15693,7 +15697,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/eval/voice/v0_smoke.py:83 A PASS or FAIL is issued from one session of a non-deterministic ASR and agent loop with no declared N, and run_voice_scenario has no trials parameter, so the verdict cannot separate a stable result from one draw.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "talking-avatar",
@@ -33732,7 +33740,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/automation-cache-key.ts:4 This context is a production background-task engine and its cache is a production prompt cache; 'judge packet', 'anchor set', 'pairwise' and 'worst-of-N' had zero hits across app/_lib, and in the listed task and automation files 'judge', 'scenario' and 'golden' had none, with 'eval' appearing only as the group_eval task kind.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "agent-runtime-assembly",
