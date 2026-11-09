@@ -19083,7 +19083,7 @@
         "emails": {
           "rejection": "Emails the candidate a rejection letter.",
           "rejectionMany": "Emails each of them a rejection letter.",
-          "nextStep": "May email the candidate the next step's invitation (an AI interview or a work sample), depending on the step."
+          "nextStep": "Peut envoyer au candidat par e-mail l'invitation à l'étape suivante (par exemple un échantillon de travail), selon l'étape."
         },
         "entryAdvance": {
           "title": "Advance {label}",

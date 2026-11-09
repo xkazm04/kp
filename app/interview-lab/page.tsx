@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { TtsComparePanel } from "@/app/_components/voice/TtsComparePanel";
 import { VoiceInterviewClient } from "@/app/_components/voice/VoiceInterviewClient";
 import { isInterviewLabEnabled } from "@/app/_lib/interview-lab";
+import { voiceInterviewEnabled } from "@/app/_lib/voice/enabled";
 import { isOperator } from "@/app/_lib/auth/require-operator";
 
 export const metadata = { title: "Voice interview lab" };
@@ -21,6 +23,9 @@ export const instant = false;
 const CODE = "rounded bg-stone-100 px-1 py-0.5 text-[0.9em]";
 
 export default async function InterviewLabPage() {
+  // The lab is the voice interview's harness: with KP_VOICE_INTERVIEW off its /connect door
+  // answers 404 (proxy.ts), so the page answers the same instead of rendering a dead Start.
+  if (!voiceInterviewEnabled()) notFound();
   // /diagrams is operator-only since wave 21b; a seat that cannot open it gets no link.
   const showDiagrams = await isOperator();
   // Server component, so the async translator — useTranslations would need a client
