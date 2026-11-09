@@ -7,15 +7,23 @@ import random
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, Sequence, get_args
+from typing import TYPE_CHECKING, Any, Literal, Sequence, get_args
 
 try:
     from dotenv import load_dotenv
 except ImportError:  # pragma: no cover
     load_dotenv = None
 
-from google import genai
-from google.genai import types
+# The google-genai SDK is imported on FIRST USE, not here. Importing it costs ~600 ms
+# (it drags in aiohttp, httpx and a large pydantic type module), and this module is on
+# the import path of the CV-analysis CLI (pipeline.py) and the market-salary CLI, which
+# ADR 0003 spawns per request: every analysis paid for the SDK even when the configured
+# provider was Claude CLI or the run was keyless. ``_genai()`` / ``_types()`` are the
+# only readers; ``gemini.genai`` / ``gemini.types`` still resolve (module __getattr__
+# below), so a test can keep patching ``gemini.genai.Client``.
+# Guarded by tests/test_cli_import_weight.py.
+if TYPE_CHECKING:
+    from google import genai
 
 from .devcase.provenance import defuse_fence_markers
 from .extractors import _reject_oversized
@@ -24,6 +32,26 @@ from .llm.capabilities import DEFAULT_MODELS
 from .i18n import language_name
 from .json_values import candidate_values, scan_json_values, select_best_scoring
 from .taxonomy import ROLE_FAMILIES, role_family_catalog
+
+
+def _genai() -> Any:
+    from google import genai
+
+    return genai
+
+
+def _types() -> Any:
+    from google.genai import types
+
+    return types
+
+
+def __getattr__(name: str) -> Any:
+    if name == "genai":
+        return _genai()
+    if name == "types":
+        return _types()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 # One source: the LLM registry (llm/capabilities.py DEFAULT_MODELS). The legacy direct
@@ -281,9 +309,9 @@ def get_client(api_key: str | None = None) -> genai.Client:
     wins over the env-resolved key; ``None`` keeps the historical env path."""
     _assert_egress_allowed()
     _remove_null_proxy_env()
-    return genai.Client(
+    return _genai().Client(
         api_key=api_key or get_gemini_api_key(),
-        http_options=types.HttpOptions(timeout=gemini_timeout_ms()),
+        http_options=_types().HttpOptions(timeout=gemini_timeout_ms()),
     )
 
 
@@ -428,7 +456,7 @@ def _generate_with_retry(
             return client.models.generate_content(
                 model=model,
                 contents=contents,
-                config=types.GenerateContentConfig(**config_kwargs),
+                config=_types().GenerateContentConfig(**config_kwargs),
             )
         except Exception as exc:  # noqa: BLE001 — re-raised below unless transient
             last = exc
@@ -485,7 +513,8 @@ def grounded_answer(
     # only a constraint that was really sent reports what it was.
     constraint_sent = "none"
     if use_grounding:
-        config_kwargs["tools"] = [types.Tool(google_search=types.GoogleSearch())]
+        sdk_types = _types()
+        config_kwargs["tools"] = [sdk_types.Tool(google_search=sdk_types.GoogleSearch())]
     elif response_mime_type:
         config_kwargs["response_mime_type"] = response_mime_type
         constraint_sent = "mime"
@@ -599,7 +628,7 @@ def extract_profile_text_with_gemini(
     _reject_oversized(path)
     answer = grounded_answer(
         prompt=prompt,
-        parts=[types.Part.from_bytes(data=path.read_bytes(), mime_type=_mime_type(path))],
+        parts=[_types().Part.from_bytes(data=path.read_bytes(), mime_type=_mime_type(path))],
         response_mime_type="application/json",
         temperature=0.0,
         max_output_tokens=12000,

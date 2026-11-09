@@ -335,6 +335,23 @@ Two operational properties to know:
   group and the group is signalled; Windows: `taskkill /T /F`). Before this, a
   wedged grandchild survived the kill and held CPU and a provider connection
   until the box was restarted.
+- **Every spawn pays its imports, so the hot CLIs import little.** Interpreter
+  start is ~50 ms; what a CLI imports at module top comes on top of that on every
+  request. Two rules hold it down, and `pipeline/jobfit/tests/test_cli_import_weight.py`
+  fails when either regresses: a heavy SDK (google-genai, aiohttp, httpx, the
+  OpenAI/Anthropic SDKs, numpy, a PDF library) is imported inside the function that
+  needs it, never at module top (`gemini._genai()` is the pattern; the Gemini SDK
+  alone was ~600 ms on every CV analysis); and `pipeline/jobfit/__init__.py` sets
+  `PYDANTIC_DISABLE_PLUGINS=__all__` (unless you set it yourself) so pydantic does
+  not scan every installed distribution's entry points for plugins on the first
+  model it builds (~50 ms with a few hundred packages installed; kp ships no pydantic
+  plugin). What remains on a pydantic CLI is mostly pydantic itself (~80 ms).
+  `node scripts/perf/python-import-time.mjs` measures every entry point the app
+  spawns (median import ms, wall ms, top self-time modules; `--baseline <dir>` puts
+  another tree beside it, interleaved). Bytecode caching is on: the runner sets no
+  `PYTHONDONTWRITEBYTECODE` and the image's `pipeline/` is owned by the runtime
+  user, so each module compiles once per container. Without a cache a spawn costs
+  roughly twice as much.
 
 ### Rotating `KP_SECRET` without an outage
 

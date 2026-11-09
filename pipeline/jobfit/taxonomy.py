@@ -382,8 +382,13 @@ _normalize = normalize_text
 WORD_RE = re.compile(r"[^\W_]+", re.UNICODE)
 
 
+_NON_WORD_RUN_RE = re.compile(r"\W+", re.UNICODE)
+
+
 def _compact(text: str) -> str:
-    return re.sub(r"\W+", "", text, flags=re.UNICODE)
+    # Precompiled: this runs ~2,100 times while the module builds its surface index
+    # at import, and re.sub's per-call pattern-cache lookup was a visible share of it.
+    return _NON_WORD_RUN_RE.sub("", text)
 
 
 # The word runs whose concatenation IS ``_compact(text)`` — ``_compact`` strips
@@ -615,8 +620,10 @@ for _term in _TERMS:
 # match instead of a miss. Built once at import.
 
 _TERM_BY_ID: dict[str, dict[str, Any]] = {term["id"]: term for term in _TERMS}
+# The id set is built ONCE: it used to be rebuilt inside the comprehension, once per
+# parent edge, which made this import-time step quadratic in the taxonomy's size.
 _PARENTS: dict[str, tuple[str, ...]] = {
-    term["id"]: tuple(p for p in term.get("parents", []) if p in {t["id"] for t in _TERMS})
+    term["id"]: tuple(p for p in term.get("parents", []) if p in _TERM_BY_ID)
     for term in _TERMS
 }
 
