@@ -426,6 +426,10 @@ export const STORE_ERRORS = {
   TASK_LIST_FAILED: "Could not load the AI tasks. Please try again.",
   TASK_START_FAILED: "Could not start that AI task. Please try again.",
   TASK_RETRY_FAILED: "Could not re-run that AI task. Please try again.",
+  /** The tasks tab's older-history page and its read/unread ack (night run 2026-11-09):
+   *  the last two task doors that forwarded better-sqlite3's message. */
+  TASK_HISTORY_FAILED: "Could not load the older AI tasks. Please try again.",
+  TASK_SEEN_FAILED: "Could not mark those AI tasks as seen. Please try again.",
   /** The live work-surface session mint's catch (/perfect wave 23,
    *  devcase-candidate-and-devcase). It forwarded the thrown message from a PUBLIC
    *  candidate door sitting straight on better-sqlite3 — SQLITE_* codes and the
@@ -451,6 +455,13 @@ export const STORE_ERRORS = {
    *  SQLITE_* code and the absolute db path were what the Backup panel painted. */
   WORKSPACE_EXPORT_FAILED: "Could not build the organization backup. Please try again.",
   WORKSPACE_RESTORE_FAILED: "Could not restore the organization backup. Please try again.",
+  /** The team console's list / create / rename and the session switch (night run
+   *  2026-11-09). Each handed its caught better-sqlite3 error to jsonError, which put
+   *  the message, SQLITE_* text and the db path included, on the wire. */
+  WORKSPACE_LIST_FAILED: "Could not load the workspaces. Please try again.",
+  WORKSPACE_CREATE_FAILED: "Could not create the workspace. Please try again.",
+  WORKSPACE_RENAME_FAILED: "Could not save the workspace changes. Please try again.",
+  WORKSPACE_SWITCH_FAILED: "Could not switch workspace. Please try again.",
   /** The white-label brand door (/perfect wave 38, brand-theming). Both handlers sit
    *  straight on better-sqlite3 (a lazily-created table in an isolated store), so the
    *  thrown message carries SQLITE_* text and the absolute db path — which the save

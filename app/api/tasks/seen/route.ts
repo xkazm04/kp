@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { markTasksSeen } from "@/app/_lib/db/tasks";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireCapability } from "@/app/_lib/auth/current-user";
-import { requireCapabilityCoded } from "@/app/_lib/api-response";
+import { requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 
 // POST { ids: string[] } — acknowledge finished tasks (read/unread). Stamps
 // seen_at on the given TERMINAL rows; active rows are ignored so a finish that
@@ -28,9 +28,6 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
     // filters on it, the route just never supplied one.
     return NextResponse.json({ seen: markTasksSeen(ids, ws) });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to mark tasks seen." },
-      { status: 500 }
-    );
+    return safeJsonError(error, "api:tasks/seen", "TASK_SEEN_FAILED");
   }
 });

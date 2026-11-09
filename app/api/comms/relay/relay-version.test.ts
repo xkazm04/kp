@@ -63,7 +63,8 @@ test("the route answers the refusals and the 500 with CODES, never a raw message
   // is asserted on the source — the shape rate-limit-contract.test.ts established.
   const src = readFileSync(fileURLToPath(new URL("./route.ts", import.meta.url)), "utf8").replace(/\r\n/g, "\n");
   assert.match(src, /jsonRefusal\("COMMS_RELAY_STALE", 409/, "a stale write is a coded 409");
-  assert.match(src, /jsonRefusal\("COMMS_RELAY_INVALID", 400, \{ detail: error\.message \}\)/, "the validator's prose rides as DATA");
+  assert.match(src, /jsonRefusal\("COMMS_RELAY_INVALID", 400\)/, "an invalid endpoint is a coded 400");
+  assert.equal(/detail:\s*error\.message/.test(src), false, "the validator's prose stays in the server log");
   assert.match(src, /safeJsonError\(error, "api:comms:relay", "COMMS_RELAY_SAVE_FAILED"\)/, "the 500 is coded and logged, not forwarded");
   assert.equal(/NextResponse\.json\(\{ error: error/.test(src), false, "no raw thrown message on the wire");
   // The stale branch must be tested BEFORE the generic one: it subclasses it.

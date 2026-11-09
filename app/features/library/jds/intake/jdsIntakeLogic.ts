@@ -401,7 +401,12 @@ export function useIntakeLogic(onPromoted?: () => void) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(repo),
       });
-      if (!scanRes.ok) throw new Error(`HTTP ${scanRes.status}`);
+      // A refused target (REPO_SCAN_TARGET_REFUSED) or the throttle carries a code
+      // that names the remedy; resolve it rather than the generic start error.
+      if (!scanRes.ok) {
+        setError({ kind: "appMaster", code: await refusalCode(scanRes) });
+        return;
+      }
       const scan = (await scanRes.json()) as { scanId?: string };
       if (!scan.scanId) throw new Error("no scanId");
       const res = await fetch("/api/intake", {

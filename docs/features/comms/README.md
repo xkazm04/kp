@@ -757,6 +757,23 @@ another application's letter, role-token approver, tampered body, changed recipi
 pre-digest approval) and the races (two approvers, approve vs edit in both orders, edit
 during a live release claim).
 
+**The two re-send doors re-check the letter.** The Comms Center resend
+(`POST /api/comms/[id]/resend`) and the backlog flush (`confirmBacklogSend`,
+`app/_lib/comms-backlog.ts`) send a stored outbox row again verbatim, so for a row of kind
+`outreach` both ask `outreachResendRefusal` (`app/_lib/outreach-approval.ts`) first. The
+rule: the original approval covers the **identical** letter to the **identical approved
+recipient** — the row's message id must be its application's letter's, that letter's
+approval must still stand and name a person, and the digest of the letter with the address
+about to be used must equal the stored one. A **corrected** address nobody approved, a
+letter whose approval was since cleared (edited, re-closed, erased) and an outreach row with
+no letter at all are refused: the resend answers `409 OUTREACH_RESEND_NOT_APPROVED`, the
+backlog names the letter `not_approved` (checked after contactability, so a candidate who
+may not be contacted at all still reads `suppressed`). Nothing is sent and the letter is
+left as it is; the remedy for a wrong address is to correct the application's contact, which
+re-closes the approval at the next release. Pinned by
+`app/_lib/outreach-resend-gate.test.ts` and
+`app/api/comms/[id]/resend/resend-outreach-approval.test.ts`.
+
 **The release card (C2b, first half).** The candidate drawer's Overview tab renders
 `OutreachReleaseCard` (`app/features/hiring/pipeline/candidate/outreach/`) whenever the
 application has a letter; it re-reads after an outreach task. It shows the exact letter
@@ -801,8 +818,9 @@ in the local outbox with no network call. A halted or consent-lapsed entry answe
 **Tenancy and erasure.** Every statement binds `workspace_id`, with no by-id carve-out
 (`outreach-letters-tenancy.test.ts`). A letter id from another team answers 404 on every
 door. Erasure (`scrubEntryLinkedPii`) blanks `subject` and `body` and stamps
-`erased_at`. That closes the row to a late draft and to approval, and the release
-refuses a letter with no body. Pinned by `app/_lib/db/outreach-letters.test.ts`,
+`erased_at`, and clears `approved_digest` (a hash over the address and the text confirms a
+guess of either). That closes the row to a late draft and to approval, and the release
+refuses a letter with no body (`erasure-full-scrub.test.ts`). Pinned by `app/_lib/db/outreach-letters.test.ts`,
 `app/_lib/outreach-release.test.ts`, `app/api/outreach-letters/outreach-letters.test.ts`
 and the door tests in `app/_lib/automation-run.test.ts`.
 
@@ -1273,7 +1291,7 @@ air-gapped.
 | `app/api/comms/backlog` | The offer and the owner's one confirmation for letters that waited for a sender. Operator-gated and workspace-scoped; the POST also needs `pipeline:write`. GET = preview (no bodies); POST `{ids}` = per-letter `sent`/`failed`/`queued` or a named skip. Idempotent; no limiter by design (a repeat sends nothing). |
 | `app/api/comms/capability` | The two capability bits the client surfaces read (`relayConfigured`, `emailInboundDomain`). **Session-gated** (`requireOperator`): it names the deployment's inbound mail domain, so it is not an anonymous read. A refused read reaches `useCommsCapability` as the UNKNOWN record, which every consumer already handles. The client read is a **live fact, not a boot cache**: `app/features/shell/deliveryCapabilityCache.ts` holds it (one read per page while nothing changes; in-flight dedupe; UNKNOWN is never cached, so it retries; a generation guard so a read that started before an invalidation never lands as final), and `invalidateCommsCapability()` (exported by `useDeliveryCapability.ts`) re-reads it for every mounted consumer. The relay's setup level (`night/setup/useRelaySetup.ts`) calls it plus `notifyDataChanged()` after a successful save and after a 409 adopt (pinned by `night/setup/setupGuards.test.ts`), so the "sent"/"queued" vocabulary follows a relay save or clear without a reload and the Comms ledger's "relay not configured" alert re-reads. Other windows hear it on a dedicated `kp:comms-capability` BroadcastChannel (`capability-changed`), not the general live-refresh bus, so a pipeline mutation never refetches the capability. |
 | `app/api/comms/relay/test` | The relay probe. `org:manage`, per-IP limited (20/10 min) and bounded by an 8s `AbortSignal.timeout` — one accepted call spends an outbound request at an operator-set URL and hands back the outcome. |
-| `app/api/comms/relay` | Operator-only read/write of the stored relay config. The POST is a full replace, so it is per-IP rate-limited (30/10 min), carries an optimistic-concurrency `version`, and answers `409 COMMS_RELAY_STALE` / `400 COMMS_RELAY_INVALID` / `500 COMMS_RELAY_SAVE_FAILED` by code (`relay-version.test.ts`). |
+| `app/api/comms/relay` | Operator-only read/write of the stored relay config. The POST is a full replace, so it is per-IP rate-limited (30/10 min), carries an optimistic-concurrency `version`, and answers `409 COMMS_RELAY_STALE` / `400 COMMS_RELAY_INVALID` / `500 COMMS_RELAY_SAVE_FAILED` by code (`relay-version.test.ts`). The validator's sentence (which host the SSRF guard refused) is logged, never sent as `detail`. |
 | `app/features/hiring/channels/**` (`ChannelsTab.tsx` → `night/ChannelsNightShell.tsx`; the levels in `night/`, `night/setup/`, `night/ledger/`, `night/message/`; shared: `useChannelsData.ts`, `useCommsFeed.ts`, `useCommsResend.ts`, `ChannelsCommsBouncedResend.tsx`, `receiverHealth.ts`, `receiverPullForm.ts`, `useCopyState.ts`) | Channels tab UI, "The Night Post" since 2026-09-30 (see [Channels tab: the Night Post](#channels-tab-the-night-post)): the plumbing (level 0), one channel's setup (level 1: careers links, receivers with the setup steps, the CV test and the pull editor — §11, pull feeds, the relay, the edge), the ledger (level 2) and one message with its resend doors (level 3). Each receiver card shows accepted of received, so a live-but-zero-leads mapping is visible on the row that owns the setup guide; Listening stays `isReceiverLive` (receipts), never `acceptedCount`. The ledger search folds diacritics (`foldCommsQuery` in `channelsCommsHelpers.ts`, NFD + strip combining marks) so `kralova` finds `Králová`. |
 | `app/_lib/comms-resend-outcome.ts` | `resendOutcome` — the five outcomes of a resend, read by both resend buttons; `resendDoorOf` / `lettersNeedingYou` — which door a letter offers and how many need the recruiter, read by the Channels tab's letter (`night/message/ChannelsNightLetter.tsx`), the dev-case outbox and the candidate modal; `SIM_COMMS_CHANNEL` / `REFUSED_COMMS_CHANNEL` (re-exported by `comms-dispatch.ts`). |
 

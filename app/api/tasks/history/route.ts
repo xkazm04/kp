@@ -5,6 +5,7 @@ import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { callerCapabilities } from "@/app/_lib/auth/current-user";
 import { recentTaskCutoffIso } from "@/app/_lib/tasks";
 import { attachReplayVerdicts } from "@/app/_lib/task-replay";
+import { safeJsonError } from "@/app/_lib/api-response";
 
 
 const DEFAULT_LIMIT = 20;
@@ -57,7 +58,6 @@ export const GET = withWorkspace(async (ws: string, request: Request) => {
     const nextOffset = offset + tasks.length;
     return NextResponse.json({ tasks, total, hasMore: nextOffset < total, nextOffset });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to load task history.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeJsonError(error, "api:tasks/history", "TASK_HISTORY_FAILED");
   }
 });

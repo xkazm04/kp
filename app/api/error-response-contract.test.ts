@@ -272,12 +272,7 @@ const LEAK_CEILING = new Map<string, number>([
   // domain error narrowed by instanceof, so its sentence is English rather than a secret,
   // but the client still cannot localize it. Initialization of the ratchet, not a raise:
   // these rows only ever go DOWN, and the fix at each site is a code.
-  ["ats/config/route.ts", 1],
   // billing/webhook's single leak was FIXED, not ceilinged: the 500 answers safeJsonError(..., "BILLING_WEBHOOK_FAILED"). The row is deleted so the win is locked.
-  ["comms/relay/route.ts", 1],
-  ["jobs/[id]/campaign/route.ts", 1],
-  ["jobs/[id]/candidates/route.ts", 1],
-  ["repo-scan/route.ts", 1],
   // archetypes/route.ts (2) and archetypes/[id]/route.ts (2) were FIXED, not
   // ceilinged (scan-sweep w4-cv-intel): the four 500s answer
   // safeJsonError(..., "ARCHETYPES_{READ,WRITE}_FAILED") and the input 400s
@@ -303,7 +298,6 @@ const LEAK_CEILING = new Map<string, number>([
   // api-comms): the two 500s answer safeJsonError(..., "CHANNEL_WEBHOOK_{CREATE,UPDATE}_FAILED")
   // and every 400/404 is a jsonRefusal code, so the Add-receiver modal and the receiver
   // list resolve them in the reader's language. The row is deleted so the win is locked.
-  ["comms/relay/test/route.ts", 2],
   // decisions/config's single leak was FIXED, not ceilinged (/perfect 2026-09-02,
   // pipeline-composer): the 500 answers safeJsonError(..., "DECISION_CONFIG_SAVE_FAILED")
   // and both 400s are jsonRefusal codes, so the Hiring composer resolves them in the
@@ -361,8 +355,6 @@ const LEAK_CEILING = new Map<string, number>([
   // four other 400s were bare English the panel had to substring-sniff. All of them now
   // answer jsonRefusal("MODEL_KEY_*") with the provider as data. The entry is deleted so
   // a regression reads as `undeclared` rather than as budget already granted.
-  ["llm/keys/test/route.ts", 1],
-  ["llm/test/route.ts", 1],
   // match/route.ts stood here at 1 and is FIXED, not ceilinged (/perfect 2026-09-03,
   // match-route-answers-like-its-siblings): its leak was the WORST of the family —
   // `parseStderrError`'s raw stderr, i.e. match_cli's traceback and the temp workdir
@@ -407,8 +399,12 @@ const LEAK_CEILING = new Map<string, number>([
   // reads as `undeclared`. Both doors now answer through the chokepoint:
   // safeJsonError on the two 500s, jsonRefusal + a TASK_* code on every refusal
   // (/perfect wave 17, background-tasks).
-  ["tasks/history/route.ts", 1],
-  ["tasks/seen/route.ts", 1],
+  // The last ten rows (ats/config, comms/relay, comms/relay/test, jobs/[id]/campaign,
+  // jobs/[id]/candidates, llm/keys/test, llm/test, repo-scan, tasks/history, tasks/seen)
+  // were FIXED, not ceilinged (night run 2026-11-09): every one answers a code now -
+  // jsonRefusal for a validator's or engine's refusal, safeJsonError or a constant
+  // verdict for a fault - and the detail goes to the server log. The map is EMPTY:
+  // any leak anywhere under app/api reads as `undeclared`.
 ]);
 
 // ---- the ceiling for detector 2: routes that forward a caught error to jsonError --
@@ -426,13 +422,13 @@ const LEAK_CEILING = new Map<string, number>([
 // `return safeJsonError(error, "api:<route>", "<CODE>")` plus a STORE_ERRORS code and
 // its four catalogue entries. Do NOT add a row here to make a build green.
 const FORWARD_CEILING = new Map<string, number>([
-  ["auth/switch-workspace/route.ts", 1],
   // skill-profile/[token]/verify/route.ts stood here at 1 and is FIXED, not ceilinged
   // (scan-sweep w6-rest): the catch answers safeJsonError(..., "SKILL_PROFILE_VERIFY_FAILED")
   // so a store throw cannot print English or err.message on the public credential URL.
   // The row is deleted so the win is locked and a regression reads as undeclared.
-  ["workspaces/[id]/route.ts", 1],
-  ["workspaces/route.ts", 2],
+  // auth/switch-workspace, workspaces (2) and workspaces/[id] were FIXED, not
+  // ceilinged (night run 2026-11-09): each answers safeJsonError(..., "WORKSPACE_*_FAILED").
+  // The map is EMPTY: a caught value handed to jsonError anywhere reads as `undeclared`.
 ]);
 
 test("no NEW route shapes a thrown error's own message into a client response", (t) => {

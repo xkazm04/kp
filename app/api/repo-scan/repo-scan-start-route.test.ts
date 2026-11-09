@@ -92,8 +92,9 @@ test("a completed scan is answered with no task to watch", async () => {
 test("a refused target answers the operator's own input problem, not a generic failure", async () => {
   const res = await post({ rootPath: "/etc" });
   assert.equal(res.status, 400);
-  const body = (await res.json()) as { error?: string };
-  assert.ok(body.error, "the allow-list refusal is the operator's to act on");
+  const body = (await res.json()) as { error?: string; code?: string };
+  assert.equal(body.code, "REPO_SCAN_TARGET_REFUSED", "the allow-list refusal is a code the operator's panel resolves");
+  assert.ok(!/\/etc|KP_APP_MASTER_REPO_ROOTS=|\.\./.test(body.error ?? ""), "which rule refused stays in the server log");
 });
 
 // --- the measuring caller's door --------------------------------------------

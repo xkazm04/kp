@@ -751,9 +751,8 @@ export const REFUSAL_ERRORS = {
    *  beside the code as DATA so the card can show what is actually stored. */
   COMMS_RELAY_STALE: "Someone saved a newer relay config. Reload and make your change again.",
   /** The endpoint failed validation (400) — not https, or an internal/loopback host the
-   *  SSRF guard refuses. The validator's own sentence names WHICH, and rides beside the
-   *  code as `detail`: it is English prose for the log and for API consumers, never the
-   *  thing the card paints. */
+   *  SSRF guard refuses. The validator's own sentence names WHICH and goes to the
+   *  server log only: on the wire it told a prober which hosts the guard refuses. */
   COMMS_RELAY_INVALID: "That relay endpoint isn't allowed. Use a public https:// URL.",
   /** The SMTP sender changed since the editor read it (409). Nothing was written; the
    *  current public view rides beside the code as DATA. */
@@ -915,6 +914,10 @@ export const REFUSAL_ERRORS = {
    *  replaced (409). Nothing was written: the config is one shared document, and the
    *  remedy is to reload what is stored and re-apply — the panel offers exactly that. */
   ATS_CONFIG_STALE: "Someone saved newer webhook settings. Reload and make your change again.",
+  /** The webhook settings failed validation (400): a URL that is not public https, an
+   *  event not on the list, or a signing secret the server could not store. The
+   *  validator's own sentence goes to the server log, never the wire. */
+  ATS_CONFIG_INVALID: "Those webhook settings can't be saved. Use a public https:// URL and pick events from the list.",
   // ---- The Models admin doors (/perfect 2026-09-03, model-keys-need-the-org-key).
   // Provider keys and routing pins were written behind `requireOperator()` alone —
   // "is there a valid session on this deployment?", which every recruiter and viewer
@@ -1202,6 +1205,14 @@ export const REFUSAL_ERRORS = {
   /** GET /api/jobs/[id] and the ingest / candidates / outreach by-id doors: no such
    *  job, or another team's. 404, never 403, so the id is not an existence oracle. */
   JOB_NOT_FOUND: "That role isn't in your catalog.",
+  /** The ranking engine refused this role's request itself (4xx), not a fault. */
+  JOB_CANDIDATES_INPUT_INVALID: "This role's candidates could not be ranked from that request. Reload the role and try again.",
+  /** The campaign generator refused this role's request itself (4xx), not a fault. */
+  JOB_CAMPAIGN_INPUT_INVALID: "A campaign pack could not be generated from that request. Reload the role and try again.",
+  /** POST /api/repo-scan named a target the allow-list refuses (400): not a GitHub
+   *  https URL, both or neither shape, or a local path outside KP_APP_MASTER_REPO_ROOTS.
+   *  Which one goes to the server log; the sentence names every remedy. */
+  REPO_SCAN_TARGET_REFUSED: "That repository can't be scanned. Give a https://github.com/owner/repo URL, or a local folder inside a root listed in KP_APP_MASTER_REPO_ROOTS.",
   /** POST /api/jobs/ingest with a paste shorter than MIN_AD_CHARS. The panel already
    *  guards this; the door makes the floor true for anything that is not the panel. */
   JOB_AD_TOO_SHORT: "Paste the full job ad. A short snippet is not enough.",
@@ -1229,6 +1240,10 @@ export const REFUSAL_ERRORS = {
    *  sent (409): the recipient changed after approval, or the approval names nobody or predates
    *  the approval digest. Nothing was sent; the letter is back in draft. */
   OUTREACH_APPROVAL_STALE: "This letter changed after it was approved, so nothing was sent. It is back in draft: read it again and approve it.",
+  /** POST /api/comms/[id]/resend of an `outreach` row the letter's approval does not cover
+   *  (409): a corrected address nobody approved, or an approval since cleared. Nothing was
+   *  sent and the letter is unchanged (outreach-approval.ts outreachResendRefusal). */
+  OUTREACH_RESEND_NOT_APPROVED: "No approval covers sending this letter to that address, so nothing was sent. Correct the candidate's email on the application, then approve and release the letter again.",
   /** The voice engines answered `unavailable` (503): no TTS / STT provider is configured on
    *  this server. A DECISION about the install, not a fault - the generic TTS_FAILED /
    *  STT_FAILED sentence told a keyless operator to "try again", which cannot help. */

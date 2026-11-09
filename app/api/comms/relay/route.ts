@@ -76,10 +76,11 @@ export const POST = withSession(async (request: NextRequest) => {
       return jsonRefusal("COMMS_RELAY_STALE", 409, { config: getRelayConfig() });
     }
     if (error instanceof CommsRelayError) {
-      // The validator's own sentence — which host was refused, which field — is
-      // English prose written for the log and for API consumers. It rides beside the
-      // code as DATA; the card paints the localized message.
-      return jsonRefusal("COMMS_RELAY_INVALID", 400, { detail: error.message });
+      // The validator's own sentence — which host was refused, which field — goes to
+      // the server log only: on the wire it was a free SSRF-guard oracle, and the card
+      // paints the localized code anyway.
+      console.info("[api:comms:relay] refused (COMMS_RELAY_INVALID):", error.message);
+      return jsonRefusal("COMMS_RELAY_INVALID", 400);
     }
     // A thrown better-sqlite3 / crypto error carries the db path and internal detail:
     // it goes to the server log, and the client gets the code.

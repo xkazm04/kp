@@ -176,8 +176,9 @@ being a *binding* rather than on the call, so the correct uses stay clean —
 `jsonError(null, "Unauthorized.", 401)` and its four siblings in
 `/api/comms/callback` pass a literal, and nothing thrown can reach the client
 through them. The `fallback` string beside a forwarded error reads like the
-answer but is only reached when the throw was not an `Error`. Both ceilings move
-in one direction: down.
+answer but is only reached when the throw was not an `Error`. Both ceilings moved
+in one direction, down, and since 2026-11-09 both are **empty**: every route under
+`app/api` answers a failure with a code, so any new leak reads as `undeclared`.
 
 The scan cannot see a message that reaches the wire through a helper in another
 module, and it does not judge whether a *literal* `jsonError` message is

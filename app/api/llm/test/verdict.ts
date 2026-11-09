@@ -45,6 +45,14 @@ export type TestVerdict =
   | { ok: true; provider?: string; model?: string; latencyMs?: number }
   | { ok: false; code: TestErrorCode; error: string; provider?: string; model?: string };
 
+/** The verdict for a spawn that never produced one (the runner threw: no interpreter,
+ *  deadline, abort). The thrown message is the caller's server log, never the wire:
+ *  a deadline is `timeout`, anything else `unavailable`. */
+export function spawnFailureVerdict(timedOut: boolean): TestVerdict {
+  const code: TestErrorCode = timedOut ? "timeout" : "unavailable";
+  return { ok: false, code, error: REASON[code] };
+}
+
 /**
  * Pick a stable error code from a raw provider/transport error string. The raw
  * text is inspected ONLY here and ONLY to choose a code — it is never returned.

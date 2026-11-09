@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { renameWorkspace, setWorkspaceReviewContact } from "@/app/_lib/db/workspaces";
 import { requireWorkspaceCapability } from "@/app/_lib/auth/current-user";
-import { jsonError, jsonRefusal } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // Rename a team (P2). `team:manage` ON THE TARGET workspace — which an org-wide
@@ -38,6 +38,6 @@ export const PATCH = withSession(async (request: NextRequest, context: { params:
     }
     return NextResponse.json({ workspace });
   } catch (error) {
-    return jsonError(error, "Failed to rename the workspace.");
+    return safeJsonError(error, "api:workspaces/[id]", "WORKSPACE_RENAME_FAILED");
   }
 });

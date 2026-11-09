@@ -922,7 +922,7 @@ spec was composed, and it travels with the spec.
 | `GET /api/repo-scan` | route | → `{ scans }` — this workspace's 25 most recent rows, same allow-list as the detail read (no spend, so no extra limiter). A refresh with no in-memory `scanId` can recover an in-flight row from here. `requireOperator` |
 | `GET /api/repo-scan/[id]` | route | → `{ scan }` — an allow-list projection of the row (no `error`, `rootPath`, `fallbackReason` or `workspaceId`; `isLocal` instead) |
 | `startRepoScan(input, workspaceId)` / `getRepoScan(id, workspaceId)` | function | `app/_lib/repo-scan.ts` — the front door P3 codes against |
-| `RepoScanRequestError` | class | a refused *target*, carrying an actionable message + status (vs. a generic 500) |
+| `RepoScanRequestError` | class | a refused *target*, carrying the refusing rule + status (vs. a generic 500). The route answers it as `400 REPO_SCAN_TARGET_REFUSED` (one sentence naming every remedy) and logs which rule refused; the intake panel resolves the code |
 | `resolveScanTarget` / `resolveRootPath` / `resolveRepoUrl` / `allowedRoots` / `isInsideRoot` / `hasTraversalSegment` | pure functions | `app/_lib/repo-scan-target.ts` — the fail-closed gate, DB-free and unit-testable |
 | `runRepoScan(params, signal, workspaceId, lang, onProgress, deps)` | function | `app/_lib/repo-scan-run.ts` — the `repo_scan` task body. `deps` injects clone/spawn for the unit test; production passes neither |
 | `shallowClone` / `toRepoScanEnvelope` / `scratchDirFor` / `CLONE_DEPTH` / `CLONE_TIMEOUT_MS` | function / const | the URL path and the envelope contract |

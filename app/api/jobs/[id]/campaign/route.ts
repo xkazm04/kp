@@ -5,6 +5,9 @@ import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { CampaignError, resolveLang, runCampaign } from "@/app/_lib/campaign-run";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { matrixEngineAnswer, type MatrixSurface } from "@/app/api/matrix/matrix-error-code";
+
+const CAMPAIGN_SURFACE: MatrixSurface = { invalid: "JOB_CAMPAIGN_INPUT_INVALID", failed: "JOB_CAMPAIGN_FAILED" };
 
 
 // E1 (Erika gap) — the sourcing campaign pack for one job: feed-ready ad-copy
@@ -34,7 +37,7 @@ export const GET = withWorkspace(async (ws: string, request: NextRequest, contex
   // an unscoped read (defaulting to the single tenant) would serve/overwrite the
   // wrong team's pack for a job in any other workspace.
   const job = visibleJob(id, ws);
-  if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
+  if (!job) return jsonRefusal("JOB_NOT_FOUND", 404);
   const lang = resolveLang(new URL(request.url).searchParams.get("lang"));
   return NextResponse.json({ pack: getCampaignPack(job.id, lang, ws) });
 });
@@ -43,7 +46,7 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest, conte
   try {
     const { id } = await context.params;
     // BEFORE the spawn: a refused pack must not have cost an LLM call.
-    if (!visibleJob(id, ws)) return NextResponse.json({ error: "Job not found." }, { status: 404 });
+    if (!visibleJob(id, ws)) return jsonRefusal("JOB_NOT_FOUND", 404);
     const body = (await request.json().catch(() => ({}))) as { lang?: unknown };
     // Per-IP, AFTER the 404 above (a refused pack costs no budget) and BEFORE the
     // generation child. 20/10min: "Regenerate" deliberately bypasses every cache — each
@@ -62,8 +65,14 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest, conte
     );
     return NextResponse.json({ pack });
   } catch (error) {
+    // CampaignError carries campaign_cli's parsed stderr (traceback, temp workdir), so
+    // only its STATUS decides the answer; the message goes to the server log.
     if (error instanceof CampaignError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      if (error.status === 404) return jsonRefusal("JOB_NOT_FOUND", 404);
+      const answer = matrixEngineAnswer(error, CAMPAIGN_SURFACE);
+      return answer.kind === "refusal"
+        ? jsonRefusal(answer.code, error.status)
+        : safeJsonError(error, "api:jobs/campaign", answer.code, error.status);
     }
     return safeJsonError(error, "api:jobs/campaign", "JOB_CAMPAIGN_FAILED");
   }

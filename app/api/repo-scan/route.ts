@@ -98,12 +98,12 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
     // poller would chase.
     return NextResponse.json({ scanId, taskId, reused });
   } catch (error) {
-    // A refused TARGET is the operator's own input problem and carries a message
-    // they can act on (the allow-list is not set; the path is outside it; the URL is
-    // not a GitHub one). Everything else goes through the generic handler, which
-    // does not leak internals.
+    // A refused TARGET is the operator's own input problem: one coded sentence names
+    // every remedy, and which rule refused (allow-list unset, path outside it, not a
+    // GitHub URL) goes to the server log. Everything else is the generic handler's.
     if (error instanceof RepoScanRequestError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      console.info("[api:repo-scan] refused (REPO_SCAN_TARGET_REFUSED):", error.message);
+      return jsonRefusal("REPO_SCAN_TARGET_REFUSED", error.status);
     }
     return safeJsonError(error, "api:repo-scan", "REPO_SCAN_FAILED");
   }

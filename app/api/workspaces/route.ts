@@ -5,7 +5,7 @@ import { DEFAULT_ORG_ID } from "@/app/_lib/db/organizations";
 import { withSession, withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { callerOrgCapabilities, currentUser, requireCapability, requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { multiWorkspaceEnabled } from "@/app/_lib/workspace-lock";
-import { jsonError } from "@/app/_lib/api-response";
+import { safeJsonError } from "@/app/_lib/api-response";
 import type { MemberRole } from "@/app/_lib/auth/roles";
 
 // Workspace CRUD (P2). A workspace IS a team; the console at Settings -> Workspaces
@@ -58,7 +58,7 @@ export const GET = withWorkspace(async (ws: string) => {
       canManage: canAdminister,
     });
   } catch (error) {
-    return jsonError(error, "Failed to list workspaces.");
+    return safeJsonError(error, "api:workspaces", "WORKSPACE_LIST_FAILED");
   }
 });
 
@@ -94,6 +94,6 @@ export const POST = withSession(async (request: Request) => {
     if (userId) upsertMembership(userId, workspace.id, "owner");
     return NextResponse.json({ workspace });
   } catch (error) {
-    return jsonError(error, "Failed to create the workspace.");
+    return safeJsonError(error, "api:workspaces", "WORKSPACE_CREATE_FAILED");
   }
 });

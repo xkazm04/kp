@@ -403,7 +403,9 @@ ping (`POST /api/ats/test`).
 - **The config 500 answers a code, never the thrown message.** A better-sqlite3 constraint,
   the absolute db path, or an at-rest crypto failure naming the key env var used to be
   forwarded verbatim; it is now `safeJsonError(…, "ATS_CONFIG_SAVE_FAILED")` — the detail
-  goes to the server log, the panel renders the localized message.
+  goes to the server log, the panel renders the localized message. A validation refusal
+  (`AtsConfigError`: a non-public URL, an unknown event, a secret the server could not
+  store) is `400 ATS_CONFIG_INVALID`, its sentence likewise logged rather than sent.
 - **Both network doors are throttled per IP.** `POST /api/ats/test` fires a server-side
   POST at an operator-set URL (20/10min, key `ats-test:<ip>`) and `GET
   /api/calendar/google/start` mints a state cookie and redirects a browser into Google's

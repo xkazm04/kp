@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildProviderKeyProbeEnv, isKeyableProvider, providerNeedsExplicitModel } from "@/app/_lib/llm-config";
-import { flagArg, spawnPython } from "@/app/_lib/python-runner";
+import { flagArg, isSpawnTimeout, spawnPython } from "@/app/_lib/python-runner";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { extractConfigKeys, scrubKeyMaterial, shapeVerdict } from "../../test/verdict.ts";
+import { extractConfigKeys, scrubKeyMaterial, shapeVerdict, spawnFailureVerdict } from "../../test/verdict.ts";
 import { withSession } from "@/app/_lib/auth/workspace-context";
 
 export const maxDuration = 90;
@@ -84,13 +84,9 @@ export const POST = withSession(async (request: NextRequest) => {
     }
     return NextResponse.json(verdict);
   } catch (error) {
-    return NextResponse.json(
-      {
-        ok: false,
-        code: "provider_error",
-        error: scrubKeyMaterial(error instanceof Error ? error.message : "Key probe failed.", configKeys),
-      },
-      { status: 500 }
-    );
+    // The runner threw before a verdict existed. Its message (argv, interpreter path)
+    // is scrubbed into the server log; the panel gets a coded, constant verdict.
+    console.error(`[llm/keys/test] probe spawn failed for ${provider}:${scope}:`, scrubKeyMaterial(String(error), configKeys));
+    return NextResponse.json(spawnFailureVerdict(isSpawnTimeout(error)), { status: 500 });
   }
 });

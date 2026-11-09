@@ -14,7 +14,7 @@ import { isSessionRevoked } from "@/app/_lib/auth/session-revocation";
 import { getWorkspace, getWorkspaceOrgId, DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import { getMembership } from "@/app/_lib/db/memberships";
 import { canSwitchWorkspace } from "@/app/_lib/workspace-lock";
-import { jsonError, jsonRefusal } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 
@@ -133,6 +133,6 @@ export async function POST(request: Request) {
     }
     return res;
   } catch (error) {
-    return jsonError(error, "Failed to switch workspace.");
+    return safeJsonError(error, "api:auth/switch-workspace", "WORKSPACE_SWITCH_FAILED");
   }
 }

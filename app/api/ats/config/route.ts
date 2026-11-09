@@ -67,7 +67,10 @@ export const POST = withSession(async (request: NextRequest) => {
       return jsonRefusal("ATS_CONFIG_STALE", 409, { config: getAtsConfig() });
     }
     if (error instanceof AtsConfigError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      // The validator's sentence (which host, which event) is for the log; the panel
+      // resolves the code in the reader's language.
+      console.info("[api:ats/config] refused (ATS_CONFIG_INVALID):", error.message);
+      return jsonRefusal("ATS_CONFIG_INVALID", 400);
     }
     // A thrown better-sqlite3 / crypto error carries the db path and internal detail: it
     // goes to the server log, and the client gets the code it can render in its own

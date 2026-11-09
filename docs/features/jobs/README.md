@@ -503,9 +503,13 @@ All ten now answer `safeJsonError(error, "api:jobs/<route>", "<CODE>")` against 
 `JOB_ASSIGNMENTS_FAILED`), each with its four catalogue entries, so the reader sees the
 message in their own language via `useErrorMessage()`. The ten rows this area held in
 `app/api/error-response-contract.test.ts`'s ceiling are deleted rather than lowered: a
-new leak here now reads as `undeclared`. Refusals that carry real information keep their
-own shape — `CampaignError` and `PipelineError` still forward their client-safe message
-and status, and `AutomationError` does the same on outreach. Full rule:
+new leak here now reads as `undeclared`. The engine refusals are coded too:
+`CampaignError` and `PipelineError` (recruiter_cli) carry the child's parsed stderr, so
+only their status decides the answer — through `matrixEngineAnswer`
+(`app/api/matrix/matrix-error-code.ts`), a 4xx is `JOB_CAMPAIGN_INPUT_INVALID` /
+`JOB_CANDIDATES_INPUT_INVALID`, a 429 `TOO_MANY_REQUESTS`, a 404 `JOB_NOT_FOUND`, the
+rest the `*_FAILED` store code — and the message stays in the server log.
+`AutomationError` still forwards its own message on outreach. Full rule:
 `docs/architecture/api-contracts.md` §1.1.
 
 `GET /api/jobs/status` answers `{ drafts }` and nothing else. It used to ship a second

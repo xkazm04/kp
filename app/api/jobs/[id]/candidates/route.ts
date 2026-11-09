@@ -7,6 +7,9 @@ import { rankPoolForJob } from "@/app/_lib/recruiter-run";
 import { PipelineError, SpawnFailure } from "@/app/_lib/python-runner";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { matrixEngineAnswer, type MatrixSurface } from "@/app/api/matrix/matrix-error-code";
+
+const CANDIDATES_SURFACE: MatrixSurface = { invalid: "JOB_CANDIDATES_INPUT_INVALID", failed: "JOB_CANDIDATES_FAILED" };
 
 
 export const GET = withWorkspace(async (workspaceId: string, request: Request, context: { params: Promise<{ id: string }> }) => {
@@ -98,8 +101,13 @@ export const GET = withWorkspace(async (workspaceId: string, request: Request, c
     // A SpawnFailure is a PipelineError too, but it is the RUNNER's failure (a
     // deadline, an abort, no interpreter), not the CLI's answer: it stays on the
     // logged catch-all it has always reached, never forwarded as English text.
+    // Its MESSAGE is recruiter_cli's parsed stderr (traceback, temp workdir), so the
+    // status and code decide the answer and the text stays in the server log.
     if (error instanceof PipelineError && !(error instanceof SpawnFailure)) {
-      return NextResponse.json({ error: error.message, ...(error.code ? { code: error.code } : {}) }, { status: error.status });
+      const answer = matrixEngineAnswer(error, CANDIDATES_SURFACE);
+      return answer.kind === "refusal"
+        ? jsonRefusal(answer.code, error.status)
+        : safeJsonError(error, "api:jobs/candidates", answer.code, error.status);
     }
     return safeJsonError(error, "api:jobs/candidates", "JOB_CANDIDATES_FAILED");
   }
