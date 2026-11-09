@@ -8993,7 +8993,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/docs/__tests__/check-doc-sync.test.mjs:248 The test claims every app/diagrams module but runs over a hand-written list of four that omits app/diagrams/diagramCatalog.ts, so its name states more than it checks.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "quality-gates",
@@ -10322,7 +10326,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/tools/analyze/AnalyzeApi.test.ts:182 The file says the success path is covered, but watchAnalysis's `if (parsed.success) return parsed.data` is never executed by any test, so that return could be removed and every assertion would still pass.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "drag-drop",
@@ -29583,7 +29591,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/schedule/schedulePollBackoff.test.ts:3 The extracted poll curve, grid seeding and invite buckets are driven only as pure functions, and no test pins that useScheduleTab or ScheduleInviteLifecyclePanel still call them, so a hook reverting to its own constant stays green.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "scheduling",

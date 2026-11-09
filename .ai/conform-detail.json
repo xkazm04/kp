@@ -28605,6 +28605,109 @@
           "evidence": "scripts/review/__tests__/gate-check.test.mjs:274 The committed ruleset and workflows go through the same two calls that gate-check's main() composes, not a test-only arrangement."
         }
       ]
+    },
+    "65792460-c7df-4a0e-ad4b-224ea3acd82b/test-harness": {
+      "context": "ci-doc-gates",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T01:14:18.554Z",
+      "worker": "564b958d-0b39-44ba-b144-5f6b04ee9445",
+      "techniques": [
+        {
+          "technique": "gate-scope-is-not-report-scope",
+          "verdict": "deviation",
+          "evidence": "scripts/docs/__tests__/check-doc-sync.test.mjs:248 Uniformity is claimed over a closed set using a hand-listed sample at lines 253-256. diagramCatalog.ts exists on disk and is absent; the app/diagrams/** glob happens to cover it today, but the test could not notice if it did not."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "scripts/docs/check-doc-sync.mjs:157 The file is headed 'Fixtures for the doc-sync Stop hook' but imports only evaluate, compileGlob, isTurnBoundary and collectEditedFilesFromTranscript. main()'s loop guard and its exit-2 and exit-3 CANNOT CHECK branches are executed by no test (grep over scripts/**/*.test.* finds only imports and path lists). The contrast is api-reference.test.mjs:157-160, which does declare the column it cannot judge and names the lane that does."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/__tests__/keyless-e2e-pin.test.mjs:31 Line endings are normalised with the reason stated at lines 29-30, and the reason for reading source as text sits in the asserting file at lines 17-19; the list is checked in both directions."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/__tests__/keyless-e2e-pin.test.mjs:58 An explicit floor so an empty parse is a failure rather than a trivially equal comparison; toolchain-pin.test.mjs:46 and api-reference.test.mjs:167 do the same."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/__tests__/check-adrs.test.mjs:103 Fixtures built to be broken go red for each rule, and the same validate() then runs over the real ADR tree at lines 250-259."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/__tests__/check-guidance.test.mjs:481 The real-tree case calls the same functions as the CLI entry at check-guidance.mjs:692-704; it omits only the remedies argument, which its own real-tree case at line 411 covers."
+        }
+      ]
+    },
+    "c780fee6-52c0-484e-b383-875b9aa63a1e/test-harness": {
+      "context": "schedule-calendar-invites",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T01:14:18.554Z",
+      "worker": "564b958d-0b39-44ba-b144-5f6b04ee9445",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/schedule/schedulePollBackoff.test.ts:3 The lift creates the gap the technique names: behaviour is asserted, adoption is not. A grep of the directory's tests finds no pin of pollDelayMs or pollIsStale at useScheduleTab.ts:467/487, of seedGrid at :199, or of bucketInvites at ScheduleInviteLifecyclePanel.tsx:60 (scheduleAgenda.test.ts calls bucketInvites purely and pins the panel only by the bare word /agenda/)."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.test.ts:14 Pure logic uses the cheapest fixture tier, an in-memory builder typed against the real row shape, with no store."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.test.ts:67 Runs the pre-fix predicate on the same fixture and shows the input discriminates old from new. Weak form: the old rule is a test-local copy, not a mutation of the production path."
+        }
+      ]
+    },
+    "01cf5f88-41a1-47e6-9310-186589ebf384/test-harness": {
+      "context": "cv-analyze-intake",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T01:14:18.554Z",
+      "worker": "564b958d-0b39-44ba-b144-5f6b04ee9445",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/analyze/AnalyzeApi.test.ts:182 Line 256 scripts only an unparsable result, so what is proved is the rejecting arm. This is the one file that calls watchAnalysis, so the claimed coverage is the file's own comment."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/analyze/analyzeGithubRunPolicy.test.ts:85 Labelled non-vacuity, but naiveCancelStatus at line 66 is a test-local constant, so this cannot fail; the control sits in the test rather than the production path. The real assertion at lines 79-83 does have teeth, and the comment at lines 64-65 records the pre-fix result."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/analyzeRunDelivery.test.ts:24 Delivery and cancellation are asserted through an injected timer surface and never against elapsed time; AnalyzeApi.test.ts:185 injects sleep the same way."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/analyzeFileIntakeGate.test.ts:42 The needle requires a call parenthesis, comments are stripped first by code() at lines 28-30, and line 43 asserts the exact caller list, so an empty match cannot pass."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/analyzeCvIntake.test.ts:6 The intake runs real File objects through the real content-hash dedupe rather than a fake, and the cheaper poll variant at AnalyzeApi.test.ts:185 is named `instant`."
+        }
+      ]
     }
   }
 }
