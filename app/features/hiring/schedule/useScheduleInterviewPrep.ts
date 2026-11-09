@@ -67,7 +67,10 @@ export function useScheduleInterviewPrep(entry: SchedEntry) {
   // A completed (re)generation (`generated`) ALWAYS supersedes the fetched copy, so
   // a slow initial GET resolving after a fast generation can't wipe a freshly saved
   // plan back to the empty state — the stale-GET race (idea-73f7b1a0).
-  const prep = generated ?? data?.prep?.payload ?? null;
+  // A human-only pack (a rating filed with no generated plan) has no run-of-show to
+  // render, so it reads as "no plan yet" and still offers Generate.
+  const saved = data?.prep?.payload;
+  const prep = generated ?? (saved?.chronology?.length ? saved : null);
   // The hook starts with data === null; once it resolves (an artifact, an empty
   // body, or an error) we're no longer waiting on the initial load.
   const loading = data === null && error === null;

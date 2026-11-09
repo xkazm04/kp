@@ -57,7 +57,7 @@ database "pipeline_entries" as db
 api --> fn : rank pool
 fn --> ce
 ce --> db : INSERT
-ev --> db : auto-advance
+ev --> db : queue advance for approval
 api ..> boards`,
   },
   apply: {
@@ -231,7 +231,7 @@ database "scheduler · scheduler_runs\\npipeline_entries" as db
 ui --> tick : enable / interval
 hb --> tick : due?
 tick --> pass
-pass --> db : advance / hold / nudge`,
+pass --> db : queue advance / hold / nudge`,
   },
 };
 

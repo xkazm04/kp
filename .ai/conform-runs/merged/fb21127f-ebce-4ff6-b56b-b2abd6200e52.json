@@ -1,0 +1,97 @@
+{
+ "schema": "conform-run/1",
+ "worker": "fb21127f-ebce-4ff6-b56b-b2abd6200e52",
+ "subject": "eval-harness",
+ "evaluatedAt": "2026-11-09T03:45:19.817305+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "devcase-eval",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/tools/devcases/DevEvalPanel.tsx:102 DevEvalPanel only renders an evaluation bundle already saved for a human candidate's submission, and a case-insensitive search of app/features/tools/devcases for run_matrix, judge_score, golden set, pass_rate and pairwise found nothing, so no harness running models against declared scenarios lives in this context.",
+   "techniques": [],
+   "absenceTerms": [
+    "run_matrix",
+    "judge_score",
+    "golden set",
+    "pairwise"
+   ]
+  },
+  {
+   "context": "cv-analysis-archetypes",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/calibration-holdout-arm.test.ts:3 The holdout here is a production calibration arm that spares would-be rejects to compare live match scores with hiring outcomes, not a suite of scenarios run against a model, and a case-insensitive search of app/_lib for run_matrix, judge_score, golden set, pass_rate and pairwise found nothing.",
+   "techniques": [],
+   "absenceTerms": [
+    "run_matrix",
+    "judge_score",
+    "golden set",
+    "pairwise"
+   ]
+  },
+  {
+   "context": "score-metric-display",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_components/ScoreBadge.tsx:4 These components display scores handed to them as props about job candidates, and a case-insensitive search of app/_components for run_matrix, judge_score, golden set, pass_rate and pairwise found nothing, so no scenarios, trials or judges exist here to hold to the standard.",
+   "techniques": [],
+   "absenceTerms": [
+    "run_matrix",
+    "judge_score",
+    "golden set",
+    "pairwise"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "eval-harness",
+   "context": "tests-llm-eval",
+   "reason": "evidence leans on eval/judging.py, which is not a tracked file"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-09T03:45:19.817305+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "devcase-eval",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T03:45:19.817305+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "cv-analysis-archetypes",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T03:45:19.817305+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "score-metric-display",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

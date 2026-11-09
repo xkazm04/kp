@@ -29,6 +29,10 @@ app/features/
                 templates (message templates — the per-pipeline-state messages,
                 over the existing /api/templates routes), workspace
   tools/        analyze, devcases, interview, profile
+  one/          the One tab (`?tab=one`, first in the hiring group) and its
+                full-page alias `/one` — one folder, not under `hiring/`,
+                because `app/one/page.tsx` mounts the same shell outside the
+                workspace (docs/design/one-interface.md)
   shell/        Workspace.tsx + nav/, simulation/, tasks/, setup/ (the frame
                 the menu lives in — sidebar, command palette, keyboard chords,
                 tab catalog, AI tasks, simulation dock)
@@ -717,6 +721,11 @@ they are not interchangeable:
   `k` — the letter the derivation itself would reach for once `i`/`n`/`t`/`a` are
   taken — so every existing chord, single and two-key, is byte-for-byte unchanged
   and the new tab still gets a one-key chord.
+
+**One** (`?tab=one`, first in the hiring group) is the `chordOverflow` case that
+moves nothing: every letter of `one` is already a single chord, and its two-key
+letter `o` is not one any later overflow tab draws, so it lands on `g f o` and every
+two-key chord after it keeps its letter.
 
 `workspaceChords.test.ts` is what makes this checkable: it pins every shipped
 single letter and both two-key chords, so either mistake fails loudly instead of

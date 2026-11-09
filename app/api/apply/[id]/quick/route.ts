@@ -23,7 +23,8 @@ import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 // questions; the shared lead-intake core (lead-intake.ts, which files through the
 // application-filing core with proof "channel") files a passing lead at the board's
 // entry column as an enrichable stub and fires the instant acknowledgement with the
-// full-apply link. This route keeps what is surface-specific: input validation,
+// full-apply link. A failed must-have is filed as a HELD entry for a person (owner ruling
+// Q1; the core files it, nothing is declined or mailed here). This route keeps what is surface-specific: input validation,
 // the STRICT KO verdict (our own form asks every gate, so an ABSENT key is a
 // fail — a scripted POST can't skip eligibility by omitting keys), and the
 // localized candidate-facing response copy.
@@ -45,8 +46,9 @@ const MAX_ATTRIBUTION_LENGTH = 120; // E5 campaign/variant params from the ad li
 const QUICK_APPLY_RATE_LIMIT = { limit: 30, windowMs: 60_000 };
 
 // POST → evaluate the lead form. KO pass → an Accepted, intake-degraded lead
-// entry + instant ack with the enrichment link; KO fail → a polite decline,
-// audited as an entry-less ko_declined event (never a silent discard).
+// entry + instant ack with the enrichment link; KO fail → a real entry held behind the
+// `decision` approval and a HELD answer (a person will review; nothing is decided, no
+// letter goes out — it goes once, when a person confirms the rejection).
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
@@ -88,10 +90,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (body === BODY_TOO_LARGE) return jsonRefusal("APPLY_PAYLOAD_TOO_LARGE", 413);
     // Anti-bot honeypot: a hidden `company_url` field no human fills. A bot that
     // auto-fills every input trips it — drop the submission silently (no lead, no
-    // email) and return the normal decline copy, so the bot can't distinguish the
-    // honeypot from an ordinary KO rejection and learn to evade it.
+    // email) and return the ordinary KO answer's shape, so the bot can't distinguish the
+    // honeypot from a failed must-have and learn to evade it.
     if (isHoneypotFilled(body)) {
-      return NextResponse.json({ result: "declined", message: t("declinedMessage") });
+      return NextResponse.json({ result: "held", message: t("heldMessage"), failedKo: [], failedKoNames: [] });
     }
     const answers = body.answers ?? {};
     const name = String(answers.name ?? "").trim();
@@ -181,18 +183,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       },
     });
 
-    if (outcome.result === "declined") {
-      // The gate is automatic, so the screen NAMES the must-have(s) and says how to
-      // ask a person to review — and the decline email (lead-intake, deferred like the
-      // ack) carries the same route. The address is always in hand on this form;
-      // `reviewByEmail` is "we are sending it", never "it arrived": the server cannot
-      // vouch for delivery, only for a relay to hand it to.
+    if (outcome.result === "held") {
+      // The attempt reached the pipeline (a real, held entry), which is what the funnel
+      // rate counts — so it is linked like any other filed application.
+      linkApplySession(typeof body.applySessionId === "string" ? body.applySessionId : null, outcome.entryId);
+      // A failed must-have is filed for a person, and the screen NAMES the must-have(s)
+      // so the candidate sees what the review is about. It claims no decision and no
+      // letter: nothing was decided and nothing was sent.
       return NextResponse.json({
-        result: "declined",
-        message: t("declinedMessage"),
+        result: "held",
+        message: t("heldMessage"),
         failedKo: failedKoIds,
         failedKoNames: koMustHaveNames(failedKoIds, t),
-        reviewByEmail: isRelayConfigured(),
       });
     }
     // The lead was filed (new or duplicate) — link the attempt that produced it.

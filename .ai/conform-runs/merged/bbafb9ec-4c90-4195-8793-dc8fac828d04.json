@@ -1,0 +1,100 @@
+{
+  "schema": "conform-run/1",
+  "worker": "bbafb9ec-4c90-4195-8793-dc8fac828d04",
+  "subject": "mcp-tools",
+  "evaluatedAt": "2026-11-07T02:07:54.673852+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "devcase-eval",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/tools/devcases/useDevSubmissionRow.ts:68 A case-insensitive search of every file in app/features/tools/devcases/ and app/features/tools/interview/ for mcp, modelcontextprotocol, inputSchema and tools/call returned no hits. This context is React panels and hooks that call the app's own REST routes, so no tool-protocol server or client is in scope.",
+      "techniques": [],
+      "absenceTerms": [
+        "mcp",
+        "modelcontextprotocol",
+        "inputSchema",
+        "tools/call"
+      ]
+    },
+    {
+      "context": "devcase-workspace",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/tools/devcases/useDevTabData.ts:156 A search of app/features/tools/devcases/ and app/features/tools/interview/ for mcp, modelcontextprotocol, inputSchema and tools/call returned no hits. The tab shell loads its data from the app's own REST API and neither exposes nor consumes tools.",
+      "techniques": [],
+      "absenceTerms": [
+        "mcp",
+        "modelcontextprotocol",
+        "inputSchema",
+        "tools/call"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "mcp-tools",
+      "context": "profile-roster-matrix",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor ProfileRoster.tsx:25 is only a header comment about roster actions. It doesn't show the REST-only claim, and the /api/archetypes calls the evidence names are in ArchetypeManager.tsx, which isn't the anchor."
+    },
+    {
+      "subject": "mcp-tools",
+      "context": "db-org-users-channels",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor companion.ts:61 is a type comment about proposalIds and kp:action fences. It is not one of the context's files (users, orgs, memberships, channels and similar), so it doesn't show a tool-protocol surface is absent there."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-07T02:07:54.673852+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "mcp-tools"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "devcase-eval",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-07T02:07:54.673852+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "mcp-tools"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "devcase-workspace",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-07T02:07:54.673852+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "mcp-tools"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "profile-roster-matrix",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-07T02:07:54.673852+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "mcp-tools"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "db-org-users-channels",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

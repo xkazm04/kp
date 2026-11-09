@@ -1,0 +1,80 @@
+{
+ "schema": "conform-run/1",
+ "worker": "74f0957d-e0a7-4c56-8901-fc8fc76c15d0",
+ "subject": "test-harness",
+ "evaluatedAt": "2026-11-03T15:31:24.414925+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "apply-surface-tests",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/apply/[id]/quick/quick-apply-status-link.test.ts:68 The test claims the status page renders the switcher, but its needle is a bare identifier that the import line (StatusClient.tsx:8, `import { LanguageSwitcher } ...`) or a comment already satisfies, so this pin stays green if `<LanguageSwitcher />` is removed from StatusClient.tsx:224. The sibling file in the same context uses the call-shaped needle `/<LanguageSwitcher \\/>/`.",
+   "techniques": [
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/quick/quick-apply-status-link.test.ts:68 A bare-name needle for a 'renders' claim is satisfied by the import line. The same bare-name shape recurs at lines 19 (/statusToken/) and 34 (/statusLinkFor/) of this file."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:128 Each key pin is paired with a planted mutation that must make it fail (non-vacuity). The same pattern appears at apply-draft-fingerprint.test.ts:122."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/quick/quick-apply-status-link.test.ts:32 Asserts adoption of the shared helper (no local copy), not only the helper's behaviour."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:102 The population derived from source (the return blocks) has a declared floor, so a split that matches nothing goes red instead of passing empty."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "test-harness",
+   "context": "tests-devcase",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "test-harness",
+   "context": "platform-auth-api",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "test-harness",
+   "context": "shell-setup-wizard",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "test-harness",
+   "context": "about-product",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-03T15:31:24.414925+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "derived-selection-must-be-measured",
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "apply-surface-tests",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

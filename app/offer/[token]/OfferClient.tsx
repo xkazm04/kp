@@ -14,23 +14,25 @@ import OfferKitView from "./kit/OfferKitView";
 // letter in ./kit (promoted at Gate 2 of the kit-unification spark, 2026-09-25), which renders this
 // state and owns none of its own.
 
+// An EXPIRED offer arrives as status + jobTitle only (offer-finalize offerView), so every
+// other field is optional here: the expired letter renders from what is left.
 type OfferView = {
-  token: string;
+  token?: string;
   status: "extended" | "accepted" | "declined" | "expired";
   jobTitle: string | null;
-  candidateLabel: string | null;
-  currency: string | null;
-  salary: number | null;
-  company: string | null;
-  expiresAt: string | null;
-  timeZone: string;
+  candidateLabel?: string | null;
+  currency?: string | null;
+  salary?: number | null;
+  company?: string | null;
+  expiresAt?: string | null;
+  timeZone?: string;
   // bug-ui-scan-2026-07-09 (offers-onboarding #5): whole-hours-left computed on the
   // SERVER at GET time so the countdown can't disagree with server-enforced expiry on a
   // skewed/back-dated client clock. Null when the offer carries no valid deadline.
-  hoursRemaining: number | null;
-  minutesRemaining: number | null;
-  notes: string | null;
-  startDate: string | null;
+  hoursRemaining?: number | null;
+  minutesRemaining?: number | null;
+  notes?: string | null;
+  startDate?: string | null;
 };
 
 // Public, token-gated offer page. The candidate accepts or declines here; accept

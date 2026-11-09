@@ -1,0 +1,36 @@
+{
+  "schema": "conform-run/1",
+  "worker": "2b72d489-5d70-4201-8db6-1b4e86caf6c1",
+  "subject": "rejection-with-dignity",
+  "evaluatedAt": "2026-10-30T22:21:50.094339+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "rejection-with-dignity",
+      "context": "candidate-apply-flow",
+      "reason": "withdrawn after review: reviewer (sonnet): The deviation is anchored in app/_lib/rejection-feedback.ts, which is not one of the candidate-apply-flow context files. Its only live caller is comms-dispatch.ts:579, which is also outside that context. The verdict is therefore about the rejection-comms code rather than the apply flow. I also did n"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-30T22:21:50.094339+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "rejection-with-dignity"
+      ],
+      "techniques": [
+        "deterministic-dispatch-so-nobody-is-ghosted",
+        "feedback-line-ceiling",
+        "name-the-decisive-reason-from-the-record",
+        "never-assert-a-gap-the-evidence-disproves",
+        "protected-attribute-line-suppression"
+      ],
+      "deviations": 1,
+      "context": "candidate-apply-flow",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

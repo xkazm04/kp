@@ -1,0 +1,202 @@
+{
+ "schema": "conform-run/1",
+ "worker": "db28963b-e501-4b20-b402-22b067d4a350",
+ "subject": "skill-adjacency-and-normalization",
+ "evaluatedAt": "2026-11-07T03:16:54.985992+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "candidate-matching",
+   "subject": "skill-adjacency-and-normalization",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/taxonomy.py:641 Surface resolution silently settles duplicate surfaces by load order, and the live data has 10 surfaces owned by two term ids (e.g. 'quality assurance' -> qa and quality_management, 'conflict resolution' -> two terms). That is the coin-flip resolution the standard's lint exists to prevent, and a hierarchy walk gives full specialization credit across any number of steps.",
+   "techniques": [
+    {
+     "technique": "canonical-term-with-surface-aliases",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/taxonomy.py:641 Duplicates across terms are resolved by first writer, not refused. lint_taxonomy only catches duplicates inside one term. Live probe: 10 shared surfaces. Also csharp aliases '.net'/'asp.net' and vue aliases 'nuxt', which turns narrower instances into aliases."
+    },
+    {
+     "technique": "hierarchy-credit-specialization-and-generalization",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/taxonomy.py:1122 Asymmetric named constants exist (0.9 / 0.55), but _ANCESTORS is a transitive closure with no per-step decay. Probe: term_match_score('helm','devops') = 0.9 across 3 hops. The function returns a bare float, so the direction is never recorded with the credit."
+    },
+    {
+     "technique": "sibling-adjacency-below-the-match-threshold",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/taxonomy.py:769 Sibling 0.4 is below the 0.5 threshold, and only a direct shared parent qualifies (a grandparent cousin scores 0). matching.py puts sub-threshold hits in unproven_skills, not in matched or missing."
+    },
+    {
+     "technique": "whole-token-matching-over-substring",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/taxonomy.py:561 The compact fallback anchors both ends to the original word grid (_compact_fallback_hit), compact forms under 3 characters are refused, and the suffix allowance is gated in code to single plain-token surfaces."
+    },
+    {
+     "technique": "bilingual-surface-parity-and-coverage-floors",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/taxonomy_check.py:685 Parity counts any term with 2 or more surfaces as 'bilingual' without regard to language, so frontend/front-end and rest api/restful count as bilingual. Language is not metadata on a surface, and no per-family, per-language resolution rate is measured on realistic text. Term-count and parent-link floors are pinned."
+    },
+    {
+     "technique": "unmodelled-term-graceful-fallback",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/taxonomy.py:1305 The bounded Jaccard (cap 0.3 below sibling), multilingual stopwords and the one-side alias-set fallback all conform. But the result is a bare float with no 'unmodelled' marker, and nothing logs or queues unmodelled terms (grep for unmodel / taxonomy_gap / fallback_rate found none), so the gap is not countable."
+    }
+   ]
+  },
+  {
+   "context": "tests-matching-taxonomy",
+   "subject": "skill-adjacency-and-normalization",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/tests/test_taxonomy_check.py:102 The lint suite pins only duplicate surfaces inside one term, so the 10 live surfaces shared by two term ids pass every test while resolution settles them by load order.",
+   "techniques": [
+    {
+     "technique": "canonical-term-with-surface-aliases",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_taxonomy_check.py:102 No test asserts that a surface resolves to only one term across the taxonomy. Cycles are covered in test_taxonomy_graph."
+    },
+    {
+     "technique": "sibling-adjacency-below-the-match-threshold",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_sibling_credit.py:33 A dedicated contract file asserts sibling < threshold and sibling < generalization as relations, cousins at 0, and the sibling hit as neither matched nor missing."
+    },
+    {
+     "technique": "whole-token-matching-over-substring",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_false_skill_credit.py:41 Named negative regressions are paired with positives for separator-free spellings and Czech inflection. test_taxonomy_check holds a live collision gate with an allow-list."
+    },
+    {
+     "technique": "hierarchy-credit-specialization-and-generalization",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_sibling_credit.py:37 Pins the asymmetric direction (0.9 vs 0.55). Multi-hop decay is not pinned; that is the code-side deviation recorded on candidate-matching."
+    },
+    {
+     "technique": "bilingual-surface-parity-and-coverage-floors",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_taxonomy_coverage_gate.py:53 Per-family minimum floors on term count and parent-link density, alongside the equality pins in test_role_family_parity."
+    }
+   ]
+  },
+  {
+   "context": "tests-scoring-fairness",
+   "subject": "skill-adjacency-and-normalization",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/tests/test_tech_bilingual_parity.py:166 The test asserts 100% 'bilingual parity' for the tech families on a metric that counts any 2 surfaces as bilingual, so terms with no Czech surface (rest_api, frontend) are certified as at parity.",
+   "techniques": [
+    {
+     "technique": "bilingual-surface-parity-and-coverage-floors",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_tech_bilingual_parity.py:166 Parity is pinned on a surface-count proxy that ignores language. The exemption guard, the no-drift slice and the equality floor pins (test_role_family_parity) do conform."
+    },
+    {
+     "technique": "sibling-adjacency-below-the-match-threshold",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_unproven_boundary.py:87 The boundary matrix keeps a sibling hit out of both matched and missing, and records the reason 'adjacency' and the score 0.4."
+    },
+    {
+     "technique": "whole-token-matching-over-substring",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_whole_token_classification.py:74 Short-token substring traps are asserted negative, with positive checks that the matcher is not vacuous."
+    },
+    {
+     "technique": "unmodelled-term-graceful-fallback",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_fallback_stopwords_multilingual.py:92 Covers all 4 shipped languages: glue-only pairs score 0, and a shared head scores under the cap. The missing unmodelled marker is the code-side deviation."
+    },
+    {
+     "technique": "hierarchy-credit-specialization-and-generalization",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_nontech_skill_graph.py:37 Generalization at 0.55 against specialization at 0.9 is pinned per direction on non-tech terms (kyc/aml)."
+    }
+   ]
+  },
+  {
+   "context": "skill-profile-public-page",
+   "subject": "skill-adjacency-and-normalization",
+   "bundle": "recruiting",
+   "state": "not-applicable",
+   "evidence": "app/skill/[token]/page.tsx:87 The page renders axis scores already computed for a verified credential and does no skill normalization or adjacency. A grep of app/skill for taxonomy, resolveTerm, resolve_term, skill_match_score and adjacency found nothing.",
+   "techniques": [],
+   "absenceTerms": [
+    "taxonomy",
+    "resolveTerm",
+    "resolve_term",
+    "skill_match_score",
+    "adjacency"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-07T03:16:54.985992+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "skill-adjacency-and-normalization"
+   ],
+   "techniques": [
+    "bilingual-surface-parity-and-coverage-floors",
+    "canonical-term-with-surface-aliases",
+    "hierarchy-credit-specialization-and-generalization",
+    "sibling-adjacency-below-the-match-threshold",
+    "unmodelled-term-graceful-fallback",
+    "whole-token-matching-over-substring"
+   ],
+   "deviations": 1,
+   "context": "candidate-matching",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T03:16:54.985992+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "skill-adjacency-and-normalization"
+   ],
+   "techniques": [
+    "bilingual-surface-parity-and-coverage-floors",
+    "canonical-term-with-surface-aliases",
+    "hierarchy-credit-specialization-and-generalization",
+    "sibling-adjacency-below-the-match-threshold",
+    "whole-token-matching-over-substring"
+   ],
+   "deviations": 1,
+   "context": "tests-matching-taxonomy",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T03:16:54.985992+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "skill-adjacency-and-normalization"
+   ],
+   "techniques": [
+    "bilingual-surface-parity-and-coverage-floors",
+    "hierarchy-credit-specialization-and-generalization",
+    "sibling-adjacency-below-the-match-threshold",
+    "unmodelled-term-graceful-fallback",
+    "whole-token-matching-over-substring"
+   ],
+   "deviations": 1,
+   "context": "tests-scoring-fairness",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T03:16:54.985992+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "skill-adjacency-and-normalization"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "skill-profile-public-page",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -1,0 +1,39 @@
+{
+ "schema": "conform-run/1",
+ "worker": "07717137-ddce-4060-8dbb-839d89015473",
+ "subject": "repository-landing-document",
+ "evaluatedAt": "2026-10-30T22:23:39.811814+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "jd-public-detail-page",
+   "subject": "repository-landing-document",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/jds/[slug]/page.tsx:149 This context is a Next.js route that renders one page per JD slug, which the golden path's seam rule calls a content-model page (\"one of many addressable pages\"), not a repository front page; a case-insensitive search of app/jds/ for readme, badge, shields.io and figcaption found nothing, so the subject's precondition (a repository landing document rendered by a code host or registry) does not hold.",
+   "techniques": [],
+   "absenceTerms": [
+    "readme",
+    "badge",
+    "shields.io",
+    "figcaption"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-30T22:23:39.811814+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "repository-landing-document"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "jd-public-detail-page",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -28,6 +28,7 @@ import {
   Scale,
   Settings,
   SlidersHorizontal,
+  Sparkles,
   Table,
   TrendingUp,
   UserCircle,
@@ -53,6 +54,8 @@ export const SECTION_ICON: Record<string, LucideIcon> = {
 /** Second-level (panel) glyphs — one per tab. A tab without an entry falls back
  *  to a neutral dot in the renderer, so this never has to be exhaustive. */
 export const TAB_ICON: Partial<Record<WorkspaceTabId, LucideIcon>> = {
+  // The house AI glyph (Sparkles marks AI-made work across the app): One is the AI-conducted home.
+  one: Sparkles,
   pipeline: LayoutDashboard,
   channels: Radio,
   decisions: Scale,

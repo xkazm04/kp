@@ -1,0 +1,228 @@
+{
+ "schema": "conform-run/1",
+ "worker": "846b024b-b2d4-4c10-a091-11f23fe561cd",
+ "subject": "test-harness",
+ "evaluatedAt": "2026-11-09T00:34:04.323242+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "apply-surface-tests",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/apply/[id]/quick/quick-apply-status-link.test.ts:68 This presence pin is a bare identifier that StatusClient.tsx:8's import line already satisfies, so removing the rendered <LanguageSwitcher /> at line 224 leaves the test green.",
+   "techniques": [
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:63 LF-only needle over an un-normalised read (line 17); on the core.autocrlf=true checkout .gitattributes describes, page.tsx is CRLF and this assertion goes red although lines 162 and 168 of the same file tolerate \\r?\\n. Same technique, needle side: /BTN_PRIMARY/ at line 88 is satisfied by ApplyFollowup.tsx:6's import, and quick-apply-status-link.test.ts:68 likewise."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:108 Removes the construct from the real source text and shows the needle stops matching, labelled non-vacuity; similar controls at lines 80 and 128 and in apply-draft-fingerprint.test.ts:122."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/apply-draft-fingerprint.test.ts:91 The decision was lifted into resumableAnsweredIds, driven directly at line 77, and its adoption by the hook is pinned here; the header comments state these are source-contract tests for wiring the unit runner cannot render."
+    }
+   ],
+   "registryProposal": "pin-the-call-not-the-name states the import-line trap only for ordering claims; a presence claim whose needle is a bare imported name is satisfied by the import line the same way, and the technique could say so directly rather than deferring to match-the-resolved-artifact."
+  },
+  {
+   "context": "shell-setup-pipeline",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/shell/setup/setupPipelinePresets.test.ts:70 The test name claims what the wizard offers but its assertions read only the SETUP_STAGE_ROLES constant, and no test or e2e spec pins SetupPipelineStageRow.tsx:46 passing it, so the wizard can stop using the list while this stays green.",
+   "techniques": [
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/setup/setupPipelinePresets.test.ts:70 Name overstates the assertions at lines 73-75; adoption at SetupPipelineStageRow.tsx:46 (roleOptions={SETUP_STAGE_ROLES}) is unpinned, confirmed by git grep over *.test.ts(x) and e2e/."
+    },
+    {
+     "technique": "a-test-helper-is-a-fork-of-the-driver",
+     "verdict": "conformant",
+     "evidence": "app/features/shell/setup/setupPipelinePresets.test.ts:32 Presets are checked through the shipped server validator and the shared axis model rather than a test-local rule."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "app/features/shell/setup/setupPipelinePresets.test.ts:102 The guard cases carry a paired positive case at line 103 that would fail if the guard simply disabled the preset."
+    },
+    {
+     "technique": "fixture-economics",
+     "verdict": "conformant",
+     "evidence": "app/features/shell/setup/setupPipelinePresets.test.ts:25 In-memory construction from the shipped axis, the cheapest fixture that can witness these pure-logic claims."
+    }
+   ]
+  },
+  {
+   "context": "llm-config-provider",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/llm-endpoint-guard.test.ts:101 The stated reason for settling on a text pin over saveProviderKey is false, since llm-config.ts is imported and driven under node --test by llm-config-probe-env.test.ts:12 and llm-capabilities-lockstep.test.ts:34 says so, leaving a loadable call site covered only by source text.",
+   "techniques": [
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "deviation",
+     "evidence": "app/_lib/llm-endpoint-guard.test.ts:101 A narrow finding: the rule prefers executing the site over a permanent text match, and the module is loadable. saveProviderKey takes no injected lookup (llm-config.ts:214), but a host that cannot resolve would still separate the resolving guard from the string-only one."
+    },
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "conformant",
+     "evidence": "app/_lib/llm-endpoint-guard.test.ts:113 The needle carries an await and a first argument, so an import or a comment cannot satisfy it, and its explanation lives in the asserting file at lines 100-105."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "conformant",
+     "evidence": "app/_lib/llm-capabilities-lockstep.test.ts:107 The source parse declares a floor so an empty parse cannot pass the mirror comparisons vacuously; the same floor recurs at lines 108-109 and in llm-base-url-lockstep.test.ts:53."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "app/_lib/provider-key-precedence.test.ts:116 Shows the env value would answer without the stored row, so the no-fallthrough assertion can fail; llm-endpoint-guard.test.ts:34 does the same for the pre-fix gate."
+    },
+    {
+     "technique": "a-test-helper-is-a-fork-of-the-driver",
+     "verdict": "conformant",
+     "evidence": "app/_lib/testing/unit-db.ts:10 The fixture redirects KP_DB_PATH only, so stores still open through openStore with the shipped pragmas instead of a test-local connection."
+    },
+    {
+     "technique": "fixture-economics",
+     "verdict": "conformant",
+     "evidence": "app/_lib/llm-config-probe-env.test.ts:35 Rows are seeded through the product's own store function and real encryption rather than raw inserts."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "app/_lib/offline.test.ts:130 Global fetch and the environment keys the test mutates are restored in finally, and unit-db clears inherited shell variables."
+    }
+   ]
+  },
+  {
+   "context": "lint-quality-gates",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "scripts/lint/__tests__/fixtures/known-bad.mjs:46 These known-bad eslint fixtures are imported by no tracked file (git grep finds only the file itself and generated maps), so the seeded failures they exist to prove are never executed.",
+   "techniques": [
+    {
+     "technique": "negative-control-tests",
+     "verdict": "deviation",
+     "evidence": "scripts/lint/__tests__/fixtures/known-bad.mjs:46 test:lint-ratchet runs only the three ratchet tests. app/lint-selector-coverage.test.ts reads the resolved config (calculateConfigForFile) and calls no lintText, so whether a seeded snippet is actually reported stays unobserved."
+    },
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "scripts/design/check-design-tokens.mjs:194 This regex walk declares no floor on files read or shades matched, so a needle that stops matching reports clean, and its own comment records that happening once. Needle side: ratchet.test.mjs:222 uses ci.includes(`npm run ${script}`), a shape ci.yml comments already spell (ci.yml:74)."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "conformant",
+     "evidence": "scripts/lint/__tests__/ts-ratchet.test.mjs:225 The TypeScript ratchet floors its walk here and throws on an empty one at ts-ratchet.mjs:184."
+    },
+    {
+     "technique": "a-test-helper-is-a-fork-of-the-driver",
+     "verdict": "conformant",
+     "evidence": "scripts/perf/__tests__/sqlite-writer-knee.test.mjs:43 The probe restates the app's connection setup, and this test compares its pragma set with openStore() so the fork is checked rather than assumed."
+    },
+    {
+     "technique": "platform-quirk-absorption",
+     "verdict": "conformant",
+     "evidence": "scripts/lint/ruff-ratchet.mjs:273 An unreadable tool answer becomes a named failure rather than an empty measurement, and the venv fallback above it keeps its incident story at lines 255-258."
+    },
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "not-applicable",
+     "evidence": "scripts/perf/check-budget.mjs:18 No concurrency or cutoff claim is tested here; the budget deliberately gates on a host-independent proxy, which is the case the technique hands to metric-gates."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "test-harness",
+   "context": "interview-simulator",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-09T00:34:04.323242+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "apply-surface-tests",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T00:34:04.323242+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "a-test-helper-is-a-fork-of-the-driver",
+    "fixture-economics",
+    "negative-control-tests",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "shell-setup-pipeline",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T00:34:04.323242+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "a-test-helper-is-a-fork-of-the-driver",
+    "derived-selection-must-be-measured",
+    "fixture-economics",
+    "isolation-lanes",
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "llm-config-provider",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T00:34:04.323242+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "a-test-helper-is-a-fork-of-the-driver",
+    "assert-the-schedule-not-the-stopwatch",
+    "derived-selection-must-be-measured",
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "platform-quirk-absorption"
+   ],
+   "deviations": 1,
+   "context": "lint-quality-gates",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

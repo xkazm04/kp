@@ -1968,6 +1968,10 @@ export function ensureDb(): Database.Database {
     // only ever held people); `rubric_version` stays NULL = "unknown standard".
     "ALTER TABLE pipeline_entries ADD COLUMN population TEXT NOT NULL DEFAULT 'human'",
     "ALTER TABLE pipeline_entries ADD COLUMN rubric_version INTEGER",
+    // Owner ruling Q10 — which engine wrote a held outreach draft ('llm' | 'template').
+    // NULL = drafted before the source was kept = unknown; the send treats unknown as
+    // possibly model-written and adds the AI-drafted line (comms-dispatch draftedByModel).
+    "ALTER TABLE outreach_letters ADD COLUMN draft_source TEXT",
     // Tenant-level candidate-comms language default (backlog #34): the locale a
     // NULL-locale entry's letters render in (see comms-locale.resolveCommsLocale).
     // DEFAULT 'cs' backfills the existing default workspace — this deployment is

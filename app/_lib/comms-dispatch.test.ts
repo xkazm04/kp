@@ -66,6 +66,7 @@ const RENDERS: [string, Record<string, string | number>][] = [
   ["theRole", {}],
   ["aRole", {}],
   ["yourNewRole", {}],
+  ["aiDraftedFooter", {}],
   ["dataFooter", { link: "https://x/data/er-1" }],
   // The intake-ack key set distribution.ts owns; comms-dispatch composes the same one.
   ["ack.subject", {}],
@@ -148,4 +149,38 @@ test("interpolated slot survives the apostrophe-heavy confirmation body", () => 
   const t = translator("en", "comms");
   const out = t("interviewConfirmation.short", { name: "Jane", role: "BE", slot: "Mon 10:00", length: "", team: "Team" });
   assert.match(out, /Mon 10:00/);
+});
+
+// Owner ruling Q10: the AI-drafted line renders, as its own paragraph, in every locale,
+// with or without the legal-link tokens.
+test("the AI-drafted footer line renders in all four locales and stands alone without tokens", async () => {
+  const { renderCandidateFooters, draftedByModel } = await import("./comms-dispatch.ts");
+  const seen = new Set<string>();
+  for (const locale of LOCALES) {
+    const t = translator(locale, "comms");
+    const line = t("aiDraftedFooter");
+    assert.ok(t.has("aiDraftedFooter") && line.length > 10 && !line.includes("comms."), `${locale}: line present`);
+    assert.ok(!line.includes("—"), `${locale}: no em dash`);
+    seen.add(line);
+    const withTokens = renderCandidateFooters(t as never, locale, "https://x", { erasureToken: "e", optOutToken: "o" }, { aiDrafted: true });
+    assert.ok(withTokens.text.startsWith(`
+
+${line}
+
+`), `${locale}: own paragraph ahead of the legal links`);
+    assert.ok(withTokens.text.includes("/data/e") && withTokens.text.includes("/stop/o"));
+    const bare = renderCandidateFooters(t as never, locale, "", { erasureToken: null, optOutToken: null }, { aiDrafted: true });
+    assert.equal(bare.text, `
+
+${line}`, `${locale}: no tokens, still the line`);
+    const off = renderCandidateFooters(t as never, locale, "https://x", { erasureToken: "e", optOutToken: "o" });
+    assert.ok(!off.text.includes(line), `${locale}: absent when not AI-drafted`);
+  }
+  assert.equal(seen.size, 4, "four distinct translations");
+  // The one reading of a stored source: only a positively deterministic one is "not AI".
+  assert.equal(draftedByModel("llm"), true);
+  assert.equal(draftedByModel("template"), false);
+  assert.equal(draftedByModel(undefined), true, "no stored source: cannot prove it was not a model");
+  assert.equal(draftedByModel(null), true);
+  assert.equal(draftedByModel("something-new"), true);
 });

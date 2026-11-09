@@ -1,0 +1,81 @@
+{
+ "schema": "conform-run/1",
+ "worker": "608e837c-3d75-4675-86c3-cfa3a783df05",
+ "subject": "test-harness",
+ "evaluatedAt": "2026-11-03T10:49:41.115654+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "apply-surface-tests",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:88 The usage claim 'Submit is BTN_PRIMARY' is checked with a bare identifier, and the import line that the previous assertion (line 87) requires already contains that name (ApplyFollowup.tsx:6 imports BTN_PRIMARY), so the pin stays green if the button stops using the recipe. quick-apply-status-link.test.ts:68 has the same flaw: StatusClient.tsx:8's import satisfies its LanguageSwitcher check.",
+   "techniques": [
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:88 Breaks the rule that the needle must carry a token prose cannot write. The name alone matches the import line, so the pin cannot fail while the import stays. The same file shows the right form: line 44 reads rendered className values only, and line 162 tolerates \\r?\\n."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/apply-draft-fingerprint.test.ts:12 The shared predicate's behaviour is unit-tested elsewhere, and this file pins its adoption at the call sites. The header (line 9) says this is a source-contract interim because the site cannot be reached in the unit runner."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:112 The offending shape is seeded into a copy of the real source and the pin is shown to go red, which is how the technique proves a structural pin can fail."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "conformant",
+     "evidence": "app/apply/[id]/candidate-door-conversion.test.ts:45 The extracted class-name set has a floor, so if the slice stops matching anything the loop cannot pass with nothing checked."
+    }
+   ],
+   "registryProposal": "pin-the-call-not-the-name states the import-line trap for ordering claims ('a bare identifier is never usable for an ordering claim'). The measured case here is a presence/usage claim, where the same import line satisfies a bare-name needle in the permissive direction. The decision rule could say outright that a usage claim needs a use-site token (an interpolation, a JSX tag, or a call), not just an ordering claim."
+  }
+ ],
+ "declined": [
+  {
+   "subject": "test-harness",
+   "context": "tests-scoring-fairness",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "test-harness",
+   "context": "tests-devcase",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "test-harness",
+   "context": "platform-auth-api",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "test-harness",
+   "context": "shell-setup-wizard",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-03T10:49:41.115654+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "derived-selection-must-be-measured",
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "apply-surface-tests",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

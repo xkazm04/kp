@@ -1,0 +1,217 @@
+{
+  "schema": "conform-run/1",
+  "worker": "07f9aab7-b7a3-478e-9baf-31619e3a8430",
+  "subject": "quality-gates",
+  "evaluatedAt": "2026-11-04T02:08:43.819043+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "ci-doc-gates",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "scripts/docs/check-doc-sync-diff.mjs:94 One free-prose `Doc-sync:` line on any commit in the range waives every stale-doc finding in that range, including docs it never names. So the waiver is a blanket, not one finding waived by its identity.",
+      "techniques": [
+        {
+          "technique": "waiver-names-its-finding",
+          "verdict": "deviation",
+          "evidence": "scripts/docs/check-doc-sync-diff.mjs:94 DISMISS_RE matches `Doc-sync: <anything>` on any commit in the range and returns 0 for all hits. Nothing ties the trailer to a doc or a file, and a waiver that matches nothing is never reported."
+        },
+        {
+          "technique": "unparseable-form-is-a-finding",
+          "verdict": "deviation",
+          "evidence": "scripts/i18n/primitive-copy-defaults.mjs:29 The regex only matches a one-default-per-line, double-quoted form. I tested it: the one-line `export function Select({ placeholder = \"Select…\", … })` from the file's own header (line 7) does not match, and single-quoted defaults are missed too. The unrecognised form produces no finding, yet the gate blocks."
+        },
+        {
+          "technique": "unmeasurable-criteria",
+          "verdict": "deviation",
+          "evidence": "scripts/docs/check-doc-sync-diff.mjs:55 When the base is unfetched (a gap in the gate's own view), the range silently narrows to one commit, and the success line never says the range was narrowed. The no-base skip at line 64 is announced; this fallback is not."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/check-doc-sync.mjs:144 A missing transcript, an unreadable map or an empty map gets its own exit path, separate from pass (0) and refuse (2)."
+        },
+        {
+          "technique": "hook-hygiene",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/check-doc-sync.mjs:159 The Stop hook only reads and refuses-with-explanation, never edits files, and treats a broken trigger or wiring as cannot-check, not as clean."
+        },
+        {
+          "technique": "gate-laddering",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/check-doc-sync-diff.mjs:33 The agent-turn hook and the CI range check share one pure rule (`evaluate`), so the two rungs read one rule source."
+        },
+        {
+          "technique": "prose-rule-drift",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/check-doc-sync-diff.mjs:10 The doc-sync rule, written in CLAUDE.md and previously enforced only per agent session, is mechanised over git ranges, so human and bot commits are covered too."
+        },
+        {
+          "technique": "policy-projection",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/check-guidance.mjs:530 The gate table and manifest copies of the CI policy are checked against the workflows in both directions (gate-unlisted / gate-stale / gate-undocumented)."
+        },
+        {
+          "technique": "refusal-names-a-reachable-remedy",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/check-guidance.mjs:385 Remedy paths printed in refusal sources are resolved against the repo root, and an unreachable one is a blocking finding."
+        },
+        {
+          "technique": "severity-by-construction",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/check-guidance.mjs:704 Every finding is rendered as BLOCK and every finding counts toward the non-zero exit; there is no advisory tier that is counted but neutralised."
+        },
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/check-guidance.mjs:650 The verify and gate comparisons read the @include-expanded text an agent actually receives, not just the raw file bytes."
+        },
+        {
+          "technique": "false-positive-economics",
+          "verdict": "conformant",
+          "evidence": "scripts/i18n-check.mjs:28 Widening the eslint i18n mode was measured at 159 false positives and rejected in favour of a narrow detector. Precision was measured before blocking."
+        },
+        {
+          "technique": "instrument-answers-only-its-own-question",
+          "verdict": "conformant",
+          "evidence": "scripts/i18n-check.mjs:12 States which instrument owns which question: tsc owns unknown keys, this gate owns cross-locale parity. The attribute greps close a gap the eslint rule cannot see."
+        }
+      ]
+    },
+    {
+      "context": "control-room-action-guard",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/control/controlRoomConfirm.ts:5 This is a runtime UI arm/confirm interlock for operator clicks, not a check that refuses a change or an artifact in a pipeline. A search of app/control for ci.yml, pre-push, githooks, Gate-exemption and process.exit found no gate machinery.",
+      "techniques": [],
+      "absenceTerms": [
+        "ci.yml",
+        "pre-push",
+        "githooks",
+        "Gate-exemption",
+        "process.exit"
+      ]
+    },
+    {
+      "context": "devcase-eval",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/tools/devcases/devEvalTaskState.ts:2 The context is display UI and view-state logic for submission evaluation results; it hosts no check that refuses a change. A search of app/features/tools/devcases and app/features/tools/interview for ci.yml, pre-push, githooks, Gate-exemption and process.exit found nothing.",
+      "techniques": [],
+      "absenceTerms": [
+        "ci.yml",
+        "pre-push",
+        "githooks",
+        "Gate-exemption",
+        "process.exit"
+      ]
+    },
+    {
+      "context": "analyze-engine",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/tools/analyze/analyzeCvIntake.ts:1 Its 'intake gate' is admission logic for uploaded CV files at runtime, not a quality gate over the codebase. A search of app/features/tools/analyze for ci.yml, pre-push, githooks, Gate-exemption and process.exit found no gate machinery.",
+      "techniques": [],
+      "absenceTerms": [
+        "ci.yml",
+        "pre-push",
+        "githooks",
+        "Gate-exemption",
+        "process.exit"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "quality-gates",
+      "context": "devcase-core",
+      "reason": "withdrawn after review: reviewer (sonnet): The claim that nothing on any rung invokes the --strict gates is contradicted: CI runs `npm run test:python:gate` (ci.yml:417), and pipeline/jobfit/tests/test_devcase_eval.py:379,385 and test_devcase_evaluation_pipeline.py call submission_eval main with --strict and assert its exit codes, so the gre"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-04T02:08:43.819043+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "quality-gates"
+      ],
+      "techniques": [
+        "false-positive-economics",
+        "gate-laddering",
+        "gate-liveness",
+        "hook-hygiene",
+        "instrument-answers-only-its-own-question",
+        "match-the-resolved-artifact",
+        "policy-projection",
+        "prose-rule-drift",
+        "refusal-names-a-reachable-remedy",
+        "severity-by-construction",
+        "unmeasurable-criteria",
+        "unparseable-form-is-a-finding",
+        "waiver-names-its-finding"
+      ],
+      "deviations": 1,
+      "context": "ci-doc-gates",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-04T02:08:43.819043+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "quality-gates"
+      ],
+      "techniques": [
+        "gate-laddering",
+        "gate-liveness",
+        "severity-by-construction",
+        "unmeasurable-criteria"
+      ],
+      "deviations": 1,
+      "context": "devcase-core",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-04T02:08:43.819043+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "quality-gates"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "control-room-action-guard",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-04T02:08:43.819043+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "quality-gates"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "devcase-eval",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-04T02:08:43.819043+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "quality-gates"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "analyze-engine",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

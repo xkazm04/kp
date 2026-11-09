@@ -1,0 +1,191 @@
+{
+ "schema": "conform-run/1",
+ "worker": "726ddbf7-4fcf-4b80-a06e-c1cf1b159d59",
+ "subject": "multi-provider-gateway-plane",
+ "evaluatedAt": "2026-11-08T02:01:24.489056+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "jobseeker-ats-adapters",
+   "subject": "multi-provider-gateway-plane",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/jobseeker/adapters/registry.ts:39 Each configured source row is sent to exactly one adapter by its closed name, and the app's own reconcile calls it to ingest that one vendor's board. Nothing here fronts interchangeable upstreams for outside callers: searching the adapter, fetch and rules directories found no gateway, failover, candidate, strategy, loadBalance, retryOn or routerFailure construct, so there is no strategy tree, fallback loop, published caller contract or provider stream to judge.",
+   "techniques": [
+    {
+     "technique": "router-versus-candidate-failure",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/jobseeker/adapters/ats/greenhouse.ts:37 Each source has one candidate and no fallback loop, which is the technique's own 'when not to use'. Worth noting: a config error the plane made is reported as an upstream `outage`, so the cheap half the technique recommends keeping is missing."
+    },
+    {
+     "technique": "upstream-identity-before-inventory",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/jobseeker/adapters/ats/discover.ts:44 Each ATS vendor is probed on its own host with its own dialect, so the host is the identity. This is not several implementations answering one shared wire protocol."
+    },
+    {
+     "technique": "named-members-over-a-uniform-collection",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/jobseeker/adapters/ats/discover.ts:40 This is a discovery sweep, not a plane inventory aggregate. Every probe's hit is consumed the same way under one failure policy. The probes run one after another, so the sweep's latency is the sum of their timeouts."
+    },
+    {
+     "technique": "join-breadth-follows-the-wrong-match-cost",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/jobseeker/adapters/shared.ts:107 There is no catalog-to-upstream inventory join. The closest analogue is the title filter, which states its breadth and why (a miss deletes a real posting), in the spirit the technique asks for."
+    }
+   ],
+   "absenceTerms": [
+    "loadBalance",
+    "strategyTree",
+    "retryOn",
+    "routerFailure"
+   ]
+  },
+  {
+   "context": "jobseeker-feed-rules",
+   "subject": "multi-provider-gateway-plane",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/jobseeker/adapters/eures.ts:3 Each feed or board adapter ingests one named public source for the app's own reconcile, through one polite fetcher. Searching these directories found no gateway, failover, candidate, strategy, loadBalance, retryOn or routerFailure construct, so no request is routed across interchangeable upstreams for outside callers.",
+   "techniques": [
+    {
+     "technique": "per-provider-stream-framing",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/jobseeker/adapters/jsonArrayStream.ts:2 This is a streamed bulk-file reader for one ingestion source, not provider event streams translated into a published chunk shape. A non-standard framing does get its own reader, which echoes the technique."
+    },
+    {
+     "technique": "router-versus-candidate-failure",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/jobseeker/fetch/politeFetch.ts:381 There is a single upstream per fetch and no candidate loop. A plane-side defect (a bad URL or scheme) shares the `outage` kind with a real upstream 5xx, which is the misattribution the technique warns about. Here it changes no routing decision."
+    },
+    {
+     "technique": "adapter-direction-asymmetry",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/jobseeker/adapters/boardRules.ts:38 The rules DSL is a scraping language over HTML, not a request or response translation between a published contract and a provider dialect."
+    }
+   ],
+   "absenceTerms": [
+    "loadBalance",
+    "strategyTree",
+    "retryOn",
+    "routerFailure"
+   ]
+  },
+  {
+   "context": "candidate-apply-flow",
+   "subject": "multi-provider-gateway-plane",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/apply-session-client.ts:42 The apply flow's only outbound call goes to the app's own first-party API. These files have no multi-upstream routing: grep over the 12 source files found no failover, gateway or provider construct, and no loadBalance, strategyTree, retryOn or routerFailure. 'fallback' and 'upstream' appear only as prose about defaults and locale pinning.",
+   "techniques": [],
+   "absenceTerms": [
+    "loadBalance",
+    "strategyTree",
+    "retryOn",
+    "routerFailure"
+   ]
+  },
+  {
+   "context": "application-status-page",
+   "subject": "multi-provider-gateway-plane",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/status/[token]/StatusClient.tsx:99 The public status page polls one first-party endpoint for one token. Searching app/status found no failover, gateway, upstream, provider, loadBalance, strategyTree, retryOn or routerFailure, so no gateway plane exists here.",
+   "techniques": [],
+   "absenceTerms": [
+    "loadBalance",
+    "strategyTree",
+    "retryOn",
+    "routerFailure",
+    "failover"
+   ]
+  },
+  {
+   "context": "matrix-grid",
+   "subject": "multi-provider-gateway-plane",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/insights/matrix/matrixCellClass.ts:9 The matrix grid is a client UI over the app's own /api/matrix and /api/match/reasoning endpoints. Searching the matrix directory found no failover, gateway, loadBalance, strategyTree, retryOn or routerFailure. The 'upstream' and 'provider' hits are a hiring-chain empty-state link and a React TasksProvider import.",
+   "techniques": [],
+   "absenceTerms": [
+    "loadBalance",
+    "strategyTree",
+    "retryOn",
+    "routerFailure",
+    "failover"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-08T02:01:24.489056+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "multi-provider-gateway-plane"
+   ],
+   "techniques": [
+    "join-breadth-follows-the-wrong-match-cost",
+    "named-members-over-a-uniform-collection",
+    "router-versus-candidate-failure",
+    "upstream-identity-before-inventory"
+   ],
+   "deviations": 0,
+   "context": "jobseeker-ats-adapters",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T02:01:24.489056+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "multi-provider-gateway-plane"
+   ],
+   "techniques": [
+    "adapter-direction-asymmetry",
+    "per-provider-stream-framing",
+    "router-versus-candidate-failure"
+   ],
+   "deviations": 0,
+   "context": "jobseeker-feed-rules",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T02:01:24.489056+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "multi-provider-gateway-plane"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "candidate-apply-flow",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T02:01:24.489056+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "multi-provider-gateway-plane"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "application-status-page",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T02:01:24.489056+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "multi-provider-gateway-plane"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "matrix-grid",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

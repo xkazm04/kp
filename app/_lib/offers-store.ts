@@ -247,6 +247,43 @@ export function lapseExpiredOffers(nowMs: number = Date.now()): number {
   return lapsed.length;
 }
 
+/** Sweep every still-open offer whose pipeline entry has CLOSED to terminal 'expired'
+ *  (finding 3 of docs/security/2026-11-08-offer-scorecard-doors-scan.md). A rejected /
+ *  declined / rematched / role-closed entry must not keep a live offer link, nor be
+ *  picked up by the reminder sweep. A sweep rather than a hook so none of the many
+ *  closing writers in db/pipeline.ts has to know about offers.
+ *
+ *  Closed = `status IN TERMINAL_ENTRY_STATUSES` (rejected, declined, rematched,
+ *  role_closed — the whole vocabulary, via TERMINAL_STATUS_SQL_LIST). Deliberately NOT
+ *  gated on stage: a Hired candidate is status 'active' (and their offer is 'accepted',
+ *  not 'extended'), and an entry merely moved between stages keeps its offer.
+ *
+ *  A reopened role (role_closed → active) does NOT resurrect the offer: 'expired' is
+ *  terminal, and the recruiter extends a new one through getOrCreateOpenOffer.
+ *  Tenancy: this is the heartbeat's cross-workspace sweep, with no session workspace to
+ *  scope by (hence the `-- tenancy:global` tag on the SQL). The statement writes only
+ *  `offers`; it reads `pipeline_entries` solely to test the status of the entry each
+ *  offer already references by its own entry_id, so it cannot cross a tenant boundary.
+ *  Each offer_expired event is stamped with that offer row's own workspace_id, as
+ *  lapseExpiredOffers does.
+ *
+ *  Idempotent; returns how many lapsed. */
+export function lapseOffersOfClosedEntries(): number {
+  const lapsed = db()
+    .prepare(
+      `UPDATE offers SET status = 'expired'
+       WHERE status = 'extended'
+         AND entry_id IN (SELECT id FROM pipeline_entries WHERE status IN ${TERMINAL_STATUS_SQL_LIST})
+       RETURNING entry_id, job_title, workspace_id -- tenancy:global`
+    )
+    .all() as Array<{ entry_id: string | null; job_title: string | null; workspace_id: string | null }>;
+  for (const r of lapsed) {
+    // Global sweep: stamp each event with the offer row's own team, as lapseExpiredOffers does.
+    if (r.entry_id) recordAutomationEvent(r.entry_id, "offer_expired", r.job_title ?? "", r.workspace_id ?? undefined);
+  }
+  return lapsed.length;
+}
+
 /** Still-open offers that have entered the T-48h reminder window and haven't been
  *  reminded yet: deadline in the FUTURE (`> now`, so not already lapsable) but within
  *  `leadMs`. NULL-deadline (legacy, never-expires) rows are excluded — nothing to nudge

@@ -1,0 +1,65 @@
+{
+ "schema": "conform-run/1",
+ "worker": "0a427753-5964-4437-b184-ffd865f03488",
+ "subject": "interview-round-design",
+ "evaluatedAt": "2026-10-28T22:14:56.975280+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "schedule-interview-prep",
+   "subject": "interview-round-design",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/hiring/schedule/ScheduleInterviewPrepQuestions.tsx:102 The weave picker offers every chronology block as a target for a candidate-specific question imported from the analysis report, with no shared/personal grounding flag to refuse it, so personalised probes can land on any phase whose ratings are then compared on the shared rubric.",
+   "techniques": [
+    {
+     "technique": "shared-material-for-comparability",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/schedule/ScheduleInterviewPrepQuestions.tsx:102 Any block can take a candidate-specific question. ChronologyBlock (app/_lib/run-of-show.ts:16) has no grounding flag, and the plan itself is built as one block per CV-derived question, so there is no shared phase and no capacity bound on personal probes."
+    },
+    {
+     "technique": "phase-to-competency-mapping",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/schedule/ScheduleInterviewPrepRunOfShow.tsx:58 A block shows its topic, minute range, goal, questions and follow-up, but nothing says which competencies it feeds, what to listen for, or how it is grounded. The type it renders (ChronologyBlock) has no such fields, so nothing checks that the plan covers the scorecard rubric. Duration is the one field done well: the clamped timing contract."
+    },
+    {
+     "technique": "one-round-one-purpose",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/schedule/ScheduleHumanScorecardPanel.tsx:143 The rubric is chosen by archetype, role family and devCase only, never by round, so every (interviewer, round) record rates the full competency set. That is overlap nobody declared, with no ownership map. Independence is done right: the form seeds only from the caller's own record and keeps other interviewers' scorecards hidden (lines 25-31; othersScored copy)."
+    },
+    {
+     "technique": "round-mode-selection-machine-human-or-hybrid",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/schedule/ScheduleInterviewPrepNotes.tsx:42 The assigned interviewer is free text and is never compared with the scorecard author shown in the byline (ScheduleInterviewHumanScorecardSection.tsx:27-33), so a round run by someone other than the assigned assessor is not recorded as such. What conforms: the AI scorecard feeds a human review (feedsReview), and a human verdict routes to the scorecard_review gate."
+    },
+    {
+     "technique": "cohort-reducer-between-rounds",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/schedule/ScheduleHumanScorecardPanel.tsx:165 This context gates one candidate at a time (a scorecard save moves that entry to the review gate). No cohort narrowing happens here."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-28T22:14:56.975280+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "interview-round-design"
+   ],
+   "techniques": [
+    "cohort-reducer-between-rounds",
+    "one-round-one-purpose",
+    "phase-to-competency-mapping",
+    "round-mode-selection-machine-human-or-hybrid",
+    "shared-material-for-comparability"
+   ],
+   "deviations": 1,
+   "context": "schedule-interview-prep",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

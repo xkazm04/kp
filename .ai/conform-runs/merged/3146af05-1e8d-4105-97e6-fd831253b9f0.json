@@ -1,0 +1,102 @@
+{
+ "schema": "conform-run/1",
+ "worker": "3146af05-1e8d-4105-97e6-fd831253b9f0",
+ "subject": "prompt-assembly",
+ "evaluatedAt": "2026-11-04T05:35:05.810390+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "cv-analyze-workspace",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/tools/analyze/useAnalyzeForm.ts:82 The workspace is a recruiter UI that submits form data to /api/analyze. A recursive grep of app/features/tools/analyze for prompt-builder vocabulary (systemPrompt, buildPrompt, fenced_untrusted, max_tokens) found nothing, so no prompt is assembled in this context.",
+   "techniques": [],
+   "absenceTerms": [
+    "systemPrompt",
+    "buildPrompt",
+    "fenced_untrusted",
+    "max_tokens"
+   ]
+  },
+  {
+   "context": "models-keys-and-routing",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/settings/models/modelsRoutingActions.ts:17 This settings UI pins a provider and model per capability and passes headless params such as maxTokens through without sizing them. A case-insensitive grep of app/features/settings/models for prompt, systemPrompt, fenced_untrusted and max_tokens found nothing, so no prompt is composed and no response reservation is chosen here.",
+   "techniques": [],
+   "absenceTerms": [
+    "prompt",
+    "systemPrompt",
+    "fenced_untrusted",
+    "max_tokens"
+   ]
+  },
+  {
+   "context": "hiring-decisions-api",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/decisions/screen-wave/route.ts:110 These routes authorize, validate and hand typed arguments to library runners such as runScreenWave and getGroupEval. A case-insensitive grep of app/api/decisions and app/api/feedback for prompt, systemPrompt, fenced_untrusted and max_tokens found nothing, so any prompt assembly happens in app/_lib, outside this context.",
+   "techniques": [],
+   "absenceTerms": [
+    "prompt",
+    "systemPrompt",
+    "fenced_untrusted",
+    "max_tokens"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "prompt-assembly",
+   "context": "devcase-session-api",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "prompt-assembly",
+   "context": "tests-pipeline-automation",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-04T05:35:05.810390+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "cv-analyze-workspace",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-04T05:35:05.810390+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "models-keys-and-routing",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-04T05:35:05.810390+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "hiring-decisions-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -1,0 +1,65 @@
+{
+ "schema": "conform-run/1",
+ "worker": "d22e388a-e917-4fc0-9807-68e9db0d87e7",
+ "subject": "retry-backoff",
+ "evaluatedAt": "2026-10-30T22:28:36.143480+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "ops-observability",
+   "subject": "retry-backoff",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "app/_lib/webhook-idempotency.ts:18 The only retry-shaped code in this context sits on the receiving side of other systems' retries. A dedupe store failure returns the retryable class (5xx) instead of letting the request through unchecked. The claim key makes a sender's retried write safe, and that claim survives a restart and has a named reaper, so no technique here is a deviation; ladder, breaker, redirect, revocation and suspension machinery do not exist in these files.",
+   "techniques": [
+    {
+     "technique": "error-classification-for-retry",
+     "verdict": "conformant",
+     "evidence": "app/_lib/webhook-idempotency.ts:18 A store error fails closed with a 5xx, which tells the sender to retry. The receiver dedupes on the provider's Idempotency-Key, or else on a body hash (line 44), so the sender's ambiguous write is dedup-keyed downstream, as the timeout rule requires."
+    },
+    {
+     "technique": "durable-retries",
+     "verdict": "conformant",
+     "evidence": "app/_lib/webhook-idempotency.ts:10 The dedupe identity is a persisted row, not a process Map, so a replay after a crash is still recognised. It is claimed before the side effects run, and it has explicit reapers: a 15-minute lease for in-flight claims (line 22) and a 7-day done-horizon."
+    },
+    {
+     "technique": "retry-observability",
+     "verdict": "conformant",
+     "evidence": "app/_lib/ops-telemetry.ts:132 The exhausted terminal state of the comms outbox (dead letters) appears on the ops surface as a count with a stated predicate (status failed) and window (7 days), never as a bare number."
+    },
+    {
+     "technique": "backoff-design",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/webhook-idempotency.ts:80 The retry schedule belongs to the external sender. These files compute no delay ladder, and a grep for backoff and jitter finds nothing in them."
+    },
+    {
+     "technique": "circuit-breakers",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/sentry-client.ts:68 The single outbound call in this context (Sentry) is one fire-and-forget attempt with no retry, so there is no repeated calling for a breaker to stop. A grep for circuit and breaker finds no breaker."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-30T22:28:36.143480+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "retry-backoff"
+   ],
+   "techniques": [
+    "backoff-design",
+    "circuit-breakers",
+    "durable-retries",
+    "error-classification-for-retry",
+    "retry-observability"
+   ],
+   "deviations": 0,
+   "context": "ops-observability",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

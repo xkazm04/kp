@@ -3,6 +3,7 @@ import { withOperator } from "@/app/_lib/auth/route-guards";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { MAX_ENTRY_ID_LEN } from "@/app/_lib/entries-param";
+import { resolveScorecardViewer } from "@/app/api/interview-prep/viewer";
 import { loadRoleDecisionView } from "@/app/_lib/role-decision-view-server";
 
 // GET ?job=<jobId> -> the role decision view (CX S45, app/_lib/role-decision-view.ts):
@@ -18,7 +19,7 @@ export const GET = route(withOperator)(async (ws: string, request: Request) => {
   const jobId = new URL(request.url).searchParams.get("job")?.trim() ?? "";
   if (!jobId || jobId.length > MAX_ENTRY_ID_LEN) return jsonRefusal("ROLE_VIEW_JOB_REQUIRED", 400);
   try {
-    return jsonOk(loadRoleDecisionView(jobId, ws));
+    return jsonOk(loadRoleDecisionView(jobId, ws, await resolveScorecardViewer()));
   } catch (error) {
     return safeJsonError(error, "api:decisions/role-view", "ROLE_VIEW_LOOKUP_FAILED");
   }

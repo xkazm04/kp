@@ -225,3 +225,41 @@ test("a model-drafted subject is cleaned and clipped before it is held, so relea
   assert.equal(again.changed, false);
   assert.equal(again.letter.revision, 1);
 });
+
+const { GET: LIST } = await import("./route.ts");
+
+test("the list door answers the team's drafted letters, oldest first, with no body — and never another team's", async () => {
+  const a = draftedLetter();
+  const b = draftedLetter();
+  const foreign = draftedLetter("team-olr-delta");
+  const res = await LIST(req(`/api/outreach-letters?state=drafted&limit=200`));
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as {
+    letters: { id: string; entryId: string; candidateLabel: string; jobTitle: string | null; state: string; revision: number; body?: unknown }[];
+    state: string;
+    truncated: boolean;
+  };
+  assert.equal(body.state, "drafted");
+  const ids = body.letters.map((l) => l.id);
+  assert.ok(ids.includes(a.letter.id) && ids.includes(b.letter.id));
+  assert.ok(ids.indexOf(a.letter.id) < ids.indexOf(b.letter.id), "oldest first");
+  assert.ok(!ids.includes(foreign.letter.id), "another team's letter never lists");
+  const row = body.letters.find((l) => l.id === a.letter.id)!;
+  assert.equal(row.entryId, a.entry.id);
+  assert.equal(row.candidateLabel, a.entry.candidateLabel);
+  assert.equal(row.jobTitle, "Platform Engineer");
+  assert.equal(row.revision, 1);
+  assert.equal("body" in row, false, "a queue, not a reader: no body on the wire");
+  assert.ok(body.letters.every((l) => l.state === "drafted"));
+});
+
+test("the list door clamps state and limit and says truncated truthfully", async () => {
+  draftedLetter();
+  draftedLetter();
+  const one = (await (await LIST(req(`/api/outreach-letters?state=nonsense&limit=1`))).json()) as { letters: unknown[]; state: string; truncated: boolean };
+  assert.equal(one.state, "drafted", "an unknown state folds to drafted");
+  assert.equal(one.letters.length, 1);
+  assert.equal(one.truncated, true);
+  const released = (await (await LIST(req(`/api/outreach-letters?state=released`))).json()) as { letters: { state: string }[] };
+  assert.ok(released.letters.every((l) => l.state === "released"));
+});

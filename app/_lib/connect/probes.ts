@@ -9,6 +9,7 @@ import { getAtsConnection, getAtsToken, type AtsProvider } from "@/app/_lib/ats/
 import { assertPublicHttpsEndpointResolved, type HostLookup } from "@/app/_lib/ats-egress-guard";
 import { sendSmtpTestLetter } from "@/app/_lib/comms-smtp-probe";
 import { describeSmtpOutcome } from "@/app/_lib/comms-smtp";
+import { pinnedRequest } from "@/app/_lib/pinned-request";
 import { calendarNeedsReconnect, fetchBusy, isCalendarConnected } from "@/app/_lib/calendar/google-calendar";
 
 // THE PROBE CONTRACT (docs/features/connect/README.md). A probe answers one question —
@@ -57,12 +58,15 @@ export async function probeRelay(): Promise<ProbeResult> {
   // the probe asks.
   const timeoutMs = relayTimeoutMs(COMMS_PROBE_TIMEOUT_MS);
   try {
-    // `redirect: "manual"` is part of the SSRF boundary, as in ats-egress.ts: the guard
-    // vetted only this URL, and a followed 307 replays the signed POST to wherever the
-    // Location points (169.254.169.254, 127.0.0.1) and reports that host's status here.
-    const r = await fetch(relay.url, { method: "POST", headers, body, redirect: "manual", signal: AbortSignal.timeout(timeoutMs) });
-    await r.body?.cancel().catch(() => undefined);
-    if (r.type === "opaqueredirect" || r.status === 0 || (r.status >= 300 && r.status < 400)) {
+    // PINNED and never redirected — the SSRF boundary the delivery path holds (comms.ts
+    // WebhookChannel.deliver). A plain fetch resolved the name a SECOND time after the vet
+    // above, so a rebinding name answered public to the vet and 169.254.169.254 to the
+    // connect, and the probe reported the internal host's status back. `pinnedRequest`
+    // resolves once, refuses a private answer, dials that one address, and returns a 3xx
+    // as a status (a followed 307 would replay the signed POST to the Location). It drains
+    // the body unread, bounded by the same signal.
+    const r = await pinnedRequest(relay.url, { method: "POST", headers, body, signal: AbortSignal.timeout(timeoutMs) });
+    if (r.status === 0 || (r.status >= 300 && r.status < 400)) {
       return { kind: "failed", reason: "relay returned a redirect; redirects are not followed — configure the final https endpoint" };
     }
     return { kind: "http", ok: r.ok, status: r.status };
@@ -110,14 +114,15 @@ export async function probeAtsInbound(provider: AtsProvider): Promise<ProbeResul
     const href = await assertPublicHttpsEndpointResolved(conn.baseUrl, "ATS base URL", atsHostLookup);
     const token = getAtsToken(provider);
     if (!token) return { kind: "not_configured", reason: "No base URL and token saved." };
-    const r = await fetch(href, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-      redirect: "manual",
-      signal: AbortSignal.timeout(ATS_PROBE_TIMEOUT_MS),
-    });
-    // Only the status is read: the body (candidate data) is dropped unread.
-    await r.body?.cancel().catch(() => undefined);
+    // PINNED to the address the vet saw, with the vet's own resolver: a plain fetch looked
+    // the name up again, so a rebinding name could carry the Bearer token to an internal
+    // address. Redirects are never followed, and only the status is read: the body
+    // (candidate data) is drained unread.
+    const r = await pinnedRequest(
+      href,
+      { method: "GET", headers: { Authorization: `Bearer ${token}`, Accept: "application/json" }, signal: AbortSignal.timeout(ATS_PROBE_TIMEOUT_MS) },
+      { resolve: atsHostLookup }
+    );
     return { kind: "http", ok: r.ok, status: r.status };
   } catch (e) {
     // A decrypt failure or a refused host: the message names the cause, never the token.

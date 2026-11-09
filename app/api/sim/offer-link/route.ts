@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { openSimOfferToken, resolveSimEntry } from "@/app/_lib/sim-entry";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 
 // After the recruiter real-clicks "Send offer", the extend mints a token the
 // Decisions UI discards. The simulation reads it back here to open the
 // candidate's actual /offer/[token] page (and click Accept inside it).
 export const GET = withWorkspace(async (workspaceId: string, request: NextRequest) => {
+  // Hands back an offer token (for a demo entry only): bound the repeat rate per client.
+  if (!rateLimit(`sim-offer-link:${clientIpFrom(request.headers)}`, { limit: 120, windowMs: 10 * 60_000 })) {
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
+  }
   try {
     const entryId = new URL(request.url).searchParams.get("entryId");
     if (!entryId) return jsonRefusal("SIM_ENTRY_REQUIRED", 400);

@@ -1807,6 +1807,21 @@ const ROUTES: RouteSpec[] = [
     expensive: "probeAtsWebhook(",
   },
   {
+    // ADDED with the route (comms channels C5, the Connect hub). The hub's Probe button:
+    // every accepted call runs one connector's probe, a signed ping or an authenticated
+    // GET from this deployment's address at a URL the operator set. The same amplifier
+    // and reachability-oracle hole as the two Send-test doors, so the same shape: after
+    // the authority gates (and the free 404 / smtp refusal), before the probe, 20/10min.
+    rel: "./connect/[id]/probe/route.ts",
+    key: "`connect-probe:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "PROBE_RATE_LIMIT",
+    optsDef: "const PROBE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "await probeConnector(",
+    servedBefore: "await requireOperator()",
+  },
+  {
     // The OAuth start: each hit mints a 32-byte state, SETS A COOKIE and redirects a
     // browser into Google's consent screen - cookie churn on kp plus unattributed
     // traffic at Google from this deployment's address. The limiter sits before the

@@ -271,3 +271,44 @@ test("a release inside a live claim's lease is refused; after the lease it succe
   assert.equal(posts.length, 1);
   assert.equal(posts[0].body.messageId, letter.messageId);
 });
+
+// Owner ruling Q10: the source is stored with the draft and read at release.
+import { commsTranslator } from "./comms-translator.ts";
+
+async function releasedBody(source: string | null | undefined, edit?: string) {
+  keyless();
+  const e = entry();
+  const { letter } = await draftOutreachLetter(e, { subject: "A role for you", body: "We'd love to talk." }, WS, source);
+  let rev = letter.revision;
+  if (edit) {
+    const { outreachLetterEdit } = await import("./db/outreach-letters.ts");
+    rev = outreachLetterEdit(letter.id, { revision: rev, subject: "A role for you", body: edit }, WS)!.letter.revision;
+  }
+  outreachLetterApprove(letter.id, { revision: rev, approvedBy: APPROVER }, WS);
+  const out = await releaseOutreachLetter(letter.id, WS, APPROVER);
+  assert.equal(out.ok, true);
+  return listOutboxFiltered({ ref: e.id, kind: "outreach" })[0].body ?? "";
+}
+
+test("an llm outreach released later carries the AI-drafted line; a template one does not", async () => {
+  const line = (await commsTranslator("en"))("aiDraftedFooter");
+  assert.ok((await releasedBody("llm")).includes(line));
+  assert.ok(!(await releasedBody("template")).includes(line));
+});
+
+test("a person's edit does not remove the line from a draft that began as llm", async () => {
+  const line = (await commsTranslator("en"))("aiDraftedFooter");
+  assert.ok((await releasedBody("llm", "Edited by a person.")).includes(line));
+});
+
+test("a pre-migration row with no stored source gets the line (cannot prove it was not a model)", async () => {
+  const line = (await commsTranslator("en"))("aiDraftedFooter");
+  const e = entry();
+  const { letter } = await draftOutreachLetter(e, { subject: "Old", body: "Drafted before the source was kept." }, WS, "llm");
+  ensureDb().prepare(`UPDATE outreach_letters SET draft_source = NULL WHERE id = ?`).run(letter.id);
+  assert.equal(outreachLetterById(letter.id, WS)!.draftSource, null);
+  outreachLetterApprove(letter.id, { revision: letter.revision, approvedBy: APPROVER }, WS);
+  keyless();
+  assert.equal((await releaseOutreachLetter(letter.id, WS, APPROVER)).ok, true);
+  assert.ok((listOutboxFiltered({ ref: e.id, kind: "outreach" })[0].body ?? "").includes(line));
+});

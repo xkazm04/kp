@@ -71,6 +71,11 @@ export const WORKSPACE_TAB_IDS = [
   // state — CV acknowledged, screened, interview invite, offer cover note,
   // rejection. Appended last, same chord rule.
   "templates",
+  // One: the AI-conducted home (docs/design/one-interface.md) — the counts that need the
+  // recruiter, a question box, and the per-candidate tools as sheets. `/one` stays as its
+  // full-page alias. Appended last like every id since the chords were pinned; its rail
+  // position (first, above Overview) is set in NAV_GROUPS, not here.
+  "one",
 ] as const;
 
 export type WorkspaceTabId = (typeof WORKSPACE_TAB_IDS)[number];
@@ -198,6 +203,15 @@ export type NavGroup = { label?: string; key?: string; items: WorkspaceTabDef[];
 export const NAV_GROUPS: NavGroup[] = [
   {
     items: [
+      // One heads the hiring group: it is the home-like surface that asks across the whole
+      // group (its counts row IS this group's badges — decisions, the stalled pipeline,
+      // arrivals, interviews), so it sits above the tabs it summarises, the way a home sits
+      // above its rooms. It is NOT the default tab (Overview stays DEFAULT_TAB, so "/" and
+      // every existing link land where they did). chordOverflow: every letter of "one" is
+      // already a single-letter chord (integrations has `o`, analytics `n`, assignments
+      // `e`), and marking it keeps it in the two-key pass even if one of them frees up —
+      // it lands on `g f o` and moves no other chord (workspaceChords.test.ts).
+      { id: "one", label: "One", chordOverflow: true },
       // Nav label is "Overview", not "Pipeline": this is the workspace's landing
       // surface (attention queues, today's work, the board) — the tab ID, the
       // catalog key and the page's own eyebrow/title stay "pipeline".
@@ -288,7 +302,7 @@ export const NAV_GROUPS: NavGroup[] = [
       // connect-the-integrations — the credential doors for Google Calendar and the
       // inbound ATS connectors. Appended last so every prior `g`-chord assignment is
       // untouched (workspaceChords.ts only draws from still-free letters).
-      { id: "integrations", label: "Integrations" },
+      { id: "integrations", label: "Integrations (in Channels)" },
       { id: "workspace", label: "Workspaces" },
       // The hiring-pipeline composer (AI/human rounds + approval gating).
       // Appended last so every prior `g`-chord assignment is untouched.

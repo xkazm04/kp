@@ -59,6 +59,7 @@ const IntegrationsTab = dynamic(() => TAB_CHUNKS.integrations().then((m) => ({ d
 const BrandingTab = dynamic(() => TAB_CHUNKS.branding().then((m) => ({ default: m.BrandingTab })), { loading });
 const HiringTab = dynamic(() => TAB_CHUNKS.hiring().then((m) => ({ default: m.HiringTab })), { loading });
 const TemplatesTab = dynamic(() => TAB_CHUNKS.templates().then((m) => ({ default: m.TemplatesTab })), { loading });
+const OneTab = dynamic(() => TAB_CHUNKS.one().then((m) => ({ default: m.OneTab })), { loading });
 
 // Every tab's panel, keyed EXHAUSTIVELY by WorkspaceTabId (idea-47b71431). It used
 // to be a hand-synced chain of `navActive === "<id>" ? <Tab /> : null` ternaries:
@@ -100,6 +101,7 @@ const TAB_PANELS: Record<WorkspaceTabId, (ctx: PanelContext) => ReactNode> = {
   integrations: () => <IntegrationsTab />,
   hiring: () => <HiringTab />,
   templates: () => <TemplatesTab />,
+  one: () => <OneTab />,
 };
 
 // The tab-switch tree + its error boundary, extracted verbatim from Workspace's

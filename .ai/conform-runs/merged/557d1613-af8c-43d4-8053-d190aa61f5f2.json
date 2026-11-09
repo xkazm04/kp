@@ -1,0 +1,155 @@
+{
+ "schema": "conform-run/1",
+ "worker": "557d1613-af8c-43d4-8053-d190aa61f5f2",
+ "subject": "quality-gates",
+ "evaluatedAt": "2026-11-09T03:20:41.005395+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "devcase-eval",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/tools/devcases/DevTab.approve-error.test.ts:29 This source-text guard asserts a needle absent with no control that the needle could ever match, so `if (res.ok) {` would clear it while it hunts a form that no longer exists, although line 27's runAction assertion still holds the real rule, which keeps the severity low.",
+   "techniques": [
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/devcases/DevTab.approve-error.test.ts:29 Absence assertion with no presence or mutated-copy control, read over raw text; useDevTabNeedAnalysis.ts:99-101 has prose naming runAction and `if (r.ok)` inside the matched body. Neither needle matches that prose today, so there is no live false green."
+    },
+    {
+     "technique": "gate-liveness",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/DevTab.approve-error.test.ts:20 Instrument asserted before the result: renaming approve fails the file instead of matching over a bad slice. Limited to the instrument-assertion limb; this file keeps no seeded-red fixture."
+    },
+    {
+     "technique": "decidable-in-a-window",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/DevTab.approve-error.test.ts:21 The rule is local to one function and the guard scans exactly that bounded region."
+    }
+   ]
+  },
+  {
+   "context": "shell-setup-pipeline",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/shell/setup/setupPipelinePresets.test.ts:83 Case-insensitive search of app/features/shell/setup found zero hits for every absence term, and the only thing here called a gate is stepSatisfied, a wizard Continue predicate over form state that judges no tree, commit or pipeline run; the directory's two source-reading tests (setupFinishOutcome, SetupLanguageSwitch) are outside this context's file list.",
+   "techniques": [],
+   "absenceTerms": [
+    "process.exit",
+    "ratchet",
+    "pre-commit",
+    "eslint-disable"
+   ]
+  },
+  {
+   "context": "matrix-focus",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/insights/matrix/focus/matchWeightsPanel.test.ts:14 The header claims a seeded failure that cannot happen, because the test imports only pure helpers from matchTypes and calls syncDraftToWeights itself, so deleting the re-anchor at MatchWeightsPanel.tsx:57 leaves it green and the regression it says it locks is unguarded.",
+   "techniques": [
+    {
+     "technique": "gate-liveness",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/matrix/focus/matchWeightsPanel.test.ts:14 Stated proof-of-red is false by construction: line 20 imports only matchTypes, and a repo search found no other test or spec naming MatchWeightsPanel. The panel's own comment says the sync is no longer an effect at all, so the claim is also stale."
+    }
+   ],
+   "registryProposal": "gate-liveness could name a written non-vacuity claim that nothing executes: a test header asserting which mutation turns it red reads as seeded-failure evidence and is never checked."
+  },
+  {
+   "context": "profile-editor",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/tools/profile/profileEditorContracts.test.ts:29 The guards normalise line endings but not comments, so presence patterns over the hook source can be satisfied by prose, and the mutated-copy control cannot detect that because it would mutate the surviving comment just as it mutates code.",
+   "techniques": [
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/profile/profileEditorContracts.test.ts:29 Control limb realised by pins(), normalise limb not, and no note justifies the raw read. Header line 17 claims every assertion is mutation-proved, but lines 83-87, 100 and 108 use no mutated copy. The needles are full statements and useProfileEditorSubmit.ts shows no comment copy today, so low severity."
+    },
+    {
+     "technique": "gate-liveness",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/profile/profileEditorContracts.test.ts:39 Known-bad input kept in the suite: each pinned pattern must go red against a broken copy of the same source."
+    },
+    {
+     "technique": "decidable-in-a-window",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/profile/profileEditorContracts.test.ts:107 The precedence rule is local, and the return check is confined to the bounded region between the two param reads."
+    },
+    {
+     "technique": "instrument-answers-only-its-own-question",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/profile/ProfileTaxonomy.test.ts:4 States which instrument owns the wiring question and claims only the runtime half for itself."
+    }
+   ],
+   "registryProposal": "match-the-resolved-artifact specifies a positive control only for absence assertions; a mutated-copy control is the presence-side analogue and should be named along with its limit, since it proves a pattern can fail but cannot tell code from a comment."
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-09T03:20:41.005395+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "decidable-in-a-window",
+    "gate-liveness",
+    "match-the-resolved-artifact"
+   ],
+   "deviations": 1,
+   "context": "devcase-eval",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T03:20:41.005395+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "shell-setup-pipeline",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T03:20:41.005395+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "gate-liveness"
+   ],
+   "deviations": 1,
+   "context": "matrix-focus",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T03:20:41.005395+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "decidable-in-a-window",
+    "gate-liveness",
+    "instrument-answers-only-its-own-question",
+    "match-the-resolved-artifact"
+   ],
+   "deviations": 1,
+   "context": "profile-editor",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

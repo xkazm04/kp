@@ -5,7 +5,7 @@
 // (pipelineAxisDraft, pipelineComposerModel). What lives here is only the kit's own reading of
 // that state: one row per step, one row per decision a step carries, which marks those rows
 // wear, what changed against the stored plan, and the page head's figures. No React, no fetch.
-import { planStep } from "@/app/_lib/decision-config-schema";
+import { HUMAN_ONLY_GATE_ROLES, planStep } from "@/app/_lib/decision-config-schema";
 import type { StageAiAction, StageDef, StageRole } from "@/app/_lib/pipeline-stages";
 import { defaultStageActions, stageActions } from "@/app/_lib/stage-ai-actions";
 import type { AxisDraft, StrandedStage } from "@/app/features/shared/pipelineAxisDraft";
@@ -127,8 +127,11 @@ export function policyRows(plan: PipelinePlan, savedPlan: PipelinePlan | null, s
     if (!POLICY_ROLES.includes(stage.role)) continue;
     const base = { stageId: stage.id, role: stage.role };
     if (stage.role !== "interview") {
-      const gate = step?.gate ?? "human";
-      rows.push({ ...base, key: `${stage.id}:guard`, dim: "guard", value: gate, changed: gate !== (was?.gate ?? "human") });
+      // Screening and offer are display only (Q3, 2026-11-09): a stored `auto` there
+      // reads as `human`, exactly as the server reads it.
+      const fixed = HUMAN_ONLY_GATE_ROLES.includes(stage.role);
+      const gate = fixed ? "human" : (step?.gate ?? "human");
+      rows.push({ ...base, key: `${stage.id}:guard`, dim: "guard", value: gate, changed: gate !== (fixed ? "human" : (was?.gate ?? "human")) });
       continue;
     }
     const round = rounds[0] ?? newRound("ai");
@@ -158,7 +161,11 @@ export function setPolicy(
   row: Pick<PolicyRow, "stageId" | "role" | "dim">,
   value: GateMode | RoundKind | number | null,
 ): PipelinePlan {
-  if (row.role !== "interview") return row.dim === "guard" ? setStepGate(plan, row.stageId, value as GateMode) : plan;
+  if (row.role !== "interview") {
+    if (row.dim !== "guard") return plan;
+    // A write of `auto` to screening or offer is coerced to human, never stored.
+    return setStepGate(plan, row.stageId, HUMAN_ONLY_GATE_ROLES.includes(row.role) ? "human" : (value as GateMode));
+  }
   const patch: Partial<PlanRound> =
     row.dim === "executor"
       ? { kind: value as RoundKind }

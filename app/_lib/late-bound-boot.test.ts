@@ -21,6 +21,8 @@ import { _resetTaskRunnersForTests, externalRunner, type ExternalTaskCtx } from 
 import { _resetStageHookInviteForTests, stageHookInvite } from "./stage-hooks-invite.ts";
 
 after(() => cleanupUnitDb());
+// The AI voice interview ships off (voice/enabled.ts); these cases exercise it ON.
+process.env.KP_VOICE_INTERVIEW = "1";
 
 function ctx(params: Record<string, unknown>, workspaceId = "team-late-bound"): ExternalTaskCtx {
   return { workspaceId, signal: new AbortController().signal, progress: () => {}, params };

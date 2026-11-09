@@ -1,0 +1,100 @@
+{
+ "schema": "conform-run/1",
+ "worker": "db3b3a2b-a6b4-4ba6-8319-33512459534a",
+ "subject": "prompt-assembly",
+ "evaluatedAt": "2026-11-06T01:29:23.415229+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "devcase-eval",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/tools/devcases/useDevTabNeedAnalysis.ts:108 This context only renders evaluation results and sends typed JSON (need, analysis, role, case) to server routes. Any prompt is built server-side, outside this context. A case-insensitive search of app/features/tools/devcases and app/features/tools/interview for systemPrompt, max_tokens, anthropic, compaction and tokenBudget found nothing. 'prompt' does appear, but only as the displayed candidate-assistant prompt-signal metrics (DevEvalPanelChecks promptSignals), not as assembly.",
+   "techniques": [],
+   "absenceTerms": [
+    "systemPrompt",
+    "max_tokens",
+    "anthropic",
+    "compaction",
+    "tokenBudget"
+   ]
+  },
+  {
+   "context": "shell-setup-wizard",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/shell/setup/setupSteps.ts:4 The wizard is a step model plus UI copy taken from i18n catalogs. Its only server contact related to the companion is a read-only probe, GET /api/companion/brain, in useSetupCompanionBrain.ts. A search of app/features/shell/setup for systemPrompt, max_tokens, anthropic, compaction and tokenBudget found nothing, and 'llm' found nothing either. The single 'prompt' hit is a UI 'resume prompt' comment.",
+   "techniques": [],
+   "absenceTerms": [
+    "systemPrompt",
+    "max_tokens",
+    "anthropic",
+    "compaction",
+    "tokenBudget"
+   ]
+  },
+  {
+   "context": "profile-roster-matrix",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/tools/profile/profileRosterView.ts:17 The roster, matrix and archetype manager are pure view models and UI over a population read from an API. Nothing here builds model input. A case-insensitive search of app/features/tools/profile for systemPrompt, max_tokens, anthropic, compaction and tokenBudget found nothing. 'llm' found nothing too, and the only 'prompt' hits are UI confirmation i18n keys (deletePrompt, confirmPrompt).",
+   "techniques": [],
+   "absenceTerms": [
+    "systemPrompt",
+    "max_tokens",
+    "anthropic",
+    "compaction",
+    "tokenBudget"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "prompt-assembly",
+   "context": "voice-provider-io",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-06T01:29:23.415229+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "devcase-eval",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T01:29:23.415229+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "shell-setup-wizard",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T01:29:23.415229+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "profile-roster-matrix",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
