@@ -107,5 +107,9 @@ export function useAiReviewCardLogic(entry: Entry) {
   // Only meaningful beside an llm verdict; a template one asked no provider.
   const verdictProvider = verdictSource === "llm" && typeof parsed?.verdictProvider === "string" && parsed.verdictProvider.trim() ? parsed.verdictProvider : null;
 
-  return { parsed, kind, isScorecard, isOffer, unpriced, hasBand, pricingBasis, isQueuedReject, isQueuedAdvance, isHumanScorecard, modelSelfReport, verdictSource, verdictProvider };
+  // Keep-in-place (decline_advance) exists only for a queued policy advance: it is the
+  // one card whose "no" is not a rejection of the candidate. Every other card has
+  // accept / reject and nothing else.
+  const canKeepInPlace = isQueuedAdvance;
+  return { parsed, kind, isScorecard, isOffer, unpriced, hasBand, pricingBasis, isQueuedReject, isQueuedAdvance, canKeepInPlace, isHumanScorecard, modelSelfReport, verdictSource, verdictProvider };
 }

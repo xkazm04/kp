@@ -112,3 +112,12 @@ test("Q2: a queued policy advance is flagged as an advance and is not a queued r
   assert.equal(useAiReviewCardLogic(entry("screening_review", { recommendation: "advance" })).isQueuedAdvance, false);
   assert.equal(useAiReviewCardLogic(entry("rejection_review", { policyAdvance: {} })).isQueuedAdvance, false, "only a screening_review");
 });
+
+test("Q2: Keep-in-place shows on a queued policy advance and on no other card", () => {
+  const useShow = (kind: string, detail: Record<string, unknown>) => useAiReviewCardLogic(entry(kind, detail)).canKeepInPlace;
+  assert.equal(useShow("screening_review", { recommendation: "advance", policyAdvance: { toStage: "Interview" } }), true);
+  assert.equal(useShow("screening_review", { recommendation: "advance" }), false, "an ordinary AI screening");
+  assert.equal(useShow("rejection_review", { policyAdvance: {} }), false, "a queued reject");
+  assert.equal(useShow("scorecard_review", { policyAdvance: {} }), false);
+  assert.equal(useShow("offer_review", {}), false);
+});

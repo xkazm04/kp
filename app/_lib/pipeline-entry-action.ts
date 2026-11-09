@@ -1,6 +1,7 @@
 import type { PipelineEntry } from "@/app/_lib/db/core";
 import {
   actOnPipelineEntry,
+  declineQueuedAdvance,
   getPipelineEntry,
   recordAutomationEvent,
   setApproval,
@@ -8,6 +9,7 @@ import {
   type PipelineAction,
 } from "@/app/_lib/db/pipeline";
 import { REFUSAL_ERRORS, type RefusalErrorCode } from "@/app/_lib/api-response";
+import { parsePolicyAdvance } from "@/app/_lib/approval-kinds";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
 import { delivered, dispatchKnockoutRejection, dispatchOffer, dispatchRejection } from "@/app/_lib/comms-dispatch";
 import { parseKnockoutHold } from "@/app/_lib/knockout-hold";
@@ -450,6 +452,50 @@ export async function runPipelineEntryAction(
     }
     expireCachedGroupEvals(moved, workspaceId, deps.invalidateGroupEvalSelection);
     return ok({ entry: moved });
+  }
+
+  // A person keeps a queued policy advance where it is (Q2): the entry stays in its stage
+  // and status, the approval clears, and the pass does not propose the same move again
+  // from this stage. NOT a reject — the candidate is not closed out and no letter goes.
+  // SEAL FIRST, like accept/reject: a person overruling a machine proposal is on the
+  // record or it did not happen (coded 503, nothing written). The actor is the session's
+  // human, never the body's; an engine claim does not apply to a decline.
+  if (action === "decline_advance") {
+    const live = getPipelineEntry(id, workspaceId);
+    if (!live) return err(404, "PIPELINE_ENTRY_NOT_FOUND");
+    if (expectedStage && live.stage !== expectedStage) return err(409, "PIPELINE_STAGE_CHANGED", { entry: live });
+    const mark = isTerminalEntryStatus(live.status) ? null : parsePolicyAdvance(live.approvalKind, live.approvalDetail);
+    if (!mark) return err(409, "PIPELINE_NO_QUEUED_ADVANCE", { entry: live });
+    const declineActor = simActor ? await humanActor() : sealActor;
+    const verdict = aiVerdict(live);
+    const sealedDecline = deps.seal({
+      kind: "advance_declined",
+      actor: declineActor,
+      policyVersion: input.via === "command_bar" ? "command-bar" : "manual",
+      candidateRef: id,
+      rationale: (typeof input.detail === "string" && input.detail.trim()) || `Recruiter kept the queued advance in place at ${live.stage}.`,
+      reasonCode: "decline_advance",
+      inputs: {
+        fromStage: live.stage,
+        proposedToStage: mark.toStage,
+        aiRecommendation: verdict.aiRecommendation,
+        aiConfidence: verdict.aiConfidence,
+        aiRationale: verdict.aiRationale,
+        approvalKind: live.approvalKind ?? null,
+      },
+    });
+    if (!sealedDecline) {
+      console.warn(`[pipeline-entry-action] decline seal failed for ${id} — the decline was NOT applied`);
+      return err(503, "PIPELINE_DECISION_NOT_SEALED", { entry: live });
+    }
+    const kept = declineQueuedAdvance(id, { expectedStage: live.stage, actorRef: declineActor }, workspaceId);
+    if (!kept) {
+      const fresh = getPipelineEntry(id, workspaceId);
+      if (!fresh) return err(404, "PIPELINE_ENTRY_NOT_FOUND");
+      return err(409, "PIPELINE_STAGE_CHANGED", { entry: fresh });
+    }
+    expireCachedGroupEvals(kept, workspaceId, deps.invalidateGroupEvalSelection);
+    return ok({ entry: kept });
   }
 
   if (!GENERIC_ACTIONS.includes(action as PipelineAction)) {

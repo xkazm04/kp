@@ -21,7 +21,7 @@
 import type { PipelineBatchResult } from "@/app/_lib/useAddToPipeline";
 import type { Entry } from "@/app/features/shared/decisionsTypes";
 
-export type DecideAction = "accept" | "reject" | "approve_event";
+export type DecideAction = "accept" | "reject" | "approve_event" | "decline_advance";
 
 /** What the tab does after a CONFIRMED decision. */
 export type DecideHandoff = {

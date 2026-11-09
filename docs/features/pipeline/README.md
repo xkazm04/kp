@@ -338,7 +338,17 @@ an interview or offer column is a supported shape. Pinned by
    approval is cleared, the entry stays, and a `screening_hold` marker with detail
    `advance_declined` is written. The policy reads it as `advanceDeclined` (for
    the current stage stint) and holds, so the entry is not proposed again until it
-   moves. Both policy branches hold on any pending approval, so a queued advance is not
+   moves. The decline door is the pipeline action `decline_advance`, reachable from
+   `POST /api/pipeline/[id]` (`ENTRY_ACTIONS`, `pipeline:write`), `POST /api/pipeline/batch`
+   and `runPipelineEntryAction` (so the two cannot disagree). The actor is the session's
+   human, never the body's (an engine claim is ignored); the stage read from the live entry
+   is the `expectedStage`. It is sealed BEFORE it is written, as its own record kind
+   `advance_declined` (no existing kind fits: `advanced` and `rejected` would both be
+   false), and an unsealable decline answers `PIPELINE_DECISION_NOT_SEALED` 503 with
+   nothing written. Anything that is not a queued policy advance answers
+   `PIPELINE_NO_QUEUED_ADVANCE` 409 and is never treated as a reject. In the UI only the
+   queued-advance card in the candidate decision bar shows **Keep in place** beside Advance;
+   Reject stays separate. Both policy branches hold on any pending approval, so a queued advance is not
    re-proposed on the next tick. The screen task's own model-verdict advance
    (`automation-run.ts`, the Q3 gate) is a different door and is unchanged.
    **Aging alerts follow the board's clock.** The pass does not age entries on its

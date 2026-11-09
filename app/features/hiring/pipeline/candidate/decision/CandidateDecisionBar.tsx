@@ -8,10 +8,10 @@
 // Overview's Scorecard beside it is the canonical read of it.
 
 import { useState } from "react";
-import { Check, History, Sparkles, X } from "lucide-react";
+import { Check, History, Pause, Sparkles, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useDateFormat } from "@/app/_components/ui/useDateFormat";
-import { BTN_AFFIRM } from "@/app/_components/ui/recipes";
+import { BTN_AFFIRM, BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { defaultOfferTtlDays } from "@/app/_lib/offer-policy";
 import { useNumberFormat } from "@/app/_lib/use-number-format";
 import { AiReviewCardBody } from "@/app/features/hiring/decisions/DecisionsAiReviewCardBody";
@@ -24,8 +24,8 @@ export function CandidateDecisionBar({ decision }: { decision: CandidateDecision
   const tl = useTranslations("decisions.ledger");
   const n = useNumberFormat();
   const fmt = useDateFormat();
-  const { entry, staleSince, onAccept, onReject, busy } = decision;
-  const { parsed, isScorecard, isOffer, unpriced, hasBand, pricingBasis, isQueuedReject, isQueuedAdvance, isHumanScorecard, verdictSource, verdictProvider } =
+  const { entry, staleSince, onAccept, onReject, onKeepInPlace, busy } = decision;
+  const { parsed, isScorecard, isOffer, unpriced, hasBand, pricingBasis, isQueuedReject, isQueuedAdvance, canKeepInPlace, isHumanScorecard, verdictSource, verdictProvider } =
     useAiReviewCardLogic(entry);
   const [ttlDays, setTtlDays] = useState<number>(defaultOfferTtlDays());
   const tag = isOffer ? t("tagOffer") : isQueuedReject ? t("tagQueuedReject") : isQueuedAdvance ? t("tagQueuedAdvance") : isHumanScorecard ? t("tagHumanScorecard") : isScorecard ? t("tagScorecard") : t("tagScreening");
@@ -79,6 +79,19 @@ export function CandidateDecisionBar({ decision }: { decision: CandidateDecision
           >
             <Check size={15} aria-hidden /> {acceptLabel}
           </button>
+          {canKeepInPlace ? (
+            <button
+              type="button"
+              data-sim-click="keep-in-place"
+              onClick={onKeepInPlace}
+              disabled={busy}
+              title={t("keepInPlaceTitle")}
+              className={`${BTN_SECONDARY} h-9 cursor-pointer bg-white px-3 text-body disabled:cursor-wait`}
+            >
+              <Pause size={15} aria-hidden /> {t("keepInPlace")}
+            </button>
+          ) : null}
+          <span aria-hidden className="mx-1 h-5 w-px bg-stone-200" />
           <button
             type="button"
             onClick={onReject}
