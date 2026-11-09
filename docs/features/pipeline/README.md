@@ -313,6 +313,34 @@ an interview or offer column is a supported shape. Pinned by
    `scoreEntriesForJob` in `app/_lib/entry-scoring.ts`, so with the clock off a new
    applicant is still on the board with a score — and no decision — moments after
    applying.
+   **A score-threshold advance is queued for a person, never applied (Q2, owner
+   ruling 2026-11-09; counsel has not reviewed it).** `evaluate_entry` proposes an
+   `advance` in two places: the entry column (any scored entry) and the screening
+   column (a non-early-career score at or above `bau_advance_score`, after
+   `screening_auto_days`). `applyPassDecisions` files that proposal as a pending
+   `screening_review` approval on the entry (`setApproval`, compare-and-swap on the
+   stage and approval the policy saw) whose payload is `policyAdvanceDetail`
+   (`app/_lib/approval-kinds.ts`): `recommendation: "advance"`, the match score as
+   `confidence`, the policy's own reason as `rationale` and `policyAdvance.toStage`.
+   It is marked through the same `markQueuedForApproval` encoding a reject uses, so the
+   preview (`wouldBeQueuedForApproval`) and the commit (`queuedForApproval`) cannot
+   diverge, and `summary.advanced` is 0 in every committed run (as `rejected` is);
+   rows persisted before Q2 keep their real values. No kind and no queue was added.
+   `screening_review` was chosen because every surface already renders and resolves
+   it: the Decisions card reads the payload as an **advance with its reason**
+   (`isQueuedAdvance`, ledger kind `queuedAdvance`, tag `tagQueuedAdvance`), never a
+   rejection. A person's **accept** goes through the ordinary accept — one stage, to the
+   stage the policy named, sealed as a human `advanced` decision with the machine's
+   verdict and reason beside it (`aiRationale`). Out of an ENTRY-role stage the accept
+   takes the generic path (`actOnPipelineEntry`), so a candidate moving into screening is
+   not put on the interview calendar; out of a screening column it keeps the calendar
+   handoff. A person's **decline** is `declineQueuedAdvance` (`db/pipeline.ts`): the
+   approval is cleared, the entry stays, and a `screening_hold` marker with detail
+   `advance_declined` is written. The policy reads it as `advanceDeclined` (for
+   the current stage stint) and holds, so the entry is not proposed again until it
+   moves. Both policy branches hold on any pending approval, so a queued advance is not
+   re-proposed on the next tick. The screen task's own model-verdict advance
+   (`automation-run.ts`, the Q3 gate) is a different door and is unchanged.
    **Aging alerts follow the board's clock.** The pass does not age entries on its
    own: `listActiveEntriesForAutomation` stamps each entry's `agingTier`
    (`none` / `aging` / `stalled`) from `app/_lib/aging-policy.ts` — the same
@@ -2168,8 +2196,8 @@ analysis modal shows the reviewer which must-have failed. No new status, queue o
   `decision` approval, advances one stage), nothing is sent, and the entry is an ordinary
   applicant.
 - **Automation leaves it alone:** `executeAutomationPass` excludes a hold from scoring and the
-  policy pass. The Python policy's own "approval already pending" hold covers a screening column
-  only; its entry-column branch advances a scored entry without reading the approval.
+  policy pass. The Python policy's own "approval already pending" hold now covers the entry column
+  too (Q2 needed it so a queued advance is not re-proposed), but the exclusion stays the first wall.
   Pinned by `app/_lib/ko-hold-automation.test.ts`.
 - **Before the ruling:** `ko_declined` events and the entry-less `ko_decline` letters stay as
   written (analytics read them; the 30-day contact sweep of ADR 0019 still covers those
