@@ -1,0 +1,317 @@
+{
+ "schema": "conform-run/1",
+ "worker": "f53c6907-1658-49a0-96d0-8d076ef2c310",
+ "subject": "test-harness",
+ "evaluatedAt": "2026-11-09T02:07:42.270641+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "app-master-bench",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "scripts/app-master-bench/expectations.mjs:512 Merged-proposal counts are regex-parsed from the product's own delivery reason string, and a search of the non-test bench sources for git, gh, ls-remote, rev-parse and api.github found no read of the target repository, so the bench cannot see a merge that was reported but never landed.",
+   "techniques": [
+    {
+     "technique": "far-side-oracle",
+     "verdict": "deviation",
+     "evidence": "scripts/app-master-bench/expectations.mjs:512 The oracle speaks product vocabulary and nothing inspects the repository, although rootPath scenarios name a local checkout where the check would be cheap."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "scripts/app-master-bench/gate.mjs:239 The answer names its producer: a coalesced scan is refused rather than graded as a fresh reading."
+    },
+    {
+     "technique": "a-test-helper-is-a-fork-of-the-driver",
+     "verdict": "conformant",
+     "evidence": "scripts/app-master-bench/stub.mjs:31 The cheaper double says what it omits, is stamped in the record, and is refused by the gate at gate.mjs:222."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "scripts/app-master-bench/personas-contract.test.mjs:94 A yes-to-everything server must produce named findings, so the conformance probe has been shown to fail."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "conformant",
+     "evidence": "scripts/app-master-bench/gate.mjs:428 Zero run records exits 1 and is explicitly not a pass."
+    },
+    {
+     "technique": "gate-scope-is-not-report-scope",
+     "verdict": "conformant",
+     "evidence": "scripts/app-master-bench/gate.mjs:333 The gate covers baselined scenarios while the report still names those outside it."
+    },
+    {
+     "technique": "live-app-harness",
+     "verdict": "conformant",
+     "evidence": "scripts/app-master-bench/run.mjs:11 Drives a running kp and Personas through their real routes, starting from a preflight."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "scripts/app-master-bench/run.mjs:988 The driver asserts the world it needs before any phase runs. --all is serial (run.mjs:6), but the singleton reason is not stated there."
+    },
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "conformant",
+     "evidence": "scripts/app-master-bench/run.mjs:344 settleDispatch takes injected now and wait, so settle logic is proved by poll sequence rather than wall time."
+    },
+    {
+     "technique": "configuration-axes-cross-the-ladder",
+     "verdict": "conformant",
+     "evidence": "scripts/app-master-bench/run.mjs:898 The run record carries which configuration cell produced it, and the gate reads that value."
+    },
+    {
+     "technique": "proved-off-the-path",
+     "verdict": "conformant",
+     "evidence": "scripts/app-master-bench/run.mjs:1137 The exported pure decision tested in run.test.mjs is the one the real driver calls."
+    },
+    {
+     "technique": "long-lane-certification",
+     "verdict": "conformant",
+     "evidence": "scripts/app-master-bench/gate.mjs:43 Declared criteria and freshness rules exist, but only 1 of 7 baselined scenarios has committed numbers; the other 6 are reported as unmetered."
+    }
+   ]
+  },
+  {
+   "context": "release-pipeline",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "scripts/deploy/check-chart.mjs:281 The policy accepts any occurrence of the substring in unrendered template text, so a securityContext wrapped in a Helm condition that never renders passes while the deployed pod has no hardening.",
+   "techniques": [
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "scripts/deploy/check-chart.mjs:281 Presence of a name stands in for 'the Deployment applies it'; the predicate does not read the construct it claims to verify."
+    },
+    {
+     "technique": "assert-through-the-reader",
+     "verdict": "deviation",
+     "evidence": "scripts/deploy/check-chart.mjs:35 The chart is input for Helm and no CI step renders it, though release.yml:285 already runs helm package. sbom.test.mjs:123 is the same shape: the CycloneDX claim is checked only through the project's own fields."
+    },
+    {
+     "technique": "suite-partitioning",
+     "verdict": "deviation",
+     "evidence": "package.json:75 Membership is a hand-written file list rather than location, so a fifth fixture in __tests__ would silently never run."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "scripts/deploy/__tests__/check-chart.test.mjs:174 A clean baseline plus one seeded regression per policy, so each policy is seen to fire."
+    },
+    {
+     "technique": "a-test-helper-is-a-fork-of-the-driver",
+     "verdict": "conformant",
+     "evidence": "scripts/deploy/__tests__/check-chart.test.mjs:128 The patch helper keeps fixtures in the state the real loader would see."
+    },
+    {
+     "technique": "proved-off-the-path",
+     "verdict": "conformant",
+     "evidence": "scripts/deploy/__tests__/check-chart.test.mjs:452 The final case runs the real loader and policies over the shipped chart."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "conformant",
+     "evidence": "scripts/release/__tests__/sbom.test.mjs:227 A floor on the real lockfile stops an empty SBOM from reading as an answer."
+    },
+    {
+     "technique": "fixture-economics",
+     "verdict": "conformant",
+     "evidence": "scripts/release/__tests__/commit-msg.test.mjs:34 Fixtures are in-memory and drawn from the real commit population rather than tidy demo strings."
+    }
+   ]
+  },
+  {
+   "context": "db-jobs-devcase-interviews",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/db/intakes-tenancy.test.ts:21 Any statement that merely mentions workspace_id passes, so a select returning that column with no tenant predicate is reported as scoped, the same defect devcase-tenancy.test.ts:18 records and repaired for its own table only.",
+   "techniques": [
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/intakes-tenancy.test.ts:21 The predicate is satisfied by the column name anywhere in the statement; jds-tenancy.test.ts:33 and interviews-tenancy.test.ts:36 share it."
+    },
+    {
+     "technique": "fixture-economics",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/devcase-publish-dedup.test.ts:34 Each file runs the full init with no template to copy, and tests in a file share one mutable store kept apart by hand-made unique ids. Build cost was not measured."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/jd-build-cas.test.ts:9 Per-process throwaway store, away from the developer's database."
+    },
+    {
+     "technique": "a-test-helper-is-a-fork-of-the-driver",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/devcase-publish-dedup.test.ts:1 Store calls go through the real native driver and the shipped init."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/devcase-publish-dedup.test.ts:48 Names the pre-fix behaviour the assertions would fail against. It records the reasoning; no recorded run of the control was seen."
+    },
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/intake-dialog-cas.test.ts:50 Forces the write into a later millisecond and asserts the ordering outcome, with no elapsed-time bound."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/jd-build-cas.test.ts:53 The result says which branch ran, so the surviving body cannot be mistaken for a no-op path."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/jds-tenancy.test.ts:27 The source walk declares a floor on what it must select."
+    }
+   ]
+  },
+  {
+   "context": "db-org-users-channels",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/db/campaign-tenancy.test.ts:25 Mentioning the column anywhere satisfies the guard, so an unfiltered campaign_packs read that selects workspace_id passes, while siblings channels-tenancy.test.ts:91 and companion-tenancy.test.ts:36 already require a real scoping clause.",
+   "techniques": [
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/campaign-tenancy.test.ts:25 The needle is the column name over the whole statement, not a predicate binding the tenant."
+    },
+    {
+     "technique": "fixture-economics",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/org-benchmarks-cap.test.ts:30 Seeds bypass the write door for a handful of rows although createPipelineEntry accepts workspaceId (pipeline.ts:1611), and nothing asserts the seeded rows meet that door's invariants."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/org-benchmarks-cap.test.ts:10 Per-process throwaway store."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/companion-tenancy.test.ts:42 A per-table floor guards against a guard that silently stops seeing a table."
+    },
+    {
+     "technique": "assert-the-schedule-not-the-stopwatch",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/consent-read-gate.test.ts:31 Expiry is proved from an injected instant rather than by waiting."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/org-benchmarks-cap.test.ts:45 The payload carries a discriminator, so a capped slice cannot pass as the whole org."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/campaign-tenancy.test.ts:23 The source walk declares a floor."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "test-harness",
+   "context": "apply-surface-tests",
+   "reason": "evidence leans on quick/route.ts, which is not a tracked file"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-09T02:07:42.270641+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "a-test-helper-is-a-fork-of-the-driver",
+    "assert-the-schedule-not-the-stopwatch",
+    "configuration-axes-cross-the-ladder",
+    "derived-selection-must-be-measured",
+    "far-side-oracle",
+    "gate-scope-is-not-report-scope",
+    "isolation-lanes",
+    "live-app-harness",
+    "long-lane-certification",
+    "negative-control-tests",
+    "proved-off-the-path",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "app-master-bench",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T02:07:42.270641+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "a-test-helper-is-a-fork-of-the-driver",
+    "assert-through-the-reader",
+    "derived-selection-must-be-measured",
+    "fixture-economics",
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "proved-off-the-path",
+    "suite-partitioning"
+   ],
+   "deviations": 1,
+   "context": "release-pipeline",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T02:07:42.270641+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "a-test-helper-is-a-fork-of-the-driver",
+    "assert-the-schedule-not-the-stopwatch",
+    "derived-selection-must-be-measured",
+    "fixture-economics",
+    "isolation-lanes",
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "db-jobs-devcase-interviews",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T02:07:42.270641+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "assert-the-schedule-not-the-stopwatch",
+    "derived-selection-must-be-measured",
+    "fixture-economics",
+    "isolation-lanes",
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "db-org-users-channels",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

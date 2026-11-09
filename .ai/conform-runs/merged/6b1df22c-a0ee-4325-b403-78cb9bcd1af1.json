@@ -1,0 +1,139 @@
+{
+ "schema": "conform-run/1",
+ "worker": "6b1df22c-a0ee-4325-b403-78cb9bcd1af1",
+ "subject": "eval-harness",
+ "evaluatedAt": "2026-11-09T05:22:31.867292+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "hiring-decisions-api",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/decisions/group-eval/route.ts:8 These routes read stored evaluations, run recruiter screening decisions and record feedback; searching app/api/decisions and app/api/feedback for golden, holdout, pass_rate, benchmark and trials found no hits, so no model is run against declared scenarios here.",
+   "techniques": [
+    {
+     "technique": "assertion-vs-judgment",
+     "verdict": "not-applicable",
+     "evidence": "app/api/decisions/peer-context/route.ts:13 No model output is scored in this route; it reads saved analyses."
+    },
+    {
+     "technique": "comparison-modes",
+     "verdict": "not-applicable",
+     "evidence": "app/api/decisions/peer-context/route.ts:16 The comparison is between human candidates and ranking is not served here; no model or prompt comparison exists."
+    }
+   ],
+   "absenceTerms": [
+    "golden",
+    "holdout",
+    "benchmark",
+    "trials"
+   ]
+  },
+  {
+   "context": "schedule-interview-prep",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/hiring/schedule/ScheduleInterviewAiScorecardSection.tsx:3 This context renders a stored AI scorecard and interviewer prep state; searching app/features/hiring/schedule for golden, holdout, pass_rate, benchmark and trials found no hits, so no repeatable model evaluation runs here.",
+   "techniques": [
+    {
+     "technique": "judge-stability",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/schedule/ScheduleInterviewAiScorecardSection.tsx:44 The scorer and its version live upstream in automation.py; this file only reads the stored object."
+    },
+    {
+     "technique": "assertion-vs-judgment",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/schedule/ScheduleInterviewAiScorecardSection.tsx:86 Evidence links let a human check a quote against the transcript; nothing here scores a model's output."
+    }
+   ],
+   "absenceTerms": [
+    "golden",
+    "holdout",
+    "benchmark",
+    "trials"
+   ]
+  },
+  {
+   "context": "cv-analyze-intake",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/tools/analyze/analyzeRunAnalysis.ts:55 This context gates CV files and delivers one analysis result to the UI; searching app/features/tools/analyze for golden, holdout, pass_rate, benchmark and trials found no hits, so it holds no harness that scores a model across scenarios.",
+   "techniques": [
+    {
+     "technique": "comparison-modes",
+     "verdict": "not-applicable",
+     "evidence": "app/features/tools/analyze/analyzeCvIntake.ts:10 A 'variant' here is an uploaded CV file, not a model or prompt configuration under comparison."
+    },
+    {
+     "technique": "failure-attribution",
+     "verdict": "not-applicable",
+     "evidence": "app/features/tools/analyze/analyzeRunDelivery.ts:14 Failures here are request errors mapped to UI messages, not red eval cases to attribute."
+    }
+   ],
+   "absenceTerms": [
+    "golden",
+    "holdout",
+    "benchmark",
+    "trials"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "eval-harness",
+   "context": "devcase-eval",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-09T05:22:31.867292+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [
+    "assertion-vs-judgment",
+    "comparison-modes"
+   ],
+   "deviations": 0,
+   "context": "hiring-decisions-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T05:22:31.867292+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [
+    "assertion-vs-judgment",
+    "judge-stability"
+   ],
+   "deviations": 0,
+   "context": "schedule-interview-prep",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T05:22:31.867292+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [
+    "comparison-modes",
+    "failure-attribution"
+   ],
+   "deviations": 0,
+   "context": "cv-analyze-intake",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

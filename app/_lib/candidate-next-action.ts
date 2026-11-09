@@ -44,6 +44,10 @@ export type NextActionInput = {
   openOffer: { status: string; createdAt: string; expiresAt: string | null } | null;
   interview: { mode: string; status: string; createdAt: string } | null;
   nowMs: number;
+  /** Is the AI voice interview part of this install (voiceInterviewEnabled())? Absent reads
+   *  as OFF: a session minted before the flag went off has a link that now 404s, so the
+   *  page must not offer it. The caller passes the flag; this module stays env-free. */
+  voiceEnabled?: boolean;
 };
 
 function isoPlusDays(iso: string, days: number): string | null {
@@ -88,7 +92,7 @@ export function candidateNextAction(input: NextActionInput): CandidateNextAction
   }
 
   const iv = input.interview;
-  if (iv && iv.mode === "candidate" && iv.status === "created") {
+  if (input.voiceEnabled === true && iv && iv.mode === "candidate" && iv.status === "created") {
     const expiresAt = isoPlusDays(iv.createdAt, INTERVIEW_INVITE_TTL_DAYS);
     if (expiresAt && Date.parse(expiresAt) > now) return { kind: "take_interview", sentAt: iv.createdAt, expiresAt };
   }

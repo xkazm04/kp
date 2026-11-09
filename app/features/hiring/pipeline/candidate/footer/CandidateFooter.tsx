@@ -12,6 +12,8 @@
 // produces opens in the TRAY above the bar (CandidateFooterTray), so the tab being
 // read stays where it is.
 
+import { useVoiceEnabled } from "@/app/_lib/voice/use-voice-enabled";
+import { voiceSurfaceVisible } from "@/app/_lib/voice/enabled";
 import { useState } from "react";
 import {
   ArrowRight,
@@ -76,6 +78,7 @@ export function CandidateFooter({
   const tActions = useTranslations("pipeline.actions");
   const tScore = useTranslations("pipeline.candidate.scorecard");
   const tSchedule = useTranslations("scheduleTab");
+  const voiceOn = voiceSurfaceVisible(useVoiceEnabled());
   const [tray, setTray] = useState<TrayView | null>(null);
   const actions = offeredStageActions(entry, axis);
   const active = entry.status === "active";
@@ -146,9 +149,11 @@ export function CandidateFooter({
 
         {st.showLinks ? (
           <>
-            <button type="button" aria-expanded={tray === "voice"} onClick={() => toggle("voice")} className={LINK_BTN}>
-              <Mic size={14} className="text-coral-ink" aria-hidden /> {t("voiceLink")}
-            </button>
+            {voiceOn ? (
+              <button type="button" aria-expanded={tray === "voice"} onClick={() => toggle("voice")} className={LINK_BTN}>
+                <Mic size={14} className="text-coral-ink" aria-hidden /> {t("voiceLink")}
+              </button>
+            ) : null}
             <button type="button" aria-expanded={tray === "schedule"} onClick={() => toggle("schedule")} className={LINK_BTN}>
               <CalendarClock size={14} className="text-coral-ink" aria-hidden /> {t("scheduleLink")}
             </button>

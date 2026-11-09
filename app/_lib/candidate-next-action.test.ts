@@ -81,17 +81,26 @@ test("a lapsed offer is not answer_offer: it falls through to the next pending i
 
 test("an untaken candidate-mode AI interview is 'take_interview'; completed or revoked is not", () => {
   const created = { mode: "candidate", status: "created", createdAt: iso(T - DAY) };
-  assert.deepEqual(candidateNextAction(input({ interview: created })), {
+  assert.deepEqual(candidateNextAction(input({ interview: created, voiceEnabled: true })), {
     kind: "take_interview",
     sentAt: iso(T - DAY),
     expiresAt: iso(T - DAY + INTERVIEW_INVITE_TTL_DAYS * DAY),
   });
-  assert.equal(candidateNextAction(input({ interview: { ...created, status: "completed" } })), null);
-  assert.equal(candidateNextAction(input({ interview: { ...created, status: "revoked" } })), null);
+  assert.equal(candidateNextAction(input({ interview: { ...created, status: "completed" }, voiceEnabled: true })), null);
+  assert.equal(candidateNextAction(input({ interview: { ...created, status: "revoked" }, voiceEnabled: true })), null);
   // A recruiter's test session is not the candidate's to take.
-  assert.equal(candidateNextAction(input({ interview: { ...created, mode: "test" } })), null);
+  assert.equal(candidateNextAction(input({ interview: { ...created, mode: "test" }, voiceEnabled: true })), null);
   // Past the link TTL it is a dead capability too.
-  assert.equal(candidateNextAction(input({ interview: { ...created, createdAt: iso(T - 8 * DAY) } })), null);
+  assert.equal(candidateNextAction(input({ interview: { ...created, createdAt: iso(T - 8 * DAY) }, voiceEnabled: true })), null);
+});
+
+test("with the voice interview off, a live session minted earlier is NOT offered (its link 404s)", () => {
+  const created = { mode: "candidate", status: "created", createdAt: iso(T - DAY) };
+  assert.equal(candidateNextAction(input({ interview: created })), null);
+  assert.equal(candidateNextAction(input({ interview: created, voiceEnabled: false })), null);
+  // Other actions are unaffected by the flag.
+  const out = candidateNextAction(input({ interview: created, invites: [{ status: "pending", createdAt: iso(T - DAY) }] }));
+  assert.equal(out?.kind, "book_interview");
 });
 
 test("the interview TTL here is the store's INTERVIEW_LINK_TTL_DAYS, not a drifting copy", () => {

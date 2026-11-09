@@ -140,3 +140,84 @@ export function humanScorecardByline(v: HumanScorecardView): HumanScorecardBylin
   if (v.legacy) return { kind: "legacy", author: null, stage: null };
   return v.authorLabel ? { kind: "by", author: v.authorLabel, stage: v.stage } : { kind: "unnamed", author: null, stage: v.stage };
 }
+
+// ── independent scoring: what a CALLER may read ─────────────────────────────────
+//
+// ONE projection every reader of the panel passes through. The scorecard GET used to be
+// the only door that withheld a colleague's verdict until the caller had filed their own;
+// the prep read, the candidate drawer, the compare grid and the role view returned the
+// same records to anyone. The rule belongs here, at the read seam, taking the caller.
+//
+// Only what crosses the wire changes. The gate, the seal and the role-decision computation
+// read the FULL set from the store (readHumanScorecards / getHumanScorecards) — this module
+// never mutates its input and nothing server-side that decides reads its output.
+
+/** "Has filed": the record carries at least one rating. The POST refuses a card with none,
+ *  and a stored zero-rating card (written before that refusal) does not count either — so
+ *  the reveal check and the gate check ask the same question. */
+export function isFiledScorecard(card: { ratings?: unknown } | null | undefined): boolean {
+  return Array.isArray(card?.ratings) && (card.ratings as unknown[]).length > 0;
+}
+
+/** Who is reading: the signed-in user id (null with no identity), the label, and whether
+ *  they hold `team:manage` (admin, owner, and open mode, which has one identity). */
+export type ScorecardViewer = { author: string | null; authorLabel: string | null; canManage: boolean };
+
+export type HumanScorecardProjection = {
+  /** The caller's OWN record for this round — what the form may seed from. */
+  mine: HumanScorecardRecord | null;
+  /** Colleagues' records as display views (no user id), only once the caller may see them. */
+  records: HumanScorecardView[];
+  /** Records that are not the caller's own; a COUNT is all an unrevealed caller learns. */
+  othersCount: number;
+  revealed: boolean;
+};
+
+/** Apply the independent-scoring rule: colleagues' records stay hidden until the caller has
+ *  FILED for this round (`key.stage`), unless they can manage the team. Fails closed: with
+ *  no identity (`key.author` null) and no `team:manage` nothing is revealed, and no record
+ *  is anyone's "own". */
+export function projectHumanScorecards(
+  list: HumanScorecardRecord[],
+  key: HumanScorecardKey,
+  canManage: boolean,
+): HumanScorecardProjection {
+  const mine = canManage || key.author !== null ? ownScorecard(list, key.author, key.stage) : null;
+  const revealed = canManage || (key.author !== null && isFiledScorecard(mine));
+  return {
+    mine,
+    records: revealed ? humanScorecardViews(list) : [],
+    othersCount: Math.max(0, list.length - (mine ? 1 : 0)),
+    revealed,
+  };
+}
+
+/** The same projection for a resolved viewer and the round the candidate is in now. A
+ *  `null` viewer (identity could not be resolved) is the fail-closed caller. */
+export function projectForViewer(
+  list: HumanScorecardRecord[],
+  viewer: ScorecardViewer | null,
+  stage: string | null,
+): HumanScorecardProjection {
+  return projectHumanScorecards(
+    list,
+    { author: viewer?.author ?? null, authorLabel: viewer?.authorLabel ?? null, stage },
+    viewer?.canManage ?? false,
+  );
+}
+
+/** A prep payload as a caller may read it: the panel and its headline mirror replaced by the
+ *  projection (views, so no author user id), every other key untouched. A payload with no
+ *  human records is returned as is. */
+export function projectPrepPayload(
+  payload: Record<string, unknown>,
+  viewer: ScorecardViewer | null,
+  stage: string | null,
+): Record<string, unknown> {
+  const records = readHumanScorecards(payload);
+  if (records.length === 0) return payload;
+  const { records: views } = projectForViewer(records, viewer, stage);
+  const { humanScorecard: _headline, ...rest } = payload;
+  void _headline;
+  return views.length > 0 ? { ...rest, humanScorecards: views, humanScorecard: views[0] } : { ...rest, humanScorecards: [] };
+}

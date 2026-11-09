@@ -2655,7 +2655,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/agent-hire/transform-run.test.ts:160 Any Error satisfies this, and the sibling unknown-job test makes the same observations (a rejection, an unchanged workdir count), so a throw before the spawn would keep a test named for a CLI that cannot run green without the spawn being reached.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "prompt-assembly",
@@ -2692,7 +2696,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/app-master/backbone.ts:363 The scorer reads production rollups an agent reported rather than running agents against declared scenarios; searching app/_lib/agent-hire and app/_lib/app-master for judge, scenario, holdout and golden set found nothing, and the context's weighted arithmetic is the scoring-rubrics subject's.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "agent-runtime-assembly",
@@ -3066,7 +3074,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/analytics/calibration/route.ts:25 These routes serve funnel analytics and calibrate a production fit score against recruiter outcomes; a case-insensitive grep of app/api/analytics, benchmarks, attention and search found no golden, passRate, pass_rate, judgeModel, scenarioId or rubric, so no models are run against declared scenarios here.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "small-sample-honesty-in-hiring-analytics",
@@ -4058,7 +4070,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsReliabilityDiagram.tsx:10 These controls edit and display hiring metrics and plot a stored score against advance rates; app/features/insights/analytics has no hits for harness, scenario, rubric or golden, and its 'judge' hits are prose about whether a calibration arm can be judged (the sampled lines), with 'holdout' and 'benchmark' naming calibration arms and peer data, so no eval harness runs here.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "agent-memory",
@@ -4332,7 +4348,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/tools/analyze/analyzeGithubRunPolicy.test.ts:25 The test drives only the lifted predicate, and no test pins its call sites at useAnalyzeForm.ts:595 and 681, so reverting the launch to a bare `hasGithub` check leaves the blind-mode identity rule green.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "prompt-assembly",
@@ -4694,7 +4714,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/app-master-bench/expectations.mjs:512 Merged-proposal counts are regex-parsed from the product's own delivery reason string, and a search of the non-test bench sources for git, gh, ls-remote, rev-parse and api.github found no read of the target repository, so the bench cannot see a merge that was reported but never landed.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "agent-runtime-assembly",
@@ -4792,7 +4816,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:168 The matrix counts log rows with ran:true as passed although the declared soak gate counts distinct calendar dates, and it never derives the gate's verdict, so a same-day re-run (a state night.test.mjs:171 pins as reachable) inflates the quota and a night that breached the dispatch mandate still reads as passed.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "test-harness",
@@ -4808,7 +4836,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/app-master-bench/soak/night.test.mjs:259 The wrapper-contract test passes on a variable that appears only in soak-night.sh's header comment, while the miss-classification decisions the suite says it pins sit inside main(), which no test runs.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "agent-instruction-files",
@@ -7242,8 +7274,12 @@
           "revision": 52,
           "changedAt": "2026-10-25",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "app/_lib/apply-session-store.ts:8 The session persistence in this context is a funnel denominator plus a browser-held form draft for a scripted knockout chat, not anything an agent recalls; a search of its listed files for recall, episod, consolidat, belief and distill returned nothing, and no module here feeds stored material back into a model.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:2b62b4004acc600d",
+          "evaluatedRevision": 53
         },
         {
           "subject": "mcp-tools",
@@ -7607,7 +7643,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "pipeline/jobfit/matrix_cli.py:1 The 'matrix' and 'ranking' that matched this subject are product scoring of candidates against jobs, and this context is the system under test: 'judge packet', 'anchor set', 'pairwise' and 'worst-of-N' had zero hits across pipeline/jobfit, while 'harness' and 'bench' appear only in comments citing pipeline/jobfit/eval or the taxonomy linter.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "agent-memory",
@@ -7811,7 +7851,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/matrix/route.ts:18 The matrix here is a candidate-by-job score grid for recruiters, not a model-by-scenario eval; a case-insensitive grep of app/api/match, archetypes, matrix and rediscovery found no golden, passRate, pass_rate, judgeModel, scenarioId or rubric.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "retrieval",
@@ -8989,7 +9033,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/docs/__tests__/check-doc-sync.test.mjs:248 The test claims every app/diagrams module but runs over a hand-written list of four that omits app/diagrams/diagramCatalog.ts, so its name states more than it checks.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "quality-gates",
@@ -10123,7 +10171,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/calibration-holdout-arm.test.ts:3 The holdout here is a production calibration arm that spares would-be rejects to compare live match scores with hiring outcomes, not a suite of scenarios run against a model, and a case-insensitive search of app/_lib for run_matrix, judge_score, golden set, pass_rate and pairwise found nothing.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "selection-score-calibration",
@@ -10318,7 +10370,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/tools/analyze/AnalyzeApi.test.ts:182 The file says the success path is covered, but watchAnalysis's `if (parsed.success) return parsed.data` is never executed by any test, so that return could be removed and every assertion would still pass.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "drag-drop",
@@ -10454,7 +10510,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/tools/analyze/analyzeRunAnalysis.ts:55 This context gates CV files and delivers one analysis result to the UI; searching app/features/tools/analyze for golden, holdout, pass_rate, benchmark and trials found no hits, so it holds no harness that scores a model across scenarios.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "generated-workflow-candidates",
@@ -11277,7 +11337,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/intakes-tenancy.test.ts:21 Any statement that merely mentions workspace_id passes, so a select returning that column with no tenant predicate is reported as scoped, the same defect devcase-tenancy.test.ts:18 records and repaired for its own table only.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "voice-io",
@@ -11524,7 +11588,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/campaign-tenancy.test.ts:25 Mentioning the column anywhere satisfies the guard, so an unfiltered campaign_packs read that selects workspace_id passes, while siblings channels-tenancy.test.ts:91 and companion-tenancy.test.ts:36 already require a real scoping clause.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "companion-runtime",
@@ -15357,7 +15425,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "e2e/app-master-hire.spec.ts:15 The Playwright suite asserts product behaviour and scores no model output; a search of e2e/ found no golden, scenario, benchmark, passRate or trial, and the one LLM-backed spec (analyze-smoke) is a keyed UI smoke test.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "conformance-checking",
@@ -15522,7 +15594,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/eval/interview_eval.py:1391 With no engine, a --strict live run over golden-covered scenarios is answered by transcripts hand-written to pass, and _passes never reads Row.source, so it exits 0 where the package's exit-code contract requires 1.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "agent-memory",
@@ -15633,7 +15709,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/eval/voice/v0_smoke.py:83 A PASS or FAIL is issued from one session of a non-deterministic ASR and agent loop with no declared N, and run_voice_scenario has no trials parameter, so the verdict cannot separate a stable result from one draw.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "talking-avatar",
@@ -16719,7 +16799,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shared/groupEvalTypes.ts:9 Here 'eval' and 'candidate' mean comparing job applicants and 'arm' is a URL selection param; a case-insensitive search of app/features/shared for harness, scenario, judge, rubric and golden found no hits, so no model or agent is run against declared scenarios in this context.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "comparative-shortlist-evaluation",
@@ -16925,7 +17009,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/decisions/group-eval/route.ts:8 These routes read stored evaluations, run recruiter screening decisions and record feedback; searching app/api/decisions and app/api/feedback for golden, holdout, pass_rate, benchmark and trials found no hits, so no model is run against declared scenarios here.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "agent-instruction-files",
@@ -17436,7 +17524,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "i18n/server.ts:5 Exclusivity is stated only in prose: nothing refuses a second reader of the locale cookie or header, since eslint's i18n block carries no such restriction and no tree-walking test names these symbols, so the convention holds today (only this file reads them) by habit rather than by a mechanism that could fail.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a5b34d39a4b8edd3",
+          "evaluatedRevision": 56
         },
         {
           "subject": "mcp-tools",
@@ -18362,7 +18454,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/interview-sim/providers.test.ts:18 The test name claims what reaches the child process, but it only drives the pure claudeChildEnv helper, so removing `env: claudeChildEnv()` from either spawn at providers.ts:141-142 stays green, and the argv built at providers.ts:209-221 has no test at all.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "quality-gates",
@@ -20476,7 +20572,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/library/jobs/jobsCoachPoolCap.test.ts:25 The route also writes this exact text in its empty-pool return (route.ts:51), so dropping the flag from the real scored response at route.ts:91 leaves the guard green while the coach loses the admission the guard exists to protect.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a5b34d39a4b8edd3",
+          "evaluatedRevision": 56
         },
         {
           "subject": "mcp-tools",
@@ -20787,7 +20887,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsCompareCohorts.ts:19 The context groups and displays human interview ratings and a fairness matrix over candidates; a case-insensitive search of app/features/library/jobs found no golden, trial, holdout, passRate, pass_rate, win-rate, scenario or temperature, and its 'judge' and 'benchmark' hits are coach judgement comments and salary benchmarks outside the compare files, so no model is evaluated here.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "agent-memory",
@@ -21509,7 +21613,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/rate-limit-contract.test.ts:2738 The limiter contract iterates only its declared rows and no walker reconciles rateLimit call sites or /me doors back to ROUTES, so a new jobseeker door with no row or no limiter fails nothing here, while the rows that do exist are matched against raw source.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a5b34d39a4b8edd3",
+          "evaluatedRevision": 56
         },
         {
           "subject": "agent-runtime-assembly",
@@ -22726,7 +22834,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/lint/__tests__/fixtures/known-bad.mjs:46 These known-bad eslint fixtures are imported by no tracked file (git grep finds only the file itself and generated maps), so the seeded failures they exist to prove are never executed.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "module-design",
@@ -22982,8 +23094,12 @@
           "revision": 52,
           "changedAt": "2026-10-25",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "app/api/llm/activity/route.ts:16 A recursive search of app/api/llm, app/api/automation and app/api/sim found this one 'in memory' phrase about client table paging and no recall, episode, belief, brain or companion term, so provider configuration, usage, automation and simulation routes hold no agent memory.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:2b62b4004acc600d",
+          "evaluatedRevision": 53
         },
         {
           "subject": "mcp-tools",
@@ -23179,7 +23295,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/llm-endpoint-guard.test.ts:101 The stated reason for settling on a text pin over saveProviderKey is false, since llm-config.ts is imported and driven under node --test by llm-config-probe-env.test.ts:12 and llm-capabilities-lockstep.test.ts:34 says so, leaving a loadable call site covered only by source text.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "quality-gates",
@@ -23558,7 +23678,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/llm/bench/judge.py:171 The bench judge defaults to model=None, so it rides the Claude CLI's configured default with no resolved identity on any record, no anchor set or repeatability measure exists, and the single Anthropic judge scored Anthropic targets, which leaves the published scores without a stable or disinterested instrument.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "module-design",
@@ -24370,7 +24494,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/matrix/focus/matchWeightsPanel.test.ts:14 The header claims a seeded failure that cannot happen, because the test imports only pure helpers from matchTypes and calls syncDraftToWeights itself, so deleting the re-anchor at MatchWeightsPanel.tsx:57 leaves it green and the regression it says it locks is unguarded.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a5b34d39a4b8edd3",
+          "evaluatedRevision": 56
         },
         {
           "subject": "interview-story-portfolio",
@@ -25110,7 +25238,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/settings/models/ModelsQualityOverview.tsx:59 The Models tab publishes per-case best and runner-up orders from a sort over composites with no check that the spread clears the noise, and hedges with a footnote calling small run counts directional, which is the sorted list with a caveat that the standard rules out.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         }
       ],
       "governance": "governed"
@@ -26731,8 +26863,12 @@
           "revision": 52,
           "changedAt": "2026-10-25",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "app/features/hiring/pipeline/pipelineDrawerNote.ts:4 The nearest thing to memory in this context is a recruiter-typed note saved by debounce and flush, written by a person rather than an agent; a search of the context's listed files for memory, recall, episod, consolidat, belief and working_memory returned nothing, and a recursive search of app/features/hiring/pipeline found zero hits for episodic, belief, consolidat, working_memory and distill.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:2b62b4004acc600d",
+          "evaluatedRevision": 53
         },
         {
           "subject": "mcp-tools",
@@ -27119,7 +27255,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shared/profileTypes.ts:134 The comment names two enforcers that do not refuse drift, since no workflow or hook runs schemas:check and the build regenerates the file first; the drift is actually caught by test_generated_ts_is_in_sync in the gated Python suite, so the property holds but its stated enforcement is false.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a5b34d39a4b8edd3",
+          "evaluatedRevision": 56
         },
         {
           "subject": "eval-harness",
@@ -27220,7 +27360,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/pipeline/usePipelineBulk.test.ts:38 The regex pins the body of foldBatchSettle, a pure exported function already executed by pipelineBulkSelection.test.ts:146-147, so a structural pin stands where the site can be run and a behaviour-preserving reformat turns it red.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "mcp-tools",
@@ -27818,11 +27962,7 @@
           "confidence": "strong",
           "state": "not-applicable",
           "evidence": "app/api/auth/login/route.ts:11 Grep across platform-auth-api files for agent-memory terms (recall, episodic, consolidat, working_memory, belief) found zero matches, as this context handles HTTP session authentication, credential throttling, workspace CRUD, and health checks without an LLM agent memory pipeline.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:23599eae61aa7119",
-          "evaluatedRevision": 47,
-          "revisionsBehind": 5,
-          "stale": true
+          "evaluatedAt": "2026-10-13"
         },
         {
           "subject": "test-harness",
@@ -28096,7 +28236,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/tools/profile/profileEditorContracts.test.ts:29 The guards normalise line endings but not comments, so presence patterns over the hook source can be satisfied by prose, and the mutated-copy control cannot detect that because it would mutate the surviving comment just as it mutates code.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a5b34d39a4b8edd3",
+          "evaluatedRevision": 56
         },
         {
           "subject": "draft-editing",
@@ -28334,7 +28478,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/tools/profile/candidateMatrixView.ts:41 The context is a roster and archetype board that bands already-stored candidate scores; a case-insensitive search of app/features/tools/profile for golden, judge, trial, holdout, passRate, pass_rate, worst-of, anchor set, win-rate, benchmark, scenario, temperature and gold label found no hits, so no model is run or scored here.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "candidate-archetype-routing",
@@ -28754,7 +28902,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/deploy/check-chart.mjs:281 The policy accepts any occurrence of the substring in unrendered template text, so a securityContext wrapped in a Helm condition that never renders passes while the deployed pod has no hardening.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "deployment-contract",
@@ -28849,7 +29001,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_components/results/VerdictBanner.tsx:13 The report panel renders one CV analysis and only borrows the banner look of eval reports that live in the pipeline; searching app/_components/results for judge, scenario, holdout and trials found nothing, and the one benchmark hit is a salary table.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "quality-gates",
@@ -29265,7 +29421,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/review/agent-review.mjs:302 The fixture header names 'null is read as no findings' as the failure to prevent, but this guard sits in an unexported main() that no fixture calls or spawns, so deleting it leaves test:review green.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "translation-pipeline-topology",
@@ -29563,7 +29723,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/schedule/schedulePollBackoff.test.ts:3 The extracted poll curve, grid seeding and invite buckets are driven only as pure functions, and no test pins that useScheduleTab or ScheduleInviteLifecyclePanel still call them, so a hook reverting to its own constant stays green.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "scheduling",
@@ -29642,7 +29806,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleAiRound.tsx:6 This is calendar, invite-bucket and polling UI that hands verdicts to another surface; searching app/features/hiring/schedule for holdout, golden set, win rate and trials found nothing, while the one judge hit is a comment about overlay capacity and the scenario hits are an interview-prep field.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "windowed-inference-over-oversized-inputs",
@@ -29919,7 +30087,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewAiScorecardSection.tsx:3 This context renders a stored AI scorecard and interviewer prep state; searching app/features/hiring/schedule for golden, holdout, pass_rate, benchmark and trials found no hits, so no repeatable model evaluation runs here.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "hiring-policy-defaults-and-tiering",
@@ -30000,7 +30172,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_components/ScoreBadge.tsx:4 These components display scores handed to them as props about job candidates, and a case-insensitive search of app/_components for run_matrix, judge_score, golden set, pass_rate and pairwise found nothing, so no scenarios, trials or judges exist here to hold to the standard.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "scoring-rubrics",
@@ -30895,7 +31071,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/sanity-checks.test.ts:15 The comment says a renamed engine warning will show up here, but the list is a hand-copied TS array and the file never reads pipeline.py, so renaming an emitter leaves this suite green.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "browser-credential-boundary",
@@ -31878,7 +32058,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shell/setup/setupPipelinePresets.test.ts:70 The test name claims what the wizard offers but its assertions read only the SETUP_STAGE_ROLES constant, and no test or e2e spec pins SetupPipelineStageRow.tsx:46 passing it, so the wizard can stop using the list while this stays green.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "quality-gates",
@@ -31894,7 +32078,11 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shell/setup/setupPipelinePresets.test.ts:83 Case-insensitive search of app/features/shell/setup found zero hits for every absence term, and the only thing here called a gate is stepSatisfied, a wizard Continue predicate over form state that judges no tree, commit or pipeline run; the directory's two source-reading tests (setupFinishOutcome, SetupLanguageSwitch) are outside this context's file list.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a5b34d39a4b8edd3",
+          "evaluatedRevision": 56
         },
         {
           "subject": "pipeline-stage-modelling",
@@ -32384,7 +32572,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shell/simulation/simWalkSteps.test.ts:47 The check that a real surface renders each spotlight hook searches raw .tsx text including comments, and ChannelsNightHead.tsx:20 spells data-sim=\"channel-inbound\" in prose, so removing the attribute at line 69 would stay green for the redesign this test was written to catch.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "fleet-orchestration",
@@ -32420,7 +32612,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shell/simulation/simDrafts.ts:41 The context is a scripted product demo with fixed values and no model under test; a case-insensitive search of app/features/shell/simulation found no golden, trial, passRate, pass_rate, win-rate, benchmark, scenario or temperature, and its only 'judge' and 'holdout' hits are a DOM click effect check (simMove.ts), a comment in simCriteria.ts and an automation holdoutPercent setting (constants.ts), none of them eval machinery.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "mcp-tools",
@@ -32603,7 +32799,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shell/tasks/TasksTab.tsx:17 This is a progress ledger for background jobs; a case-insensitive search of app/features/shell/tasks found zero hits for judge, rubric, scenario, harness and benchmark, and the one 'eval' hit is a label-search test fixture, so nothing here runs or scores a model against scenarios.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "agent-memory",
@@ -33517,12 +33717,11 @@
           "changedAt": "2026-10-25",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "app/_lib/tasks.ts:44 This context is a background task queue backed by SQLite (dedupe, budget, reaping, poll state). A case-insensitive search of its files for recall/episod/consolidat/belief/working_memory found no memory logic; the only hits for 'memory' are 'in-memory slot' and 'in-memory queue'. The one memory-adjacent task kind, companion_digest (tasks.ts:402), is passed through unchanged to companion-digest-run.ts, which is outside this context.",
-          "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:4f054116d66a9495",
-          "evaluatedRevision": 51,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_lib/tasks.ts:403 This context is a SQLite-backed task queue and automation policy pass; a case-insensitive search of all its listed files for recall, episod, consolidat, belief and distill returned nothing, 'memory' appears only as 'in-memory' slot/queue/scoring, and its one memory-adjacent kind (companion_digest) is handed unchanged to companion-digest-run.ts outside the context, so no agent memory pipeline exists here to judge.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:2b62b4004acc600d",
+          "evaluatedRevision": 53,
+          "revisionsBehind": 1
         },
         {
           "subject": "prompt-assembly",
@@ -33596,7 +33795,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/automation-cache-key.ts:4 This context is a production background-task engine and its cache is a production prompt cache; 'judge packet', 'anchor set', 'pairwise' and 'worst-of-N' had zero hits across app/_lib, and in the listed task and automation files 'judge', 'scenario' and 'golden' had none, with 'eval' appearing only as the group_eval task kind.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "agent-runtime-assembly",
@@ -33724,7 +33927,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_calibration_drift.py:61 The class claims parity with the TypeScript engine but only runs the Python side against hand-written expectations, so changing bin edges or clamping in calibration.ts leaves it green.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "voice-io",
@@ -34034,7 +34241,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_devcase_judge_independence.py:107 The test pins the same model reached through a second provider as an independent judge, so the self-grading gate can report independence when one model grades its own output.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "recruiter-anchored-model-evaluation",
@@ -34150,7 +34361,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_interview_eval.py:538 The source-text needle misses `from subprocess import run` and would match the same words in prose, so this absence pin can be wrong in both directions at a site the neighbouring test already executes with subprocess poisoned.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "compensation-banding-and-market-honesty",
@@ -34262,7 +34477,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_llm_bake_quality.py:58 The suite pins a published per-criterion score that the judge never gave, filled from the overall median with no mark, so a criterion column can show a value nobody measured.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "agent-memory",
@@ -34408,7 +34627,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_archetype_sanity.py:98 The claim that the dump stamps the boolean rests on a subscript string that a read or a comment could also satisfy, because the needle has no assignment token and does not tie the value to `needs` (pipeline.py:920).",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "quality-gates",

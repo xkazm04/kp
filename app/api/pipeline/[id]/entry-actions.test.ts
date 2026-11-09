@@ -16,10 +16,10 @@ import {
   entryActionOf,
 } from "./entry-actions.ts";
 
-test("the table is keyed by exactly the nine actions the door dispatches", () => {
+test("the table is keyed by exactly the eleven actions the door dispatches", () => {
   assert.deepEqual(
     [...ENTRY_ACTION_NAMES].sort(),
-    ["accept", "add_note", "approve_event", "draft_offer", "reinstate", "reject", "resolve_intake", "set_github", "set_notes", "set_stage"],
+    ["accept", "add_note", "approve_event", "decline_advance", "draft_offer", "reinstate", "reject", "resolve_intake", "set_github", "set_notes", "set_stage"],
   );
   assert.deepEqual(Object.keys(ENTRY_ACTIONS).sort(), [...ENTRY_ACTION_NAMES].sort());
 });

@@ -51,6 +51,9 @@ export function policyCells(t: PlanT, c: Composer, rows: PolicyRow[], stage: str
 
   const guardCell = !guard ? null : guard.dim === "scorecard" ? (
     <Stated label={t("gateShortHuman")} tip={t("tipScorecard")} />
+  ) : guard.role === "screening" || guard.role === "offer" ? (
+    // Display only: no setting hands a screening or offer decision to the machine.
+    <Stated label={t("gateShortHuman")} tip={t("tipGateFixed")} />
   ) : (
     <Button
       label={guard.value === "human" ? t("gateShortHuman") : t("gateAuto")}

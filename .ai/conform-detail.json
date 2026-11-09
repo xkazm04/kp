@@ -1701,19 +1701,21 @@
       "subject": "agent-memory",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T02:58:14.879Z",
-      "worker": "bf1d1018-9a32-4702-a36b-79f96d75b51b",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T05:34:37.149Z",
+      "worker": "b246c836-46dd-46c4-853d-ecdfa4cc69a4",
       "techniques": [
         {
           "technique": "working-memory",
           "verdict": "not-applicable",
-          "evidence": "app/_lib/tasks.ts:47 The durable state here is a job row for progress and reconnect. It is not an agent's synthesized operative state."
+          "evidence": "app/_lib/tasks.ts:47 The durable state here is a job row for progress and reconnect. It is not an agent's synthesized operative state.",
+          "carriedFrom": "2026-10-24"
         },
         {
           "technique": "consolidation",
           "verdict": "not-applicable",
-          "evidence": "app/_lib/tasks.ts:402 The engine only dispatches the companion digest. Any distilling or writing into the companion's store happens in companion-digest-run.ts and companion-run.ts, which are outside this context."
+          "evidence": "app/_lib/tasks.ts:402 The engine only dispatches the companion digest. Any distilling or writing into the companion's store happens in companion-digest-run.ts and companion-run.ts, which are outside this context.",
+          "carriedFrom": "2026-10-24"
         },
         {
           "technique": "decay-and-forgetting",
@@ -1735,6 +1737,13 @@
           "evaluatedAt": "2026-10-13T00:06:40.160Z",
           "worker": "08401036-214f-421d-91d4-621f9d917a26",
           "reason": "replaced by bf1d1018-9a32-4702-a36b-79f96d75b51b"
+        },
+        {
+          "state": "not-applicable",
+          "evidence": "app/_lib/tasks.ts:44 This context is a background task queue backed by SQLite (dedupe, budget, reaping, poll state). A case-insensitive search of its files for recall/episod/consolidat/belief/working_memory found no memory logic; the only hits for 'memory' are 'in-memory slot' and 'in-memory queue'. The one memory-adjacent task kind, companion_digest (tasks.ts:402), is passed through unchanged to companion-digest-run.ts, which is outside this context.",
+          "evaluatedAt": "2026-10-24T02:58:14.879Z",
+          "worker": "bf1d1018-9a32-4702-a36b-79f96d75b51b",
+          "reason": "replaced by b246c836-46dd-46c4-853d-ecdfa4cc69a4"
         }
       ]
     },
@@ -1743,21 +1752,37 @@
       "subject": "agent-memory",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T00:06:40.160Z",
-      "worker": "08401036-214f-421d-91d4-621f9d917a26",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T05:16:40.577Z",
       "techniques": [
         {
           "technique": "working-memory",
           "verdict": "not-applicable",
-          "evidence": "app/api/auth/login/route.ts:3 Sessions here represent HTTP session cookies for operator authentication rather than agent working memory."
+          "evidence": "app/api/auth/login/route.ts:3 Sessions here represent HTTP session cookies for operator authentication rather than agent working memory.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "owner-and-counterpart-scope",
           "verdict": "not-applicable",
-          "evidence": "app/api/workspaces/route.ts:11 Workspaces partition platform user teams rather than agent memory ownership or counterpart interaction scopes."
+          "evidence": "app/api/workspaces/route.ts:11 Workspaces partition platform user teams rather than agent memory ownership or counterpart interaction scopes.",
+          "carriedFrom": "2026-10-13"
         }
-      ]
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "app/api/auth/login/route.ts:11 Grep across platform-auth-api files for agent-memory terms (recall, episodic, consolidat, working_memory, belief) found zero matches, as this context handles HTTP session authentication, credential throttling, workspace CRUD, and health checks without an LLM agent memory pipeline.",
+          "evaluatedAt": "2026-10-13T00:06:40.160Z",
+          "worker": "08401036-214f-421d-91d4-621f9d917a26",
+          "reason": "replaced by 979ae6cf-ad70-4a2a-b0b1-1f40ff24d40c"
+        }
+      ],
+      "withdrawn": {
+        "worker": "979ae6cf-ad70-4a2a-b0b1-1f40ff24d40c",
+        "state": "not-applicable",
+        "at": "2026-11-09T05:17:02.449049+00:00",
+        "reason": "reviewer (sonnet): The anchor app/api/rate-limit-contract.test.ts:441 is a companion-route row for another context. It is not in the listed context files, and it does not show that the auth, workspace, ops and health code has no memory pipeline. I could not confirm the \"26 context files\" claim, because only 12 files a"
+      }
     },
     "1427e2ae-3cf6-48f4-a866-6c5a0dc67559/agent-memory": {
       "context": "hiring-decisions-api",
@@ -23752,16 +23777,32 @@
       "context": "jobseeker-api",
       "subject": "quality-gates",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-11-04",
-      "evaluatedTs": "2026-11-04T02:40:53.368Z",
-      "techniques": [],
-      "withdrawn": {
-        "worker": "489fa1af-758f-42e3-9ee7-884da49c9664",
-        "state": "not-applicable",
-        "at": "2026-11-04T02:41:28.150186+00:00",
-        "reason": "reviewer (sonnet): The anchor profile/route.ts:32 is an ordinary handler line that does not show the absence of any gate, ratchet or suppression; the claim rests only on a keyword search. The search terms were narrow, and app/api/jobseeker/cvs/cvs-route.test.ts:88 and :95 read route source files, so the 'readFileSync "
-      }
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T02:53:59.764Z",
+      "worker": "2dae1eec-0436-4578-ae8c-de8189d34696",
+      "techniques": [
+        {
+          "technique": "chokepoint-tag-registry",
+          "verdict": "deviation",
+          "evidence": "app/api/rate-limit-contract.test.ts:2738 Row to call site holds, since a row whose call is gone fails, but call site to row does not: the only tree walkers in this file cover startTask, the 429 envelope and Retry-After. All jobseeker limiters I listed do currently have rows."
+        },
+        {
+          "technique": "prose-rule-drift",
+          "verdict": "deviation",
+          "evidence": "app/api/rate-limit-contract.test.ts:2236 The stated rule is untrue and unmechanised: GET on profile, dialogs, dialogs/[id] and sources has no limiter and nothing fails. Those are store reads, so the routes are not shown to be defective; the claim outruns any check."
+        },
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "app/api/rate-limit-contract.test.ts:2742 read() normalises line endings only, so a commented-out limiter still satisfies indexOf, the refusal window and the ordering checks. Traced by reading the assertions, not executed. The same file strips comments for its startTask walker, so this raw read is unexplained."
+        },
+        {
+          "technique": "renameable-detector-keys",
+          "verdict": "conformant",
+          "evidence": "app/api/rate-limit-contract.test.ts:2781 Rows pin the whole call and key template, so re-keying a jobseeker bucket turns the row red instead of slipping past it."
+        }
+      ]
     },
     "9179c3cd-8c4f-4065-b76a-70cd6ece2944/quality-gates": {
       "context": "workspace-config-api",
@@ -28286,6 +28327,1773 @@
           "evidence": "app/diagrams/readDiagramSource.test.ts:25 Uses the same catalog page.tsx:75 renders, so the suite's list is the production list."
         }
       ]
+    },
+    "4c01cda6-93db-4db4-a5fa-d5153653d9c6/test-harness": {
+      "context": "tests-matching-taxonomy",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T00:13:40.870Z",
+      "worker": "adddd0eb-009e-49b7-9e38-90006d968f14",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_archetype_sanity.py:98 The needle is not a write that prose cannot spell, and the test does not state that this is an interim text match."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_archetype_sanity.py:68 Records the mutation that exposed the gap and adds the case that catches it."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_archetype_sanity.py:82 The control isolates which producer caused the flag."
+        },
+        {
+          "technique": "gate-scope-is-not-report-scope",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_taxonomy_coverage_gate.py:44 The floor set is checked against every family, so a new one cannot sit outside the ratchet."
+        },
+        {
+          "technique": "approval-snapshots-with-guarded-update",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_taxonomy_coverage_gate.py:96 The test only compares; recording needs the explicit --write-report command, so the suite has no record mode to leave on."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_match_cli.py:22 The seed goes through the product's own normaliser instead of a raw record."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_taxonomy_contract.py:50 The walk declares a floor before iterating."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_agentfit.py:203 The environment override is scoped to the call and points at a test ledger."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/_helpers.py:81 The helper ports the bridge's readers, and shared fixtures compare the port with the originals; run_cli's docstring states it runs in-process."
+        },
+        {
+          "technique": "proved-off-the-path",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_match_cli.py:15 Drives the shipped CLI entry point rather than a composition built for the test."
+        }
+      ]
+    },
+    "9a31cae5-541c-44b7-8ef5-71f5b0ff42b7/test-harness": {
+      "context": "shell-setup-pipeline",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T00:34:04.323Z",
+      "worker": "846b024b-b2d4-4c10-a091-11f23fe561cd",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/setup/setupPipelinePresets.test.ts:70 Name overstates the assertions at lines 73-75; adoption at SetupPipelineStageRow.tsx:46 (roleOptions={SETUP_STAGE_ROLES}) is unpinned, confirmed by git grep over *.test.ts(x) and e2e/."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/setup/setupPipelinePresets.test.ts:32 Presets are checked through the shipped server validator and the shared axis model rather than a test-local rule."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/setup/setupPipelinePresets.test.ts:102 The guard cases carry a paired positive case at line 103 that would fail if the guard simply disabled the preset."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/setup/setupPipelinePresets.test.ts:25 In-memory construction from the shipped axis, the cheapest fixture that can witness these pure-logic claims."
+        }
+      ]
+    },
+    "0eeb3d35-3c43-4ac7-bcd9-3ae9ffffddcf/test-harness": {
+      "context": "llm-config-provider",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T00:34:04.323Z",
+      "worker": "846b024b-b2d4-4c10-a091-11f23fe561cd",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "app/_lib/llm-endpoint-guard.test.ts:101 A narrow finding: the rule prefers executing the site over a permanent text match, and the module is loadable. saveProviderKey takes no injected lookup (llm-config.ts:214), but a host that cannot resolve would still separate the resolving guard from the string-only one."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-endpoint-guard.test.ts:113 The needle carries an await and a first argument, so an import or a comment cannot satisfy it, and its explanation lives in the asserting file at lines 100-105."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-capabilities-lockstep.test.ts:107 The source parse declares a floor so an empty parse cannot pass the mirror comparisons vacuously; the same floor recurs at lines 108-109 and in llm-base-url-lockstep.test.ts:53."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "app/_lib/provider-key-precedence.test.ts:116 Shows the env value would answer without the stored row, so the no-fallthrough assertion can fail; llm-endpoint-guard.test.ts:34 does the same for the pre-fix gate."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "app/_lib/testing/unit-db.ts:10 The fixture redirects KP_DB_PATH only, so stores still open through openStore with the shipped pragmas instead of a test-local connection."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-config-probe-env.test.ts:35 Rows are seeded through the product's own store function and real encryption rather than raw inserts."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "app/_lib/offline.test.ts:130 Global fetch and the environment keys the test mutates are restored in finally, and unit-db clears inherited shell variables."
+        }
+      ]
+    },
+    "923796fb-9839-4b9d-bbf1-cb4e1cc7574f/test-harness": {
+      "context": "lint-quality-gates",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T00:34:04.323Z",
+      "worker": "846b024b-b2d4-4c10-a091-11f23fe561cd",
+      "techniques": [
+        {
+          "technique": "negative-control-tests",
+          "verdict": "deviation",
+          "evidence": "scripts/lint/__tests__/fixtures/known-bad.mjs:46 test:lint-ratchet runs only the three ratchet tests. app/lint-selector-coverage.test.ts reads the resolved config (calculateConfigForFile) and calls no lintText, so whether a seeded snippet is actually reported stays unobserved."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "scripts/design/check-design-tokens.mjs:194 This regex walk declares no floor on files read or shades matched, so a needle that stops matching reports clean, and its own comment records that happening once. Needle side: ratchet.test.mjs:222 uses ci.includes(`npm run ${script}`), a shape ci.yml comments already spell (ci.yml:74)."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "scripts/lint/__tests__/ts-ratchet.test.mjs:225 The TypeScript ratchet floors its walk here and throws on an empty one at ts-ratchet.mjs:184."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "scripts/perf/__tests__/sqlite-writer-knee.test.mjs:43 The probe restates the app's connection setup, and this test compares its pragma set with openStore() so the fork is checked rather than assumed."
+        },
+        {
+          "technique": "platform-quirk-absorption",
+          "verdict": "conformant",
+          "evidence": "scripts/lint/ruff-ratchet.mjs:273 An unreadable tool answer becomes a named failure rather than an empty measurement, and the venv fallback above it keeps its incident story at lines 255-258."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "not-applicable",
+          "evidence": "scripts/perf/check-budget.mjs:18 No concurrency or cutoff claim is tested here; the budget deliberately gates on a host-independent proxy, which is the case the technique hands to metric-gates."
+        }
+      ]
+    },
+    "050c760b-ee78-46e0-a86f-77d80d89b3bf/test-harness": {
+      "context": "interview-simulator",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T00:53:43.718Z",
+      "worker": "4af4b211-1f87-494e-952f-44f08e687321",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-sim/providers.test.ts:18 Adoption of the lifted helper at the spawn is unpinned. A search of test files for --system-prompt-file, setting-sources, no-session-persistence, quoteForCmd and neutralCwd found nothing, although the argument list could be lifted into a pure builder. The per-call KP_OFFLINE refusal at providers.ts:208 is also unreached; the test covers construction only."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/director-loop.ts:90 The simulator calls the same exchange kernel as the live route and swaps only the store. Lines 12-14 name what is not carried over, and fakeJudge has no passing default (fake.ts:247 answers null unless scripted)."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/clock.test.ts:69 Time claims are read from recorded spans on the simulated clock, never from wall time, so load cannot change the verdict."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/engine.test.ts:129 The lane asserts its own precondition: the suite must be on the throwaway database, and lines 131-135 prove the guard refuses the operator's database and other wrong paths."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "scripts/interview-sim.ts:94 The driver returns exit 2 when the filters select nothing, so an empty selection is not a green run."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/clock.test.ts:31 The expensive instrument is built once per file. In run output, staleness is keyed on the brief digest (runner.ts:190), so an old dump is not reused against a changed instrument."
+        }
+      ]
+    },
+    "1a8b63b3-ac28-4460-a74c-fbbe54884aec/test-harness": {
+      "context": "analyze-engine",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T00:53:43.718Z",
+      "worker": "4af4b211-1f87-494e-952f-44f08e687321",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/analyze/analyzeGithubRunPolicy.test.ts:25 The lift created the adoption gap the technique names. A repo search finds shouldRunGithubDeepDive only in the policy module, this test and useAnalyzeForm.ts; the same file does pin adoption for the cancel path, but not for this rule."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/analyze/analyzeGithubRunPolicy.test.ts:33 The 'non-vacuity' proof asserts a function defined in the test file against itself (line 20), so it cannot fail and does not exercise production code. naiveCancelStatus repeats the shape."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/analyze/analyzeDragCounter.test.ts:84 A bare name on the unstripped source is satisfied by the import at useAnalyzeDropZoneHighlight.ts line 4, so the claim of consumption is not pinned. The same test does strip comments for its setIsOver check."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/analyzeRunDelivery.test.ts:24 Delivery and abort are asserted through an injected timer surface and pending counts, with no real 320 ms wait."
+        }
+      ],
+      "registryProposal": "negative-control-tests could list a frozen copy of the pre-fix logic asserted against itself as a control that proves nothing, since this shape reads as rigorous in review."
+    },
+    "ebfe3268-6c14-4997-a49c-091483d763b5/test-harness": {
+      "context": "shared-api-utilities",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T00:53:43.718Z",
+      "worker": "4af4b211-1f87-494e-952f-44f08e687321",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "app/_lib/sanity-checks.test.ts:15 The stated lockstep is never reached. A search of the file finds no readFileSync and only this comment names pipeline.py, so the reach probe of mutating the named emitter would stay green."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "app/_lib/app-currency-literal.test.ts:66 The walk declares no floor on files read, so a filter that stopped selecting files would report a clean tree. The rest of the instrument is good: needles require a currency position, line endings are normalised, and the allowlist is checked in both directions at lines 91-101."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "app/_lib/rate-limit.test.ts:27 The window reset is proven by passing an explicit instant to the limiter, with no real waiting."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "app/_lib/catalog-translator.test.ts:11 The asserting file records the production mutation that makes the named test fail, as step 4 of the technique asks. The run itself was not repeated here."
+        }
+      ]
+    },
+    "de71aa9b-3319-42bc-8b1f-cc8e185ebebe/test-harness": {
+      "context": "review-gates",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T00:53:43.718Z",
+      "worker": "4af4b211-1f87-494e-952f-44f08e687321",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "scripts/review/agent-review.mjs:302 The fixtures pin extractJson returning null and verdictFor in isolation. A search of scripts/review/__tests__ for spawn, execFile, execSync and main( found nothing, so neither this consuming decision nor the adoption at line 321 is reached."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "deviation",
+          "evidence": "scripts/review/agent-review.mjs:255 Reviewing nothing exits 0 with a quiet line on the next statement, unlike the loud keyless path. The sibling lens fixed exactly this case with exit 2 (constitution-check.mjs:700 and 718)."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "scripts/review/__tests__/constitution-check.test.mjs:90 Rules are proved in fire and no-fire pairs on real diff fragments, for example lines 90 and 95, so a rule that never fires goes red."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "conformant",
+          "evidence": "scripts/review/constitution-check.mjs:232 The needle requires a call parenthesis and runs on comment-masked text. The seeded pair at constitution-check.test.mjs:187 and 202 separates a comment from the real construct, and workflow-yaml.test.mjs:261 declares a floor on the real tree."
+        },
+        {
+          "technique": "proved-off-the-path",
+          "verdict": "conformant",
+          "evidence": "scripts/review/__tests__/gate-check.test.mjs:274 The committed ruleset and workflows go through the same two calls that gate-check's main() composes, not a test-only arrangement."
+        }
+      ]
+    },
+    "65792460-c7df-4a0e-ad4b-224ea3acd82b/test-harness": {
+      "context": "ci-doc-gates",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T01:14:18.554Z",
+      "worker": "564b958d-0b39-44ba-b144-5f6b04ee9445",
+      "techniques": [
+        {
+          "technique": "gate-scope-is-not-report-scope",
+          "verdict": "deviation",
+          "evidence": "scripts/docs/__tests__/check-doc-sync.test.mjs:248 Uniformity is claimed over a closed set using a hand-listed sample at lines 253-256. diagramCatalog.ts exists on disk and is absent; the app/diagrams/** glob happens to cover it today, but the test could not notice if it did not."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "scripts/docs/check-doc-sync.mjs:157 The file is headed 'Fixtures for the doc-sync Stop hook' but imports only evaluate, compileGlob, isTurnBoundary and collectEditedFilesFromTranscript. main()'s loop guard and its exit-2 and exit-3 CANNOT CHECK branches are executed by no test (grep over scripts/**/*.test.* finds only imports and path lists). The contrast is api-reference.test.mjs:157-160, which does declare the column it cannot judge and names the lane that does."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/__tests__/keyless-e2e-pin.test.mjs:31 Line endings are normalised with the reason stated at lines 29-30, and the reason for reading source as text sits in the asserting file at lines 17-19; the list is checked in both directions."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/__tests__/keyless-e2e-pin.test.mjs:58 An explicit floor so an empty parse is a failure rather than a trivially equal comparison; toolchain-pin.test.mjs:46 and api-reference.test.mjs:167 do the same."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/__tests__/check-adrs.test.mjs:103 Fixtures built to be broken go red for each rule, and the same validate() then runs over the real ADR tree at lines 250-259."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/__tests__/check-guidance.test.mjs:481 The real-tree case calls the same functions as the CLI entry at check-guidance.mjs:692-704; it omits only the remedies argument, which its own real-tree case at line 411 covers."
+        }
+      ]
+    },
+    "c780fee6-52c0-484e-b383-875b9aa63a1e/test-harness": {
+      "context": "schedule-calendar-invites",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T01:14:18.554Z",
+      "worker": "564b958d-0b39-44ba-b144-5f6b04ee9445",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/schedule/schedulePollBackoff.test.ts:3 The lift creates the gap the technique names: behaviour is asserted, adoption is not. A grep of the directory's tests finds no pin of pollDelayMs or pollIsStale at useScheduleTab.ts:467/487, of seedGrid at :199, or of bucketInvites at ScheduleInviteLifecyclePanel.tsx:60 (scheduleAgenda.test.ts calls bucketInvites purely and pins the panel only by the bare word /agenda/)."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.test.ts:14 Pure logic uses the cheapest fixture tier, an in-memory builder typed against the real row shape, with no store."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.test.ts:67 Runs the pre-fix predicate on the same fixture and shows the input discriminates old from new. Weak form: the old rule is a test-local copy, not a mutation of the production path."
+        }
+      ]
+    },
+    "01cf5f88-41a1-47e6-9310-186589ebf384/test-harness": {
+      "context": "cv-analyze-intake",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T01:14:18.554Z",
+      "worker": "564b958d-0b39-44ba-b144-5f6b04ee9445",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/analyze/AnalyzeApi.test.ts:182 Line 256 scripts only an unparsable result, so what is proved is the rejecting arm. This is the one file that calls watchAnalysis, so the claimed coverage is the file's own comment."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/analyze/analyzeGithubRunPolicy.test.ts:85 Labelled non-vacuity, but naiveCancelStatus at line 66 is a test-local constant, so this cannot fail; the control sits in the test rather than the production path. The real assertion at lines 79-83 does have teeth, and the comment at lines 64-65 records the pre-fix result."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/analyzeRunDelivery.test.ts:24 Delivery and cancellation are asserted through an injected timer surface and never against elapsed time; AnalyzeApi.test.ts:185 injects sleep the same way."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/analyzeFileIntakeGate.test.ts:42 The needle requires a call parenthesis, comments are stripped first by code() at lines 28-30, and line 43 asserts the exact caller list, so an empty match cannot pass."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/analyzeCvIntake.test.ts:6 The intake runs real File objects through the real content-hash dedupe rather than a fake, and the cheaper poll variant at AnalyzeApi.test.ts:185 is named `instant`."
+        }
+      ]
+    },
+    "a42d66c2-a793-423e-a711-b23f8570ff63/test-harness": {
+      "context": "eval-harness",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T01:34:46.556Z",
+      "worker": "0fad8f00-b9b3-4ed0-a553-d2539f4331a2",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/interview_eval.py:1391 Rows carry source=golden (line 582) but the gate never asserts the producer. A selection with any uncovered scenario still fails closed, so the hole is limited to fully covered selections such as a single --scenario."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/seed_cv_fixtures.py:274 The seeder writes raw rows through a DDL copy (line 74) that bypasses the product's write path. core.ts has since added workspace_id, engine, cv_hash and more, which this insert omits, and no invariant check follows it."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/fault_eval.py:621 An empty selection cannot pass (agg total must exceed 0), and matching_eval and intake_eval exit 2 on an empty corpus or selection."
+        },
+        {
+          "technique": "approval-snapshots-with-guarded-update",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/thresholds.py:672 The runtime record flag refuses in CI, all four --record evals call the refusal, and test_thresholds.py:351 proves it fires."
+        },
+        {
+          "technique": "gate-scope-is-not-report-scope",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/interview_eval.py:997 The verdict's denominator is the selected scenarios, not the covered subset."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/fault_eval.py:11 The fault drill imports the tasks and checks from automation_eval rather than restating them."
+        }
+      ]
+    },
+    "df735e8e-4e1d-4661-8bdb-35ca96cb7c42/test-harness": {
+      "context": "app-master-bench-scenarios",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T01:34:46.556Z",
+      "worker": "0fad8f00-b9b3-4ed0-a553-d2539f4331a2",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "scripts/app-master-bench/soak/night.test.mjs:259 SOAK_KP_URL and SOAK_TENURE occur only in comment lines 14 and 16 of soak-night.sh, and the .cmd side is checked only for mentioning night.mjs, so the 'same runner-missing contract' named by the test is not asserted."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:410 night.test.mjs:8 lists 'a timeout is not a crash, an unreadable record is not a crash' as pinned, but those branches are in main(); tests only feed these class names into resolveVerdict, so reverting this line stays green."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "deviation",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:382 The kp-boot-failed path uses kill(), which lines 514-518 say reaches only the cmd.exe wrapper under shell:true, so next dev can survive holding the lock; only section 6 uses taskkill, and a later night reuses any server that answers health."
+        },
+        {
+          "technique": "long-lane-certification",
+          "verdict": "deviation",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:180 'passed' means ran:true (disclosed only in the docstring at line 136), so a night whose expectations failed counts as passed in the rendered rate; the report has no never-green category and no planted-red observation."
+        },
+        {
+          "technique": "proved-off-the-path",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:315 The tested pure functions are the ones finish() actually calls on the production path."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/soak/night.test.mjs:128 The regression test records its control against the unfixed split, with the measured miscount of three nights."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/soak/night.test.mjs:63 The doc-derived population has a floor, so a parse that finds nothing fails instead of comparing empty sets."
+        }
+      ]
+    },
+    "9e9394dd-7db6-4f2a-b864-614fb416d9e9/test-harness": {
+      "context": "tests-companion-voice",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T01:34:46.556Z",
+      "worker": "0fad8f00-b9b3-4ed0-a553-d2539f4331a2",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_calibration_drift.py:61 The two constants are covered by codegen, but no shared vectors cross-check bins, clamping or coercion, and calibration.test.ts has no Python reference. Similarly test_companion_cli.py:4 claims the user episode reaches disk before the model is called, while tests only check that it exists after a provider failure that _complete catches, so swapping the order stays green."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_embedding_bridge.py:310 A within-budget cutoff claim is judged by total wall time at 4x the budget, so up to three retries of the stalling call still pass and a loaded runner can flake it."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_appmaster_fixtures.py:21 The perturbation used and the observed failure are recorded in the test module."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_appmaster_fixtures.py:18 The check reuses the generator's own path instead of restating how fixtures are built."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_companion_brain.py:27 Each test gets a private brain and absent index paths, closing a recorded leak into the developer's real store."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_appmaster_fixtures.py:84 The parameterised loop has a floor, so an empty case table cannot pass vacuously."
+        }
+      ]
+    },
+    "bfeaddc0-56a8-4128-9a38-f1a7f89428e7/test-harness": {
+      "context": "pipeline-move-bulk-operations",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T01:49:37.792Z",
+      "worker": "e5c0382d-25c2-4270-bd36-79c1a67e3f32",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/usePipelineBulk.test.ts:38 The technique admits a text pin only where the site cannot be executed; this one can be. Line 55 likewise pins a type declaration under a test named for behaviour."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/pipelineSelectionScope.test.ts:19 The test's own comment records the mutation that proved it."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/pipelineStageFilter.test.ts:37 The fixture is chosen so the wrong authority cannot answer, and the test asserts that."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/pipelineBoardStorage.test.ts:20 The cheapest fixture that can witness the claim, built fresh per test with no shared state."
+        },
+        {
+          "technique": "proved-off-the-path",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/usePipelineBulk.test.ts:87 Pins adoption by the real hook with a call-shaped needle and a floor."
+        }
+      ]
+    },
+    "afa8737b-82be-4548-b99a-5c9624e84ee0/test-harness": {
+      "context": "agent-hire-app-master",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T01:49:37.792Z",
+      "worker": "e5c0382d-25c2-4270-bd36-79c1a67e3f32",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "app/_lib/agent-hire/transform-run.test.ts:160 Two producers can yield this outcome and the assertion names neither; for example buildLlmConfigEnv() is evaluated before runJobfitCli is entered."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "app/_lib/agent-hire/agent-hire.test.ts:204 Records the pre-fix behaviour, and the test restores the secret to show the same calls dial through."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "conformant",
+          "evidence": "app/_lib/agent-hire/transform-run.test.ts:89 Normalises line endings, states why, and uses call-shaped needles."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "app/_lib/agent-hire/transform-run.test.ts:49 Gives the process a private temp root after a measured race on the shared one."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "app/_lib/agent-hire/bridge-store.test.ts:42 Reads through the shipped openStore path against a real SQLite file."
+        },
+        {
+          "technique": "proved-off-the-path",
+          "verdict": "conformant",
+          "evidence": "app/_lib/agent-hire/transform-run.ts:142 The unit the suite drives is the one the production runner calls."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "app/_lib/app-master/backbone.test.ts:6 Fixtures are generated from the authority; pipeline/jobfit/tests/test_appmaster_fixtures.py re-scores them. Recomputing all three during this review matched the committed files."
+        }
+      ]
+    },
+    "cc5e60e6-18d9-4c04-8aaa-7b7629216be6/test-harness": {
+      "context": "tests-interview-jobs",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T01:49:37.792Z",
+      "worker": "e5c0382d-25c2-4270-bd36-79c1a67e3f32",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_interview_eval.py:538 The needle carries no token prose cannot spell; line 535 has the same weakness. Low severity: no current false result was found, and interview_eval.py has no subprocess mention today."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_interview_eval.py:427 Names the crossing and the lane that covers it, alongside a poisoned-subprocess witness of non-reach."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_intake_eval.py:239 Mutates the check set in memory and requires a strict run to go red and name what moved."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_intake_eval.py:21 The bank declares a floor before the eval result is trusted."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_intake.py:621 The smoke test runs the shipped CLI entry point across a real process boundary."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_interview_optimize.py:156 The time cap is tested by injecting elapsed time, not by waiting."
+        },
+        {
+          "technique": "proved-off-the-path",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_intake_eval.py:241 Asserts through the eval's real main rather than a composition built in the test."
+        }
+      ]
+    },
+    "88981f4e-1bb3-4e78-a04c-dda7f5b53ff0/test-harness": {
+      "context": "app-master-bench",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T02:07:42.270Z",
+      "worker": "f53c6907-1658-49a0-96d0-8d076ef2c310",
+      "techniques": [
+        {
+          "technique": "far-side-oracle",
+          "verdict": "deviation",
+          "evidence": "scripts/app-master-bench/expectations.mjs:512 The oracle speaks product vocabulary and nothing inspects the repository, although rootPath scenarios name a local checkout where the check would be cheap."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/gate.mjs:239 The answer names its producer: a coalesced scan is refused rather than graded as a fresh reading."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/stub.mjs:31 The cheaper double says what it omits, is stamped in the record, and is refused by the gate at gate.mjs:222."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/personas-contract.test.mjs:94 A yes-to-everything server must produce named findings, so the conformance probe has been shown to fail."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/gate.mjs:428 Zero run records exits 1 and is explicitly not a pass."
+        },
+        {
+          "technique": "gate-scope-is-not-report-scope",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/gate.mjs:333 The gate covers baselined scenarios while the report still names those outside it."
+        },
+        {
+          "technique": "live-app-harness",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/run.mjs:11 Drives a running kp and Personas through their real routes, starting from a preflight."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/run.mjs:988 The driver asserts the world it needs before any phase runs. --all is serial (run.mjs:6), but the singleton reason is not stated there."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/run.mjs:344 settleDispatch takes injected now and wait, so settle logic is proved by poll sequence rather than wall time."
+        },
+        {
+          "technique": "configuration-axes-cross-the-ladder",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/run.mjs:898 The run record carries which configuration cell produced it, and the gate reads that value."
+        },
+        {
+          "technique": "proved-off-the-path",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/run.mjs:1137 The exported pure decision tested in run.test.mjs is the one the real driver calls."
+        },
+        {
+          "technique": "long-lane-certification",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/gate.mjs:43 Declared criteria and freshness rules exist, but only 1 of 7 baselined scenarios has committed numbers; the other 6 are reported as unmetered."
+        }
+      ]
+    },
+    "7b5da07d-0f32-47ad-be88-61179442c8b4/test-harness": {
+      "context": "release-pipeline",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T02:07:42.270Z",
+      "worker": "f53c6907-1658-49a0-96d0-8d076ef2c310",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "scripts/deploy/check-chart.mjs:281 Presence of a name stands in for 'the Deployment applies it'; the predicate does not read the construct it claims to verify."
+        },
+        {
+          "technique": "assert-through-the-reader",
+          "verdict": "deviation",
+          "evidence": "scripts/deploy/check-chart.mjs:35 The chart is input for Helm and no CI step renders it, though release.yml:285 already runs helm package. sbom.test.mjs:123 is the same shape: the CycloneDX claim is checked only through the project's own fields."
+        },
+        {
+          "technique": "suite-partitioning",
+          "verdict": "deviation",
+          "evidence": "package.json:75 Membership is a hand-written file list rather than location, so a fifth fixture in __tests__ would silently never run."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "scripts/deploy/__tests__/check-chart.test.mjs:174 A clean baseline plus one seeded regression per policy, so each policy is seen to fire."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "scripts/deploy/__tests__/check-chart.test.mjs:128 The patch helper keeps fixtures in the state the real loader would see."
+        },
+        {
+          "technique": "proved-off-the-path",
+          "verdict": "conformant",
+          "evidence": "scripts/deploy/__tests__/check-chart.test.mjs:452 The final case runs the real loader and policies over the shipped chart."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "scripts/release/__tests__/sbom.test.mjs:227 A floor on the real lockfile stops an empty SBOM from reading as an answer."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "scripts/release/__tests__/commit-msg.test.mjs:34 Fixtures are in-memory and drawn from the real commit population rather than tidy demo strings."
+        }
+      ]
+    },
+    "b6bca1b3-f9ac-4a72-b5f3-b23620767ea0/test-harness": {
+      "context": "db-jobs-devcase-interviews",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T02:07:42.270Z",
+      "worker": "f53c6907-1658-49a0-96d0-8d076ef2c310",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/intakes-tenancy.test.ts:21 The predicate is satisfied by the column name anywhere in the statement; jds-tenancy.test.ts:33 and interviews-tenancy.test.ts:36 share it."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/devcase-publish-dedup.test.ts:34 Each file runs the full init with no template to copy, and tests in a file share one mutable store kept apart by hand-made unique ids. Build cost was not measured."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/jd-build-cas.test.ts:9 Per-process throwaway store, away from the developer's database."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/devcase-publish-dedup.test.ts:1 Store calls go through the real native driver and the shipped init."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/devcase-publish-dedup.test.ts:48 Names the pre-fix behaviour the assertions would fail against. It records the reasoning; no recorded run of the control was seen."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/intake-dialog-cas.test.ts:50 Forces the write into a later millisecond and asserts the ordering outcome, with no elapsed-time bound."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/jd-build-cas.test.ts:53 The result says which branch ran, so the surviving body cannot be mistaken for a no-op path."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/jds-tenancy.test.ts:27 The source walk declares a floor on what it must select."
+        }
+      ]
+    },
+    "2425bd9e-0405-4136-a914-7cd4d57bee3c/test-harness": {
+      "context": "db-org-users-channels",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T02:07:42.270Z",
+      "worker": "f53c6907-1658-49a0-96d0-8d076ef2c310",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/campaign-tenancy.test.ts:25 The needle is the column name over the whole statement, not a predicate binding the tenant."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/org-benchmarks-cap.test.ts:30 Seeds bypass the write door for a handful of rows although createPipelineEntry accepts workspaceId (pipeline.ts:1611), and nothing asserts the seeded rows meet that door's invariants."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/org-benchmarks-cap.test.ts:10 Per-process throwaway store."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/companion-tenancy.test.ts:42 A per-table floor guards against a guard that silently stops seeing a table."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/consent-read-gate.test.ts:31 Expiry is proved from an injected instant rather than by waiting."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/org-benchmarks-cap.test.ts:45 The payload carries a discriminator, so a capped slice cannot pass as the whole org."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/campaign-tenancy.test.ts:23 The source walk declares a floor."
+        }
+      ]
+    },
+    "6f32f7eb-be6a-48aa-a546-d7f77ddf7546/quality-gates": {
+      "context": "i18n-locale-resolution",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T02:25:23.463Z",
+      "worker": "2775a08d-036f-4d17-9d58-43d637981d38",
+      "techniques": [
+        {
+          "technique": "prose-rule-drift",
+          "verdict": "deviation",
+          "evidence": "i18n/server.ts:5 The audit question 'if someone did this right now, what fails, and where?' answers nothing. locales.test.ts pins the precedence inside getServerLocale, which is a different claim from there being only one path. No present violation was found."
+        }
+      ]
+    },
+    "e7da66f4-7fae-4984-a81a-c031ee891301/test-harness": {
+      "context": "saved-analysis-report",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T02:39:02.754Z",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/ResultPanel.contract.test.ts:17 The only test found reading this page belongs to the ResultPanel context, where that pin should be judged. No e2e spec under e2e/ matched a /history/ route."
+        }
+      ],
+      "withdrawn": {
+        "worker": "57038e4d-cf81-4557-a178-a677ad0f05d8",
+        "state": "not-applicable",
+        "at": "2026-11-09T02:39:29.335587+00:00",
+        "reason": "reviewer (sonnet): The not-applicable is contradicted: app/_components/results/ResultPanel.contract.test.ts reads app/history/[slug]/page.tsx source at line 17 as a pin, and HistoryTypes.test.ts also references the history path. The anchor, a context-map.json description line, only shows the manifest and not that no p"
+      }
+    },
+    "e09b50cc-6de9-4f28-a548-d93ca898a7f0/test-harness": {
+      "context": "shell-simulation-engine",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T02:39:02.754Z",
+      "worker": "57038e4d-cf81-4557-a178-a677ad0f05d8",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/simulation/simWalkSteps.test.ts:47 The haystack holds prose as well as code. The walk also has no floor: line 46 skips any target the regex does not match, so a change of quoting style would skip every chapter and pass."
+        },
+        {
+          "technique": "proved-off-the-path",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/simulation/constants.test.ts:95 The test composes its own merge. Production at screen-wave.ts:148 and :159 validates through validateScreeningOverride and then merges, and neither step runs here. Today's behaviour agrees (validateFamilyFloors keeps an empty map), but reversing the shipped merge would not turn this red."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/simulation/constants.test.ts:88 The comment claims the real merge; line 95 is a restatement of it. The resolver is real, the merge is not."
+        },
+        {
+          "technique": "platform-quirk-absorption",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/simulation/constants.test.ts:33 Re-solves '@/' and extensionless resolution in one test file, although the launcher already loads scripts/test-alias-loader.mjs for every run. simDrafts.test.ts in the same folder imports '@/i18n/locales' with no hook."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/simulation/simRunControl.test.ts:54 The ordering claim is proved from a recorded sequence, with no clock involved."
+        }
+      ]
+    },
+    "c8b4831a-b4ff-4d94-9fb0-5c588c4c9c24/quality-gates": {
+      "context": "pipeline-entry-types",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T02:53:59.764Z",
+      "worker": "2dae1eec-0436-4578-ae8c-de8189d34696",
+      "techniques": [
+        {
+          "technique": "severity-by-construction",
+          "verdict": "deviation",
+          "evidence": "app/features/shared/profileTypes.ts:134 Called a gate, but its exit code reaches no merge decision: a search of .github found zero schemas:check references, and pipeline/jobfit/tests/test_codegen_contract_constants.py:12-13 says CI never runs it."
+        },
+        {
+          "technique": "vacuous-by-evaluation",
+          "verdict": "deviation",
+          "evidence": "package.json:25 The generator rewrites taxonomy.generated.ts before next build reads it, so no drift input can make the build fail as the comment claims."
+        },
+        {
+          "technique": "prose-rule-drift",
+          "verdict": "conformant",
+          "evidence": "app/features/shared/decisionsTypes.ts:12 The Decisions Entry is a Pick<> of the board Entry, so the single-source rule for that shape is mechanised by tsc rather than left as prose."
+        }
+      ]
+    },
+    "d2c749a4-1821-4c77-af16-2254725a3b3f/quality-gates": {
+      "context": "jobs-ai-coach-fit",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:08:33.539Z",
+      "worker": "8bdbea36-2fb4-4d5f-a892-e32a831af13d",
+      "techniques": [
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jobs/jobsCoachPoolCap.test.ts:25 A raw, unscoped whole-file match over ROUTE: the needle is satisfied by an unrelated branch, so a green does not mean the response that matters carries the flag."
+        },
+        {
+          "technique": "instrument-answers-only-its-own-question",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jobs/jobsCoachPoolCap.test.ts:16 The guard says it pins source text because nothing can execute the pair, stating the question it answers."
+        },
+        {
+          "technique": "decidable-in-a-window",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jobs/jobsCoachPoolCap.test.ts:24 The destructure is decidable from the named file alone. The looseness of line 25 is a needle problem, recorded above, not a decidability one."
+        }
+      ]
+    },
+    "70882e8e-b0ba-4ae9-88a5-ac07259aecc0/quality-gates": {
+      "context": "matrix-focus",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:20:41.005Z",
+      "worker": "557d1613-af8c-43d4-8053-d190aa61f5f2",
+      "techniques": [
+        {
+          "technique": "gate-liveness",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/matrix/focus/matchWeightsPanel.test.ts:14 Stated proof-of-red is false by construction: line 20 imports only matchTypes, and a repo search found no other test or spec naming MatchWeightsPanel. The panel's own comment says the sync is no longer an effect at all, so the claim is also stale."
+        },
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/focus/matchResultsWriteback.test.ts:13 The test imports and runs the function, so no text-matching guard exists in the listed files.",
+          "carriedFrom": "2026-11-09"
+        }
+      ],
+      "registryProposal": "gate-liveness could name a written non-vacuity claim that nothing executes: a test header asserting which mutation turns it red reads as seeded-failure evidence and is never checked."
+    },
+    "9a31cae5-541c-44b7-8ef5-71f5b0ff42b7/quality-gates": {
+      "context": "shell-setup-pipeline",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:20:41.005Z",
+      "worker": "557d1613-af8c-43d4-8053-d190aa61f5f2",
+      "techniques": []
+    },
+    "9f3047cf-311d-487b-89d3-7035a61e7433/quality-gates": {
+      "context": "profile-editor",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:20:41.005Z",
+      "worker": "557d1613-af8c-43d4-8053-d190aa61f5f2",
+      "techniques": [
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/profileEditorContracts.test.ts:29 Control limb realised by pins(), normalise limb not, and no note justifies the raw read. Header line 17 claims every assertion is mutation-proved, but lines 83-87, 100 and 108 use no mutated copy. The needles are full statements and useProfileEditorSubmit.ts shows no comment copy today, so low severity."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/profile/profileEditorContracts.test.ts:39 Known-bad input kept in the suite: each pinned pattern must go red against a broken copy of the same source."
+        },
+        {
+          "technique": "decidable-in-a-window",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/profile/profileEditorContracts.test.ts:107 The precedence rule is local, and the return check is confined to the bounded region between the two param reads."
+        },
+        {
+          "technique": "instrument-answers-only-its-own-question",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/profile/ProfileTaxonomy.test.ts:4 States which instrument owns the wiring question and claims only the runtime half for itself."
+        }
+      ],
+      "registryProposal": "match-the-resolved-artifact specifies a positive control only for absence assertions; a mutated-copy control is the presence-side analogue and should be named along with its limit, since it proves a pattern can fail but cannot tell code from a comment."
+    },
+    "df735e8e-4e1d-4661-8bdb-35ca96cb7c42/eval-harness": {
+      "context": "app-master-bench-scenarios",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:31:46.922Z",
+      "worker": "7bf03dce-3555-4070-bbae-3405ee399eb0",
+      "techniques": [
+        {
+          "technique": "metric-role-contract",
+          "verdict": "deviation",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:166 The gate (at least 14 distinct dates, at least 10 ran) lives only in docs/development/app-master-soak.md and is counted by hand; the code emits a table of row counts with no verdict or margin, and the dispatch abort criterion never reaches it."
+        },
+        {
+          "technique": "scenario-design",
+          "verdict": "deviation",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:160 newRecord never writes scenario, content version or the SOAK_BACKLOG used, so every row splices into one stable name; run.mjs snapshots the scenario per run dir, but the matrix does not read it or refuse a version change."
+        },
+        {
+          "technique": "failure-signatures-beside-the-pass-rate",
+          "verdict": "deviation",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:171 Case counts per family sit beside the rate, but only on non-ran nights: the anomaly families on ran nights (night.test.mjs:46) are never counted, and no family has a denominator, so hand-set `machine` reading zero looks measured."
+        },
+        {
+          "technique": "failure-attribution",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:410 Misses are split by observed owner, including the harness's own control flow, with unclassified kept as a finding for the weekly hand pass."
+        },
+        {
+          "technique": "assertion-vs-judgment",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:447 Night health is read through deterministic checks on the record; the property needing judgment (recall-wrong) is left to the documented weekly human read."
+        },
+        {
+          "technique": "eval-economics",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:262 Cadence is monitored rather than assumed, each night is persisted in one append, and the pure half is tested without a model; the $2 cost-delta abort remains prose and is not computed."
+        },
+        {
+          "technique": "reliability-aggregation",
+          "verdict": "not-applicable",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:188 The rate is measured with N beside it, and the soak doc states its gate is not uptime, so no dependability decision is drawn from it that would need the any-of-N and all-of-N pair."
+        },
+        {
+          "technique": "outcome-conditioned-cost",
+          "verdict": "not-applicable",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:441 Cost is recorded for one tenure with no compared arms, so there is no conditioned denominator to choose."
+        },
+        {
+          "technique": "judge-stability",
+          "verdict": "not-applicable",
+          "evidence": "scripts/app-master-bench/soak/night.mjs:427 The soak's verdict is a boolean read from the driver record; this runner calls no model judge."
+        }
+      ],
+      "registryProposal": "The standard assumes a scenario replayed against fixed input, and does not say how scenario identity and version apply to a longevity soak whose input (the repo and backlog) is meant to move between nights."
+    },
+    "3becf910-9c37-4542-a1b9-a176f76c72d1/eval-harness": {
+      "context": "group-eval-shared",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:31:46.922Z",
+      "worker": "7bf03dce-3555-4070-bbae-3405ee399eb0",
+      "techniques": [
+        {
+          "technique": "resolution-precondition",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/groupEvalTypes.ts:111 This gates a ranking of applicants on cohort size; it is not a ranking of models or configurations."
+        }
+      ]
+    },
+    "12e121d6-6032-464b-a349-68911bfbdbba/eval-harness": {
+      "context": "analytics-metrics",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:31:46.922Z",
+      "worker": "7bf03dce-3555-4070-bbae-3405ee399eb0",
+      "techniques": []
+    },
+    "cb276b0e-97aa-483b-9f18-5cbd0dbb4140/eval-harness": {
+      "context": "cv-analysis-archetypes",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:45:19.817Z",
+      "worker": "fb21127f-ebce-4ff6-b56b-b2abd6200e52",
+      "techniques": []
+    },
+    "f9913210-f0ec-4a7a-9e3f-e8f565d16650/eval-harness": {
+      "context": "score-metric-display",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T03:45:19.817Z",
+      "worker": "fb21127f-ebce-4ff6-b56b-b2abd6200e52",
+      "techniques": []
+    },
+    "b1c5ba42-9188-4765-a9e0-3ad6eefc951f/eval-harness": {
+      "context": "tests-devcase",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T04:00:09.940Z",
+      "worker": "4dceabc7-97f4-477e-bc5e-8c7c3e4fd990",
+      "techniques": [
+        {
+          "technique": "judge-stability",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_devcase_judge_independence.py:110 claude-haiku-4-5 via anthropic and via openrouter counts as independent. Lines 243-244 also assert independence while the generator is unpinned, which cannot be proven, and own-family bias is not addressed."
+        },
+        {
+          "technique": "assertion-vs-judgment",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_devcase_calibrate.py:181 A requested judge that produced nothing fails the gate instead of passing on the structural checks."
+        },
+        {
+          "technique": "scenario-design",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_devcase_calibrate.py:109 The scenario set (jobs.json) is held frozen. The cached cases are candidate output, so keying them on model and prompt does not break the exclusion rule for scenario caches."
+        },
+        {
+          "technique": "eval-economics",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_devcase_calibrate.py:164 The expensive generation is cached with a tested key scope, and a changed model or prompt version is a miss."
+        }
+      ],
+      "registryProposal": "judge-stability could state that independence compares the resolved model, not the provider route: the same model served through two providers is one judge."
+    },
+    "1ee35ac8-8811-4919-a9e7-f6ef215bfb41/eval-harness": {
+      "context": "e2e-suite",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T04:00:09.940Z",
+      "worker": "4dceabc7-97f4-477e-bc5e-8c7c3e4fd990",
+      "techniques": []
+    },
+    "7e9c708a-57d1-4496-8e24-0172455620bb/eval-harness": {
+      "context": "tests-llm-eval",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T04:13:30.380Z",
+      "worker": "0b44ef47-1d86-43b5-addb-610a211005e6",
+      "techniques": [
+        {
+          "technique": "assertion-vs-judgment",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_llm_bake_quality.py:58 The blended score stands in for a criterion verdict, unmarked. Separately, judge.py:192 filters judgeable rows without r.valid, so contract-invalid outputs still reach the judge instead of being failed by the assertion gate."
+        },
+        {
+          "technique": "judge-stability",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/judging.py:40 The default judge is a moving alias, not a dated identifier, and test_automation_eval.py:94-99 calls it pinned. bench_cli.py:110 defaults the bench judge to the CLI's configured model. grep found no anchor-set or repeatability re-scoring. The committed bake (app/_lib/llm-quality-scores.ts:10) has fable-5 judging claude-sonnet-5 and claude-opus-5, an own-family judge."
+        },
+        {
+          "technique": "outcome-conditioned-cost",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_llm_bake_quality.py:94 Cost per model is taken over each arm's own served rows, valid or not. There is no both-succeeded subset, no subset count, and no unconditioned primary beside it in the baked cell, and that cell prices models on the Quality board."
+        },
+        {
+          "technique": "failure-signatures-beside-the-pass-rate",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_fault_eval.py:93 The per-mode roll-up keeps a deduped list of reasons, with no case count per family and no denominator of runs that could have tripped it."
+        },
+        {
+          "technique": "eval-economics",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/llm/bench/bench_cli.py:184 Spend controls are realized: mock providers, a pre-run estimate, a ceiling refusal and a running stop (test_llm_bench.py:306-473). The failing sub-rule is per-cell durability: records stay in memory and are written once after the whole paid matrix, so a killed run loses its spend."
+        },
+        {
+          "technique": "reliability-aggregation",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/llm/bench/runner.py:397 Each scenario×target cell runs once, with no declared trial count, so no any-of-N or all-of-N pair can be computed for the non-deterministic bench."
+        },
+        {
+          "technique": "metric-role-contract",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_thresholds.py:106 Thresholds are declared once with a reason and direction, and consumers read that table. Only the gate side is realized: the bench scorecard names no single optimized metric and prints a table, not a verdict."
+        },
+        {
+          "technique": "scenario-design",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_automation_eval.py:206 Gated evals record unit identity, so an exam that changed underneath fails even at the same rate. The paid bench is weaker: its ids embed a position (scenarios.py:251) and carry no content version."
+        },
+        {
+          "technique": "comparison-modes",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_llm_bake_quality.py:74 An unmeasured matrix cell stays empty rather than reading as a low score, and the cell aggregation rule is stated in bake_quality.py's docstring."
+        },
+        {
+          "technique": "probe-the-decision-not-the-artifact",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_automation_eval.py:36 Asserts the small enumerable recommendation and route decisions instead of judging the prose."
+        }
+      ]
+    },
+    "80b0c56c-d9e3-4842-bdb4-f46cbaa565ca/eval-harness": {
+      "context": "analytics-api",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T04:13:30.380Z",
+      "worker": "0b44ef47-1d86-43b5-addb-610a211005e6",
+      "techniques": []
+    },
+    "e8793bc2-2220-4c18-9f74-07e55dd3e439/eval-harness": {
+      "context": "candidate-matching-api",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T04:13:30.380Z",
+      "worker": "0b44ef47-1d86-43b5-addb-610a211005e6",
+      "techniques": []
+    },
+    "c29afd56-b78f-4c8c-bfa8-75a8a24a80c2/eval-harness": {
+      "context": "task-automation-engine",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T04:37:08.204Z",
+      "worker": "1e2244e9-b932-4c33-ab98-3757da4a5dbe",
+      "techniques": [
+        {
+          "technique": "scenario-design",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/automation-cache-key.ts:169 Keying on the candidate profile is correct here because this caches production output, not eval scenarios that must stay fixed across candidate versions."
+        },
+        {
+          "technique": "eval-economics",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/task-budget.ts:1 The budget limits how many product tasks a caller may start; it does not govern eval-matrix spend."
+        }
+      ]
+    },
+    "e69ea8c8-1943-4054-97d1-78001e6d4530/eval-harness": {
+      "context": "candidate-matching",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T04:37:08.204Z",
+      "worker": "1e2244e9-b932-4c33-ab98-3757da4a5dbe",
+      "techniques": [
+        {
+          "technique": "scenario-design",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/matching.py:667 The harness that measures this scorer lives in pipeline/jobfit/eval, outside this context, and no scenario set is declared here."
+        },
+        {
+          "technique": "judge-stability",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/calibration_drift.py:8 The closest module is a production score-to-outcome drift alarm with no model call, so no judge exists to pin."
+        }
+      ]
+    },
+    "40e7d65d-bb8a-4321-aa57-b845a86def9a/eval-harness": {
+      "context": "eval-voice",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T04:37:08.204Z",
+      "worker": "1e2244e9-b932-4c33-ab98-3757da4a5dbe",
+      "techniques": [
+        {
+          "technique": "reliability-aggregation",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/voice/v0_smoke.py:83 One trial decides the verdict, and interview_eval's voice sweep also runs each scenario once, so no N, any-of-N or all-of-N can be reported."
+        },
+        {
+          "technique": "scenario-design",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:272 Identity is the name alone, the form the technique says breaks on edit: the Scenario dataclass has no content version. Persona turns are also unpinned, and the fallback at line 220 swaps the spoken input without recording it on the run."
+        },
+        {
+          "technique": "failure-signatures-beside-the-pass-rate",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:182 Failures are free-form strings with no family per failing run and no denominator of runs that could trip each family; a search of interview_eval found no family counter."
+        },
+        {
+          "technique": "comparison-modes",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:146 The absolute-scoring artifact records the audio condition but not the Piper voice, persona model or noise seed, so a change in the instrument cannot be told from a change in the system."
+        },
+        {
+          "technique": "metric-role-contract",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/voice/v0_smoke.py:130 bakeoff.py:14 sets the roles correctly (recall optimized, WER a threshold), but 0.35 is a separate literal here, in bakeoff.py and in interview_eval.py, against the rule that a threshold is declared once in one place."
+        },
+        {
+          "technique": "resolution-precondition",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/voice/bakeoff.py:95 Engines are ranked from one pass over a 3-utterance default set with no check of between-engine spread against within-engine spread, and a recall tie is broken by WER instead of being reported as a tie."
+        },
+        {
+          "technique": "assertion-vs-judgment",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/voice/wer.py:4 Transcript fidelity and domain-term survival are asserted against known spoken text, with no judge involved."
+        },
+        {
+          "technique": "eval-economics",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:53 Paid minutes are always metered and optionally capped, a budget stop is recorded on the run, v0_smoke preflights before spending, and test_voice_harness fakes the session. The cap defaults to unlimited."
+        },
+        {
+          "technique": "judge-stability",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:381 This plane only reads the scorecard; the model judge sits in interview_eval, outside this context."
+        },
+        {
+          "technique": "outcome-conditioned-cost",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:171 Cost is reported per run, but no code compares cost between arms, so there is no delta to condition on outcome."
+        }
+      ]
+    },
+    "afa8737b-82be-4548-b99a-5c9624e84ee0/eval-harness": {
+      "context": "agent-hire-app-master",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T04:46:30.737Z",
+      "worker": "77a0d06e-ebe8-4eb7-b447-604f031a94f5",
+      "techniques": [
+        {
+          "technique": "metric-role-contract",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/app-master/backbone.ts:31 Echoes the idea, but this is an operational performance score over real windows, with no eval run to contract for."
+        },
+        {
+          "technique": "comparison-modes",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/agent-hire/pairing.ts:15 Pairing here is a credential handshake, which is the token that matched this subject; it is not a pairwise arena."
+        },
+        {
+          "technique": "scenario-design",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/app-master/__fixtures__/generate.py:5 Deterministic port-parity fixtures for a pure function, not scenarios run against a non-deterministic system."
+        }
+      ]
+    },
+    "c780fee6-52c0-484e-b383-875b9aa63a1e/eval-harness": {
+      "context": "schedule-calendar-invites",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T04:46:30.737Z",
+      "worker": "77a0d06e-ebe8-4eb7-b447-604f031a94f5",
+      "techniques": [
+        {
+          "technique": "scenario-design",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewPrepHeader.tsx:89 Scenario here is interview-prep copy shown to a recruiter, not a versioned eval fixture."
+        },
+        {
+          "technique": "eval-economics",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/schedulePollBackoff.ts:1 The only cadence control here governs a status poll, not eval spend."
+        }
+      ]
+    },
+    "241e8e29-1125-44c8-9d32-4339d665345c/eval-harness": {
+      "context": "results-core",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T04:46:30.737Z",
+      "worker": "77a0d06e-ebe8-4eb7-b447-604f031a94f5",
+      "techniques": [
+        {
+          "technique": "comparison-modes",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/compare/compareView.ts:9 Compares variants of a candidate's CV in a report, not models or prompts in an eval."
+        },
+        {
+          "technique": "assertion-vs-judgment",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/QualityStrip.tsx:10 Displays per-analysis engine checks to a recruiter; no harness scores a suite here."
+        }
+      ]
+    },
+    "5cc5837d-156b-4d4a-9890-dff00d8107ee/eval-harness": {
+      "context": "shell-tasks",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T04:58:27.470Z",
+      "worker": "b7ad5def-3246-4176-9430-9a01e8478d6d",
+      "techniques": []
+    },
+    "325329da-ef37-41f9-a4d1-ac5897f2ae7c/eval-harness": {
+      "context": "llm-layer",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T04:58:27.470Z",
+      "worker": "b7ad5def-3246-4176-9430-9a01e8478d6d",
+      "techniques": [
+        {
+          "technique": "judge-stability",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/llm/bench/judge.py:171 model=None means no --model flag (claude_cli.py:689), --judge-model defaults to None and the documented value is the alias 'fable'; BenchRecord carries no judge model or packet version, and the baked label is free text (bake_quality.py:13 admits the default label was wrong for the committed bake). Searching pipeline/jobfit/llm for anchor set, judge drift and inter-judge found nothing. The committed bake has judge fable-5 over claude-sonnet-5 and claude-opus-5 despite judge.py:9 claiming a target's family does not grade itself."
+        },
+        {
+          "technique": "resolution-precondition",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/llm/bench/bake_quality.py:85 Each cell bakes a one-decimal median with no within-condition SD or judge self-agreement, so the spread a ranking must clear is never computed by the harness."
+        },
+        {
+          "technique": "reliability-aggregation",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/llm/bench/runner.py:266 Each scenario×target runs exactly once; run_matrix has no trials parameter, so N per scenario is undeclared and any-of-N/all-of-N cannot be computed. limit counts scenarios, not repeats."
+        },
+        {
+          "technique": "metric-role-contract",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/llm/bench/runner.py:391 The scorecard names which axis binds in prose but declares no optimized metric, no thresholds and no advance verdict; the only explicit rule sits downstream in app/_lib/llm-quality.ts, outside this context."
+        },
+        {
+          "technique": "outcome-conditioned-cost",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/llm/bench/runner.py:359 Deterministic-fallback rows stay in len(ok) with no cost, so a target that often fails to serve reads cheaper per task; the bake instead takes the median over its own served rows (bake_quality.py:107). Neither produces a both-succeeded subset with its count beside an unconditioned primary."
+        },
+        {
+          "technique": "selection-over-noise",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/llm/bench/bake_quality.py:14 The bake is a hand-assembled mix of sittings: API-target cells were dropped from n4-api (120 rows to 64 kept) and n4-api2 (56 to 24) and re-run across up to three sittings, while the CLI column has one, and no attempt count travels with a cell (judges/limit report 4). Whether prompts changed between sittings could not be established."
+        },
+        {
+          "technique": "eval-economics",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/llm/bench/bench_cli.py:138 The pre-run estimate and required ceiling are real, but a plan over the ceiling only prints a note and starts anyway, where the standard requires refusing before cell one; records are also held in memory until write_outputs at the end. Stub-provider tests and the serial matrix with a judge worker cap are the conformant part."
+        },
+        {
+          "technique": "assertion-vs-judgment",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/llm/bench/judge.py:192 The filter has no r.valid term, so an output that failed its structural contract still gets a judge call with the violations shown to the judge, instead of assertions gating judgment. Per-criterion JSON verdicts and error as a separate state are realized."
+        },
+        {
+          "technique": "failure-signatures-beside-the-pass-rate",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/llm/bench/runner.py:356 Violations are recorded per row but never counted by family; the summary keeps a rate plus an error count, so two equal rates that failed different checks cannot be told apart from the scorecard."
+        },
+        {
+          "technique": "comparison-modes",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/llm/bench/bake_quality.py:126 Matrix mode is the right shape, but a cell's identity is only (op, model), with no prompt, harness or judge version, and rows from several run directories merge into it."
+        },
+        {
+          "technique": "scenario-design",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/llm/bench/scenarios.py:251 The id is a position plus a seed job id with no content version; Scenario has no version field, so a change to the seed corpus or _SEED_TRANSCRIPT keeps the same id, and the matrix doc itself records that a seed migration made earlier grids non-comparable."
+        },
+        {
+          "technique": "candidate-write-access",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/llm/bench/runner.py:277 Candidates only return text through a production function; the CLI target runs in a neutral temp cwd with no grants, so there is no shell surface over the instrument."
+        },
+        {
+          "technique": "pairing-schedule",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/llm/bench/runner.py:1 Full matrix with absolute scoring; no pairwise arena or schedule."
+        },
+        {
+          "technique": "uncontrolled-games-beside-the-win-rate",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/llm/bench/judge.py:4 Outputs get an absolute score one at a time; there are no swapped games or win rates."
+        },
+        {
+          "technique": "overshoot-and-restore",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/llm/bench/bench_cli.py:74 A model-comparison survey, not an agent reducing something under a gate."
+        }
+      ]
+    },
+    "92d1ca34-143b-4d61-8cd6-b9becd08d145/eval-harness": {
+      "context": "models-keys-and-routing",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T04:58:27.470Z",
+      "worker": "b7ad5def-3246-4176-9430-9a01e8478d6d",
+      "techniques": [
+        {
+          "technique": "resolution-precondition",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/models/ModelsQualityOverview.tsx:59 rankOp and the per-model table order results with no tie state; the noise band is applied only in the Recommended routing section. The method footnote at line 221 renders copy saying small run counts are noisy and directional."
+        },
+        {
+          "technique": "metric-role-contract",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/models/ModelsQualityOverview.tsx:41 A local copy of the bar declared and exported as RELIABILITY_FLOOR in app/_lib/llm-quality.ts, where the standard requires one declaration every consumer reads. The cheapest-within-band pick shown here is otherwise a real optimized-metric-plus-thresholds rule."
+        },
+        {
+          "technique": "comparison-modes",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/models/ModelsQualityOverview.tsx:135 Judged only for this surface's duty: partial coverage is printed per model, and unmeasured cells and use cases are rendered as such rather than as a complete matrix."
+        }
+      ]
+    },
+    "e6b85437-3bfd-4a78-828e-ce67fb2e6114/eval-harness": {
+      "context": "profile-roster-matrix",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T05:05:18.782Z",
+      "worker": "48f24ddf-24b6-4861-a538-77c973015121",
+      "techniques": [
+        {
+          "technique": "comparison-modes",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/candidateMatrixView.ts:6 'Matrix' here is a people-by-archetype layout, not a model × variant × scenario run; this word is what produced the map's match."
+        },
+        {
+          "technique": "assertion-vs-judgment",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/candidateMatrixView.ts:38 An unscored person gets its own band; this is display of missing data, not a pass/fail/error verdict on an eval run."
+        }
+      ]
+    },
+    "e09b50cc-6de9-4f28-a548-d93ca898a7f0/eval-harness": {
+      "context": "shell-simulation-engine",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T05:05:18.782Z",
+      "worker": "48f24ddf-24b6-4861-a538-77c973015121",
+      "techniques": [
+        {
+          "technique": "judge-stability",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/simulation/simMove.ts:11 'Judged' here is a deterministic board-effect check on a UI walk, not a model scoring another model."
+        },
+        {
+          "technique": "comparison-modes",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/simulation/useSimulationEngine.ts:307 Starts the product's group_eval task to compare job candidates in the demo; it does not compare models or variants."
+        }
+      ]
+    },
+    "6e4380dc-8992-4f22-8017-d42ce053a5ca/eval-harness": {
+      "context": "jobs-candidates-compare",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T05:05:18.782Z",
+      "worker": "48f24ddf-24b6-4861-a538-77c973015121",
+      "techniques": [
+        {
+          "technique": "judge-stability",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsCompareCohorts.ts:8 Surfaces rubric-version drift in interview ratings of people; this resembles an instrument change but is no judge packet over model outputs."
+        },
+        {
+          "technique": "comparison-modes",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsCompareCohorts.ts:1 A recruiter's grid of candidates, not an eval comparison geometry."
+        },
+        {
+          "technique": "resolution-precondition",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsFairnessMatrix.ts:11 Cross-scheme robustness of candidate scores; the technique governs published orders over models, prompts or configurations."
+        }
+      ]
+    },
+    "110a08ce-19c1-41ae-9566-bc45b3f90d47/agent-memory": {
+      "context": "llm-api",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T05:16:40.577Z",
+      "worker": "979ae6cf-ad70-4a2a-b0b1-1f40ff24d40c",
+      "techniques": []
+    },
+    "1427e2ae-3cf6-48f4-a866-6c5a0dc67559/eval-harness": {
+      "context": "hiring-decisions-api",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T05:22:31.867Z",
+      "worker": "6b1df22c-a0ee-4325-b403-78cb9bcd1af1",
+      "techniques": [
+        {
+          "technique": "assertion-vs-judgment",
+          "verdict": "not-applicable",
+          "evidence": "app/api/decisions/peer-context/route.ts:13 No model output is scored in this route; it reads saved analyses."
+        },
+        {
+          "technique": "comparison-modes",
+          "verdict": "not-applicable",
+          "evidence": "app/api/decisions/peer-context/route.ts:16 The comparison is between human candidates and ranking is not served here; no model or prompt comparison exists."
+        }
+      ]
+    },
+    "2b8247b0-eb5c-4139-ba1e-9c4c185cd4dc/eval-harness": {
+      "context": "schedule-interview-prep",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T05:22:31.867Z",
+      "worker": "6b1df22c-a0ee-4325-b403-78cb9bcd1af1",
+      "techniques": [
+        {
+          "technique": "judge-stability",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewAiScorecardSection.tsx:44 The scorer and its version live upstream in automation.py; this file only reads the stored object."
+        },
+        {
+          "technique": "assertion-vs-judgment",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewAiScorecardSection.tsx:86 Evidence links let a human check a quote against the transcript; nothing here scores a model's output."
+        }
+      ]
+    },
+    "01cf5f88-41a1-47e6-9310-186589ebf384/eval-harness": {
+      "context": "cv-analyze-intake",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T05:22:31.867Z",
+      "worker": "6b1df22c-a0ee-4325-b403-78cb9bcd1af1",
+      "techniques": [
+        {
+          "technique": "comparison-modes",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/analyzeCvIntake.ts:10 A 'variant' here is an uploaded CV file, not a model or prompt configuration under comparison."
+        },
+        {
+          "technique": "failure-attribution",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/analyzeRunDelivery.ts:14 Failures here are request errors mapped to UI messages, not red eval cases to attribute."
+        }
+      ]
+    },
+    "98501252-cbce-4e0c-a2f0-712967e6604d/agent-memory": {
+      "context": "pipeline-candidate-drawer",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T05:34:37.149Z",
+      "worker": "b246c836-46dd-46c4-853d-ecdfa4cc69a4",
+      "techniques": []
+    },
+    "bb3b0815-c5cd-423f-b87b-8c3c78aaf77d/agent-memory": {
+      "context": "candidate-apply-flow",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T05:34:37.149Z",
+      "worker": "b246c836-46dd-46c4-853d-ecdfa4cc69a4",
+      "techniques": []
     }
   }
 }

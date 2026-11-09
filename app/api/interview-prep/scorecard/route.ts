@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPipelineEntry, recordAutomationEvent, setApproval } from "@/app/_lib/db/pipeline";
 import { ensureHumanOnlyPrep, fileHumanScorecard, getInterviewPrep } from "@/app/_lib/interview-prep";
-import { humanScorecardViews, ownScorecard, readHumanScorecards, type HumanScorecardKey } from "@/app/_lib/human-scorecard-set";
+import { isFiledScorecard, projectHumanScorecards, readHumanScorecards, type HumanScorecardKey } from "@/app/_lib/human-scorecard-set";
 import { getUserById } from "@/app/_lib/db/users";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { coerceInterviewRecommendation, isInterviewRecommendation } from "@/app/_lib/interview-recommendation";
@@ -125,18 +125,18 @@ export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
     const key = await scorecardKey(pipelineEntry?.stage ?? null);
     // `devCase` is the same predicate the POST resolves its rubric with, so the panel
     // offers the optional AI-tools axis exactly when the write will expect it.
-    const mine = ownScorecard(records, key.author, key.stage);
-    // Independent scoring (human-scorecard-set.ts): a colleague's verdict is not shown
-    // until the caller has filed their own for this round, unless they can manage the team
-    // (admin/owner, and open mode, which has one identity). The door has no narrower
-    // reviewing role; `team:manage` is the closest the capability map offers. Until then
-    // only a COUNT crosses the wire, so the panel's "N others scored" stays truthful and
-    // nobody learns who filed. What is shown goes through humanScorecardViews: no user id.
-    const reveal = mine !== null || (await can("team:manage"));
+    // The rule itself lives in projectHumanScorecards (human-scorecard-set.ts), the one seam
+    // every reader of the panel passes through: a colleague's verdict is not shown until the
+    // caller has FILED their own for this round (a card with at least one rating), unless they
+    // can manage the team (admin/owner, and open mode, which has one identity; `team:manage` is
+    // the closest the capability map offers). Until then only a COUNT crosses the wire, so the
+    // panel's "N others scored" stays truthful and nobody learns who filed. What is shown is a
+    // view: no user id.
+    const { mine, records: shown, othersCount } = projectHumanScorecards(records, key, await can("team:manage"));
     return NextResponse.json({
       mine,
-      records: reveal ? humanScorecardViews(records) : [],
-      othersCount: Math.max(0, records.length - (mine ? 1 : 0)),
+      records: shown,
+      othersCount,
       devCase: pipelineEntry ? hasDevCase(pipelineEntry) : false,
     });
   } catch (error) {
@@ -260,6 +260,12 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
       scorecard.recommendation = coerceInterviewRecommendation(body.recommendation);
     }
 
+    // "Filed" means at least one rating: the same predicate the reveal (GET) and the gate
+    // below ask. A card with none would otherwise open the colleagues' records for nothing.
+    if (!isFiledScorecard(scorecard)) {
+      return jsonRefusal("INTERVIEW_SCORECARD_RATINGS_REQUIRED", 400);
+    }
+
     const key = await scorecardKey(pipelineEntry?.stage ?? null);
     const saved = fileHumanScorecard(entry, scorecard, key);
     if (saved === "missing") {
@@ -270,12 +276,17 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
     }
 
     // Decision SoR (moonshot D backfill): seal the human scorecard verdict —
-    // a human actor's recorded judgment. Best-effort; never blocks the save.
+    // a human actor's recorded judgment. NOT best-effort: no 200 without the record, and
+    // the gate below (which routes the entry to the Decisions queue) opens only after it.
+    // The scorecard is filed first (its refusals — no prep, list full — must not seal),
+    // so a failed seal answers the coded 503 with the scorecard already filed; the retry
+    // is idempotent — fileHumanScorecard upserts under the same (author, stage) key, so
+    // it replaces that record rather than adding a second — and then seals.
     const rec = scorecard.recommendation ?? "(none)";
     // The seal names the PERSON (`human:<who>`), as the event beside it does; the bare
     // role is only what an identity-less open-mode session resolves to.
     const actor = await humanActor();
-    sealDecisionSafe({
+    const sealedScorecard = sealDecisionSafe({
       kind: "human_scorecard",
       actor,
       policyVersion: "human",
@@ -286,6 +297,10 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
       // (null in open mode, which has no identity).
       inputs: { recommendation: rec, ratings: ratings.length, author: key.author, stage: key.stage },
     });
+    if (!sealedScorecard) {
+      console.warn(`[interview-prep:scorecard] scorecard seal failed for ${entry} — answering 503, gate not opened`);
+      return jsonRefusal("PIPELINE_DECISION_NOT_SEALED", 503);
+    }
 
     // DEC1 — close the loop PREP1 left open: this route saved the human verdict
     // and returned, so a human-conducted interview never reached the Decisions
@@ -304,7 +319,7 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
     let gated = false;
     // A recommendation with NO rating behind it does not open the gate: a verdict on
     // nothing is not a scorecard the Decisions queue should be asked to act on.
-    if (scorecard.recommendation && ratings.length > 0) {
+    if (scorecard.recommendation && isFiledScorecard(scorecard)) {
       if (
         pipelineEntry &&
         pipelineEntry.status === "active" &&
