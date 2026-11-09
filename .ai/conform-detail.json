@@ -28964,6 +28964,225 @@
           "evidence": "pipeline/jobfit/tests/test_intake_eval.py:241 Asserts through the eval's real main rather than a composition built in the test."
         }
       ]
+    },
+    "88981f4e-1bb3-4e78-a04c-dda7f5b53ff0/test-harness": {
+      "context": "app-master-bench",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T02:07:42.270Z",
+      "worker": "f53c6907-1658-49a0-96d0-8d076ef2c310",
+      "techniques": [
+        {
+          "technique": "far-side-oracle",
+          "verdict": "deviation",
+          "evidence": "scripts/app-master-bench/expectations.mjs:512 The oracle speaks product vocabulary and nothing inspects the repository, although rootPath scenarios name a local checkout where the check would be cheap."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/gate.mjs:239 The answer names its producer: a coalesced scan is refused rather than graded as a fresh reading."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/stub.mjs:31 The cheaper double says what it omits, is stamped in the record, and is refused by the gate at gate.mjs:222."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/personas-contract.test.mjs:94 A yes-to-everything server must produce named findings, so the conformance probe has been shown to fail."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/gate.mjs:428 Zero run records exits 1 and is explicitly not a pass."
+        },
+        {
+          "technique": "gate-scope-is-not-report-scope",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/gate.mjs:333 The gate covers baselined scenarios while the report still names those outside it."
+        },
+        {
+          "technique": "live-app-harness",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/run.mjs:11 Drives a running kp and Personas through their real routes, starting from a preflight."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/run.mjs:988 The driver asserts the world it needs before any phase runs. --all is serial (run.mjs:6), but the singleton reason is not stated there."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/run.mjs:344 settleDispatch takes injected now and wait, so settle logic is proved by poll sequence rather than wall time."
+        },
+        {
+          "technique": "configuration-axes-cross-the-ladder",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/run.mjs:898 The run record carries which configuration cell produced it, and the gate reads that value."
+        },
+        {
+          "technique": "proved-off-the-path",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/run.mjs:1137 The exported pure decision tested in run.test.mjs is the one the real driver calls."
+        },
+        {
+          "technique": "long-lane-certification",
+          "verdict": "conformant",
+          "evidence": "scripts/app-master-bench/gate.mjs:43 Declared criteria and freshness rules exist, but only 1 of 7 baselined scenarios has committed numbers; the other 6 are reported as unmetered."
+        }
+      ]
+    },
+    "7b5da07d-0f32-47ad-be88-61179442c8b4/test-harness": {
+      "context": "release-pipeline",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T02:07:42.270Z",
+      "worker": "f53c6907-1658-49a0-96d0-8d076ef2c310",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "scripts/deploy/check-chart.mjs:281 Presence of a name stands in for 'the Deployment applies it'; the predicate does not read the construct it claims to verify."
+        },
+        {
+          "technique": "assert-through-the-reader",
+          "verdict": "deviation",
+          "evidence": "scripts/deploy/check-chart.mjs:35 The chart is input for Helm and no CI step renders it, though release.yml:285 already runs helm package. sbom.test.mjs:123 is the same shape: the CycloneDX claim is checked only through the project's own fields."
+        },
+        {
+          "technique": "suite-partitioning",
+          "verdict": "deviation",
+          "evidence": "package.json:75 Membership is a hand-written file list rather than location, so a fifth fixture in __tests__ would silently never run."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "scripts/deploy/__tests__/check-chart.test.mjs:174 A clean baseline plus one seeded regression per policy, so each policy is seen to fire."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "scripts/deploy/__tests__/check-chart.test.mjs:128 The patch helper keeps fixtures in the state the real loader would see."
+        },
+        {
+          "technique": "proved-off-the-path",
+          "verdict": "conformant",
+          "evidence": "scripts/deploy/__tests__/check-chart.test.mjs:452 The final case runs the real loader and policies over the shipped chart."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "scripts/release/__tests__/sbom.test.mjs:227 A floor on the real lockfile stops an empty SBOM from reading as an answer."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "scripts/release/__tests__/commit-msg.test.mjs:34 Fixtures are in-memory and drawn from the real commit population rather than tidy demo strings."
+        }
+      ]
+    },
+    "b6bca1b3-f9ac-4a72-b5f3-b23620767ea0/test-harness": {
+      "context": "db-jobs-devcase-interviews",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T02:07:42.270Z",
+      "worker": "f53c6907-1658-49a0-96d0-8d076ef2c310",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/intakes-tenancy.test.ts:21 The predicate is satisfied by the column name anywhere in the statement; jds-tenancy.test.ts:33 and interviews-tenancy.test.ts:36 share it."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/devcase-publish-dedup.test.ts:34 Each file runs the full init with no template to copy, and tests in a file share one mutable store kept apart by hand-made unique ids. Build cost was not measured."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/jd-build-cas.test.ts:9 Per-process throwaway store, away from the developer's database."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/devcase-publish-dedup.test.ts:1 Store calls go through the real native driver and the shipped init."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/devcase-publish-dedup.test.ts:48 Names the pre-fix behaviour the assertions would fail against. It records the reasoning; no recorded run of the control was seen."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/intake-dialog-cas.test.ts:50 Forces the write into a later millisecond and asserts the ordering outcome, with no elapsed-time bound."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/jd-build-cas.test.ts:53 The result says which branch ran, so the surviving body cannot be mistaken for a no-op path."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/jds-tenancy.test.ts:27 The source walk declares a floor on what it must select."
+        }
+      ]
+    },
+    "2425bd9e-0405-4136-a914-7cd4d57bee3c/test-harness": {
+      "context": "db-org-users-channels",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T02:07:42.270Z",
+      "worker": "f53c6907-1658-49a0-96d0-8d076ef2c310",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/campaign-tenancy.test.ts:25 The needle is the column name over the whole statement, not a predicate binding the tenant."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/org-benchmarks-cap.test.ts:30 Seeds bypass the write door for a handful of rows although createPipelineEntry accepts workspaceId (pipeline.ts:1611), and nothing asserts the seeded rows meet that door's invariants."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/org-benchmarks-cap.test.ts:10 Per-process throwaway store."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/companion-tenancy.test.ts:42 A per-table floor guards against a guard that silently stops seeing a table."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/consent-read-gate.test.ts:31 Expiry is proved from an injected instant rather than by waiting."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/org-benchmarks-cap.test.ts:45 The payload carries a discriminator, so a capped slice cannot pass as the whole org."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/campaign-tenancy.test.ts:23 The source walk declares a floor."
+        }
+      ]
     }
   }
 }

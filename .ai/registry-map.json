@@ -4702,7 +4702,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/app-master-bench/expectations.mjs:512 Merged-proposal counts are regex-parsed from the product's own delivery reason string, and a search of the non-test bench sources for git, gh, ls-remote, rev-parse and api.github found no read of the target repository, so the bench cannot see a merge that was reported but never landed.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "agent-runtime-assembly",
@@ -11297,7 +11301,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/intakes-tenancy.test.ts:21 Any statement that merely mentions workspace_id passes, so a select returning that column with no tenant predicate is reported as scoped, the same defect devcase-tenancy.test.ts:18 records and repaired for its own table only.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "voice-io",
@@ -11544,7 +11552,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/campaign-tenancy.test.ts:25 Mentioning the column anywhere satisfies the guard, so an unfiltered campaign_packs read that selects workspace_id passes, while siblings channels-tenancy.test.ts:91 and companion-tenancy.test.ts:36 already require a real scoping clause.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "companion-runtime",
@@ -28794,7 +28806,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/deploy/check-chart.mjs:281 The policy accepts any occurrence of the substring in unrendered template text, so a securityContext wrapped in a Helm condition that never renders passes while the deployed pod has no hardening.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "deployment-contract",
