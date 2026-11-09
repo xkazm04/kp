@@ -7274,8 +7274,12 @@
           "revision": 52,
           "changedAt": "2026-10-25",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "app/_lib/apply-session-store.ts:8 The session persistence in this context is a funnel denominator plus a browser-held form draft for a scripted knockout chat, not anything an agent recalls; a search of its listed files for recall, episod, consolidat, belief and distill returned nothing, and no module here feeds stored material back into a model.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:2b62b4004acc600d",
+          "evaluatedRevision": 53
         },
         {
           "subject": "mcp-tools",
@@ -26859,8 +26863,12 @@
           "revision": 52,
           "changedAt": "2026-10-25",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "app/features/hiring/pipeline/pipelineDrawerNote.ts:4 The nearest thing to memory in this context is a recruiter-typed note saved by debounce and flush, written by a person rather than an agent; a search of the context's listed files for memory, recall, episod, consolidat, belief and working_memory returned nothing, and a recursive search of app/features/hiring/pipeline found zero hits for episodic, belief, consolidat, working_memory and distill.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:2b62b4004acc600d",
+          "evaluatedRevision": 53
         },
         {
           "subject": "mcp-tools",
@@ -33709,12 +33717,11 @@
           "changedAt": "2026-10-25",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "app/_lib/tasks.ts:44 This context is a background task queue backed by SQLite (dedupe, budget, reaping, poll state). A case-insensitive search of its files for recall/episod/consolidat/belief/working_memory found no memory logic; the only hits for 'memory' are 'in-memory slot' and 'in-memory queue'. The one memory-adjacent task kind, companion_digest (tasks.ts:402), is passed through unchanged to companion-digest-run.ts, which is outside this context.",
-          "evaluatedAt": "2026-10-24",
-          "evaluatedAgainst": "sha256-b2:4f054116d66a9495",
-          "evaluatedRevision": 51,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_lib/tasks.ts:403 This context is a SQLite-backed task queue and automation policy pass; a case-insensitive search of all its listed files for recall, episod, consolidat, belief and distill returned nothing, 'memory' appears only as 'in-memory' slot/queue/scoring, and its one memory-adjacent kind (companion_digest) is handed unchanged to companion-digest-run.ts outside the context, so no agent memory pipeline exists here to judge.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:2b62b4004acc600d",
+          "evaluatedRevision": 53,
+          "revisionsBehind": 1
         },
         {
           "subject": "prompt-assembly",

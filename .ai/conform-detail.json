@@ -1701,19 +1701,21 @@
       "subject": "agent-memory",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T02:58:14.879Z",
-      "worker": "bf1d1018-9a32-4702-a36b-79f96d75b51b",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T05:34:37.149Z",
+      "worker": "b246c836-46dd-46c4-853d-ecdfa4cc69a4",
       "techniques": [
         {
           "technique": "working-memory",
           "verdict": "not-applicable",
-          "evidence": "app/_lib/tasks.ts:47 The durable state here is a job row for progress and reconnect. It is not an agent's synthesized operative state."
+          "evidence": "app/_lib/tasks.ts:47 The durable state here is a job row for progress and reconnect. It is not an agent's synthesized operative state.",
+          "carriedFrom": "2026-10-24"
         },
         {
           "technique": "consolidation",
           "verdict": "not-applicable",
-          "evidence": "app/_lib/tasks.ts:402 The engine only dispatches the companion digest. Any distilling or writing into the companion's store happens in companion-digest-run.ts and companion-run.ts, which are outside this context."
+          "evidence": "app/_lib/tasks.ts:402 The engine only dispatches the companion digest. Any distilling or writing into the companion's store happens in companion-digest-run.ts and companion-run.ts, which are outside this context.",
+          "carriedFrom": "2026-10-24"
         },
         {
           "technique": "decay-and-forgetting",
@@ -1735,6 +1737,13 @@
           "evaluatedAt": "2026-10-13T00:06:40.160Z",
           "worker": "08401036-214f-421d-91d4-621f9d917a26",
           "reason": "replaced by bf1d1018-9a32-4702-a36b-79f96d75b51b"
+        },
+        {
+          "state": "not-applicable",
+          "evidence": "app/_lib/tasks.ts:44 This context is a background task queue backed by SQLite (dedupe, budget, reaping, poll state). A case-insensitive search of its files for recall/episod/consolidat/belief/working_memory found no memory logic; the only hits for 'memory' are 'in-memory slot' and 'in-memory queue'. The one memory-adjacent task kind, companion_digest (tasks.ts:402), is passed through unchanged to companion-digest-run.ts, which is outside this context.",
+          "evaluatedAt": "2026-10-24T02:58:14.879Z",
+          "worker": "bf1d1018-9a32-4702-a36b-79f96d75b51b",
+          "reason": "replaced by b246c836-46dd-46c4-853d-ecdfa4cc69a4"
         }
       ]
     },
@@ -30065,6 +30074,26 @@
           "evidence": "app/features/tools/analyze/analyzeRunDelivery.ts:14 Failures here are request errors mapped to UI messages, not red eval cases to attribute."
         }
       ]
+    },
+    "98501252-cbce-4e0c-a2f0-712967e6604d/agent-memory": {
+      "context": "pipeline-candidate-drawer",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T05:34:37.149Z",
+      "worker": "b246c836-46dd-46c4-853d-ecdfa4cc69a4",
+      "techniques": []
+    },
+    "bb3b0815-c5cd-423f-b87b-8c3c78aaf77d/agent-memory": {
+      "context": "candidate-apply-flow",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T05:34:37.149Z",
+      "worker": "b246c836-46dd-46c4-853d-ecdfa4cc69a4",
+      "techniques": []
     }
   }
 }
