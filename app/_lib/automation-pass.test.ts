@@ -214,16 +214,24 @@ test("case 2 (executed): an unticked advance is skipped as notApproved and the e
   assert.equal(s.advanced, 0);
 });
 
-test("case 1 (executed): a ticked advance lands", () => {
+test("case 1 (executed, Q2): a ticked advance is QUEUED for a person, the entry does not move", () => {
   const id = seedIn("ws-sel-a");
   const s = emptySummary();
   const [d] = applyPassDecisions([advanceOf(id)], snapsOf(id), s, {
     approved: [{ entryId: id, action: "advance", toStage: "Interview" }],
     workspace: "ws-sel-a",
   });
-  assert.equal(d.outcome, "applied");
-  assert.notEqual(stageOf(id), "Screened");
-  assert.equal(s.advanced, 1);
+  assert.equal(d.outcome, "queued");
+  assert.equal(d.reasonCode, "queuedForApproval");
+  assert.equal(stageOf(id), "Screened", "the pass moves nothing");
+  assert.equal(s.advanced, 0);
+  assert.equal(s.held, 1);
+  const row = ensureDb().prepare(`SELECT approval_kind, approval_detail FROM pipeline_entries WHERE id = ?`).get(id) as { approval_kind: string; approval_detail: string };
+  assert.equal(row.approval_kind, "screening_review");
+  const detail = JSON.parse(row.approval_detail);
+  assert.equal(detail.recommendation, "advance");
+  assert.equal(detail.rationale, "score 88 clears the advance bar", "the policy's own reason, not the queued wrapper");
+  assert.deepEqual(detail.policyAdvance, { toStage: "Interview" });
 });
 
 test("case 3 (executed): a drifted row is not applied and carries changedSincePreview", () => {
@@ -260,18 +268,38 @@ test("case 4 + TENANCY: team A's selection neither applies nor holds back team B
   assert.deepEqual(out.map((d) => d.entryId), [mine], "the foreign row never appears in the response");
   assert.equal(stageOf(theirs), "Screened", "not applied by this caller");
 
-  // …and not HELD BACK either: team B's own (unselected) commit still advances it.
+  // …and not HELD BACK either: team B's own (unselected) commit still queues it.
   const later = applyPassDecisions([advanceOf(theirs)], snapsOf(theirs), emptySummary());
-  assert.equal(later[0].outcome, "applied");
-  assert.notEqual(stageOf(theirs), "Screened");
+  assert.equal(later[0].outcome, "queued");
+  assert.equal(
+    (ensureDb().prepare(`SELECT approval_kind FROM pipeline_entries WHERE id = ?`).get(theirs) as { approval_kind: string }).approval_kind,
+    "screening_review"
+  );
 });
 
-test("case 5 guard: without a selection the commit applies exactly what the pass decided", () => {
+test("case 5 guard (Q2): without a selection the commit queues the advance and moves no entry", () => {
   const id = seedIn("ws-sel-c");
   const s = emptySummary();
   const [d] = applyPassDecisions([advanceOf(id)], snapsOf(id), s);
-  assert.equal(d.outcome, "applied");
-  assert.equal(s.advanced, 1);
+  assert.equal(d.outcome, "queued");
+  assert.equal(stageOf(id), "Screened");
+  assert.equal(s.advanced, 0);
+});
+
+test("Q2: an advance whose entry moved during the hop is a staleSkip, no approval is filed", () => {
+  const id = seedIn("ws-sel-c");
+  const snaps = snapsOf(id);
+  ensureDb().prepare(`UPDATE pipeline_entries SET stage = 'Interview' WHERE id = ?`).run(id);
+  const [d] = applyPassDecisions([advanceOf(id)], snaps, emptySummary());
+  assert.equal(d.reasonCode, "staleSkip");
+  assert.equal((ensureDb().prepare(`SELECT approval_kind FROM pipeline_entries WHERE id = ?`).get(id) as { approval_kind: string | null }).approval_kind, null);
+});
+
+test("Q2: a queued advance keeps the stint's aging alert (nothing moved)", () => {
+  const id = seedIn("ws-sel-a", "Offer");
+  ensureDb().prepare(`UPDATE pipeline_entries SET stage_changed_at = ? WHERE id = ?`).run(daysAgo(8), id);
+  applyPassDecisions([advanceOf(id, ["aging_alert"])], snapsOf(id), emptySummary());
+  assert.equal(rows(id, "aging_alert"), 1);
 });
 
 test("case 7: an unticked advance still writes its alert (alerts stay autonomous)", () => {

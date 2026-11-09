@@ -14,6 +14,7 @@ import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { prepForViewer, resolveScorecardViewer } from "./viewer.ts";
 import { MAX_ENTRY_ID_LEN, parseEntriesParam } from "@/app/_lib/entries-param";
 import { assignImportedBlock, mergeImportedQuestions, normalizeIncoming, readImportedEntries, MAX_BLOCK_REF_LEN, MAX_IMPORT_QUESTION_LEN } from "./importMerge.ts";
 
@@ -61,8 +62,12 @@ export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
       // their open link pinned, else the role's latest published one), so the modal can
       // show which questions come from the kit and let the recruiter overlay them. Same
       // tenant as the pack; null when the role has no kit.
+      // The human scorecard panel inside the payload goes through the independent-scoring
+      // projection (human-scorecard-set.ts): colleagues' records and the `humanScorecard`
+      // headline mirror stay out until the caller has filed for this round, and never carry
+      // an author user id.
       return NextResponse.json({
-        prep: getInterviewPrep(entry, ws),
+        prep: prepForViewer(getInterviewPrep(entry, ws), entry, ws, await resolveScorecardViewer()),
         jdEditedAt: prepJdEditedAt(entry, ws),
         kit: prepKitForEntry(entry, ws),
       });
@@ -237,7 +242,9 @@ export const PATCH = withWorkspace(async (ws: string, request: NextRequest) => {
       return NextResponse.json({
         ok: true,
         applied: true,
-        ...(body.plan === "accept" ? { prep: { payload: outcome.payload, createdAt: outcome.createdAt } } : {}),
+        ...(body.plan === "accept"
+          ? { prep: prepForViewer({ payload: outcome.payload, createdAt: outcome.createdAt }, entry, ws, await resolveScorecardViewer()) }
+          : {}),
       });
     }
 

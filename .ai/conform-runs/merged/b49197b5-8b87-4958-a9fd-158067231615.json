@@ -1,0 +1,17 @@
+{
+ "schema": "conform-run/1",
+ "worker": "b49197b5-8b87-4958-a9fd-158067231615",
+ "subject": "status-vocabulary",
+ "evaluatedAt": "2026-10-31T22:12:34.361069+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [],
+ "declined": [
+  {
+   "subject": "status-vocabulary",
+   "context": "invite-accept-flow",
+   "reason": "pair anchor refused: app/invite/[token]/AcceptForm.tsx:209 does not contain the quoted text"
+  }
+ ],
+ "consults": []
+}

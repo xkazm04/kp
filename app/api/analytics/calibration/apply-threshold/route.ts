@@ -93,6 +93,37 @@ export const POST = withWorkspace(async (ws: string, request: Request) => {
       return jsonRefusal("CALIBRATION_RECOMMENDATION_CHANGED", 409, { recommendation: rec });
     }
 
+    // Seal a tamper-evident record of the policy change BEFORE the write (council
+    // robustness-1): a change to the live auto-reject floor with no record is not
+    // applied. Everything the record says is already known here, and sealing first is
+    // what keeps the 503 honest: nothing moved, so the same click can retry. Sealed
+    // after, the retry would find the floor already moved and the recommendation gone,
+    // leaving the change unsealed for good. No candidate subject: the ref names the
+    // policy (and, when scoped, the family) so the sealed-records panel shows it as a
+    // policy decision, and the rationale + inputs carry the auditable basis + family.
+    // Name the natural person behind THIS request when the session carries identity
+    // (the sibling screen-wave route already does): a change to the live auto-reject
+    // floor must not be sealed to a role or an env constant.
+    const approvedBy = await resolveApprover();
+    const actor = await humanActor();
+    const scopeLabel = roleFamily ? ` for role family "${roleFamily}"` : "";
+    const sealed = sealDecisionSafe(
+      {
+        kind: "screening_threshold_adjusted",
+        actor,
+        policyVersion: `calibration-reco/maxMatch${roleFamily ? `:${roleFamily}` : ""}:${currentThreshold}->${rec.suggestedThreshold}`,
+        candidateRef: roleFamily ? `policy:screening:${ws}:${roleFamily}` : `policy:screening:${ws}`,
+        rationale: `Screening auto-reject floor${scopeLabel} ${rec.direction === "lower" ? "lowered" : "raised"} ${currentThreshold} → ${rec.suggestedThreshold} on calibration evidence: candidates scoring ${rec.band.lo}–${rec.band.hi} advanced past screening ${rec.advanceRatePct}% of the time (n=${rec.n}, overall n=${rec.totalOutcomes}). Approved by ${approvedBy}.`,
+        reasonCode: "calibrationThreshold",
+        inputs: { ...rec, previousThreshold: currentThreshold, approvedBy, roleFamily },
+      },
+      // Explicit workspace: candidateRef is a policy string, not a pipeline entry, so
+      // the store can't derive the team from it — pass the authenticated workspace so
+      // this policy seal lands on THIS team's chain, not the default (Direction 1e).
+      ws
+    );
+    if (!sealed) return jsonRefusal("PIPELINE_DECISION_NOT_SEALED", 503);
+
     // Write through a TRANSACTIONAL read-modify-write (team override), leaving every
     // other screening field untouched. A family-scoped apply sets ONLY that family's
     // entry in familyFloors (merged over any existing map); a global apply moves the
@@ -119,32 +150,6 @@ export const POST = withWorkspace(async (ws: string, request: Request) => {
       "team"
     );
     invalidateCalibrationWorkspace(ws);
-
-    // Seal a tamper-evident record of the policy change (best-effort — a seal
-    // failure must never fail the write). No candidate subject: the ref names the
-    // policy (and, when scoped, the family) so the sealed-records panel shows it as a
-    // policy decision, and the rationale + inputs carry the auditable basis + family.
-    // Name the natural person behind THIS request when the session carries identity
-    // (the sibling screen-wave route already does): a change to the live auto-reject
-    // floor must not be sealed to a role or an env constant.
-    const approvedBy = await resolveApprover();
-    const actor = await humanActor();
-    const scopeLabel = roleFamily ? ` for role family "${roleFamily}"` : "";
-    sealDecisionSafe(
-      {
-        kind: "screening_threshold_adjusted",
-        actor,
-        policyVersion: `calibration-reco/maxMatch${roleFamily ? `:${roleFamily}` : ""}:${currentThreshold}->${rec.suggestedThreshold}`,
-        candidateRef: roleFamily ? `policy:screening:${ws}:${roleFamily}` : `policy:screening:${ws}`,
-        rationale: `Screening auto-reject floor${scopeLabel} ${rec.direction === "lower" ? "lowered" : "raised"} ${currentThreshold} → ${rec.suggestedThreshold} on calibration evidence: candidates scoring ${rec.band.lo}–${rec.band.hi} advanced past screening ${rec.advanceRatePct}% of the time (n=${rec.n}, overall n=${rec.totalOutcomes}). Approved by ${approvedBy}.`,
-        reasonCode: "calibrationThreshold",
-        inputs: { ...rec, previousThreshold: currentThreshold, approvedBy, roleFamily },
-      },
-      // Explicit workspace: candidateRef is a policy string, not a pipeline entry, so
-      // the store can't derive the team from it — pass the authenticated workspace so
-      // this policy seal lands on THIS team's chain, not the default (Direction 1e).
-      ws
-    );
 
     return NextResponse.json({ ok: true, previousThreshold: currentThreshold, newThreshold: rec.suggestedThreshold, roleFamily });
   } catch (error) {

@@ -6,6 +6,8 @@ import { Defer } from "@/app/_components/ui/Defer";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
 import { planHasRound, planRounds, type InterviewPlanRule } from "@/app/_lib/decision-config-schema";
 import { RefreshCw } from "lucide-react";
+import { useVoiceEnabled } from "@/app/_lib/voice/use-voice-enabled";
+import { voiceSurfaceVisible } from "@/app/_lib/voice/enabled";
 import { BTN_SECONDARY, CHIP, EYEBROW, TITLE_DISPLAY, INTRO } from "@/app/_components/ui/recipes";
 import { ScheduleEmptyRelay } from "./ScheduleEmptyRelay";
 import { useScheduleTab } from "./useScheduleTab";
@@ -97,8 +99,12 @@ export function ScheduleTab() {
       alive = false;
     };
   }, []);
-  const hasAiRound = plan ? planHasRound(plan, "ai") : true;
-  const hasHumanRound = plan ? planHasRound(plan, "human") : true;
+  // The AI voice interview ships off (voice/enabled.ts): with it off the plan is read as
+  // human-only, so no AI-round docket, switcher or launcher is offered. Sessions already
+  // recorded stay listed (ScheduleAiRound with voiceEnabled={false}, below).
+  const voiceOn = voiceSurfaceVisible(useVoiceEnabled());
+  const hasAiRound = voiceOn && (plan ? planHasRound(plan, "ai") : true);
+  const hasHumanRound = !voiceOn || (plan ? planHasRound(plan, "human") : true);
   // React's "adjust state when the thing it derives from changes", DURING render —
   // not an effect. This was a `useEffect` on [plan] carrying two eslint suppressions
   // (set-state-in-effect and exhaustive-deps), which is the shape that makes a
@@ -178,7 +184,7 @@ export function ScheduleTab() {
       ) : null}
 
       {(hasAiRound && !hasHumanRound) || (round === "ai" && hasAiRound) ? (
-        <ScheduleAiRound calendarEntries={calendarEntries} interviews={interviews} />
+        <ScheduleAiRound calendarEntries={calendarEntries} interviews={interviews} voiceEnabled />
       ) : (
         <>
       {/* W6-3 — confirmed bookings, stalled invites and confirm/advance drift:
@@ -262,6 +268,9 @@ export function ScheduleTab() {
       </div>
         </>
       )}
+
+      {/* Switched off: the docket is gone, the record of past AI interviews is not. */}
+      {!voiceOn ? <ScheduleAiRound calendarEntries={calendarEntries} interviews={interviews} voiceEnabled={false} /> : null}
 
       {prepEntry ? (
         <InterviewPrepModal

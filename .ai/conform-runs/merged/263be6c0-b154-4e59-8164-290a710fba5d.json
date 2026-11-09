@@ -1,0 +1,172 @@
+{
+ "schema": "conform-run/1",
+ "worker": "263be6c0-b154-4e59-8164-290a710fba5d",
+ "subject": "agent-instruction-files",
+ "evaluatedAt": "2026-11-04T03:10:04.238528+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "ci-doc-gates",
+   "subject": "agent-instruction-files",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "scripts/docs/check-guidance.mjs:478 The topology gate checks that each projection names the canonical file, but it also requires every projection to restate the verify commands by hand. It never checks the standard's 'no bridge carries body text' rule or a floor byte cap, so AGENTS.md can stay a projection that holds the whole gate table and other body content.",
+   "techniques": [
+    {
+     "technique": "single-source-topology",
+     "verdict": "deviation",
+     "evidence": "scripts/docs/check-guidance.mjs:478 Of the standard's three-part topology audit (bridge resolves, no bridge body, byte cap under the smallest host cap), only the first is checked (line 441, projection-not-pointing). This rule makes bridges carry restated content, and the vendor-neutral AGENTS.md is a projection of a harness-specific canonical file."
+    },
+    {
+     "technique": "instruction-freshness",
+     "verdict": "conformant",
+     "evidence": "scripts/docs/check-guidance.mjs:458 An 'npm run x' named in any guidance file must exist in package.json, so 'paths and commands resolve' is a gate rather than a reading. keyless-e2e-pin.test.mjs also pins the guidance prose list to KEYLESS_SPECS in both directions."
+    },
+    {
+     "technique": "capability-coverage-contract",
+     "verdict": "conformant",
+     "evidence": "scripts/docs/check-guidance.mjs:621 Set equality between the CI and review workflow steps and the declared gates, checked in both directions (gate-unlisted and gate-stale). An unnamed capability is a finding, not silence."
+    },
+    {
+     "technique": "enforcement-demotion",
+     "verdict": "conformant",
+     "evidence": "scripts/docs/check-doc-sync.mjs:180 The doc-sync Stop hook is condition-observed: a program decides when it speaks (edited source with no doc touched) and it stays silent otherwise. It exits 3 with CANNOT CHECK instead of a false green. Minor: its header comment (line 11) omits docs/design/, which DOC_PREFIXES line 44 and the stderr message do include."
+    }
+   ],
+   "registryProposal": "single-source-topology does not cover a gate that deliberately requires a short, drift-checked restatement (the verify commands) in every projection, a hand-copy regime inside the link regime. A ruling on whether a named, checked minimal restatement in bridges is sanctioned would make this verdict mechanical."
+  },
+  {
+   "context": "review-gates",
+   "subject": "agent-instruction-files",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "scripts/review/agent-review.mjs:204 The local judgement lens starts `claude -p` in the caller's cwd (the repo root) with no neutral cwd and no `--setting-sources`. The reviewer therefore inherits kp's whole builder floor, rules and project hooks on top of the curated rubric, so the CLI path reviews with a different, uncontrolled brief than the CI Messages-API path. That contradicts the header's claim (line 22) that a maintainer gets the same review with no key.",
+   "techniques": [
+    {
+     "technique": "workspace-ancestry-isolation",
+     "verdict": "deviation",
+     "evidence": "scripts/review/agent-review.mjs:204 An evaluator agent launched inside the tree whose instructions were written for a different role, with no assertion of the loaded set. The repo's own pipeline/jobfit/claude_cli.py already uses a neutral temp cwd for this exact reason."
+    },
+    {
+     "technique": "single-source-topology",
+     "verdict": "deviation",
+     "evidence": "scripts/review/rubric.mjs:93 Lines 95-100 hand-restate .claude/CLAUDE.md's 'Recurring patterns' paragraph (and add two items that paragraph does not hold), while line 6 claims there is 'no second copy of the rules'. Only the three section() extractions are single-sourced."
+    },
+    {
+     "technique": "instruction-freshness",
+     "verdict": "conformant",
+     "evidence": "scripts/review/__tests__/agent-review.test.mjs:153 Renaming a canonical heading fails a test instead of silently stripping the constitution from the reviewer prompt."
+    },
+    {
+     "technique": "enforcement-demotion",
+     "verdict": "conformant",
+     "evidence": "scripts/review/constitution-check.mjs:12 The checkable rules (skips, baselines, route posture, tenancy manifest) are demoted to a deterministic program. The model-backed lens is kept separate and labelled as judgement, and it reports 'did not run' honestly."
+    },
+    {
+     "technique": "restraint-amplifier-balance",
+     "verdict": "conformant",
+     "evidence": "scripts/review/agent-review.mjs:79 The restraints (do not repeat the gates, block only with a cited rule) ship with five named duties plus an explicit licence to raise uncertain findings as 'note'."
+    }
+   ]
+  },
+  {
+   "context": "db-tasks-agents-misc",
+   "subject": "agent-instruction-files",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/db/agents.ts:8 This context is a SQLite repository layer: tasks, hired-agent rows dispatched to an external app, salary benchmarks, repo-scan rows and skill profiles. It neither authors, loads, generates nor reconciles any agent instruction file. A search of app/_lib/db for the harness file names and isolation flags found none; the only 'CLAUDE.md' hits are code comments citing the canonical rule (e.g. tasks.ts:356), which is a cite, not instruction-file handling.",
+   "techniques": [],
+   "absenceTerms": [
+    "AGENTS.md",
+    "GEMINI.md",
+    ".cursorrules",
+    "copilot-instructions",
+    "setting-sources"
+   ]
+  },
+  {
+   "context": "jobs-ai-coach-fit",
+   "subject": "agent-instruction-files",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/library/jobs/jobsAgentFitLogic.ts:3 This context is recruiter-facing UI and pure reducers for the Coach panel and the Agent Fit spec tab. It reads and dispatches specs over a bridge and contains no instruction file, prompt or harness-loading code. A search of app/features/library/jobs for CLAUDE.md, AGENTS.md, GEMINI.md, .cursorrules, setting-sources, and even 'prompt' or 'instruction', returned nothing.",
+   "techniques": [],
+   "absenceTerms": [
+    "CLAUDE.md",
+    "AGENTS.md",
+    "GEMINI.md",
+    ".cursorrules",
+    "setting-sources"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "agent-instruction-files",
+   "context": "github-repo-intelligence",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-04T03:10:04.238528+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-instruction-files"
+   ],
+   "techniques": [
+    "capability-coverage-contract",
+    "enforcement-demotion",
+    "instruction-freshness",
+    "single-source-topology"
+   ],
+   "deviations": 1,
+   "context": "ci-doc-gates",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-04T03:10:04.238528+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-instruction-files"
+   ],
+   "techniques": [
+    "enforcement-demotion",
+    "instruction-freshness",
+    "restraint-amplifier-balance",
+    "single-source-topology",
+    "workspace-ancestry-isolation"
+   ],
+   "deviations": 1,
+   "context": "review-gates",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-04T03:10:04.238528+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-instruction-files"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "db-tasks-agents-misc",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-04T03:10:04.238528+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-instruction-files"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "jobs-ai-coach-fit",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

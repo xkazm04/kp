@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { listOutbox } from "@/app/_lib/db/devcase";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
+import { can } from "@/app/_lib/auth/current-user";
+import { withLinksRedactedUnless } from "@/app/_lib/comms-link-redaction";
 
 
 // The comms outbox — every outbound message (acks, invites), the audit log of what the
@@ -30,7 +32,7 @@ export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
     const rows = listOutbox(limit + 1, ws);
     const truncated = rows.length > limit;
     return NextResponse.json({
-      outbox: truncated ? rows.slice(0, limit) : rows,
+      outbox: withLinksRedactedUnless(await can("pipeline:write"), truncated ? rows.slice(0, limit) : rows),
       truncated,
       limit,
       relayConfigured: Boolean(process.env.COMMS_WEBHOOK_URL),

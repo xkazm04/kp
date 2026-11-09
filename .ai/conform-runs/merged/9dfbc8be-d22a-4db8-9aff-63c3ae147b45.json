@@ -1,0 +1,59 @@
+{
+ "schema": "conform-run/1",
+ "worker": "9dfbc8be-d22a-4db8-9aff-63c3ae147b45",
+ "subject": "metric-surface-contract",
+ "evaluatedAt": "2026-10-28T22:26:53.340904+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "score-metric-display",
+   "subject": "metric-surface-contract",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_components/ScoreBadge.tsx:39 These components only draw an already-computed candidate score in the recruiter's browser and export nothing to a time-series store or other outside consumer, so the subject's precondition (a published metric surface) does not hold here; a search of the 12 source files and of app/_components for prometheus, prom-client, histogram and opentelemetry found nothing, and no metrics exporter exists in package.json or app/.",
+   "techniques": [
+    {
+     "technique": "derive-outside-the-hot-loop",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/ScoreDial.tsx:40 The only timing here drives a requestAnimationFrame count-up animation. It is not instrumentation of a latency-critical serving loop."
+    },
+    {
+     "technique": "export-terms-not-ratios",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/Meter.tsx:25 The percentage is a display value for a human reader, not an exported counter or gauge that downstream consumers fold over windows."
+    },
+    {
+     "technique": "same-process-monotonic-intervals",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/AnalysisProgress.tsx:39 A wall-clock elapsed counter shown to the user. No duration metric is published, so the monotonic-clock rule for exported intervals has nothing to bind."
+    }
+   ],
+   "absenceTerms": [
+    "prometheus",
+    "prom-client",
+    "histogram",
+    "opentelemetry"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-28T22:26:53.340904+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "metric-surface-contract"
+   ],
+   "techniques": [
+    "derive-outside-the-hot-loop",
+    "export-terms-not-ratios",
+    "same-process-monotonic-intervals"
+   ],
+   "deviations": 0,
+   "context": "score-metric-display",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

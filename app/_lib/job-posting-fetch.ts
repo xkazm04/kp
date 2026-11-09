@@ -108,6 +108,54 @@ async function assertPublicHost(url: URL, lookupFn: HostLookup): Promise<void> {
   }
 }
 
+/** 2 MiB: far above any real job ad, low enough that a hostile or runaway host cannot
+ *  make the handler buffer an unbounded body (or hand htmlToText's lazy scans a huge
+ *  string). Counted in bytes while streaming, not after the whole body is buffered. */
+export const POSTING_MAX_BODY_BYTES = 2 * 1024 * 1024;
+
+/** Read the body through a byte-counting reader. Past the ceiling the reader is
+ *  cancelled — which tears the connection down — and the fetch is refused. Decodes with
+ *  the response charset, utf-8 when none is declared or the label is unknown. */
+async function readCappedText(response: Response, contentType: string): Promise<string> {
+  const tooBig = () => new PostingFetchError(`the page is larger than ${POSTING_MAX_BODY_BYTES / (1024 * 1024)} MiB`);
+  const declared = Number(response.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > POSTING_MAX_BODY_BYTES) {
+    await response.body?.cancel().catch(() => {
+      /* best-effort: the refusal below is the answer, the cancel only frees the socket */
+    });
+    throw tooBig();
+  }
+  const label = /charset\s*=\s*["']?([^\s;"']+)/i.exec(contentType)?.[1] ?? "utf-8";
+  let decoder: TextDecoder;
+  try {
+    decoder = new TextDecoder(label);
+  } catch {
+    decoder = new TextDecoder("utf-8"); // an unknown charset label — fall back rather than refuse
+  }
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  let received = 0;
+  let text = "";
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      received += value.byteLength;
+      if (received > POSTING_MAX_BODY_BYTES) {
+        await reader.cancel().catch(() => {
+          /* best-effort: see above */
+        });
+        throw tooBig();
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+  } catch (error) {
+    if (error instanceof PostingFetchError) throw error;
+    throw new PostingFetchError(`the page could not be read: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  return text + decoder.decode();
+}
+
 /** Fetch a posting page and extract {title, text}. Throws PostingFetchError for every
  *  refusable condition (bad scheme, a non-public host at the start or at any redirect
  *  hop, too many redirects, non-OK status, a content type that is not text/html or
@@ -156,7 +204,7 @@ export async function fetchPostingText(
   const isHtml = contentType.includes("text/html") || contentType.includes("application/xhtml");
   const isPlain = contentType.includes("text/plain");
   if (!isHtml && !isPlain) throw new PostingFetchError(`the page is ${contentType || "of an unknown type"}, not readable text`);
-  const body = await response.text();
+  const body = await readCappedText(response, contentType);
   return isHtml
     ? { title: htmlTitle(body), text: htmlToText(body) }
     : { title: null, text: body.replace(/\r\n?/g, "\n").replace(/[^\S\n]+/g, " ").trim() };

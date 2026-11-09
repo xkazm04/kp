@@ -1,0 +1,144 @@
+{
+ "schema": "conform-run/1",
+ "worker": "77a0d06e-ebe8-4eb7-b447-604f031a94f5",
+ "subject": "eval-harness",
+ "evaluatedAt": "2026-11-09T04:46:30.737563+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "agent-hire-app-master",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/app-master/backbone.ts:363 The scorer reads production rollups an agent reported rather than running agents against declared scenarios; searching app/_lib/agent-hire and app/_lib/app-master for judge, scenario, holdout and golden set found nothing, and the context's weighted arithmetic is the scoring-rubrics subject's.",
+   "techniques": [
+    {
+     "technique": "metric-role-contract",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/app-master/backbone.ts:31 Echoes the idea, but this is an operational performance score over real windows, with no eval run to contract for."
+    },
+    {
+     "technique": "comparison-modes",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/agent-hire/pairing.ts:15 Pairing here is a credential handshake, which is the token that matched this subject; it is not a pairwise arena."
+    },
+    {
+     "technique": "scenario-design",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/app-master/__fixtures__/generate.py:5 Deterministic port-parity fixtures for a pure function, not scenarios run against a non-deterministic system."
+    }
+   ],
+   "absenceTerms": [
+    "judge",
+    "scenario",
+    "holdout",
+    "golden set"
+   ]
+  },
+  {
+   "context": "schedule-calendar-invites",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/hiring/schedule/ScheduleAiRound.tsx:6 This is calendar, invite-bucket and polling UI that hands verdicts to another surface; searching app/features/hiring/schedule for holdout, golden set, win rate and trials found nothing, while the one judge hit is a comment about overlay capacity and the scenario hits are an interview-prep field.",
+   "techniques": [
+    {
+     "technique": "scenario-design",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/schedule/ScheduleInterviewPrepHeader.tsx:89 Scenario here is interview-prep copy shown to a recruiter, not a versioned eval fixture."
+    },
+    {
+     "technique": "eval-economics",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/schedule/schedulePollBackoff.ts:1 The only cadence control here governs a status poll, not eval spend."
+    }
+   ],
+   "absenceTerms": [
+    "holdout",
+    "golden set",
+    "trials"
+   ]
+  },
+  {
+   "context": "results-core",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_components/results/VerdictBanner.tsx:13 The report panel renders one CV analysis and only borrows the banner look of eval reports that live in the pipeline; searching app/_components/results for judge, scenario, holdout and trials found nothing, and the one benchmark hit is a salary table.",
+   "techniques": [
+    {
+     "technique": "comparison-modes",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/results/compare/compareView.ts:9 Compares variants of a candidate's CV in a report, not models or prompts in an eval."
+    },
+    {
+     "technique": "assertion-vs-judgment",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/results/QualityStrip.tsx:10 Displays per-analysis engine checks to a recruiter; no harness scores a suite here."
+    }
+   ],
+   "absenceTerms": [
+    "judge",
+    "scenario",
+    "holdout",
+    "trials"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "eval-harness",
+   "context": "devcase-eval",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-09T04:46:30.737563+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [
+    "comparison-modes",
+    "metric-role-contract",
+    "scenario-design"
+   ],
+   "deviations": 0,
+   "context": "agent-hire-app-master",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T04:46:30.737563+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [
+    "eval-economics",
+    "scenario-design"
+   ],
+   "deviations": 0,
+   "context": "schedule-calendar-invites",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T04:46:30.737563+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [
+    "assertion-vs-judgment",
+    "comparison-modes"
+   ],
+   "deviations": 0,
+   "context": "results-core",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

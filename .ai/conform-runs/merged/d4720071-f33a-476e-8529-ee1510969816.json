@@ -1,0 +1,156 @@
+{
+ "schema": "conform-run/1",
+ "worker": "d4720071-f33a-476e-8529-ee1510969816",
+ "subject": "pipeline-stage-modelling",
+ "evaluatedAt": "2026-11-07T04:41:02.361509+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "pipeline-actions-events",
+   "subject": "pipeline-stage-modelling",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/hiring/pipeline/empty/PipelineEmptyState.tsx:92 The empty board's per-column meaning line is looked up by the stage id of the five shipped columns (\"a CV lands here\", \"matched and scored\"\u2026), so any column a team adds or renames gets the generic 'nothing here yet', with no per-role or per-stage sentence behind it.",
+   "techniques": [
+    {
+     "technique": "one-sentence-meaning-per-stage",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/pipeline/empty/PipelineEmptyState.tsx:92 Meaning is keyed by the stage id and falls back to a generic line. There is no role default and no authored per-stage sentence, so custom columns get nothing."
+    },
+    {
+     "technique": "retired-stage-tombstones-and-migration",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/pipelineEventCatalog.ts:87 A board-shape move has its own event kind, separate from 'moved', with its own icon and tone (line 223)."
+    },
+    {
+     "technique": "stage-role-vocabulary-not-stage-names",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/empty/pipelineEmptyMoves.ts:41 The inflow lane is chosen by the entry role, not by index 0 or the name 'Accepted'. Aging in pipelineRenderDiet.ts:47 also resolves through the workspace axis."
+    }
+   ]
+  },
+  {
+   "context": "db-pipeline-store",
+   "subject": "pipeline-stage-modelling",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/db/pipeline.ts:1148 The per-job 'reached interview' rate resolves every row against the live axis only (axis = getPipelineAxis(ws).stages). Closed candidates are excluded from migration by design and keep a removed column's id, so someone interviewed and then rejected on a since-retired Interview column counts as never having advanced, even though the tombstone keeps that column's role.",
+   "techniques": [
+    {
+     "technique": "screening-gate-index",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/pipeline.ts:1148 The gate is role-derived and inclusive (good), but a retired stage is treated as unrecognised instead of being resolved through the tombstone's role. This is the 'tombstone that resolves a label and nothing else' failure."
+    },
+    {
+     "technique": "retired-stage-tombstones-and-migration",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/pipeline.ts:1267 Migration is one IMMEDIATE transaction with one event per candidate, refuses terminal targets before any write, and excludes all four terminal statuses. Calibration also ignores stage_migrated as evidence (line 716)."
+    },
+    {
+     "technique": "entry-and-terminal-role-requirements",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/pipeline.ts:3652 The terminal stage is reachable only with an offer_accepted outcome, resolved by role. Reject on a hired row is refused (line 3627)."
+    },
+    {
+     "technique": "stage-role-vocabulary-not-stage-names",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/pipeline.ts:1149 Hire counts read the terminal role, not the literal 'Hired'."
+    },
+    {
+     "technique": "off-axis-candidate-recovery",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/pipeline.ts:1175 Occupancy is counted over the raw stage column, not joined to live stages, so off-axis occupants are counted rather than dropped."
+    },
+    {
+     "technique": "one-sentence-meaning-per-stage",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/pipeline.ts:1149 The repository layer holds no display copy."
+    }
+   ]
+  },
+  {
+   "context": "screening-fairness",
+   "subject": "pipeline-stage-modelling",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/screen-wave.ts:160 The screening wave, which drives irreversible auto-rejections, picks its cohort by the literal stage name 'Screened' instead of the workspace's entry/screening roles before the gate. On a board that renamed or replaced that column the wave silently acts on nobody, or on the wrong column, and nothing errors.",
+   "techniques": [
+    {
+     "technique": "stage-role-vocabulary-not-stage-names",
+     "verdict": "deviation",
+     "evidence": "app/_lib/screen-wave.ts:160 A string comparison in a rule that drives auto-rejection. The automation-fairness backstop (line 11) also documents Python's stage == \"Screened\" invariant."
+    },
+    {
+     "technique": "screening-gate-index",
+     "verdict": "deviation",
+     "evidence": "app/_lib/screen-wave.ts:160 Same line as above. The set where an automated screen may act should be screeningStageIds(axis) (entry/screening roles intersected with the gate), not a named column."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "pipeline-stage-modelling",
+   "context": "pipeline-api",
+   "reason": "evidence leans on stage-migration/route.ts, which is not a tracked file"
+  },
+  {
+   "subject": "pipeline-stage-modelling",
+   "context": "pipeline-candidate-drawer",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-07T04:41:02.361509+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "pipeline-stage-modelling"
+   ],
+   "techniques": [
+    "one-sentence-meaning-per-stage",
+    "retired-stage-tombstones-and-migration",
+    "stage-role-vocabulary-not-stage-names"
+   ],
+   "deviations": 1,
+   "context": "pipeline-actions-events",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T04:41:02.361509+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "pipeline-stage-modelling"
+   ],
+   "techniques": [
+    "entry-and-terminal-role-requirements",
+    "off-axis-candidate-recovery",
+    "one-sentence-meaning-per-stage",
+    "retired-stage-tombstones-and-migration",
+    "screening-gate-index",
+    "stage-role-vocabulary-not-stage-names"
+   ],
+   "deviations": 1,
+   "context": "db-pipeline-store",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T04:41:02.361509+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "pipeline-stage-modelling"
+   ],
+   "techniques": [
+    "screening-gate-index",
+    "stage-role-vocabulary-not-stage-names"
+   ],
+   "deviations": 1,
+   "context": "screening-fairness",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -175,7 +175,14 @@ test("PATCH {plan:'accept'} swaps the pending plan in, moves created_at, and tou
   assert.equal("pendingPlan" in after.payload, false, "the pending plan is gone once accepted");
   assert.ok(after.createdAt > before.createdAt, "created_at moved, so the stale chip clears truthfully");
   assert.equal(humanKeys(after.payload), humanKeys(before.payload), "every human key is byte-identical");
-  assert.deepEqual(body.prep?.payload, after.payload, "the answer carries the accepted pack for the modal to re-seed");
+  // The answer goes through the independent-scoring projection (the owner may manage the
+  // team, so the panel is shown, but as views with no author id): every OTHER key is the
+  // stored pack's, byte for byte.
+  const { humanScorecard: _h1, humanScorecards: _l1, ...answered } = body.prep?.payload ?? {};
+  const { humanScorecard: _h2, humanScorecards: _l2, ...stored } = after.payload;
+  void [_h1, _l1, _h2, _l2];
+  assert.deepEqual(answered, stored, "the answer carries the accepted pack for the modal to re-seed");
+  assert.equal(JSON.stringify(body.prep?.payload ?? {}).includes('"author"'), false, "no author user id in the answer");
 
   const again = await PATCH(patch(entryId, { plan: "accept" }));
   assert.equal(again.status, 200);

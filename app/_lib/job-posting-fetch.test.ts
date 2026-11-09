@@ -4,7 +4,7 @@
 // unclosed <script> dragging its whole tail in.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { decodeEntities, htmlTitle, htmlToText, fetchPostingText, PostingFetchError } from "./job-posting-fetch.ts";
+import { decodeEntities, htmlTitle, htmlToText, fetchPostingText, PostingFetchError, POSTING_MAX_BODY_BYTES } from "./job-posting-fetch.ts";
 
 const PUBLIC = async () => [{ address: "93.184.216.34" }];
 
@@ -192,4 +192,54 @@ test("a public http fetch through a public redirect is allowed", async () => {
     assert.equal(title, "Senior Java Developer — Example s.r.o.");
     assert.deepEqual(seen, ["http://careers.test/a", "http://careers.test/b"]);
   });
+});
+
+function streamOf(chunks: number, size: number, state: { pulled: number; cancelled: boolean }): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (state.pulled >= chunks) return controller.close();
+      state.pulled++;
+      controller.enqueue(new Uint8Array(size).fill(97));
+    },
+    cancel() {
+      state.cancelled = true;
+    },
+  });
+}
+
+async function withBody(body: BodyInit, headers: Record<string, string>, run: () => Promise<void>): Promise<void> {
+  const original = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(body, { status: 200, headers })) as typeof fetch;
+  try {
+    await run();
+  } finally {
+    globalThis.fetch = original;
+  }
+}
+
+test("a body under the byte cap is returned whole", async () => {
+  await withBody("<p>Hello ad</p>", { "content-type": "text/html; charset=utf-8" }, async () => {
+    const out = await fetchPostingText("https://example.com/job", PUBLIC);
+    assert.equal(out.text, "Hello ad");
+  });
+});
+
+test("a body over the cap throws PostingFetchError and the stream is cancelled early", async () => {
+  const state = { pulled: 0, cancelled: false };
+  const chunk = 256 * 1024;
+  const total = 64; // 16 MiB on offer
+  await withBody(streamOf(total, chunk, state), { "content-type": "text/html" }, async () => {
+    await assert.rejects(fetchPostingText("https://example.com/job", PUBLIC), PostingFetchError);
+  });
+  assert.ok(state.cancelled, "the stream was not cancelled");
+  assert.ok(state.pulled < total, `read ${state.pulled} of ${total} chunks — the cap did not stop the read`);
+  assert.ok(state.pulled * chunk <= POSTING_MAX_BODY_BYTES + 4 * chunk);
+});
+
+test("a body with no content-length header is still capped", async () => {
+  const state = { pulled: 0, cancelled: false };
+  await withBody(streamOf(10, POSTING_MAX_BODY_BYTES, state), { "content-type": "text/plain" }, async () => {
+    await assert.rejects(fetchPostingText("https://example.com/job", PUBLIC), /larger than/);
+  });
+  assert.ok(state.cancelled);
 });

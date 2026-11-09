@@ -1,0 +1,80 @@
+{
+ "schema": "conform-run/1",
+ "worker": "04dfae3b-0090-4db4-a29d-6998c54407be",
+ "subject": "voice-io",
+ "evaluatedAt": "2026-11-07T00:25:40.959445+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "setup-studio",
+   "subject": "voice-io",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/setup-studio/VoicePanel.tsx:58 The first-run voice step lists cloud engines (ElevenLabs) beside local ones (Piper/Kokoro) with only a name, languages and state. Nothing says text leaves the machine, no heard local default is recommended, and the flow has no hearing (recognizer) step \u2014 contrary to voice-setup-experience rules 1 and 4.",
+   "techniques": [
+    {
+     "technique": "voice-setup-experience",
+     "verdict": "deviation",
+     "evidence": "app/features/setup-studio/VoicePanel.tsx:58 The cards carry no residency label (TtsProvider in protocol.ts:332 has no local/cloud field). There is no curated local default, the first preview does not select, the sample is pinned to 'en' (line 171), and grep finds no STT/recognizer step in setup-studio or onboard-ui. Positive: skip is always visible and leaving stops playback."
+    },
+    {
+     "technique": "engine-abstraction",
+     "verdict": "conformant",
+     "evidence": "app/features/setup-studio/VoicePanel.tsx:8 absent, broken and ready are rendered differently, and absent is not painted as a failure."
+    },
+    {
+     "technique": "portable-provider-package",
+     "verdict": "conformant",
+     "evidence": "app/features/setup-studio/VoicePanel.tsx:186 The host's fallback (x-tts-fallback-from) stays visible at the setup boundary. The host also picks the sample sentence, so the page cannot spend tokens."
+    },
+    {
+     "technique": "voice-ux-integration",
+     "verdict": "conformant",
+     "evidence": "app/features/setup-studio/VoicePanel.tsx:182 The panel uses a single Audio element, so a new preview stops the previous one, and unmount pauses it and revokes the URL. There is no latest-wins generation counter, though: the later-returning synthesis wins, not the later-requested one."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "voice-io",
+   "context": "voice-interview-session",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "voice-io",
+   "context": "shell-companion-voice",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "voice-io",
+   "context": "interview-lab-harness",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "voice-io",
+   "context": "voice-interview-api",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-07T00:25:40.959445+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "voice-io"
+   ],
+   "techniques": [
+    "engine-abstraction",
+    "portable-provider-package",
+    "voice-setup-experience",
+    "voice-ux-integration"
+   ],
+   "deviations": 1,
+   "context": "setup-studio",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -413,6 +413,8 @@ reported as `catalog: "ok" | "empty"`, which rides `isOperator()` with `tables`
 rather than the public verdict: how much business a deployment holds is not a
 readiness fact. Pinned by `app/api/health/seed-catalog-verdict.test.ts`.
 
+**`POST /api/voice/readiness` is gated by the voice off-switch.** With `KP_VOICE_INTERVIEW` unset the proxy answers it 404, like an unknown route, because the probe mints one credential per paid provider; the decision is made on the decoded, case-folded path so `/api/voice/%72eadiness` and re-cased spellings are refused too. `GET /api/voice/readiness` stays open (it never mints and the Spend strip reads "switched off" from it).
+
 ### 1.3 Public token surfaces carry a projection, not a row
 
 `/schedule/[token]`, `/interview/[token]`, `/offer/[token]`, `/status/[token]`,

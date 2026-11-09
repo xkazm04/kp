@@ -56,3 +56,10 @@ test("the deadline: needs the server's hours AND a deadline; coral inside 48h; m
   // a null minutes figure keeps the hours line
   assert.deepEqual(offerKitDeadline({ ...base, hoursRemaining: 3, minutesRemaining: null }), { urgent: true, unit: "hours", hours: 3 });
 });
+
+test("an expired offer arrives as status + job title only: head, terms and deadline all render from absence", () => {
+  const dead: OfferKitInput = { jobTitle: "Junior Analytics Engineer" };
+  assert.deepEqual(offerKitHead(dead), { company: null, title: { key: "jobTitle", text: "Junior Analytics Engineer" }, preparedFor: null });
+  assert.deepEqual(offerKitTerms(dead), { salary: null, startDate: null, notes: null });
+  assert.equal(offerKitDeadline(dead), null);
+});

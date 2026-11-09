@@ -81,7 +81,12 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
       }
     >
       {!prep ? (
-        <PrepLoadStates loading={loading} generating={generating} error={error} reload={reload} generate={generate} t={t} />
+        <div className="space-y-4">
+          <PrepLoadStates loading={loading} generating={generating} error={error} reload={reload} generate={generate} t={t} />
+          {/* A person's rating never waits on a generated plan: the generator needs an
+              analyzed profile, and a quick-apply candidate does not have one. */}
+          {loading || generating ? null : <HumanScorecardPanel entryId={entry.id} archetype={entry.archetype} roleFamily={entry.roleFamily} />}
+        </div>
       ) : (
         <div className="space-y-4">
           <PrepHeader

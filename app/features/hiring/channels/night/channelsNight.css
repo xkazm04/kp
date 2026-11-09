@@ -104,3 +104,6 @@
 .cn-card__art { flex: none; width: 84px; }
 .cn-card:focus-visible { outline: 2px solid var(--color-coral); outline-offset: 2px; }
 
+
+/* The plumbing's door into the connectors deck (night/connectors/): one button, under the needs. */
+.cn-deck-door { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }

@@ -1,0 +1,190 @@
+{
+ "schema": "conform-run/1",
+ "worker": "c99bedc3-1f19-40bc-b84a-61df7daf2bcd",
+ "subject": "browser-credential-boundary",
+ "evaluatedAt": "2026-11-07T02:25:49.896308+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "jobs-table-core",
+   "subject": "browser-credential-boundary",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/library/jobs/useJobsList.ts:161 The jobs table only calls the same-origin /api/jobs route on the session cookie and holds no dependency credential; a case-insensitive search of app/features/library/jobs for NEXT_PUBLIC, Authorization, apiKey and createClient found no hits, so this context makes no credential-boundary decision.",
+   "techniques": [],
+   "absenceTerms": [
+    "NEXT_PUBLIC",
+    "Authorization",
+    "apiKey",
+    "createClient"
+   ]
+  },
+  {
+   "context": "table-components",
+   "subject": "browser-credential-boundary",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_components/table/TablePager.tsx:17 The table primitives page, sort and filter rows the caller already holds and make no fetch; a case-insensitive search of app/_components/table for NEXT_PUBLIC, Authorization, apiKey and createClient found nothing, so no credential crosses this layer.",
+   "techniques": [],
+   "absenceTerms": [
+    "NEXT_PUBLIC",
+    "Authorization",
+    "apiKey",
+    "createClient"
+   ]
+  },
+  {
+   "context": "shared-api-utilities",
+   "subject": "browser-credential-boundary",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "app/_lib/api-response.ts:74 The shared response helper answers a failure with a closed code and a generic message, and keeps the raw error in the server log. The env split, the scheme allowlist and the IP-literal refusal for server-fetched endpoints all live in this context too.",
+   "techniques": [
+    {
+     "technique": "opaque-upstream-errors",
+     "verdict": "conformant",
+     "evidence": "app/_lib/api-response.ts:74 safeJsonError logs the raw error at line 73 and sends only a STORE_ERRORS code. The sibling jsonError (line 17) still forwards .message and is meant only for messages that are already client-safe; the repo ratchets its remaining callers outside this context."
+    },
+    {
+     "technique": "public-vs-server-env-split",
+     "verdict": "conformant",
+     "evidence": "app/_lib/public-base-url.ts:16 The server-only APP_BASE_URL is kept separate from the bundle-inlined NEXT_PUBLIC_APP_BASE_URL, which is documented as public. publicOriginConflict reports when the two drift apart."
+    },
+    {
+     "technique": "broker-proxy-attaches-secret",
+     "verdict": "conformant",
+     "evidence": "app/_lib/safe-url.ts:97 assertPublicHttpsEndpoint is the single shared place that validates, at store time, the base address of an operator-configured upstream the server calls with a bearer key. It requires https and rejects with a 400-ready error, which is the broker technique's rule for validating the base address on the way in."
+    },
+    {
+     "technique": "outbound-fetch-destination-validation",
+     "verdict": "conformant",
+     "evidence": "app/_lib/safe-url.ts:110 This context holds the string-level half: refusing address literals, including the integer, hex and short numeric forms, plus internal and loopback names. Judging the resolved address and pinning the connection happen in app/_lib/ats-egress-guard.ts and app/_lib/pinned-request.ts, which are outside this context; checking the string alone would not satisfy the technique."
+    },
+    {
+     "technique": "aggregate-view-not-base-table",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/cache.ts:1 The store is reached only through the server's own better-sqlite3 data layer. No browser-held role key exists, so there is no grant to replace with a view."
+    }
+   ]
+  },
+  {
+   "context": "setup-studio",
+   "subject": "browser-credential-boundary",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "scripts/onboard-ui/server.mjs:236 The wizard server acts with the person's ambient Claude CLI login and writes .env.local. It binds to 127.0.0.1, but its request handler never checks the Host, forwarded-host, Origin or forwarded-for headers before routing, so the only gate is the per-run token. The technique requires that header gate in addition to the bind and treats neither as optional.",
+   "techniques": [
+    {
+     "technique": "loopback-addressed-request-gate",
+     "verdict": "deviation",
+     "evidence": "scripts/onboard-ui/server.mjs:263 The bind half is in place (line 467 listens on 127.0.0.1). There is no Host, X-Forwarded-Host, Origin or forwarded-for refusal: Origin is used only to grant CORS. A DNS-rebound page reaches the token-free static routes. The per-run token blocks the mutating routes and /events, which in practice covers rebinding, but the technique names the token as a complement to the header gate, not a substitute. No test pins the loopback bind."
+    },
+    {
+     "technique": "opaque-upstream-errors",
+     "verdict": "deviation",
+     "evidence": "scripts/onboard-ui/server.mjs:310 The /app proxy relays err.message and, at line 307, passes the upstream status through unchanged; the comment there makes this a deliberate choice. Severity is low because the caller holds the token and is the machine owner, but this is the failure the technique names."
+    },
+    {
+     "technique": "server-sealed-client-roundtrip",
+     "verdict": "not-applicable",
+     "evidence": "scripts/onboard-ui/server.mjs:340 Pending card state, including which env name a secret goes to, is kept server-side and the client sends back only a card id, so nothing the server produced comes back needing a seal."
+    },
+    {
+     "technique": "broker-proxy-attaches-secret",
+     "verdict": "not-applicable",
+     "evidence": "scripts/onboard-ui/engine.mjs:1179 The app proxy attaches no credential. It exists for cost control: paths are enumerated and the body is rebuilt from validated fields with sample text the server chooses. No privileged secret is involved."
+    }
+   ],
+   "registryProposal": "loopback-addressed-request-gate could say explicitly how to judge a server that binds to loopback and requires a CSPRNG per-run capability token on every state-changing route but has no Host check. Today the technique calls the header gate mandatory and positions a per-session credential as a complement, so a token-only design is a deviation even though the token defeats rebinding for every route that acts. Stating the residual (token-free static routes and topology readable under a rebound name) would make the verdict less arguable."
+  },
+  {
+   "context": "jd-public-detail-page",
+   "subject": "browser-credential-boundary",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/jds/[slug]/page.tsx:8 The public JD page is a server component that reads the job through the server-side SQLite layer, and its operator controls call the same-origin /api/jds route. A case-insensitive search of app/jds for NEXT_PUBLIC, Authorization, apiKey and createClient found no hits, so no browser-held credential or broker decision lives here.",
+   "techniques": [],
+   "absenceTerms": [
+    "NEXT_PUBLIC",
+    "Authorization",
+    "apiKey",
+    "createClient"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-07T02:25:49.896308+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "browser-credential-boundary"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "jobs-table-core",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T02:25:49.896308+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "browser-credential-boundary"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "table-components",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T02:25:49.896308+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "browser-credential-boundary"
+   ],
+   "techniques": [
+    "aggregate-view-not-base-table",
+    "broker-proxy-attaches-secret",
+    "opaque-upstream-errors",
+    "outbound-fetch-destination-validation",
+    "public-vs-server-env-split"
+   ],
+   "deviations": 0,
+   "context": "shared-api-utilities",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T02:25:49.896308+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "browser-credential-boundary"
+   ],
+   "techniques": [
+    "broker-proxy-attaches-secret",
+    "loopback-addressed-request-gate",
+    "opaque-upstream-errors",
+    "server-sealed-client-roundtrip"
+   ],
+   "deviations": 1,
+   "context": "setup-studio",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T02:25:49.896308+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "browser-credential-boundary"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "jd-public-detail-page",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

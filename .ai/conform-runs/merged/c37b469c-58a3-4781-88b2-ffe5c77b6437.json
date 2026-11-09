@@ -1,0 +1,60 @@
+{
+ "schema": "conform-run/1",
+ "worker": "c37b469c-58a3-4781-88b2-ffe5c77b6437",
+ "subject": "native-document-format",
+ "evaluatedAt": "2026-10-28T22:56:04.408255+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "profile-editor",
+   "subject": "native-document-format",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/tools/profile/useProfileEditorSubmit.ts:83 The editor saves a candidate profile only by POSTing or PUTting JSON to /api/profile, which writes a SQLite row through app/_lib/db/profiles.ts (saveProfileForCv/updateProfile). The application owns that schema and migrates it, so no profile document ever leaves the application as a file with an unbounded set of readers. A search of app/features/tools/profile/ for schemaVersion, formatVersion, Blob, download, showSaveFilePicker and FileReader found no file export or import path.",
+   "techniques": [
+    {
+     "technique": "format-generations-are-declared",
+     "verdict": "not-applicable",
+     "evidence": "app/features/tools/profile/profileEditorBackup.ts:70 Nothing here is a saved document. The nearest analogue is the tab-scoped sessionStorage backup, which does carry a generation stamp (v: 2), and planRestore offers a pre-envelope backup instead of applying it. Read that way, it is a declared generation."
+    },
+    {
+     "technique": "format-is-the-engines-input",
+     "verdict": "not-applicable",
+     "evidence": "app/features/tools/profile/useProfileEditorSubmit.ts:83 There is no save format to design. The downstream consumer (profile_cli) receives a temporary intake.json that the route writes for each request and then deletes. That is an IPC payload, not a persisted document."
+    },
+    {
+     "technique": "reference-or-embed",
+     "verdict": "not-applicable",
+     "evidence": "app/features/tools/profile/useProfileEditorFields.ts:43 The only client-side persistence is deliberately limited to the tab. No document stores or relinks external assets. Evidence links are plain URL strings inside a database row."
+    }
+   ],
+   "absenceTerms": [
+    "schemaVersion",
+    "formatVersion",
+    "showSaveFilePicker",
+    "Blob",
+    "FileReader"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-28T22:56:04.408255+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "native-document-format"
+   ],
+   "techniques": [
+    "format-generations-are-declared",
+    "format-is-the-engines-input",
+    "reference-or-embed"
+   ],
+   "deviations": 0,
+   "context": "profile-editor",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

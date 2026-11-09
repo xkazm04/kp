@@ -17,7 +17,7 @@ import { offerKitHead, offerKitPhase, offerKitTerms, type OfferKitInput } from "
 import { OfferKitDecision, type OfferKitDecisionProps } from "./OfferKitDecision";
 
 export type OfferKitViewProps = OfferKitDecisionProps & {
-  offer: (OfferKitInput & { timeZone: string }) | null;
+  offer: (OfferKitInput & { timeZone?: string }) | null;
   notFound: boolean;
   loadError: string | null;
   result: "accepted" | "declined" | "expired" | null;

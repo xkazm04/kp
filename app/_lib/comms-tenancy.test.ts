@@ -1,12 +1,12 @@
 // comms-tenancy-pair — the outbox tenant contract, both halves:
 //
-//   (1) an ENTRY-LESS dispatch (the KO decline, fired before any pipeline entry
-//       exists) files into the team its caller names, NOT the default workspace.
-//       Pre-fix, a non-default team's KO-decline notice appeared in the DEFAULT
-//       team's Comms Center and NOWHERE in the owning team's — while the decline
-//       RECORD (recordKnockoutDecline) was correctly filed in the owning team. The
-//       one adverse comm the never-ghost promise rests on was invisible to the
-//       recruiters responsible for it.
+//   (1) the KO letter files into its entry's team, NOT the default workspace.
+//       Pre-Q1 it was an ENTRY-LESS dispatch (fired before any entry existed) whose
+//       tenant a caller had to name — and when it did not, a non-default team's
+//       notice appeared in the DEFAULT team's Comms Center and NOWHERE in the owning
+//       team's. The letter is now sent for a held entry a person rejected, so the
+//       tenant is derived from the entry; the explicit-tenant fallback below stays
+//       for the dispatches that are still entry-less.
 //   (2) a REF'D comm still derives its tenant from the referenced entry, and an
 //       explicit workspaceId can NEVER pull it away from its entry's team — the
 //       explicit tenant is a last resort, not an override.
@@ -17,31 +17,51 @@ import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { createPipelineEntry, listOutboxFiltered, DEFAULT_WORKSPACE_ID } from "./db.ts";
 import { sendComm, setRelayHostLookupForTests } from "./comms.ts";
-import { dispatchKnockoutDecline } from "./comms-dispatch.ts";
+import { dispatchKnockoutRejection } from "./comms-dispatch.ts";
 
 after(() => cleanupUnitDb());
 
 const TEAM = "team-koln"; // a REAL non-default team
 
-test("an entry-less KO decline lands in the declining team's Comms Center only", async () => {
-  await dispatchKnockoutDecline({
-    email: "lead@example.cz",
-    name: "Petra Nováková",
+test("the confirmed KO letter belongs to its entry and lands in the entry's team Comms Center only", async () => {
+  // Since the Q1 ruling the KO letter is sent for an ENTRY (a held application a person
+  // rejected), so its tenant comes from the entry through `ref`, not from a caller
+  // argument. The entry-less dispatch this test once pinned no longer exists.
+  const { entry } = createPipelineEntry({
+    candidateId: "cand-ko-letter",
+    candidateLabel: "Petra Nováková",
+    jobId: "job-ko-letter",
     jobTitle: "Backend Engineer",
+    contact: "lead@example.cz",
     locale: "en",
+    stage: "Accepted",
     workspaceId: TEAM,
   });
+  await dispatchKnockoutRejection(entry, ["ko_auth"]);
 
   const owning = listOutboxFiltered({ kind: "ko_decline" }, TEAM);
-  assert.equal(owning.length, 1, "the owning team sees its own KO-decline notice");
+  assert.equal(owning.length, 1, "the owning team sees its own KO letter");
   assert.equal(owning[0].recipient, "lead@example.cz");
-  assert.equal(owning[0].ref, null, "entry-less by design — no pipeline entry exists yet");
+  assert.equal(owning[0].ref, entry.id, "ref'd to the entry, so the entry's erasure and expiry reach it");
 
   assert.deepEqual(
     listOutboxFiltered({ kind: "ko_decline" }, DEFAULT_WORKSPACE_ID),
     [],
-    "the DEFAULT team's Comms Center must NOT show another team's KO decline"
+    "the DEFAULT team's Comms Center must NOT show another team's KO letter"
   );
+});
+
+test("no address on file, no KO letter owed", async () => {
+  const { entry } = createPipelineEntry({
+    candidateId: "cand-ko-noaddr",
+    candidateLabel: "Bez Adresy",
+    jobId: "job-ko-noaddr",
+    jobTitle: "Backend Engineer",
+    stage: "Accepted",
+    workspaceId: TEAM,
+  });
+  assert.equal(await dispatchKnockoutRejection(entry, ["ko_auth"]), null);
+  assert.equal(listOutboxFiltered({ kind: "ko_decline" }, TEAM).filter((r) => r.ref === entry.id).length, 0);
 });
 
 test("an entry-less dispatch with no tenant still falls back to the default workspace", async () => {

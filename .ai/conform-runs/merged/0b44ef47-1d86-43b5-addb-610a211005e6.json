@@ -1,0 +1,155 @@
+{
+ "schema": "conform-run/1",
+ "worker": "0b44ef47-1d86-43b5-addb-610a211005e6",
+ "subject": "eval-harness",
+ "evaluatedAt": "2026-11-09T04:13:30.380731+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "tests-llm-eval",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/tests/test_llm_bake_quality.py:58 The suite pins a published per-criterion score that the judge never gave, filled from the overall median with no mark, so a criterion column can show a value nobody measured.",
+   "techniques": [
+    {
+     "technique": "assertion-vs-judgment",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_llm_bake_quality.py:58 The blended score stands in for a criterion verdict, unmarked. Separately, judge.py:192 filters judgeable rows without r.valid, so contract-invalid outputs still reach the judge instead of being failed by the assertion gate."
+    },
+    {
+     "technique": "judge-stability",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/eval/judging.py:40 The default judge is a moving alias, not a dated identifier, and test_automation_eval.py:94-99 calls it pinned. bench_cli.py:110 defaults the bench judge to the CLI's configured model. grep found no anchor-set or repeatability re-scoring. The committed bake (app/_lib/llm-quality-scores.ts:10) has fable-5 judging claude-sonnet-5 and claude-opus-5, an own-family judge."
+    },
+    {
+     "technique": "outcome-conditioned-cost",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_llm_bake_quality.py:94 Cost per model is taken over each arm's own served rows, valid or not. There is no both-succeeded subset, no subset count, and no unconditioned primary beside it in the baked cell, and that cell prices models on the Quality board."
+    },
+    {
+     "technique": "failure-signatures-beside-the-pass-rate",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_fault_eval.py:93 The per-mode roll-up keeps a deduped list of reasons, with no case count per family and no denominator of runs that could have tripped it."
+    },
+    {
+     "technique": "eval-economics",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/llm/bench/bench_cli.py:184 Spend controls are realized: mock providers, a pre-run estimate, a ceiling refusal and a running stop (test_llm_bench.py:306-473). The failing sub-rule is per-cell durability: records stay in memory and are written once after the whole paid matrix, so a killed run loses its spend."
+    },
+    {
+     "technique": "reliability-aggregation",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/llm/bench/runner.py:397 Each scenario\u00d7target cell runs once, with no declared trial count, so no any-of-N or all-of-N pair can be computed for the non-deterministic bench."
+    },
+    {
+     "technique": "metric-role-contract",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_thresholds.py:106 Thresholds are declared once with a reason and direction, and consumers read that table. Only the gate side is realized: the bench scorecard names no single optimized metric and prints a table, not a verdict."
+    },
+    {
+     "technique": "scenario-design",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_automation_eval.py:206 Gated evals record unit identity, so an exam that changed underneath fails even at the same rate. The paid bench is weaker: its ids embed a position (scenarios.py:251) and carry no content version."
+    },
+    {
+     "technique": "comparison-modes",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_llm_bake_quality.py:74 An unmeasured matrix cell stays empty rather than reading as a low score, and the cell aggregation rule is stated in bake_quality.py's docstring."
+    },
+    {
+     "technique": "probe-the-decision-not-the-artifact",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_automation_eval.py:36 Asserts the small enumerable recommendation and route decisions instead of judging the prose."
+    }
+   ]
+  },
+  {
+   "context": "analytics-api",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/analytics/calibration/route.ts:25 These routes serve funnel analytics and calibrate a production fit score against recruiter outcomes; a case-insensitive grep of app/api/analytics, benchmarks, attention and search found no golden, passRate, pass_rate, judgeModel, scenarioId or rubric, so no models are run against declared scenarios here.",
+   "techniques": [],
+   "absenceTerms": [
+    "golden",
+    "passRate",
+    "judgeModel",
+    "scenarioId",
+    "rubric"
+   ]
+  },
+  {
+   "context": "candidate-matching-api",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/matrix/route.ts:18 The matrix here is a candidate-by-job score grid for recruiters, not a model-by-scenario eval; a case-insensitive grep of app/api/match, archetypes, matrix and rediscovery found no golden, passRate, pass_rate, judgeModel, scenarioId or rubric.",
+   "techniques": [],
+   "absenceTerms": [
+    "golden",
+    "passRate",
+    "judgeModel",
+    "scenarioId",
+    "rubric"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "eval-harness",
+   "context": "devcase-eval",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-09T04:13:30.380731+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [
+    "assertion-vs-judgment",
+    "comparison-modes",
+    "eval-economics",
+    "failure-signatures-beside-the-pass-rate",
+    "judge-stability",
+    "metric-role-contract",
+    "outcome-conditioned-cost",
+    "probe-the-decision-not-the-artifact",
+    "reliability-aggregation",
+    "scenario-design"
+   ],
+   "deviations": 1,
+   "context": "tests-llm-eval",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T04:13:30.380731+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "analytics-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T04:13:30.380731+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "candidate-matching-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

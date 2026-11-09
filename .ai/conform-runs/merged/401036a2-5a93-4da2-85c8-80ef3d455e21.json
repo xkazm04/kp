@@ -1,0 +1,101 @@
+{
+ "schema": "conform-run/1",
+ "worker": "401036a2-5a93-4da2-85c8-80ef3d455e21",
+ "subject": "voice-interview-fidelity",
+ "evaluatedAt": "2026-11-07T00:39:52.794891+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "eval-voice",
+   "subject": "voice-interview-fidelity",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/eval/voice/wer.py:246 The entity gate counts only spoken-but-unheard terms (recall); it never computes the terms the transcript holds that were never spoken. Meanwhile the same harness turns on per-job ASR keyword biasing (el_ws.py:82) and runs no null-audio control, so a boosted phantom skill passes every gate.",
+   "techniques": [
+    {
+     "technique": "phantom-terms-and-silence-insertions",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/eval/voice/wer.py:246 Only ref\u2212hyp is computed; there is no hyp\u2212ref phantom list. Searching eval/voice for phantom/null-audio/precision finds nothing, although asr.keywords biasing is sent (el_ws.py:82)."
+    },
+    {
+     "technique": "entity-fidelity-not-aggregate-error-rate",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/eval/voice/wer.py:239 Gate on a restricted tech lexicon with a zero deletion budget. Matching is by stem with a bounded inflection allowance (_MAX_INFLECTION=3), longest term first, and short ambiguous names are excluded. session_runner.voice_checks fails on any missing term separately from aggregate WER."
+    },
+    {
+     "technique": "accent-and-first-language-error-disparity",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/eval/voice/tts.py:28 One synthetic Piper speaker per language (en, cs), so fidelity is never stratified by accent or first language. The accent matrix is admitted as future work."
+    },
+    {
+     "technique": "language-choice-and-per-turn-drift-detection",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/eval/voice/el_ws.py:78 The scenario language is sent into the realtime speech configuration override, not only into the prompt, mirroring production. Per-turn drift detection is not in this context's files (it lives in interview_eval)."
+    }
+   ]
+  },
+  {
+   "context": "shell-companion-voice",
+   "subject": "voice-interview-fidelity",
+   "bundle": "recruiting",
+   "state": "not-applicable",
+   "evidence": "app/features/shell/companion/voice/voiceHistory.ts:12 This is voice playback of the workspace companion's own answers to the operator, not a candidate interview. A case-insensitive grep of the directory for interview/candidate/scorecard/recogni found no hits (only 'transcript', meaning the companion thread), so no candidate speech is recognised or assessed here.",
+   "techniques": [],
+   "absenceTerms": [
+    "interview",
+    "candidate",
+    "scorecard",
+    "recogni"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "voice-interview-fidelity",
+   "context": "tests-scoring-fairness",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "voice-interview-fidelity",
+   "context": "interview-lab-harness",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "voice-interview-fidelity",
+   "context": "interview-tools-api",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-07T00:39:52.794891+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "voice-interview-fidelity"
+   ],
+   "techniques": [
+    "accent-and-first-language-error-disparity",
+    "entity-fidelity-not-aggregate-error-rate",
+    "language-choice-and-per-turn-drift-detection",
+    "phantom-terms-and-silence-insertions"
+   ],
+   "deviations": 1,
+   "context": "eval-voice",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T00:39:52.794891+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "voice-interview-fidelity"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "shell-companion-voice",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

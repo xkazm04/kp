@@ -80,8 +80,9 @@ e2e/                          # Playwright. The subset below is DECLARED as
                               #   filters, the 20-row pager, the confirm-guarded
                               #   delete — fixtures created THROUGH /api/profile,
                               #   which is pure profile_cli logic, so keyless)
-                              # + landing (the public landing: a11y per band, the
-                              #   spotlight's focus contract, phone nav — the ONLY
+                              # + landing (the public landing: a11y per band and per
+                              #   scene, the ring's named medallions, a scene's focus contract and
+                              #   /#spotlight-<key> deep link, phone nav — the ONLY
                               #   spec that must not seedDevAuth)
                               # + public-pages (the OTHER indexed surfaces: axe on
                               #   /about /trust /privacy /terms /market, plus
@@ -112,6 +113,15 @@ e2e/                          # Playwright. The subset below is DECLARED as
                               #   event kind, and a `fixed inset-0` overlay contained by
                               #   the tab panel's animation transform instead of the
                               #   viewport, so it measured 1264x0)
+                              # + journey-job-to-accept (the keyless hire: a pasted
+                              #   job ad to an accepted offer on /offer/[token],
+                              #   rated by hand, no provider)
+                              # + same-origin-write-door (a state-changing /api
+                              #   request with a foreign Origin is refused 403 by
+                              #   proxy.ts, its own Origin is not)
+                              # + token-doors-axe (axe on the public offer, erasure
+                              #   and invite token doors; the /status timeline and
+                              #   /skill sweeps skip when no seeded data mints them)
                               #
                               # The managed webServer runs on a THROWAWAY
                               # KP_DB_PATH (data/kp-e2e.sqlite, see

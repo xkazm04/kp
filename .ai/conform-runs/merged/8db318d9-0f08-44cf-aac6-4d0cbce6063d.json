@@ -1,0 +1,148 @@
+{
+ "schema": "conform-run/1",
+ "worker": "8db318d9-0f08-44cf-aac6-4d0cbce6063d",
+ "subject": "agent-cli-transport",
+ "evaluatedAt": "2026-11-08T02:14:31.317592+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "channels-comms-api",
+   "subject": "agent-cli-transport",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/channels/inbound/[token]/route.ts:19 I searched app/api/comms and app/api/channels for the agent-CLI vocabulary and found none of it. The only child process anywhere in this context is the Python CV extractor named on this line, so none of the probe, auth, stance or output-envelope techniques have a transport here to govern.",
+   "techniques": [],
+   "absenceTerms": [
+    "stream-json",
+    "permission-mode",
+    "ANTHROPIC_API_KEY",
+    "child_process",
+    "dangerously-skip"
+   ]
+  },
+  {
+   "context": "devcase-session-api",
+   "subject": "agent-cli-transport",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/devcase/session/[id]/chat/route.ts:118 These routes only reach model work through spawnPython. That leads to the Python devcase_cli (app/_lib/devcase-run.ts:48); the agent-CLI transport itself is pipeline/jobfit/claude_cli.py, outside this context. A search of app/api/devcase for the agent-CLI flags, env keys and child_process found nothing.",
+   "techniques": [],
+   "absenceTerms": [
+    "stream-json",
+    "permission-mode",
+    "ANTHROPIC_API_KEY",
+    "child_process",
+    "dangerously-skip"
+   ]
+  },
+  {
+   "context": "devcase-workspace",
+   "subject": "agent-cli-transport",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/tools/devcases/DevTypes.ts:69 This client tab only reads a provenance label for each run (llm, partial or deterministic) that the Python pipeline produced, and that label does not depend on which provider served it. Nothing here spawns or configures an agent CLI. A search of app/features/tools/devcases and app/features/tools/interview for the transport's flags, env keys and child_process found nothing.",
+   "techniques": [],
+   "absenceTerms": [
+    "stream-json",
+    "permission-mode",
+    "ANTHROPIC_API_KEY",
+    "child_process",
+    "dangerously-skip"
+   ]
+  },
+  {
+   "context": "chat-markdown-icons",
+   "subject": "agent-cli-transport",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_components/chat/ChatTranscript.tsx:9 These are client presentation primitives: transcript bubbles, a composer, a sanitising Markdown renderer and icons. None of them spawns a process or parses an agent-CLI envelope, and a search of app/_components for the transport's flags, env keys and child_process found nothing.",
+   "techniques": [],
+   "absenceTerms": [
+    "stream-json",
+    "permission-mode",
+    "ANTHROPIC_API_KEY",
+    "child_process",
+    "dangerously-skip"
+   ]
+  },
+  {
+   "context": "shell-companion",
+   "subject": "agent-cli-transport",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/shell/companion/useCompanionThread.ts:119 The companion dock is a client that talks to kp's own /api/companion routes over HTTP. Its thread id is a kp database row, not a child CLI session id; companion_cli.py receives the transcript on every turn and the repo has no --resume. thread-custody-across-resume therefore has no precondition here either. A search of app/features/shell/companion for the transport's flags, env keys and child_process found nothing.",
+   "techniques": [],
+   "absenceTerms": [
+    "stream-json",
+    "permission-mode",
+    "ANTHROPIC_API_KEY",
+    "child_process",
+    "dangerously-skip"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-08T02:14:31.317592+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-cli-transport"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "channels-comms-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T02:14:31.317592+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-cli-transport"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "devcase-session-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T02:14:31.317592+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-cli-transport"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "devcase-workspace",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T02:14:31.317592+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-cli-transport"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "chat-markdown-icons",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T02:14:31.317592+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-cli-transport"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "shell-companion",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
