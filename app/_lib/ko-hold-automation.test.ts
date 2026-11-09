@@ -4,14 +4,14 @@
 // (knockout-hold.ts), so what keeps automation off it is the approval the whole system
 // already treats as "a person is on this" — not a new flag nobody else reads. This file
 // proves that against the REAL policy pass (the Python policy, spawned), with a control
-// that proves the pass is live: the same candidate WITHOUT the hold is advanced.
+// that proves the pass is live: the same candidate WITHOUT the hold is PROPOSED for
+// advance (since Q2 the pass queues that proposal for a person and moves nothing).
 //
 //   - policy pass (scoring-driven advance / reject): the held entry never reaches it.
-//     The policy's own "approval already pending" hold covers a screening column only; its
-//     ENTRY-column branch advances any scored entry without reading the approval (an
-//     upstream gap, reported), so executeAutomationPass excludes a hold up front. Proven
-//     below with the hold made as advanceable as possible — scored, classified, not a
-//     stub — where the pass, left unguarded, advances it;
+//     The policy's own "approval already pending" hold now covers the entry column too
+//     (Q2 needed it so a queued advance is not re-proposed), but executeAutomationPass
+//     still excludes a hold up front and that is the first wall. Proven below with the
+//     hold made as advanceable as possible — scored, classified, not a stub;
 //   - the scoring sweep skips it (a stub is intake-degraded, so isScorableEntry is false);
 //   - stage hooks (invites, work samples) run on a stage ARRIVAL and the filing is not
 //     one: nothing is armed or minted, and the approval is not overwritten;
@@ -36,7 +36,7 @@ after(() => cleanupUnitDb());
 const JOB_ID = "ko-hold-automation-job";
 insertJob({ id: JOB_ID, title: "Backend Engineer" } as never, undefined, "published", DEFAULT_WORKSPACE_ID);
 
-test("the policy pass leaves a held knockout entry exactly where it is — and advances the same candidate without the hold", async () => {
+test("the policy pass leaves a held knockout entry exactly where it is — and proposes the same candidate's advance without the hold", async () => {
   const job = getJob(JOB_ID);
   assert.ok(job);
 
@@ -85,7 +85,7 @@ test("the policy pass leaves a held knockout entry exactly where it is — and a
     "the held entry is not evaluated at all — no advance, reject, hold or alert is decided about it"
   );
   const controlDecision = result.decisions.find((d) => d.entryId === control.id);
-  assert.equal(controlDecision?.action, "advance", "non-vacuity: the same candidate without the hold IS advanced by this pass");
+  assert.equal(controlDecision?.action, "advance", "non-vacuity: the same candidate without the hold IS proposed for advance by this pass");
 
   const after = getPipelineEntry(held.id, DEFAULT_WORKSPACE_ID)!;
   assert.equal(after.stage, before.stage, "not advanced");
@@ -94,7 +94,9 @@ test("the policy pass leaves a held knockout entry exactly where it is — and a
   assert.equal(after.approvalDetail, before.approvalDetail, "…and still names the failed must-have");
   const kinds = listPipelineEventsForEntry(held.id, 100, DEFAULT_WORKSPACE_ID).map((e) => e.kind);
   assert.ok(!kinds.some((k) => ["advanced", "auto_advanced", "rejected", "auto_rejected", "scored"].includes(k)), `automation wrote nothing about the held entry (got ${kinds.join(",")})`);
-  assert.notEqual(getPipelineEntry(control.id, DEFAULT_WORKSPACE_ID)!.stage, control.stage, "the control moved");
+  const controlAfter = getPipelineEntry(control.id, DEFAULT_WORKSPACE_ID)!;
+  assert.equal(controlAfter.stage, control.stage, "the control did not move: the advance is queued, not applied");
+  assert.equal(controlAfter.approvalKind, "screening_review", "…it waits for a person");
 });
 
 test("a hold's payload round-trips and a Match add's bare decision approval is never read as one", () => {

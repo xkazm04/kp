@@ -604,6 +604,14 @@ export async function runAutomationTask(
     // hop, so a recruiter (Decisions) or a concurrent pass may have advanced/rejected
     // it meanwhile. A stale screen verdict must no-op instead of moving whatever stage
     // the entry is in NOW — mirrors the policy-pass hardening (automation-pass.ts).
+    //
+    // Q2 (owner ruling 2026-11-09) queued the POLICY PASS's score-threshold advances for a
+    // person. THIS move is a different door and is deliberately left as it was: it is a
+    // MODEL's screening verdict (route "advance", confidence at or above
+    // POLICY.screen_advance_conf, fairness-gated and never for a template verdict or an
+    // early-career profile), not a score cut-off, and whether a screening verdict may
+    // move a candidate unattended is the Q3 question (the screening gate), decided and
+    // built separately. Do not fold it into the Q2 queue by reflex.
     if (advance) {
       const moved = actOnPipelineEntry(entry.id, "accept", undefined, { expectedStage: entry.stage, actor: "system" }, workspaceId);
       if (!moved) {

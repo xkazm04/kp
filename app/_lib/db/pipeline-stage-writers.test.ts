@@ -39,7 +39,7 @@ const ADD_DOOR = "app/api/pipeline/route.ts";
 const MIGRATION_ROUTE = "app/api/pipeline/stage-migration/route.ts";
 
 const G_STORE_MIGRATE: Guard = { file: STORE, line: 1229, needle: 'stageHasRole(leg.toStage, "terminal", toAxis)' };
-const G_STORE_ACT: Guard = { file: STORE, line: 3663, needle: 'opts?.outcome === "offer_accepted"' };
+const G_STORE_ACT: Guard = { file: STORE, line: 3684, needle: 'opts?.outcome === "offer_accepted"' };
 const G_SET_STAGE: Guard = { file: ENTRY_ACTION, line: 441, needle: 'if (stageHasRole(to, "terminal", axis))' };
 const G_ACCEPT: Guard = { file: ENTRY_ACTION, line: 500, needle: "acceptWouldReachTerminal(current.stage, axis)" };
 const G_ADD: Guard = { file: ADD_DOOR, line: 174, needle: 'stageHasRole(body.stage, "terminal", axis.stages)' };
@@ -137,12 +137,6 @@ const CALLERS: Record<string, Row> = {
     cls: "not-a-move",
     count: 1,
     why: "reject: closes the entry by status, writes no stage",
-  },
-  "app/_lib/automation-pass.ts -> actOnPipelineEntry": {
-    cls: "refuses-terminal",
-    count: 1,
-    why: "STORE GUARD: policy advance goes entry/screening -> next column by role; on an axis with no interview/offer column that next column is the terminal one; the store refuses the landing (accept / ratify) or keeps the stage (approve_event)",
-    guard: G_STORE_ACT,
   },
   "app/_lib/automation-run.ts -> actOnPipelineEntry": {
     cls: "refuses-terminal",
