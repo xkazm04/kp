@@ -34,6 +34,9 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   // a hire was invisible to the trail.
   approval_set: { auto: false, tone: "text-ink" },
   interview_scorecard: { auto: true, tone: "text-steel" },
+  // The person-filed sibling (api/interview-prep/scorecard): same act, split by who did it,
+  // like advanced/auto_advanced. Never in automation-counts / automation-roi.
+  interview_scorecard_human: { auto: false, tone: "text-moss" },
   interview_prep_generated: { auto: true, tone: "text-steel" },
   offer_drafted: { auto: true, tone: "text-steel" },
   rematched: { auto: true, tone: "text-steel" },

@@ -368,7 +368,13 @@ test("the labels are unchanged when the entry is not offered (a non-loopback Hos
   await context.addInitScript((key) => window.localStorage.setItem(key, "1"), OPEN_ENTRY_MARKER);
   const page = await context.newPage();
   try {
-    const res = await page.goto(`${url.protocol}//${lan}:${url.port}/`);
+    // A refused connection makes goto THROW, so the skip below was unreachable on a
+    // loopback-only server. Skip on a dev machine; in CI let it fail, so a regression
+    // of the 0.0.0.0 binding in ci.yml is loud rather than a silent skip.
+    const res = await page.goto(`${url.protocol}//${lan}:${url.port}/`).catch((err: unknown) => {
+      if (process.env.CI) throw err;
+      return null;
+    });
     test.skip(!res?.ok(), "the server is not reachable on the LAN address");
     await expect(page.locator("#top").getByRole("link", { name: "Start hiring free" }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Sign in" }).first()).toBeVisible();

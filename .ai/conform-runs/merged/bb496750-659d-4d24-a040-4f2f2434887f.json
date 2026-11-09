@@ -1,0 +1,180 @@
+{
+ "schema": "conform-run/1",
+ "worker": "bb496750-659d-4d24-a040-4f2f2434887f",
+ "subject": "data-access",
+ "evaluatedAt": "2026-11-07T04:25:29.076706+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "db-tasks-agents-misc",
+   "subject": "data-access",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/db/tasks.ts:82 The task mapper passes unknown status text through as if it were a TaskStatus member (the silent third option row-mapping bans), while agents.ts and repo-scans.ts in the same context quarantine an unknown value as 'failed'.",
+   "techniques": [
+    {
+     "technique": "row-mapping",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/tasks.ts:82 There is no membership check or quarantine variant, so a corrupt status reaches every caller that switches on it. Compare repo-scans.ts:130."
+    },
+    {
+     "technique": "query-construction",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/tasks.ts:246 Optional predicates are fixed fragments with named bound parameters. The table-name interpolation at line 23 iterates a closed literal allow-list."
+    },
+    {
+     "technique": "read-models-and-projections",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/tasks.ts:104 The list and poll reads select light columns and leave the multi-MB params/result blobs to the by-id read."
+    },
+    {
+     "technique": "batching-and-n-plus-one",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/tasks.ts:289 Params for a page's ids are read in one bounded IN query, not one getTask per row."
+    },
+    {
+     "technique": "transactions-and-units-of-work",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/agents.ts:473 The status transition and its ledger row commit in one IMMEDIATE transaction owned by the repository function, with a WHERE status = ? re-check. finishTask uses the compensating-precondition form instead."
+    },
+    {
+     "technique": "repo-testing",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/repo-scans-store.test.ts:82 This is a corruption drill against a real throwaway SQLite DB through a raw hatch kept in test code. No equivalent drill exists for tasks.status."
+    }
+   ]
+  },
+  {
+   "context": "org-management-api",
+   "subject": "data-access",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/org/members/[userId]/route.ts:3 A route handler imports the raw connection from the data layer's core and opens its own transaction with it, so the raw handle has leaked past the layer the layering rule says it must not leave, and nothing at the import boundary stops the next handler from issuing SQL.",
+   "techniques": [
+    {
+     "technique": "layering-rules",
+     "verdict": "deviation",
+     "evidence": "app/api/org/members/[userId]/route.ts:3 The technique says the raw handle is not exported past the layer. Here the handler holds it."
+    },
+    {
+     "technique": "transactions-and-units-of-work",
+     "verdict": "conformant",
+     "evidence": "app/api/org/members/[userId]/route.ts:112 This is a unit of work spanning getMembership and setMemberPermissions, opened by the code that knows the seat-fingerprint invariant, taken IMMEDIATE, and synchronous. It is opened through the leaked handle (see layering-rules)."
+    },
+    {
+     "technique": "read-models-and-projections",
+     "verdict": "conformant",
+     "evidence": "app/api/repo-scan/route.ts:59 The list response is an explicit field allow-list projection, not the store record."
+    },
+    {
+     "technique": "repo-testing",
+     "verdict": "conformant",
+     "evidence": "app/api/org/org-routes.test.ts:21 Route tests run against an isolated throwaway SQLite DB, not a mocked store."
+    }
+   ]
+  },
+  {
+   "context": "db-profiles-analyses-store",
+   "subject": "data-access",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/db/profiles.ts:199 getProfileRecord returns the same null for a profile that exists but cannot be decoded as for a missing one, which the row-mapping technique forbids because the not-found answer invites the caller to recreate the record. loadAnalysis in analyses.ts has the same shape.",
+   "techniques": [
+    {
+     "technique": "row-mapping",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/profiles.ts:199 A single-record read collapses unreadable and not-found into one answer. The collection read at line 156 degrades visibly (logged skip), which is allowed."
+    },
+    {
+     "technique": "batching-and-n-plus-one",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/profiles.ts:308 Staleness is computed with one windowed join and replaces the old per-profile lookup."
+    },
+    {
+     "technique": "transactions-and-units-of-work",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/profiles.ts:125 saveProfileForCv runs its read-then-write inside the repository function under an IMMEDIATE lock."
+    },
+    {
+     "technique": "query-construction",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/profiles.ts:242 The optional predicate is a fixed fragment chosen by presence, with its value appended to the bound args in the same expression."
+    },
+    {
+     "technique": "repo-testing",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/profiles-stale-cas.test.ts:16 The CAS behaviour is tested against a real throwaway SQLite file."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "data-access",
+   "context": "models-keys-and-routing",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "data-access",
+   "context": "github-repo-intelligence",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-07T04:25:29.076706+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "data-access"
+   ],
+   "techniques": [
+    "batching-and-n-plus-one",
+    "query-construction",
+    "read-models-and-projections",
+    "repo-testing",
+    "row-mapping",
+    "transactions-and-units-of-work"
+   ],
+   "deviations": 1,
+   "context": "db-tasks-agents-misc",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T04:25:29.076706+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "data-access"
+   ],
+   "techniques": [
+    "layering-rules",
+    "read-models-and-projections",
+    "repo-testing",
+    "transactions-and-units-of-work"
+   ],
+   "deviations": 1,
+   "context": "org-management-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T04:25:29.076706+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "data-access"
+   ],
+   "techniques": [
+    "batching-and-n-plus-one",
+    "query-construction",
+    "repo-testing",
+    "row-mapping",
+    "transactions-and-units-of-work"
+   ],
+   "deviations": 1,
+   "context": "db-profiles-analyses-store",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

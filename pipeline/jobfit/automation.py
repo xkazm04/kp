@@ -970,6 +970,7 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
     """Decide one entry's automated move. Pure; operates on the entry snapshot.
 
     entry keys used: stage, archetype, matchScore, daysInStage, approvalKind, recentScreening,
+    advanceDeclined (optional; a person declined a queued advance in this stint),
     agingTier (optional; see aging_alerts), stageRole + advanceTo (optional; see
     stage_facts — absent = the shipped board's name -> role map).
     Returns {action: advance|reject|hold|none, toStage, alerts:[...], reason}.
@@ -990,6 +991,7 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
     days = int(entry.get("daysInStage") or 0)
     approval = entry.get("approvalKind")
     recent_screening = bool(entry.get("recentScreening"))
+    advance_declined = bool(entry.get("advanceDeclined"))
     early = archetype in _EARLY_CAREER
     # The column as a reason names it: the shipped name alone on the shipped board (so
     # every default-board reason is byte-identical to the name-keyed engine), the
@@ -1010,10 +1012,19 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
 
     if role == "entry":
         # CV received (inbound application or proactively sourced), waiting for
-        # screening. Once a match score exists it has cleared first-wave matching →
-        # advance into the board's next column, where the archetype-aware gate
-        # decides. This move is fair — archetype-neutral and never a reject — so
-        # intake doesn't stall on the entry column. No score yet → hold for matching.
+        # screening. Once a match score exists it has cleared first-wave matching, and
+        # the policy PROPOSES the move into the board's next column. The proposal is
+        # queued for a person by the TS pass (Q2, owner ruling 2026-11-09), never
+        # applied by it. No score yet -> hold for matching.
+        #
+        # A pending approval holds: the pass queues the advance as an approval on the
+        # entry, so without this check the same entry would be re-proposed every tick
+        # (the screening branch below has always had it). That also keeps a knockout
+        # hold (a `decision` approval) out of the policy's hands.
+        if approval:
+            return out("hold", None, "approval already pending")
+        if advance_declined:
+            return out("hold", None, "advance declined by a person; not proposed again while the entry stays in this stage")
         if not scored:
             return out("hold", None, "accepted; awaiting match score")
         if not advance_to:
@@ -1024,9 +1035,12 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
         # column gets the same thresholds — roles repeat freely on a composed board.
         # Early-career is NEVER auto-advanced/rejected (human screening gate); a
         # pending approval holds; weak BAU is screened out (queued for a human by the
-        # TS pass, never applied); strong BAU advances once it has settled; mid → human.
+        # TS pass, never applied); strong BAU is PROPOSED for advance once it has settled (queued for a person by
+        # the TS pass, never applied); mid → human.
         if approval:
             return out("hold", None, "approval already pending")
+        if advance_declined:
+            return out("hold", None, "advance declined by a person; not proposed again while the entry stays in this stage")
         if early:
             return out("hold", None, "early-career: human screening gate (never auto-advance/reject)")
         if not scored:

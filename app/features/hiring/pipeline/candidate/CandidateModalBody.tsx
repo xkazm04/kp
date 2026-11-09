@@ -11,7 +11,8 @@
 // and a half-typed note survives a look at the Activity tab. The footer is outside
 // the panels, so every action is one click away whichever tab is open.
 
-import { useCallback, useMemo } from "react";
+import dynamic from "next/dynamic";
+import { useCallback, useMemo, useState } from "react";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { lettersNeedingYou } from "@/app/_lib/comms-resend-outcome";
 import type { StageDef } from "@/app/_lib/pipeline-stages";
@@ -24,11 +25,16 @@ import { CandidateModalHeader } from "./CandidateModalHeader";
 import { CandidateModalTabs, tabIds } from "./CandidateModalTabs";
 import { CandidateOverviewTab } from "./CandidateOverviewTab";
 import { CandidateRecordTab } from "./CandidateRecordTab";
-import { schedEntryOf, type CandidateTab } from "./candidateView";
+import { offersHumanScorecard, schedEntryOf, type CandidateTab } from "./candidateView";
 import { CandidateDecisionBar } from "./decision/CandidateDecisionBar";
 import { CandidateFooter } from "./footer/CandidateFooter";
 import { candidateDetailModel } from "./scorecard/candidateDetailModel";
 import { useCandidateState } from "./state/useCandidateState";
+
+// Code-split like the Schedule tab's mount of the same modal: it loads on the click.
+const InterviewPrepModal = dynamic(() =>
+  import("@/app/features/hiring/schedule/ScheduleInterviewPrepModal").then((m) => ({ default: m.InterviewPrepModal }))
+);
 
 export function CandidateModalBody({
   view,
@@ -46,6 +52,7 @@ export function CandidateModalBody({
   const { entry, tab } = view;
   const cohort = view.cohort ?? boardCohort;
   const st = useCandidateState({ entry, axis, onClose, onChanged, onOpenEntry, cohort });
+  const [showPrep, setShowPrep] = useState(false);
 
   // Undelivered letters are raised on open: same predicate + consent as their doors.
   const consentStatus = st.consent?.consent.status ?? null;
@@ -121,12 +128,24 @@ export function CandidateModalBody({
         nextStage={model.nextStage}
         stageLabel={stageLabel}
         labelOf={labelOf}
+        onOpenScorecard={offersHumanScorecard(entry, axis) ? () => setShowPrep(true) : undefined}
+        onChanged={onChanged}
       />
 
       {/* Stacked over the modal through the shared Modal portal + dialog stack:
           Escape closes the transcript first, then the candidate. */}
       {st.showTranscript ? (
         <InterviewTranscriptModal entry={schedEntryOf(entry)} onClose={() => st.setShowTranscript(false)} />
+      ) : null}
+      {showPrep ? (
+        <InterviewPrepModal
+          entry={schedEntryOf(entry)}
+          onClose={() => {
+            setShowPrep(false);
+            // A saved verdict may have raised the scorecard_review gate.
+            onChanged();
+          }}
+        />
       ) : null}
     </>
   );

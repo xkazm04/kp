@@ -294,6 +294,9 @@ class OtherModesUnchangedTest(unittest.TestCase):
             bound.cli_args(),
             [
                 exe, "-p", "--output-format", "json",
+                # 2026-11-03: the scanned repo's project/local sources are not
+                # loaded (its hooks ran and its CLAUDE.md steered under defaults).
+                "--setting-sources", "user",
                 "--permission-mode", "plan",
                 "--allowedTools", ",".join(READ_ONLY_TOOLS),
                 "--disallowedTools", ",".join(WRITE_TOOL_DENYLIST),

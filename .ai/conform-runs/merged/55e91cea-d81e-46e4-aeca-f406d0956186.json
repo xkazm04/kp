@@ -1,0 +1,94 @@
+{
+ "schema": "conform-run/1",
+ "worker": "55e91cea-d81e-46e4-aeca-f406d0956186",
+ "subject": "agent-host-experience",
+ "evaluatedAt": "2026-11-08T05:34:10.053847+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "agent-hire-app-master",
+   "subject": "agent-host-experience",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/app-master/backbone.ts:387 kp hands long-running App-master work to the Personas agent. When a rollup leaves out `ledgerConsistent`, `backboneFromRollup` sets it to `true`, and the ledger rule (scored as measured, line 271ff) then credits the full weight on a self-report the delegate never made. So a gap in the delegate's claim about its own work reaches the roster verdict as a pass, even though the report parser does treat the payload as untrusted input (report-payload.ts:34).",
+   "techniques": [
+    {
+     "technique": "peer-agent-delegation",
+     "verdict": "deviation",
+     "evidence": "app/_lib/app-master/backbone.ts:387 Here kp is the delegating side. The technique says a delegate's completion is a claim to check, not believe. The parser does bound the payload as untrusted (report-payload.ts:34: 'nothing in it is trusted beyond its shape'). But a missing ledger self-report is filled in as 'consistent' and scored as measured, and a missing forbiddenClassViolations count becomes 0, so the forbidden-class gate passes. The verdict therefore rests on the delegate's own word, with silence counted as success."
+    },
+    {
+     "technique": "depth-handoff",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/agent-hire/lifecycle.ts:100 No task starts in an outside assistant here. kp calls Personas, and the human approval happens in Personas; kp records the request as pending, not done. This is not a hand-off from a host back into the product."
+    }
+   ],
+   "registryProposal": "peer-agent-delegation's 'The product as the delegating side' section could name the case where the delegate's report is the only evidence of its own work (a self-reported ledger or violation count). It should say that a field the delegate did not send is unmeasured, never filled with the passing value."
+  },
+  {
+   "context": "task-automation-engine",
+   "subject": "agent-host-experience",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/tasks.ts:47 This is an in-process background job queue whose progress the tasks dock reads by polling the settled DB row (task-poll-state.ts:80, POLL_ACTIVE_MS). It is not an agent front end streaming run events, and it is not a tool surface for outside agents: a search of app/_lib for mcp, text/event-stream, structuredContent and tools/list found no hits.",
+   "techniques": [
+    {
+     "technique": "agent-ui-event-stream",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/task-poll-state.ts:80 The runs are batch pipeline jobs that the UI polls; there is no agent turn with text deltas, tool calls or consent events for several surfaces to read. That matches the technique's own 'when not to use' clause."
+    },
+    {
+     "technique": "journey-shaped-tool-surface",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/tasks.ts:47 The task engine exposes no operations to outside agents. The only client is kp's own UI, which reads the task row."
+    }
+   ],
+   "absenceTerms": [
+    "mcp",
+    "text/event-stream",
+    "structuredContent",
+    "tools/list"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "agent-host-experience",
+   "context": "e2e-suite",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-08T05:34:10.053847+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-host-experience"
+   ],
+   "techniques": [
+    "depth-handoff",
+    "peer-agent-delegation"
+   ],
+   "deviations": 1,
+   "context": "agent-hire-app-master",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-08T05:34:10.053847+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-host-experience"
+   ],
+   "techniques": [
+    "agent-ui-event-stream",
+    "journey-shaped-tool-surface"
+   ],
+   "deviations": 0,
+   "context": "task-automation-engine",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

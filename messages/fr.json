@@ -16,6 +16,7 @@
     "gateHuman": "Un humain valide",
     "tipGateHuman": "Une personne valide ce verdict dans Décisions. Cliquez pour l’appliquer sans supervision.",
     "tipGateAuto": "Ce verdict s’applique sans supervision. Cliquez pour qu’une personne le valide.",
+    "tipGateFixed": "Une personne décide de cette étape ; aucun réglage ne la confie à la machine.",
     "tipKindAi": "Une IA mène cet entretien. Cliquez pour en faire un tour humain.",
     "tipKindHuman": "Une personne mène ce tour. Cliquez pour en faire un entretien IA.",
     "tipModeScreening": "La présélection est toujours faite par l’IA. Vous choisissez qui la valide.",
@@ -207,7 +208,7 @@
       },
       "dist": {
         "title": "Diffusion aux candidats",
-        "summary": "À l'enregistrement de l'offre, le vivier est classé face au nouveau poste et amorcé en entrées de pipeline au stade Accepted ; la branche Accepted de la passe de politique (direction #1) fait avancer automatiquement les candidats retenus vers Screened (première vague d'évaluation). La publication sur les jobboards externes reste manuelle."
+        "summary": "À l'enregistrement de l'offre, le vivier est classé face au nouveau poste et amorcé en entrées de pipeline au stade Accepted ; la branche Accepted de la passe de politique (direction #1) propose les candidats retenus pour Screened (première vague d'évaluation) et met chaque proposition en file pour l'approbation d'une personne. La publication sur les jobboards externes reste manuelle."
       },
       "apply": {
         "title": "Candidature / dépôt de CV",
@@ -255,7 +256,7 @@
       },
       "cron": {
         "title": "Planificateur / cron",
-        "summary": "Direction #5 : une horloge durable. Un battement d'instrumentation cadence le planificateur, qui réclame de façon atomique une exécution due et lance la passe de politique (relances liées à l'ancienneté, avancements temporels). Désactivé par défaut. À activer via l'interrupteur de l'onglet Pipeline ou AUTOMATION_SCHEDULER_AUTOSTART=1."
+        "summary": "Direction #5 : une horloge durable. Un battement d'instrumentation cadence le planificateur, qui réclame de façon atomique une exécution due et lance la passe de politique (relances liées à l'ancienneté, propositions d'avancement mises en file). Désactivé par défaut. À activer via l'interrupteur de l'onglet Pipeline ou AUTOMATION_SCHEDULER_AUTOSTART=1."
       }
     }
   },
@@ -552,6 +553,7 @@
     "theRole": "le poste",
     "aRole": "un poste",
     "yourNewRole": "votre nouveau poste",
+    "aiDraftedFooter": "Ce message a été rédigé par une IA.",
     "dataFooter": "· · ·\nVos données : consultez ce que nous détenons à votre sujet, ou demandez leur suppression, à tout moment :\n{link}",
     "stopFooter": "Arrêter ces messages : refusez à tout moment, en un clic, de recevoir d’autres messages au sujet de nos offres :\n{link}",
     "ack": {
@@ -576,7 +578,7 @@
     },
     "koDecline": {
       "subject": "Votre candidature : {role}",
-      "body": "Bonjour {name},\n\nMerci d’avoir postulé pour {role}. Vous avez répondu non à une condition que le poste exige expressément :\n\n{mustHaves}\n\nCela met fin à la candidature automatiquement ; aucune personne n’a pris cette décision. Si vous pensez qu’il s’agit d’une erreur, ou si vous avez répondu par erreur, répondez à ce message et une personne réexaminera la décision.\n\nNous ne conservons cette adresse e-mail que pour consigner l’envoi de ce message, et nous la supprimons automatiquement après {days} jours.\n\nLes conditions peuvent évoluer avec les postes. Nous serions ravis de vous revoir postuler à l’avenir.\n\nNous vous souhaitons le meilleur,\n{team}",
+      "body": "Bonjour {name},\n\nMerci d’avoir postulé pour {role}. Vous avez répondu non à une condition que le poste exige expressément :\n\n{mustHaves}\n\nUne personne a examiné votre candidature et confirmé qu’elle ne remplit pas cette condition ; nous ne pouvons donc pas la poursuivre. Si vous pensez qu’il s’agit d’une erreur, ou si vous avez répondu par erreur, répondez à ce message et une personne la réexaminera.\n\nVotre candidature, y compris cette adresse e-mail, reste conservée comme toute autre candidature, et vous pouvez à tout moment nous demander de l’effacer grâce au lien ci-dessous.\n\nLes conditions peuvent évoluer avec les postes. Nous serions ravis de vous revoir postuler à l’avenir.\n\nNous vous souhaitons le meilleur,\n{team}",
       "mustHaveFallback": "l’une des conditions du poste"
     },
     "offer": {
@@ -901,7 +903,7 @@
       "subtitle": "Conçu pour le recrutement réglementé par le règlement européen sur l’AI (EU AI Act) et le RGPD : la machine lit, mais une personne qualifiée prend chaque décision qui concerne un candidat.",
       "human": {
         "title": "L’humain dans la boucle",
-        "body": "Hormis un seul refus automatique, un rejet revient à une personne : la machine ne peut pas en prononcer un, et un rejet en masse exige l’approbation humaine signée de cette liste exacte. Ce refus automatique est l’élimination : répondre non à une condition que le poste exige expressément met fin à la candidature aussitôt, et le candidat sait laquelle et peut demander qu’une personne réexamine la décision. L’avancement et la remise d’une offre sont eux aussi validés par un humain par défaut. Un espace de travail peut déléguer l’un ou l’autre, étape par étape, et chaque étape qui s’exécute alors sans surveillance est journalisée avec la règle qui l’a autorisée."
+        "body": "Un rejet revient à une personne : la machine ne peut pas en prononcer un, et un rejet en masse exige l’approbation humaine signée de cette liste exacte. Répondre non à une condition que le poste exige expressément ne rejette personne : la candidature est mise en attente pour une personne, qui confirme le rejet ou lève l’attente, et seul un rejet confirmé indique au candidat de quelle condition il s’agissait et comment demander qu’une personne réexamine la décision. Chaque offre est validée par une personne, et aucun réglage d’un espace de travail ne peut confier à la machine une décision de présélection ou d’offre."
       },
       "oversight": {
         "title": "AI Act, article par article"
@@ -932,7 +934,7 @@
           },
           "auto": "auto",
           "you": "vous",
-          "lockedNote": "les refus, une fois la candidature reçue, restent toujours à vous : celui-là ne se déverrouille pas"
+          "lockedNote": "la présélection, les offres et les refus, une fois la candidature reçue, restent toujours à vous : ils ne se déverrouillent pas"
         }
       }
     },
@@ -1103,7 +1105,7 @@
       "screen": {
         "eyebrow": "Étape 04 · Présélection",
         "title": "Chaque CV, lu pour de vrai",
-        "body": "Chaque candidature est notée de 0 à 100 face au poste, preuves à l’appui. Un contrôle d’équité passe en premier ; les correspondances nettes avancent seules et tout le reste attend un humain."
+        "body": "Chaque candidature est notée de 0 à 100 face au poste, preuves à l’appui. Un contrôle d’équité passe en premier ; les correspondances nettes sont mises en file pour qu'un humain les fasse avancer et tout le reste attend un humain."
       },
       "assignment": {
         "eyebrow": "Étape 05 · Travail pratique",
@@ -1234,7 +1236,7 @@
     "loadFailed": "Impossible de confirmer les règles de cet espace de travail. Les informations par défaut sont affichées.",
     "retry": "Réessayer",
     "title": "Comment ça marche",
-    "body": "Nous utilisons l’AI pour assister la présélection et les entretiens, en évaluant vos <highlight>compétences, votre expérience et votre adéquation</highlight> au poste. Répondre non à une condition que le poste exige expressément met fin à la candidature automatiquement ; vous savez laquelle et vous pouvez demander qu’une personne réexamine la décision. Tout autre rejet revient à une personne : aucun réglage ne peut confier cette décision à la machine. L’avancement et la remise d’une offre sont validés par un humain par défaut ; un espace de travail peut déléguer l’un ou l’autre, étape par étape, et chaque étape qui s’exécute alors sans surveillance est journalisée. Vous pouvez demander un examen humain à tout moment.",
+    "body": "Nous utilisons l’AI pour assister la présélection et les entretiens, en évaluant vos <highlight>compétences, votre expérience et votre adéquation</highlight> au poste. Répondre non à une condition que le poste exige expressément ne met pas fin seule à la candidature : elle est mise en attente pour une personne, et seule sa confirmation la rejette. Vous savez ensuite de quelle condition il s’agissait et vous pouvez demander qu’une personne réexamine la décision. Tout rejet revient à une personne : aucun réglage ne peut confier cette décision à la machine. Chaque offre est validée par une personne, et aucun réglage d’un espace de travail ne peut confier à la machine une décision de présélection ou d’offre. Vous pouvez demander un examen humain à tout moment.",
     "dataConsent": "En soumettant, vous acceptez que nous traitions vos données personnelles pour ce poste pendant une durée maximale de {months, plural, one {# mois} other {# mois}}. Vous pouvez consulter vos données ou en demander l’effacement à tout moment via le lien présent dans nos messages.",
     "interviewData": "À propos de cet entretien : le recruteur peut lire votre transcription et l’évaluation de l’AI pendant {months, plural, one {# mois} other {# mois}} au maximum. Ensuite, vos propos lui sont masqués. Pour demander l’effacement de vos données, utilisez le lien « Vos données » en bas de chacun de nos messages. Pour demander qu’une personne réexamine une décision, répondez à n’importe quel message de l’équipe de recrutement.",
     "regimeNote": "Évalué selon {framework}. Vos données personnelles sont traitées selon {dataLaw}."
@@ -1348,6 +1350,7 @@
     "FEEDBACK_LIST_FAILED": "Impossible de charger les retours. Veuillez réessayer.",
     "POSTING_CLOSED": "Les candidatures pour ce poste sont closes. Nous n’acceptons plus de nouveaux envois.",
     "OFFER_EXPIRED": "Cette offre a expiré.",
+    "OFFER_NO_LONGER_OPEN": "Cette offre n’est plus ouverte.",
     "OFFER_NOT_FOUND": "Cette offre est introuvable. Le lien a peut-être été remplacé par un plus récent.",
     "SESSION_TOKEN_REQUIRED": "Cette session de travail correspond à un autre lien de candidature. Ouvrez le lien reçu dans votre e-mail d’invitation pour continuer.",
     "DEVCASE_SESSION_UNAVAILABLE": "Ce cas n’accepte plus de soumissions.",
@@ -1387,6 +1390,7 @@
     "PIPELINE_STAGE_CHANGED": "L’étape de ce candidat a changé depuis l’ouverture de la vue. Actualisez et décidez à nouveau.",
     "PIPELINE_DECISION_NOT_SEALED": "Cette décision n’a pas pu être enregistrée, elle n’a donc pas été appliquée. Rien n’a changé et rien n’a été envoyé. Réessayez dans un instant.",
     "PIPELINE_ENTRY_HIRED": "Ce candidat est déjà embauché et ne peut donc pas être refusé. Rien n’a changé.",
+    "PIPELINE_NO_QUEUED_ADVANCE": "Ce candidat n’a aucune avancée en attente à laisser en place, donc rien n’a changé. Elle a peut-être déjà été décidée.",
     "PIPELINE_ACTION_UNKNOWN": "Ce tableau ne prend pas en charge cette action.",
     "PIPELINE_GITHUB_EVIDENCE_INVALID": "Ces éléments GitHub ne sont pas au format attendu.",
     "PIPELINE_ADD_REASONS_INVALID": "Les raisons jointes à cet ajout n'ont pas le format attendu.",
@@ -1402,6 +1406,7 @@
     "PIPELINE_NOTE_EMPTY": "Écrivez quelque chose avant d’ajouter une note.",
     "PIPELINE_NOT_REINSTATABLE": "Il n’y a pas de rejet automatique à annuler ici. Ce candidat a déjà été réintégré, ou son dossier a été clos autrement.",
     "PIPELINE_INTAKE_NOT_DEGRADED": "Aucun signalement de profil incomplet à traiter pour ce candidat.",
+    "OFFER_DRAFT_NOT_AVAILABLE": "Une offre ne peut être préparée que pour un candidat actif à l’étape de l’offre, sans décision en attente.",
     "OFFER_NOT_DISPATCHED": "L’offre a été préparée mais n’a pas pu être envoyée. Rien n’est perdu : validez à nouveau et le même lien repartira.",
     "OFFER_SENT_APPROVAL_CHANGED": "L’offre est partie, mais la validation de ce candidat a changé entre-temps. Actualisez avant de décider à nouveau.",
     "PIPELINE_BATCH_ITEM_MALFORMED": "Cet élément n’indiquait pas de candidat, ou nommait une action que ce tableau ne propose pas.",
@@ -1456,6 +1461,7 @@
     "ANALYZE_TOO_MANY_VARIANTS": "Vous pouvez comparer au maximum 3 variantes de CV par analyse.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "Cette soumission est introuvable.",
     "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Évaluez la soumission avant de lancer une présélection vocale.",
+    "INTERVIEW_ENTRY_NOT_ACTIVE": "Ce candidat n’est plus actif : une nouvelle scorecard ne peut pas être enregistrée.",
     "INTERVIEW_ENTRY_REQUIRED": "Indiquez de quelle candidature il s'agit pour cet entretien.",
     "INTERVIEW_JOB_REQUIRED": "Choisissez un poste pour comparer les entretiens.",
     "INTERVIEW_SIM_ATTACH_FIELDS_REQUIRED": "Choisissez un entretien d’entraînement et la candidature à laquelle l’associer.",
@@ -1467,6 +1473,7 @@
     "INTERVIEW_ALREADY_COMPLETED": "Cet entretien est déjà terminé.",
     "INTERVIEW_NOT_RESCORABLE": "Cet entretien ne peut pas être réévalué.",
     "INTERVIEW_SCORECARD_UNGROUNDED": "Le scoreur n'a pas pu fonder un verdict sur la transcription ; rien n'a été enregistré. Réessayez la réévaluation plus tard.",
+    "INTERVIEW_SCORECARD_RATINGS_REQUIRED": "Évaluez au moins une compétence avant de déposer une fiche d'évaluation.",
     "INTERVIEW_CONSENT_REQUIRED": "Le consentement à l'enregistrement est requis avant de démarrer l'entretien.",
     "INTERVIEW_PROVIDER_INVALID": "Ce fournisseur vocal n'est pas connu de ce serveur.",
     "INTERVIEW_PROVIDER_UNCONFIGURED": "Le fournisseur vocal n'est pas configuré sur ce serveur, l'appel ne peut donc pas démarrer.",
@@ -2349,9 +2356,12 @@
       "lang": "La langue de travail du poste"
     },
     "declinedMustHave": "Condition non remplie :",
-    "declinedAutoNote": "Répondre non à une condition que le poste exige expressément met fin à la candidature automatiquement. Aucune personne n’a pris cette décision, et vous pouvez demander qu’une personne la réexamine.",
+    "declinedAutoNote": "Vous pouvez demander qu’une personne réexamine cette décision.",
     "declinedReviewEmail": "Nous vous envoyons cette décision par e-mail à l’adresse indiquée. Répondez simplement à ce message et une personne la réexaminera. Si rien n’arrive, contactez directement l’équipe qui recrute pour ce poste.",
-    "declinedReviewNoEmail": "Nous n’avons pas pu vous envoyer cette décision par e-mail. Pour qu’une personne la réexamine, contactez directement l’équipe qui recrute pour ce poste."
+    "declinedReviewNoEmail": "Nous n’avons pas pu vous envoyer cette décision par e-mail. Pour qu’une personne la réexamine, contactez directement l’équipe qui recrute pour ce poste.",
+    "heldMessage": "Merci de votre candidature. À cause d’une de vos réponses, une personne examinera d’abord votre candidature avant que quoi que ce soit ne soit décidé.",
+    "heldMustHave": "Vous avez répondu non à :",
+    "heldNote": "Rien n’est décidé. Une personne examine d’abord votre candidature. Si elle confirme que cette condition n’est pas remplie, vous savez laquelle et comment demander un réexamen. Si elle lève l’attente, votre candidature suit son cours normal."
   },
   "interview": {
     "completedTitle": "Merci",
@@ -2807,6 +2817,7 @@
     "signOutConfirmBody": "Votre session prendra fin et vous reviendrez à l’accueil.",
     "signOutConfirmCancel": "Rester ici",
     "tabs": {
+      "one": "One",
       "pipeline": "Vue d’ensemble",
       "channels": "Canaux",
       "decisions": "Décisions",
@@ -2822,7 +2833,7 @@
       "about": "À propos",
       "billing": "Facturation",
       "models": "Modèles",
-      "integrations": "Intégrations",
+      "integrations": "Intégrations (dans Canaux)",
       "organization": "Organisation",
       "workspace": "Espaces de travail",
       "agents": "Agents",
@@ -3259,6 +3270,7 @@
       "auto_rejected": "a été rejeté automatiquement par la passe de règles",
       "screening_hold": "a été mis en attente d’un examen humain",
       "interview_scorecard": "dispose d’une grille d’entretien synthétisée",
+      "interview_scorecard_human": "dispose d’une grille d’entretien saisie par une personne",
       "interview_prep_generated": "dispose d’une préparation d’entretien générée",
       "rejection_drafted": "dispose d’un projet de refus",
       "offer_drafted": "dispose d’un projet d’offre",
@@ -3357,14 +3369,14 @@
       "previewTitle": "Aperçu : ce que ferait cette passe",
       "previewSubtitle": "{evaluated} candidats actifs évalués. Rien n’a été appliqué et personne n’a encore été contacté par e-mail.",
       "previewRejectsQueued": "{count, plural, one {Soumettrait # à votre validation. La passe ne rejette jamais d’elle-même} other {Soumettrait # à votre validation. La passe ne rejette jamais d’elle-même}}",
-      "previewAdvances": "{count, plural, one {Ferait avancer #} other {Ferait avancer #}}",
+      "previewAdvances": "{count, plural, one {Mettrait # avancement en file pour approbation} other {Mettrait # avancements en file pour approbation}}",
       "previewHeld": "{count, plural, one {En attente de revue (#). Voir les raisons} other {En attente de revue (#). Voir les raisons}}",
       "previewFairnessBlocked": "{count, plural, one {# rejet potentiel retenu par le garde-fou d’équité} other {# rejets potentiels retenus par le garde-fou d’équité}}",
       "previewApply": "{count, plural, one {Appliquer # changement} other {Appliquer # changements}}",
       "previewCancel": "Annuler",
       "previewNothing": "Rien à appliquer. Chaque candidat est en attente ou inchangé.",
       "previewNote": "La validation réévalue par rapport au tableau en direct. Un candidat déplacé entre-temps est ignoré, jamais traité par erreur.",
-      "runPassTitle": "Passe de règles déterministe : faire avancer automatiquement les bonnes correspondances BAU, mettre en attente les profils en début de carrière pour un humain, signaler la stagnation",
+      "runPassTitle": "Passe de règles déterministe : mettre en file les bonnes correspondances BAU pour qu'un humain les fasse avancer, mettre en attente les profils en début de carrière pour un humain, signaler la stagnation",
       "passSummaryLead": "Passe d’automatisation",
       "passAdvanced": "{n, plural, one {# avancé} other {# avancés}}",
       "passRejected": "{n, plural, one {# rejeté} other {# rejetés}}",
@@ -3746,6 +3758,12 @@
         "moveStage": "Déplacer vers l’étape",
         "voiceLink": "Lien d’entretien vocal",
         "scheduleLink": "Lien de prise de rendez-vous",
+        "manualOffer": "Rédiger l’offre à la main",
+        "manualOfferAmount": "Salaire mensuel ({currency})",
+        "manualOfferHint": "Laissez vide pour utiliser le milieu de la fourchette salariale du poste. Une personne valide l’offre avant son envoi.",
+        "manualOfferSubmit": "Créer le brouillon",
+        "manualOfferDrafted": "Brouillon créé. Validez-le dans Décisions pour l’envoyer.",
+        "manualOfferFailed": "Impossible de préparer cette offre.",
         "closeTray": "Fermer le panneau",
         "showResult": "Dernier résultat",
         "noActions": "Aucune action IA disponible à cette étape",
@@ -3903,7 +3921,7 @@
       "rejectModeLabel": "Rejets",
       "rejectModeApprove": "supervisé (mis en file pour approbation)",
       "rejectModeAuto": "autonome (appliquer et notifier)",
-      "rejectModeTitle": "Chaque rejet calculé par l’horloge est mis en file sur le point de contrôle Décisions pour un clic humain. Il n’est jamais appliqué sans surveillance (les avancées et les mises en attente restent automatiques). Un humain examine et prend chaque décision défavorable.",
+      "rejectModeTitle": "Chaque rejet calculé par l’horloge est mis en file sur le point de contrôle Décisions pour un clic humain. Il n’est jamais appliqué sans surveillance (pas plus qu’une avancée, elle aussi mise en file pour approbation : seules les mises en attente restent automatiques). Un humain examine et prend chaque décision défavorable.",
       "outcome": {
         "applied": "appliqué",
         "failed": "échoué",
@@ -4074,7 +4092,8 @@
     "intakeReasons": {
       "leadPending": "Lead via {channel} : profil en attente d'enrichissement. Le lien vers la candidature complète a été envoyé dans l'accusé de réception.",
       "leadPendingUngated": "Lead via {channel} : profil en attente d'enrichissement. Le lien vers la candidature complète a été envoyé dans l'accusé de réception. Éligibilité non vérifiée par le formulaire source : {ungated}",
-      "atsImported": "Importé depuis {channel} : pas encore de profil de CV. Créez-en un à partir du CV du candidat pour l’évaluer."
+      "atsImported": "Importé depuis {channel} : pas encore de profil de CV. Créez-en un à partir du CV du candidat pour l’évaluer.",
+      "knockoutHeld": "{channel} : a répondu non à une condition que le poste exige expressément. En attente d’une personne qui confirme le rejet ou lève l’attente. Rien n’est décidé et aucune lettre n’a été envoyée."
     },
     "offAxis": {
       "title": "Hors du tableau",
@@ -4183,6 +4202,9 @@
       "tagHumanScorecard": "Scorecard d’entretien humain",
       "tagScreening": "Présélection AI",
       "tagQueuedReject": "Rejet automatique en file (rejeter notifie le candidat)",
+      "tagQueuedAdvance": "Avancée en file (une personne fait avancer le candidat)",
+      "keepInPlace": "Laisser en place",
+      "keepInPlaceTitle": "Le candidat reste où il est et cette proposition est retirée. Il n’est pas refusé pour autant.",
       "acceptSendOffer": "Envoyer l’offre",
       "acceptToOffer": "Passer à l’offre",
       "acceptAdvance": "Faire avancer",
@@ -4276,7 +4298,7 @@
       "standardFallback": "analyse des quatre cinquièmes",
       "postureCoveredTitle": "Ce que la plateforme applique",
       "postureCeilingTitle": "Ce qu’elle ne fait pas",
-      "covered1": "Un humain examine et prend chaque décision d’avancement, d’offre et de rejet une fois la candidature reçue. La seule décision automatique est l’élimination : un non à une condition exigée expressément met fin à la candidature, et le candidat sait laquelle et peut demander qu’une personne réexamine la décision ({oversight}).",
+      "covered1": "Un humain examine et prend chaque décision d’avancement, d’offre et de rejet une fois la candidature reçue. Un non à une condition exigée expressément ne décide rien : la candidature est mise en attente pour une personne, qui confirme le rejet (le candidat sait alors laquelle et peut demander qu’une personne réexamine la décision) ou lève l’attente ({oversight}).",
       "covered2": "Chaque décision est scellée dans un enregistrement d’audit inviolable.",
       "covered3": "Les candidats voient une mention d’utilisation d’AI et peuvent demander un examen humain à tout moment.",
       "covered4": "Les candidats en début de carrière et non classés sont protégés du rejet automatisé (fail-closed).",
@@ -8461,6 +8483,7 @@
         "interview_no_show": "Absence à l'entretien",
         "interview_proposal_declined": "Créneau proposé refusé",
         "screening_threshold_adjusted": "Seuil de présélection ajusté",
+        "advance_declined": "Avancée laissée en place",
         "match_verdict": "Verdict de correspondance",
         "debrief_findings": "Constats du débrief",
         "authorship_verified": "Paternité vérifiée"
@@ -8658,6 +8681,7 @@
         "advanced": "Avancé automatiquement",
         "screening_hold": "Mis en attente pour revue humaine",
         "interview_scorecard": "Scorecard synthétisé",
+        "interview_scorecard_human": "Scorecard saisi par une personne",
         "interview_prep_generated": "Préparation d’entretien générée",
         "offer_drafted": "Offre rédigée",
         "rematched": "Rematché vers un autre poste",
@@ -12374,7 +12398,7 @@
       "ai": {
         "title": "Transparence de l’AI",
         "oversight": "Au titre du règlement européen sur l’AI, trier, noter, classer et interroger des candidats est un usage à haut risque. Chaque page destinée aux candidats affiche donc une mention AI avant qu’une AI ne lise vos données, comme l’exige l’article 50.",
-        "sealed": "Par défaut, aucun candidat n’est retenu ni destinataire d’une offre par la seule machine (un espace de travail peut déléguer l’un ou l’autre, et chaque étape sans surveillance est journalisée). Le seul refus que la machine prononce seule est l’élimination : répondre non à une condition que le poste exige expressément met fin à la candidature automatiquement, et le candidat sait laquelle et peut demander qu’une personne réexamine la décision. Toute autre décision défavorable exige un humain, et chaque décision, humaine ou automatisée, est scellée dans un registre d’audit infalsifiable indiquant qui a décidé et pourquoi."
+        "sealed": "Par défaut, aucun candidat n’est retenu ni destinataire d’une offre par la seule machine. La machine ne rejette personne seule : répondre non à une condition que le poste exige expressément met la candidature en attente pour une personne, qui confirme le rejet ou lève l’attente, et seul un rejet confirmé indique au candidat de quelle condition il s’agissait et comment demander qu’une personne réexamine la décision. Toute décision défavorable exige un humain, et chaque décision, humaine ou automatisée, est scellée dans un registre d’audit infalsifiable indiquant qui a décidé et pourquoi."
       },
       "subprocessors": {
         "title": "Sous-traitants",
@@ -12709,13 +12733,13 @@
       "gate": "une personne",
       "stops": "s'arrête",
       "applied": "appliqué automatiquement",
-      "noteRejection": "La ligne qui compte est celle du rejet. La passe le calcule, le fait passer par le garde-fou d'équité, puis refuse de l'appliquer et le met en file pour une personne. Un rejet est la seule action irréversible et visible par le candidat dans le produit, donc rien ne l'applique de lui-même. (Le seul refus automatique intervient avant : le candidat qui répond non à une condition que le poste exige expressément sait laquelle et peut demander qu’une personne réexamine la décision.)",
-      "noteAutonomous": "Les avancées, les mises en attente, les alertes, l'évaluation et la rédaction des brouillons restent autonomes, et c'est le fait de le dire franchement qui donne du poids au reste.",
+      "noteRejection": "La ligne qui compte est celle du rejet. La passe le calcule, le fait passer par le garde-fou d'équité, puis refuse de l'appliquer et le met en file pour une personne. Un rejet est la seule action irréversible et visible par le candidat dans le produit, donc rien ne l'applique de lui-même. (Une condition non remplie n’y change rien : la candidature est mise en attente pour une personne, qui confirme le rejet ou lève l’attente.)",
+      "noteAutonomous": "Les mises en attente, les alertes, l'évaluation et la rédaction des brouillons restent autonomes, et c'est le fait de le dire franchement qui donne du poids au reste.",
       "noteHired": "Recruté ne se trouve pas du tout sur ce chemin. Un passage manuel à Recruté renvoie 422, car cette étape est fixée par l'acceptation d'une offre par le candidat et par rien d'autre.",
       "status": {
         "s0": "la passe non supervisée propose quatre actions",
         "s2": "approvalKind : un seul champ décide de ce qui s'arrête",
-        "s3": "avancée : appliquée et inscrite dans la chronologie",
+        "s3": "avancée : calculée, puis mise en file au lieu d'être appliquée",
         "s4": "mise en attente : appliquée",
         "s5": "rejet : calculé, puis mis en file au lieu d'être appliqué",
         "s6": "offre : rédigée, puis mise en file",
@@ -14688,6 +14712,7 @@
       "interviewScheduled": "L'entretien a été planifié",
       "interviewReminderSent": "Le rappel d'entretien a été envoyé",
       "interviewPrepGenerated": "La préparation d'entretien a été générée",
+      "interviewScorecardHuman": "Une personne a saisi le scorecard",
       "rejectionSent": "La lettre de refus a été envoyée",
       "rejected": "Le candidat a été refusé",
       "autoRejected": "L'automatisation a refusé le candidat",
@@ -16324,8 +16349,7 @@
         "signed": "Signé · {signer} (exemple). Elle avance, et la décision garde son justificatif."
       },
       "legendLocked": "verrouillé, jamais délégué",
-      "legendDelegable": "un espace de travail peut le déléguer",
-      "logNone": "Rien ne tourne sans surveillance : chaque étape attend une personne.",
+      "logNone": "La présélection et les offres attendent une personne ; aucun réglage n’y change rien.",
       "logOne": "Sans surveillance désormais : {stage}. Chaque étape de ce type est journalisée avec son plan.",
       "logTwo": "Sans surveillance désormais : {first} et {second}. Chaque étape de ce type est journalisée avec son plan."
     },
@@ -16630,7 +16654,7 @@
       "flow4Text": "Ce qui a été décidé à son sujet, et pourquoi.",
       "rejection": "Refus",
       "neverUnlocks": "jamais déverrouillé",
-      "neverText": "Un non à une condition exigée met fin à la candidature automatiquement et dit pourquoi. Tout autre refus revient à une personne.",
+      "neverText": "Un non à une condition exigée met la candidature en attente pour une personne. Rien n’est rejeté tant qu’une personne ne l’a pas confirmé, et le candidat en connaît alors la raison. Tout rejet revient à une personne.",
       "detailNote": "Un seul interrupteur met en pause toutes les étapes qui tournent sans surveillance."
     }
   },
@@ -16979,6 +17003,16 @@
           "title": "Les liens destinés aux candidats pointent vers une adresse fictive",
           "detail": "Aucune adresse publique n’est définie, les liens ne mènent donc nulle part. Indiquez dans NEXT_PUBLIC_APP_BASE_URL une adresse où tourne KandiDate et que les candidats peuvent atteindre.",
           "cta": "Ouvrir la page carrières"
+        },
+        "atsDead": {
+          "title": "{count, plural, one {<em># résultat</em> n’a pas atteint votre ATS} other {<em># résultats</em> n’ont pas atteint votre ATS}}",
+          "detail": "Le webhook ATS a abandonné après ses tentatives. Le résultat est enregistré ici, mais manque dans votre ATS tant que vous ne le renvoyez pas.",
+          "cta": "Vérifier et renvoyer"
+        },
+        "calendarReconnect": {
+          "title": "Votre agenda doit être reconnecté",
+          "detail": "Google n’accepte plus l’accès de kp à l’agenda, les créneaux d’entretien ne sont donc plus vérifiés par rapport à lui. Reconnectez-le pour relire les disponibilités.",
+          "cta": "Reconnecter"
         }
       },
       "chip": {
@@ -17023,6 +17057,11 @@
         "bookTraffic": "{total, plural, one {# message} other {# messages}} · {sent, plural, one {# envoyé} other {# envoyés}}{orphaned, plural, =0 {} one { · # non rattaché} other { · # non rattachés}}",
         "bookEmptyFact": "Ils apparaissent à mesure que les candidats avancent dans le pipeline",
         "olderExist": "il en existe de plus anciens"
+      },
+      "deckDoor": {
+        "unread": "Connecteurs",
+        "sealed": "Connecteurs : appels sortants bloqués",
+        "count": "Connecteurs : {connected} sur {total} connectés"
       }
     },
     "ledger": {
@@ -17335,6 +17374,98 @@
       "linkBase": {
         "title": "Les liens candidats pointent vers cet ordinateur",
         "body": "Les lettres peuvent partir, mais les liens qu’elles contiennent mènent à une adresse qu’un candidat ne peut pas ouvrir (cet ordinateur ou une adresse fictive). Lancez « npm run up -- --public » pour une adresse publique temporaire, ou définissez APP_BASE_URL sur votre adresse publique."
+      }
+    },
+    "connectors": {
+      "kicker": "Connexions",
+      "title": "Connecteurs",
+      "lead": "Tout ce avec quoi le studio échange en dehors de kp : d’où part le courrier aux candidats, votre ATS, votre agenda. Chaque connecteur dit en un mot où il en est.",
+      "summary": {
+        "reading": "Lecture des connecteurs",
+        "notRead": "Impossible de lire les connecteurs",
+        "sealed": "Appels sortants bloqués",
+        "count": "{connected} sur {total} connectés",
+        "fact": "L’état vient des réglages enregistrés. Un connecteur n’est vérifié que lorsque vous appuyez sur Vérifier maintenant ; rien n’est vérifié en arrière-plan.",
+        "failing": "{count, plural, one {# connecteur est en échec.} other {# connecteurs sont en échec.}}"
+      },
+      "group": {
+        "delivery": {
+          "title": "Envoi",
+          "blurb": "D’où partent les lettres aux candidats. Se règle dans les réglages d’envoi."
+        },
+        "ats": {
+          "title": "ATS",
+          "blurb": "Les candidatures qui arrivent de votre ATS, et les résultats qui y retournent."
+        },
+        "calendar": {
+          "title": "Agenda",
+          "blurb": "Disponibilités pour planifier les entretiens."
+        }
+      },
+      "name": {
+        "comms_relay": "Relais de distribution",
+        "smtp": "Boîte mail SMTP",
+        "ats_webhook": "Webhook ATS (résultats sortants)",
+        "calendar": "Google Agenda",
+        "ats_inbound": "Import ATS : {provider, select, recruitee {Recruitee} recruitis {Recruitis} teamio {Teamio} other {{provider}}}"
+      },
+      "health": {
+        "connected": "Connecté",
+        "unverified": "Enregistré, non vérifié",
+        "failing": "En échec",
+        "notConfigured": "Non configuré",
+        "sealed": "Bloqué"
+      },
+      "fact": {
+        "lastOk": "Dernière vérification réussie {time}.",
+        "failure": "Dernier échec : {reason}",
+        "notConfiguredSender": "Rien n’est enregistré. Configurez-le dans les réglages d’envoi.",
+        "notConfiguredBelow": "Rien n’est enregistré. Configurez-le ci-dessous.",
+        "connected": "La dernière vérification a réussi.",
+        "failing": "La dernière vérification a échoué.",
+        "unverified": "Enregistré, mais pas vérifié depuis l’enregistrement ou le démarrage du serveur.",
+        "sealed": "Ce serveur n’a pas le droit d’appeler des services externes (KP_NO_COMMS_EGRESS), rien n’est donc vérifié.",
+        "smtpRule": "Jamais vérifié d’ici : une vérification envoie une vraie lettre. Utilisez Envoyer un test dans les réglages d’envoi."
+      },
+      "busy": {
+        "read": "Disponibilités : lues lors de la dernière vérification.",
+        "unknown": "Disponibilités : inconnues. Sans lecture, un créneau n’est jamais affiché comme libre."
+      },
+      "door": {
+        "probe": "Vérifier maintenant",
+        "probing": "Vérification en cours…",
+        "sender": "Ouvrir les réglages d’envoi",
+        "reconnect": "Reconnecter"
+      },
+      "probe": {
+        "ok": "Vérification réussie.",
+        "failed": "Vérification échouée. La carte indique pourquoi.",
+        "notRun": "Rien n’a été vérifié : non configuré, ou appels sortants bloqués.",
+        "throttled": "Trop de vérifications. Attendez quelques minutes et réessayez.",
+        "noAnswer": "La vérification n’a pas pu être lancée. Réessayez."
+      },
+      "ats": {
+        "notRead": "Le journal d’envoi vers l’ATS n’a pas été lu.",
+        "dead": "{count, plural, one {# résultat n’a pas atteint votre ATS} other {# résultats n’ont pas atteint votre ATS}}",
+        "noneDead": "Chaque résultat envoyé a atteint votre ATS",
+        "empty": "Rien n’a encore été envoyé à votre ATS",
+        "counts": "{due, plural, =0 {Aucune relance en attente} one {# relance en attente} other {# relances en attente}}. {stranded, plural, =0 {Rien d’interrompu.} one {# interrompu, repris au prochain passage.} other {# interrompus, repris au prochain passage.}}",
+        "deadList": "Résultats qui n’ont pas atteint votre ATS",
+        "deadChip": "Non arrivé",
+        "gaveUp": "Abandonné après {attempts, plural, one {# tentative} other {# tentatives}}, {time}.",
+        "lastAnswer": "Dernière réponse : {answer}",
+        "replay": "Renvoyer",
+        "replaying": "Renvoi en cours…",
+        "replayed": "Remis en file et retenté. Si votre ATS a répondu, la ligne a quitté cette liste.",
+        "replayFailed": "Le renvoi n’a pas pu être lancé. Réessayez.",
+        "event": {
+          "candidateHired": "Embauche",
+          "candidateRejected": "Refus",
+          "offerAccepted": "Offre acceptée",
+          "offerDeclined": "Offre refusée",
+          "ping": "Ping de test",
+          "other": "Résultat"
+        }
       }
     }
   },
@@ -18481,5 +18612,573 @@
     "decline": "Refuser le lot",
     "humanStep": "Votre décision est enregistrée sous votre nom. Une fois que vous avez décidé, l'exécution se poursuit seule.",
     "failed": "Un problème est survenu avec cette exécution. Veuillez réessayer."
+  },
+  "one": {
+    "sheets": {
+      "today": "Today",
+      "asked": "You asked",
+      "position": "{index} of {total}",
+      "notYet": "not built yet, honestly",
+      "changeLabel": "What changed",
+      "tabsLabel": "Views on screen",
+      "pinned": "pinned",
+      "keysLabel": "Keys",
+      "keyStep": "answers",
+      "keyEnter": "Enter",
+      "keyOpen": "open",
+      "keyEsc": "Esc",
+      "keyBack": "back",
+      "stackLabel": "Open sheets",
+      "back": "Back to {name}",
+      "close": "Close {name}",
+      "sheet": {
+        "letters": "Letters to approve",
+        "calendar": "Interview calendar",
+        "profile": "{label} · Profile",
+        "letter": "{label} · Letter",
+        "schedule": "{label} · Schedule"
+      },
+      "push": {
+        "letter": "Letter",
+        "schedule": "Schedule"
+      },
+      "calendar": {
+        "pick": "Pick someone who is waiting, then a free time to book them.",
+        "picked": "{label}: pick a free time to book, or",
+        "link": "send a self-scheduling link"
+      }
+    },
+    "core": {
+      "meta": {
+        "region": "One",
+        "console": "Console",
+        "consoleTip": "Open the full workspace (Ctrl K or ⌘K)",
+        "regionLabel": "Views One put on screen",
+        "conversationLabel": "Conversation with One",
+        "regionEmpty": "Nothing on screen yet. Ask a question or pick one below."
+      },
+      "composer": {
+        "label": "Ask One",
+        "placeholder": "Ask what needs you, or say what to do",
+        "send": "Send",
+        "stop": "Stop",
+        "working": "Opening the views…"
+      },
+      "step": {
+        "back": "Earlier answer",
+        "forward": "Later answer",
+        "position": "Answer {index} of {total}"
+      },
+      "header": {
+        "label": "What is waiting",
+        "stats": {
+          "decisions": {
+            "label": "Decisions",
+            "full": "Decisions waiting on you"
+          },
+          "pipeline": {
+            "label": "Stalled",
+            "full": "Candidates past their step's limit"
+          },
+          "channels": {
+            "label": "New",
+            "full": "New arrivals waiting for a first look"
+          },
+          "letters": {
+            "label": "Letters",
+            "full": "Outreach letters waiting for your approval"
+          },
+          "schedule": {
+            "label": "Interviews",
+            "full": "Interviews ahead"
+          },
+          "jobs": {
+            "label": "Drafts",
+            "full": "Draft roles to publish"
+          }
+        }
+      },
+      "you": "You",
+      "one": "One",
+      "say": {
+        "empty": "Ask me what needs you, or pick a question below.",
+        "needsShown": "Here is what needs you.",
+        "decisionsShown": "These candidates are waiting on your decision.",
+        "pipelineShown": "Here is the active pipeline.",
+        "pipelineRoleShown": "Here is the pipeline for that role, with the role beside it.",
+        "stalledShown": "These candidates have sat in their step past its limit.",
+        "interviewsShown": "These are the interviews on the calendar ahead.",
+        "funnelShown": "Here is how candidates move through the funnel.",
+        "arrivalsShown": "These candidates arrived and wait for a first look.",
+        "draftsShown": "These roles are still drafts, not yet published.",
+        "outboxShown": "Here is what was sent to candidates lately.",
+        "lettersShown": "Here are the emails waiting for your approval.",
+        "calendarShown": "Here is the interview calendar, with who is waiting for a slot.",
+        "profileShown": "Here is their profile.",
+        "profileMany": "Several candidates answer to that name. Pick one.",
+        "profileNone": "No active candidate answers to that name.",
+        "roleShown": "Here is that role and its candidates.",
+        "roleAsk": "Which role? Say it like \"the pipeline for backend\".",
+        "waveRejectProposed": "I have set up that cut. Check who it touches; nothing happens until you confirm.",
+        "waveAdvanceProposed": "I have set up that advance. Check who it touches; nothing happens until you confirm.",
+        "companionProposed": "That one is done in the Console today. The way there is below.",
+        "consoleOffered": "The full workspace is one click away.",
+        "notYet": "That is not in this prototype yet. Try one of these."
+      },
+      "dropped": "{count, plural, one {One part of this answer could not be shown.} other {# parts of this answer could not be shown.}}",
+      "chips": {
+        "needs": "What needs me?",
+        "decisions": "Decisions waiting",
+        "pipeline": "The pipeline",
+        "stalled": "What is stalled?",
+        "interviews": "Interviews ahead",
+        "funnel": "How are we doing?",
+        "arrivals": "New arrivals",
+        "drafts": "Drafts to publish",
+        "outbox": "What was sent?",
+        "digest": "Today's digest",
+        "letters": "Emails to approve",
+        "calendar": "Calendar"
+      },
+      "greeting": {
+        "loading": "Reading what needs you…",
+        "unknown": "I could not read what needs you right now. The questions below still work.",
+        "clear": "All clear. Nothing is waiting on you.",
+        "status": "{areas, plural, one {One area needs you.} other {# areas need you.}}",
+        "first": {
+          "decisions": "{count, plural, one {# candidate is} other {# candidates are}} waiting on your decision.",
+          "pipeline": "{count, plural, one {# candidate has} other {# candidates have}} sat in a step past its limit.",
+          "channels": "{count, plural, one {# new application waits} other {# new applications wait}} for a first look.",
+          "schedule": "{count, plural, one {# interview is} other {# interviews are}} on the calendar ahead.",
+          "jobs": "{count, plural, one {# role is} other {# roles are}} still a draft."
+        },
+        "show": "Show me"
+      },
+      "change": {
+        "shown": "Showing {panel}.",
+        "replaced": "Showing {panel} in place of {previous}.",
+        "focused": "Brought {panel} forward.",
+        "closed": "Closed {panel}.",
+        "pinned": "Pinned {panel}. It stays when new views arrive.",
+        "unpinned": "Unpinned {panel}.",
+        "undone": "Put the previous screen back.",
+        "dropped": "You acted first, so the pending change was dropped.",
+        "droppedSuffix": "The change One had pending was dropped.",
+        "stopped": "Stopped. The screen is as it was before that question.",
+        "pinLimit": "Two views are pinned already. Unpin one to pin {panel}.",
+        "stepped": "Showing answer {answer} of {of}.",
+        "undo": "Undo",
+        "dismiss": "Dismiss"
+      },
+      "panels": {
+        "openInConsole": "Open in Console",
+        "pin": "Pin",
+        "unpin": "Unpin",
+        "close": "Close",
+        "focus": "Bring forward",
+        "loadFailed": "This view could not load.",
+        "notReturned": "This read did not return it.",
+        "noScore": "No score yet.",
+        "firstOf": "Showing the first {shown} of {total}.",
+        "needs": {
+          "title": "What needs you",
+          "empty": "Nothing is waiting on you.",
+          "rows": {
+            "decisions": "Decisions waiting",
+            "pipeline": "Past their step's limit",
+            "channels": "New arrivals",
+            "schedule": "Interviews ahead",
+            "jobs": "Draft roles",
+            "companion": "Candi's open proposals"
+          },
+          "companionWhere": "Answered in Candi's dock in the Console"
+        },
+        "pipelineSlice": {
+          "title": "Pipeline",
+          "titleAging": "Stalled candidates",
+          "titleNew": "New arrivals",
+          "titleName": "Candidates named “{name}”",
+          "forRole": "For “{role}”",
+          "empty": "No active candidates on the board.",
+          "emptyRole": "No active candidates match “{role}”.",
+          "emptyAging": "Nobody has sat in a step past its limit.",
+          "emptyNew": "No new arrivals are waiting.",
+          "emptyName": "No active candidate answers to “{name}”."
+        },
+        "scheduleAhead": {
+          "title": "Interviews ahead",
+          "empty": "No interviews are on the calendar ahead.",
+          "zone": "Times in {zone}",
+          "truncated": "Only the most recent invitations were read; there may be more."
+        },
+        "funnel": {
+          "title": "Funnel",
+          "window": "Last 30 days",
+          "empty": "No candidates entered in this window.",
+          "noConversion": "The first step has nothing before it to convert from."
+        },
+        "jobDrafts": {
+          "title": "Drafts to publish",
+          "empty": "No draft roles are waiting to be published."
+        },
+        "outbox": {
+          "title": "Sent lately",
+          "empty": "Nothing has been sent to candidates yet.",
+          "relayOff": "No delivery relay is set up: messages are recorded here, and nothing reaches candidates.",
+          "verdict": {
+            "sent": "Sent",
+            "queued": "Queued",
+            "failed": "Failed",
+            "bounced": "Bounced",
+            "recovered": "Recovered",
+            "orphaned": "Unmatched receipt"
+          }
+        },
+        "decisionsQueue": {
+          "title": "Decisions waiting",
+          "empty": "No candidate is waiting on a decision.",
+          "advance": "Advance",
+          "reject": "Reject",
+          "advanceWho": "Advance {label}",
+          "rejectWho": "Reject {label}",
+          "keys": "↑↓ move · A advance · R reject"
+        },
+        "roleCard": {
+          "title": "Role",
+          "needRole": "Name a role to see it, like “the role backend”.",
+          "notFound": "No role matches “{role}”.",
+          "more": "{count, plural, one {# more role matches} other {# more roles match}}; showing the first.",
+          "company": "Company",
+          "location": "Location",
+          "seniority": "Seniority",
+          "status": "Status",
+          "hired": "Hired",
+          "target": "Target",
+          "statuses": {
+            "open": "Open",
+            "draft": "Draft",
+            "closed": "Closed"
+          },
+          "pipeline": "Its pipeline"
+        },
+        "letters": {
+          "title": "Letters to approve",
+          "empty": "No outreach letter is waiting for approval.",
+          "revision": "Revision {revision}",
+          "noSubject": "No subject",
+          "truncated": "There may be more letters than shown.",
+          "oldest": "Waiting longest",
+          "since": "Drafted {date}",
+          "perRole": "Letters per role",
+          "open": "Open the letter to {label}",
+          "approveWho": "Approve the letter to {label}",
+          "keys": "↑↓ move · Enter open · A approve"
+        },
+        "calendar": {
+          "title": "Interview calendar",
+          "empty": "Nothing on the calendar and nobody waiting.",
+          "week": "Week of {date}",
+          "prevWeek": "Previous week",
+          "nextWeek": "Next week",
+          "zone": "Times in {zone}",
+          "free": "free",
+          "confirmed": "booked",
+          "pending": "awaiting the candidate",
+          "noDay": "Nothing booked",
+          "waitingTitle": "Waiting for a slot",
+          "noneWaiting": "Nobody is waiting for an interview slot.",
+          "truncated": "The schedule read hit its limit; some interviews may be missing.",
+          "slotsFailed": "Free times could not be read.",
+          "notConnected": "No calendar is connected, so free times are kp's own offer list.",
+          "unavailable": "The connected calendar did not answer; free times are kp's own offer list.",
+          "agendaFree": "Free · {time}",
+          "thisWeek": "This week",
+          "interviews": "Interviews",
+          "freeSlots": "Free times",
+          "longest": "Waiting longest",
+          "waitingFor": "{days} on the calendar step",
+          "waitingForUnknown": "On the calendar step (no date recorded)",
+          "suggest": "Book {label}",
+          "suggestHint": "{when}, the first free time",
+          "cols": {
+            "when": "When",
+            "who": "Candidate",
+            "status": "Status"
+          }
+        },
+        "profile": {
+          "title": "Profile",
+          "titleFor": "Profile · {label}",
+          "pick": "Pick a candidate from a list to see their profile.",
+          "none": "No analysis on record for {label}.",
+          "cv": "CV",
+          "cvNone": "The analysis holds no CV text.",
+          "cvNote": "The text the analysis read. The CV file itself is not stored.",
+          "score": "Score",
+          "unscored": "Unscored",
+          "jobFit": "Job fit",
+          "jobFitNone": "Not scored against a job.",
+          "overall": "Overall",
+          "partOf": "{value} of {max}",
+          "meter": "{label}: {value} of {max}",
+          "parts": {
+            "experience": "Experience",
+            "skills": "Skills",
+            "roleSeniority": "Role and seniority",
+            "education": "Education",
+            "traits": "Traits"
+          },
+          "matching": "Matching",
+          "missing": "Missing",
+          "unproven": "Unproven",
+          "strengths": "Strengths",
+          "gaps": "Gaps",
+          "signals": "Soft signals",
+          "signalStrength": "Strength",
+          "signalWatch": "Watch",
+          "labelOnly": "Matched by name only. This analysis may belong to someone else with the same name.",
+          "engine": {
+            "llm": "Model analysis",
+            "deterministic": "Deterministic analysis",
+            "unknown": "Engine not recorded"
+          },
+          "analysed": "Analysed {date}"
+        },
+        "letter": {
+          "title": "Email",
+          "titleFor": "Email · {label}",
+          "pick": "Pick a candidate from a list to see their email.",
+          "none": "No outreach letter is held for {label}.",
+          "heldOnly": "Only the first-contact outreach letter is held for approval today.",
+          "subject": "Subject",
+          "to": "To",
+          "noRecipient": "No deliverable address",
+          "noSubject": "No subject",
+          "erased": "The text was erased.",
+          "revision": "Revision {revision}",
+          "sends": "What a release would send",
+          "forecast": {
+            "refused": "Would not be sent: no deliverable recipient.",
+            "simulation": "A simulation candidate: nothing leaves.",
+            "suppressed": "Would be held back by the send gate (consent or a halted sequence).",
+            "relay": "Would leave through the configured relay.",
+            "local": "No relay is configured: it would wait in the local outbox.",
+            "unknown": "Delivery forecast not returned."
+          },
+          "state": {
+            "drafted": "Draft",
+            "approved": "Approved",
+            "released": "Sent",
+            "delivery_failed": "Delivery failed",
+            "suppressed": "Held back",
+            "discarded": "Discarded"
+          },
+          "approve": "Approve",
+          "send": "Send",
+          "thread": "Sent to them",
+          "threadEmpty": "Nothing has been sent to them yet."
+        },
+        "interview": {
+          "title": "Interview",
+          "titleFor": "Interview · {label}",
+          "pick": "Pick a candidate from a list to schedule their interview.",
+          "gone": "This candidate is no longer active on the board.",
+          "waiting": "Waiting for an interview slot for {days}.",
+          "waitingUnknown": "Waiting for an interview slot.",
+          "notWaiting": "Not on the calendar step.",
+          "booked": "Booked {when}",
+          "proposed": "Link sent, no time picked yet",
+          "invites": "Their invitations",
+          "slots": "Free times",
+          "noSlots": "No free time in the next three weeks.",
+          "book": "Book",
+          "bookAt": "Book {when}",
+          "link": "Send a link to pick a time",
+          "zone": "Times in {zone}"
+        },
+        "retry": "Try again",
+        "seeAll": "See all",
+        "refreshFailed": "Couldn't refresh",
+        "cols": {
+          "candidate": "Candidate",
+          "stage": "Stage",
+          "score": "Score",
+          "inStage": "In stage",
+          "when": "When",
+          "role": "Role",
+          "area": "Area",
+          "waiting": "Waiting",
+          "company": "Company",
+          "status": "Status",
+          "sent": "Sent",
+          "reached": "Reached",
+          "conversion": "Conversion",
+          "field": "Field",
+          "value": "Value",
+          "revision": "Revision",
+          "drafted": "Drafted"
+        },
+        "stalled": "Past its step's limit",
+        "withRole": "{title} · {role}",
+        "group": {
+          "stalled": "{count} stalled",
+          "none": "No role"
+        },
+        "keysLabel": "Keys",
+        "insight": {
+          "stages": "Where they stand",
+          "other": "Other",
+          "scores": "Score spread",
+          "unscored": "{count, plural, one {# not scored yet} other {# not scored yet}}",
+          "bins": {
+            "40": "40–49",
+            "50": "50–64",
+            "65": "65–74",
+            "75": "75+",
+            "lt40": "<40"
+          },
+          "oldest": "Waiting longest",
+          "inStage": "{stage} · {days}",
+          "topRole": "Most from one role",
+          "candidates": "{count, plural, one {# candidate} other {# candidates}}",
+          "suggestAdvance": "Advance {label}",
+          "reasonScore": "{score}, the highest score here",
+          "reasonScoreDays": "{score}, the highest score here · {days} waiting",
+          "reasonStalled": "{days} in {stage}, past its limit",
+          "reachedPerStep": "Reached per step",
+          "biggestDrop": "Biggest drop",
+          "dropValue": "{from} → {to}",
+          "lost": "{pct} lost",
+          "overall": "Overall",
+          "overallSub": "of entrants reach {stage}",
+          "horizon": "How soon",
+          "ahead": {
+            "today": "24 hours",
+            "week": "7 days",
+            "month": "30 days",
+            "later": "Later"
+          },
+          "next": "Next interview",
+          "delivery": "{count, plural, one {Delivery of the newest message} other {Delivery of the # newest}}",
+          "latest": "Latest",
+          "trouble": "Needs a look",
+          "troubleCount": "{count, plural, one {# failed or bounced} other {# failed or bounced}}",
+          "troubleNone": "Nothing failed",
+          "oldestDraft": "Oldest draft",
+          "topCompany": "Most drafts at",
+          "drafts": "{count, plural, one {# draft} other {# drafts}}",
+          "waiting": "What is waiting",
+          "biggest": "Biggest"
+        }
+      },
+      "consent": {
+        "heading": "Needs your OK",
+        "notNow": "Not now",
+        "working": "Working…",
+        "final": "This is final from here; there is no undo on this screen.",
+        "finalTag": "Final: no undo here",
+        "undoTag": "Undo available",
+        "details": "Details",
+        "forRole": "Role: {role}",
+        "stale": "This candidate moved since you looked. Refresh the view and decide again.",
+        "failed": "That did not go through.",
+        "cost": "Costs one model call when it runs.",
+        "disarmed": "This cannot be armed: {reason}",
+        "reasons": {
+          "badParams": "it arrived incomplete.",
+          "badThreshold": "the score line must be between 1 and 100.",
+          "badCount": "the number must be between 1 and 50.",
+          "unknownAction": "it names an action that does not exist."
+        },
+        "emails": {
+          "rejection": "Emails the candidate a rejection letter.",
+          "rejectionMany": "Emails each of them a rejection letter.",
+          "nextStep": "Peut envoyer au candidat par e-mail l'invitation à l'étape suivante (par exemple un échantillon de travail), selon l'étape."
+        },
+        "entryAdvance": {
+          "title": "Advance {label}",
+          "body": "Moves them on from {stage} to the next step.",
+          "press": "Advance",
+          "done": "{label} moved on."
+        },
+        "entryReject": {
+          "title": "Reject {label}",
+          "body": "Closes them out of {stage}.",
+          "press": "Reject",
+          "done": "{label} is rejected.",
+          "commsFailed": "The rejection letter could not be queued; follow up by hand."
+        },
+        "routedToHumanRound": "Their next round needs a person; it is waiting in Decisions.",
+        "wave": {
+          "rejectTitle": "Reject everyone below {threshold}%",
+          "rejectTitleRole": "Reject everyone below {threshold}% on “{role}”",
+          "advanceTitle": "Advance the top {count} by score",
+          "advanceBody": "Candidates at the offer step wait for the offer flow instead.",
+          "advanceLine": "Moves the highest-scoring active candidates on a step.",
+          "undoBody": "Once it runs, the rejections can be undone here; a letter already sent cannot be recalled.",
+          "scope": "Counts every active candidate on the board, not only the rows in view.",
+          "preview": "Show who it touches",
+          "previewing": "Reading who it touches…",
+          "touches": "{total, plural, =0 {Nobody matches, so nothing would change.} one {Touches # candidate:} other {Touches # candidates:}}",
+          "moreRows": "{count, plural, one {and # more} other {and # more}}",
+          "pressReject": "Reject and notify",
+          "pressAdvance": "Advance them",
+          "done": "{count, plural, one {# candidate done.} other {# candidates done.}}",
+          "failedSome": "{count, plural, one {# could not be changed.} other {# could not be changed.}}",
+          "commsFailed": "{count, plural, one {# rejection letter could not be queued.} other {# rejection letters could not be queued.}}",
+          "heldAtOffer": "{count, plural, one {# held at the offer step.} other {# held at the offer step.}}",
+          "droppedOut": "{count, plural, one {# no longer matched and was left alone.} other {# no longer matched and were left alone.}}",
+          "undo": "Undo the rejections",
+          "undoTooMany": "Too many to undo from here; reverse them from the Console.",
+          "undone": "{restored, plural, one {# candidate is back.} other {# candidates are back.}}",
+          "undoneNotified": "{notified, plural, one {# had already been sent a letter; follow up by hand.} other {# had already been sent a letter; follow up by hand.}}",
+          "undoneSkipped": "{skipped, plural, one {# had moved since and was left alone.} other {# had moved since and were left alone.}}"
+        },
+        "companion": {
+          "title": {
+            "run_analysis": "Re-run a candidate's screening",
+            "draft_jd": "Draft a job description",
+            "draft_outreach": "Draft outreach to a candidate",
+            "generate_digest": "Write today's digest"
+          },
+          "body": "Candi runs this from the Console. One cannot start it from here yet, because the only way to create Candi's proposal is inside her own conversation.",
+          "press": "Open in Console"
+        },
+        "preview": "Wired after the pick",
+        "previewActs": {
+          "someone": "this candidate",
+          "letterApprove": {
+            "title": "Approve the letter to {label}",
+            "line": "Approves the letter to {label} (revision {revision}). Nothing is sent yet.",
+            "press": "Approve",
+            "details": "Approval binds this exact revision; an edit after it needs a new approval. The letter leaves only on Send."
+          },
+          "letterSend": {
+            "title": "Send the letter to {label}",
+            "line": "Sends the approved letter to {label}.",
+            "press": "Send",
+            "details": "The release re-checks consent and the halt rules first; with no relay configured it waits in the local outbox."
+          },
+          "interviewBook": {
+            "title": "Book {label}",
+            "line": "Books {label} on {when}.",
+            "lineZone": "Books {label} on {when} ({zone}).",
+            "press": "Book",
+            "details": "The booking emails the candidate a confirmation with the time."
+          },
+          "interviewLink": {
+            "title": "Send {label} a scheduling link",
+            "line": "Emails {label} a link to pick a time.",
+            "press": "Send link",
+            "details": "The link offers the free times and expires after seven days."
+          }
+        }
+      },
+      "sample": {
+        "note": "Sample letter: this database holds no drafted letters, so this one was made up for the prototype (?sample=letters). Nothing is stored or sent.",
+        "subject": "Your profile and our {role} role",
+        "body": "Hi {name},\n\nI came across your profile while looking for someone for our {role} role, and your experience stood out. The team is small and the work is hands-on, and I think it could be a good fit.\n\nWould you have 20 minutes this week or next for a short call? If the timing is wrong, just say so and I will not follow up.\n\nBest regards"
+      }
+    }
   }
 }

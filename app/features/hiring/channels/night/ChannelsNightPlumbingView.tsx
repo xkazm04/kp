@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Note } from "@/app/_components/kit";
+import { Button, Note } from "@/app/_components/kit";
 import type { ChannelJob } from "../useChannelsData";
 import { ChannelsNightHead } from "./ChannelsNightHead";
 import { ChannelsNightKeys, KEYS_PLUMBING } from "./ChannelsNightFrame";
@@ -10,6 +10,7 @@ import { ChannelsNightNeeds } from "./ChannelsNightNeeds";
 import { ChannelsNightStage } from "./ChannelsNightStage";
 import { ChannelsNightStreet } from "./ChannelsNightStreet";
 import type { NightChannel } from "./channelsNightNav";
+import type { DeckSummary } from "./connectors/connectorsDeckModel";
 import { NEEDS_SHOWN, type NeedItem, type PlumbingInput, type PlumbingModel } from "./channelsNightPlumbing";
 
 /** Below this sheet width the district reads as a street of cards (the stage would shrink its
@@ -21,7 +22,7 @@ const STREET_BELOW = 760;
  * the street on a narrow sheet), what needs a person worst first, and the keys. Every word and
  * condition comes from channelsNightPlumbing.ts over the real state the shell reads.
  */
-export function ChannelsNightPlumbingView({ input, model, jobs, loadFailed, onReload, onOpen, onNeed }: {
+export function ChannelsNightPlumbingView({ input, model, jobs, loadFailed, onReload, onOpen, onNeed, deck, onOpenDeck }: {
   input: PlumbingInput;
   model: PlumbingModel;
   jobs: ChannelJob[] | null;
@@ -29,6 +30,9 @@ export function ChannelsNightPlumbingView({ input, model, jobs, loadFailed, onRe
   onReload: () => void;
   onOpen: (node: NightChannel | "book", el: HTMLElement) => void;
   onNeed: (item: NeedItem, el: HTMLElement) => void;
+  /** The connector catalog in one line; null = not read. */
+  deck: DeckSummary | null;
+  onOpenDeck: (el: HTMLElement) => void;
 }) {
   const t = useTranslations("channelsNight.plumbing");
   const tc = useTranslations("channels");
@@ -78,6 +82,20 @@ export function ChannelsNightPlumbingView({ input, model, jobs, loadFailed, onRe
           )}
         </section>
         <ChannelsNightNeeds needs={needs} onOpen={onNeed} />
+      </div>
+      <div className="cn-deck-door">
+        <Button
+          label={
+            deck === null
+              ? t("deckDoor.unread")
+              : deck.sealed
+                ? t("deckDoor.sealed")
+                : t("deckDoor.count", { connected: deck.connected, total: deck.total })
+          }
+          icon="right"
+          data-level-key="connectors"
+          onClick={(e) => onOpenDeck(e.currentTarget)}
+        />
       </div>
       {input.receiversTruncated ? <Note tone="caution">{tc("receiversTruncated")}</Note> : null}
       <ChannelsNightKeys hints={KEYS_PLUMBING} />

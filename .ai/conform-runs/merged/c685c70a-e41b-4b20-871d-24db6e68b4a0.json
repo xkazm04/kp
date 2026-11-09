@@ -1,0 +1,242 @@
+{
+  "schema": "conform-run/1",
+  "worker": "c685c70a-e41b-4b20-871d-24db6e68b4a0",
+  "subject": "table",
+  "evaluatedAt": "2026-11-06T05:39:27.706153+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "devcase-workspace",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/features/tools/devcases/DevCasesTable.tsx:201 With a filter active, a failed fetch that leaves zero rows shows the 'no matches' row and no failure state, so error looks like empty-because-of-filter (the LoadStatus banner only renders in the unfiltered CasesEmpty branch).",
+      "techniques": [
+        {
+          "technique": "loading-and-empty-states",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/devcases/DevCasesTable.tsx:201 Error dressed as filtered-empty when filtersActive && state.failed. The decode in useDevTabData.ts:72 also defaults `p.cases ?? []`. The first-load case is handled: line 70 holds height until lastUpdated."
+        },
+        {
+          "technique": "filtering",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/devcases/useDevTabData.ts:51 Free-text filter commits by debounce against a server round trip, with no explicit submit. caseFiltersActive (line 226) reads the ENTERED title rather than the applied debouncedTitle, and rows from the old predicate stay on screen until the new response lands. Latest-wins is covered by useLoader's abort."
+        },
+        {
+          "technique": "client-server-split",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/devcases/casesPage.ts:20 All-server: filter, order and window are all answered by GET /api/devcase; the facets come from the whole workspace."
+        },
+        {
+          "technique": "pagination",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/devcases/casesPage.ts:7 Bounded limit steps; the route fetches limit+1 to learn `truncated`, the table says so out loud, and a filter change resets the limit to 50. Past 500 there is no further window: rows are reachable only by filtering."
+        },
+        {
+          "technique": "sorting",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/devcase-ledger.ts:163 The store behind this table: a fixed default order newest-first, with an id tiebreaker. There is no user sort control."
+        },
+        {
+          "technique": "performance",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/devcases/DevCasesTable.tsx:155 Rows keyed by store identity in a bounded window (max 500 rows). No windowing or memoization needed at this size."
+        },
+        {
+          "technique": "grid-keyboard-model",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/devcases/DevCasesTable.tsx:161 A native table with one button per row: read-mostly cells, so the native shape is the right one."
+        },
+        {
+          "technique": "export-escapes-for-its-consumer",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevCasesTable.tsx:128 The context's files have no CSV or export path."
+        },
+        {
+          "technique": "clipboard-range-round-trip",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevCasesTable.tsx:128 No range copy or paste on this table."
+        },
+        {
+          "technique": "one-door-for-range-writes",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevCasesTable.tsx:128 Read-only table: no cell editing."
+        },
+        {
+          "technique": "compressed-scroll-space",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevCasesTable.tsx:128 No windowed rendering."
+        }
+      ]
+    },
+    {
+      "context": "profile-roster-matrix",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/features/tools/profile/profileRosterView.ts:192 The roster's sort breaks ties on the display name, which is mutable and can repeat, not on the row id, so the order is not total: two candidates with the same name can swap places across refreshes and page boundaries.",
+      "techniques": [
+        {
+          "technique": "sorting",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/profileRosterView.ts:192 The tiebreaker is the label, which the technique names as wrong. Done right: a locale-aware collator, a declared home for absent completeness values, an aria-sort header and a TableStatus announcement."
+        },
+        {
+          "technique": "client-server-split",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/ProfileRoster.tsx:197 The client filters, sorts, pages and counts over cachedProfileRecords, which the server caps at PROFILE_LIST_LIMIT = 200 (app/_lib/db/profiles.ts:11). Past 200 profiles the count and the sort describe the window as if it were the set, and nothing says the read was truncated."
+        },
+        {
+          "technique": "loading-and-empty-states",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/ProfileRosterTable.tsx:76 When the filters return zero rows, the whole table is swapped out, including the header with its in-header ColumnFilter controls. The chrome becomes conditional on data, and a name search unmounts mid-edit. First load is handled properly: a reveal-quiet reserved height (line 144) and a distinct load-failure alert."
+        },
+        {
+          "technique": "filtering",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/profile/ProfileRoster.tsx:209 All-client keystroke filtering with the matched count announced as a polite status. A filter change resets the page (line 105), clearing takes one action, and the facets come from the rows present."
+        },
+        {
+          "technique": "pagination",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/profile/ProfileRoster.tsx:153 A client-side 20-row pager over the filtered set, clamped to a page that exists. Offset paging fits a small client-held set."
+        },
+        {
+          "technique": "performance",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/profile/ProfileRosterTable.tsx:150 Identity keys; the view model is derived in useMemo over named inputs; 20 rows mounted."
+        },
+        {
+          "technique": "export-escapes-for-its-consumer",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/ProfileRosterTable.tsx:94 No CSV export in this context."
+        },
+        {
+          "technique": "clipboard-range-round-trip",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/ProfileRosterTable.tsx:94 No range clipboard."
+        },
+        {
+          "technique": "one-door-for-range-writes",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/ProfileRosterTable.tsx:94 No cell editing: row actions open an editor."
+        },
+        {
+          "technique": "compressed-scroll-space",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/ProfileRosterTable.tsx:94 Not windowed."
+        }
+      ]
+    },
+    {
+      "context": "pipeline-actions-events",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/hiring/pipeline/pipelineRenderDiet.ts:4 This context holds utilities for a lane/card kanban board (event catalog, menu position, SLA, render diet, empty-state moves, map salary), not a table. A search of its files for <table, <thead, aria-sort, pagination and role=\"grid\" found nothing; the only <table in the directory tree is in candidate/scorecard, outside this context.",
+      "techniques": [],
+      "absenceTerms": [
+        "aria-sort",
+        "TablePager",
+        "aria-rowcount"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "table",
+      "context": "form-controls",
+      "reason": "absence contradicted: app/_components/table/TableStatus.tsx:23 contains 'sortDir' (6 hit(s) in the context's directories)"
+    },
+    {
+      "subject": "table",
+      "context": "analyze-workspace",
+      "reason": "withdrawn after review: reviewer (sonnet): The verdict and all five technique anchors are in app/features/tools/analyze/history/HistoryTab.tsx, but registry-map.json lists none of the history/ files in this context's 12 paths (only AnalyzeColumn, AnalyzeForm and similar), and the context's files don't call HistoryTab. The verdict is about a "
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-06T05:39:27.706153+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "table"
+      ],
+      "techniques": [
+        "client-server-split",
+        "clipboard-range-round-trip",
+        "compressed-scroll-space",
+        "export-escapes-for-its-consumer",
+        "filtering",
+        "grid-keyboard-model",
+        "loading-and-empty-states",
+        "one-door-for-range-writes",
+        "pagination",
+        "performance",
+        "sorting"
+      ],
+      "deviations": 1,
+      "context": "devcase-workspace",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-06T05:39:27.706153+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "table"
+      ],
+      "techniques": [
+        "client-server-split",
+        "clipboard-range-round-trip",
+        "compressed-scroll-space",
+        "export-escapes-for-its-consumer",
+        "filtering",
+        "loading-and-empty-states",
+        "one-door-for-range-writes",
+        "pagination",
+        "performance",
+        "sorting"
+      ],
+      "deviations": 1,
+      "context": "profile-roster-matrix",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-06T05:39:27.706153+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "table"
+      ],
+      "techniques": [
+        "client-server-split",
+        "clipboard-range-round-trip",
+        "compressed-scroll-space",
+        "export-escapes-for-its-consumer",
+        "filtering",
+        "grid-keyboard-model",
+        "loading-and-empty-states",
+        "one-door-for-range-writes",
+        "pagination",
+        "performance"
+      ],
+      "deviations": 1,
+      "context": "analyze-workspace",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-06T05:39:27.706153+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "table"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "pipeline-actions-events",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

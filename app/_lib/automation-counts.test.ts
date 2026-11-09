@@ -32,3 +32,9 @@ test("windowCutoffIso is exactly N days back", () => {
   const now = Date.UTC(2026, 9, 16, 12);
   assert.equal(windowCutoffIso(now, 7), "2026-10-09T12:00:00.000Z");
 });
+
+test("a person-filed interview scorecard is not an automated action", () => {
+  assert.equal((AUTOMATED_ACTION_KINDS as readonly string[]).includes("interview_scorecard_human"), false);
+  assert.equal(automationCounts({ interview_scorecard_human: 3 }).total, 0);
+  assert.equal(automationCounts({ interview_scorecard: 3 }).total, 3);
+});

@@ -1,0 +1,111 @@
+{
+  "schema": "conform-run/1",
+  "worker": "b66f451d-7c47-4e1b-8507-610acb08e4ae",
+  "subject": "agent-instruction-files",
+  "evaluatedAt": "2026-11-04T05:42:27.829746+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "org-management-api",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/api/repo-scan/route.ts:13 These routes manage org members and invites, and only enqueue or poll the repo_scan task. The in-clone agent launch is judged under github-repo-intelligence (app/_lib/repo-scan-run.ts). Searching app/api/org, app/api/invite and app/api/repo-scan found zero hits for AGENTS.md, setting-sources, 'instruction file' and cursorrules. The only CLAUDE.md hit is a comment citing the repo's transaction rule (org/members/[userId]/route.ts:101), not an instruction file.",
+      "techniques": [
+        {
+          "technique": "workspace-ancestry-isolation",
+          "verdict": "not-applicable",
+          "evidence": "app/api/repo-scan/route.ts:13 The route enqueues a task. It creates no workspace and launches no agent itself."
+        }
+      ],
+      "absenceTerms": [
+        "AGENTS.md",
+        "setting-sources",
+        "instruction file",
+        "cursorrules"
+      ]
+    },
+    {
+      "context": "llm-api",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/api/llm/test/route.ts:57 These routes configure providers and keys and trigger Python children. They neither author nor deliver a repo-owned instruction file, and they choose no harness workspace: any Claude CLI launch is decided in pipeline/jobfit/claude_cli.py, where generate mode uses a mkdtemp neutral cwd and loads only project setting sources. Searching app/api/llm, app/api/automation and app/api/sim found zero hits for AGENTS.md, setting-sources, 'instruction file' and cursorrules. The one CLAUDE.md hit is a comment citing the transaction rule (llm-config-race.test.ts:10).",
+      "techniques": [
+        {
+          "technique": "workspace-ancestry-isolation",
+          "verdict": "not-applicable",
+          "evidence": "app/api/llm/test/route.ts:57 The route spawns Python at the project root. The harness cwd and setting-sources choice is owned by the Python LLM layer, not by this context."
+        }
+      ],
+      "absenceTerms": [
+        "AGENTS.md",
+        "setting-sources",
+        "instruction file",
+        "cursorrules"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "agent-instruction-files",
+      "context": "github-repo-intelligence",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "agent-instruction-files",
+      "context": "app-master-bench-scenarios",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "agent-instruction-files",
+      "context": "agents-api",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor (dispatch/route.ts:18) is only a comment about the Personas hand-off. The context's hire-from-need/route.ts calls startRepoScan({rootPath}) (line 213) and polls it, which starts the in-clone agent scan, and the verdict never accounts for that."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-04T05:42:27.829746+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-instruction-files"
+      ],
+      "techniques": [
+        "workspace-ancestry-isolation"
+      ],
+      "deviations": 0,
+      "context": "agents-api",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-04T05:42:27.829746+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-instruction-files"
+      ],
+      "techniques": [
+        "workspace-ancestry-isolation"
+      ],
+      "deviations": 0,
+      "context": "org-management-api",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-04T05:42:27.829746+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-instruction-files"
+      ],
+      "techniques": [
+        "workspace-ancestry-isolation"
+      ],
+      "deviations": 0,
+      "context": "llm-api",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

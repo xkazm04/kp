@@ -1,0 +1,53 @@
+{
+ "schema": "conform-run/1",
+ "worker": "e12440de-e861-427a-9ba6-98be7744c17e",
+ "subject": "evidence-provenance-weighting",
+ "evaluatedAt": "2026-10-28T22:08:59.387573+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "devcase-eval",
+   "subject": "evidence-provenance-weighting",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/tools/devcases/DevCompareSubmissions.tsx:26 rubricCompare returns `mixed` and a per-column `currency` (graded vs keyless template) so the cohort boundary can be labelled, but the compare surface takes only axes/columns/leaderByAxis and never renders either. A template-scored column's fit and axis scores sit in the same matrix as LLM-graded ones with nothing on screen marking the two instruments, which is the silent mixed-vintage comparison the re-baselining technique forbids.",
+   "techniques": [
+    {
+     "technique": "provenance-rebaseline-and-retuning",
+     "verdict": "deviation",
+     "evidence": "app/features/tools/devcases/DevCompareSubmissions.tsx:26 The lib (app/_lib/devcase-compare.ts) computes `mixed`/`currency` and keeps template columns from leading an axis. This surface drops both fields (a grep for currency/mixed in the component finds only the authenticity band), so the rendered table never says the cohort spans two scoring regimes."
+    },
+    {
+     "technique": "provenance-trust-ladder",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/DevEvalPanel.tsx:132 The display is honest downward: 'observed' renders only when the bundle explicitly carries tooling=observed. Any missing or other value renders 'inferred' in muted styling, so an unestablished basis never borrows the observed badge."
+    },
+    {
+     "technique": "default-provenance-fails-safe",
+     "verdict": "conformant",
+     "evidence": "app/features/tools/devcases/DevHelpers.ts:44 The default sits at the lookup's definition (describeSource, same directory, used by DevProvenanceStrip). An absent or unrecognised source resolves to the weakest descriptor (template/deterministic, muted), not to 'llm'. This governs step-source display, not skill-claim scoring."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-28T22:08:59.387573+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "evidence-provenance-weighting"
+   ],
+   "techniques": [
+    "default-provenance-fails-safe",
+    "provenance-rebaseline-and-retuning",
+    "provenance-trust-ladder"
+   ],
+   "deviations": 1,
+   "context": "devcase-eval",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

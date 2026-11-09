@@ -1,0 +1,71 @@
+{
+ "schema": "conform-run/1",
+ "worker": "24be79b1-1529-4b6b-bdf4-fd585333212f",
+ "subject": "templates-scaffolding",
+ "evaluatedAt": "2026-11-02T22:07:03.649611+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "jd-template-engine",
+   "subject": "templates-scaffolding",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "app/features/shared/renderTemplate.ts:161 The JD template catalog has one pure, deterministic mapping from (template body, data, output-language tokens) to a rendered JD. The client preview and the server build both call it, so the preview shows what Generate produces. Every write door also checks bodies against one closed token vocabulary.",
+   "techniques": [
+    {
+     "technique": "adoption-lifecycle",
+     "verdict": "conformant",
+     "evidence": "app/features/shared/renderTemplate.ts:1 The mapping is one pure function shared by the live preview and the server render, so the preview recomputes the real result instead of being a stock screenshot. The provenance stamp (the JD's build intent records templateId) lives outside this context."
+    },
+    {
+     "technique": "catalog-curation",
+     "verdict": "conformant",
+     "evidence": "app/features/shared/renderTemplate.ts:361 Admission bar at one door: both the create and update validators run the unknown-token, length and empty checks, and the API and the manager share them. The seeded default is held to the same bar by a test (renderTemplate.test.ts 'the default template body has no unknown placeholders'). Retirement and dedupe live in the store/UI, not here."
+    },
+    {
+     "technique": "template-portability",
+     "verdict": "conformant",
+     "evidence": "app/features/shared/renderTemplate.ts:96 The seeded default no longer bakes in the author's English headings. Its structural scaffolding and fallbacks are tokens resolved from the adopter's output language at render time."
+    },
+    {
+     "technique": "readiness-prerequisites",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/renderTemplate.ts:158 A JD template needs no credentials, services or sibling entities. Its only prerequisite, the localized token map, is a required parameter that the type system enforces."
+    },
+    {
+     "technique": "integrity-and-provenance",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/renderTemplate.ts:93 The seeded payload is a code constant and user templates are authored in the app, so no catalog payload crosses a trust domain and there is no manifest or digest to bind."
+    },
+    {
+     "technique": "instance-upgrade",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/renderTemplate.ts:400 No 'template improved since you adopted' offer exists. A rendered JD is plain divorced markdown and the client template shape carries no version to compare against."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-02T22:07:03.649611+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "templates-scaffolding"
+   ],
+   "techniques": [
+    "adoption-lifecycle",
+    "catalog-curation",
+    "instance-upgrade",
+    "integrity-and-provenance",
+    "readiness-prerequisites",
+    "template-portability"
+   ],
+   "deviations": 0,
+   "context": "jd-template-engine",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -1,0 +1,121 @@
+{
+ "schema": "conform-run/1",
+ "worker": "8478f1da-2ce5-4125-bcdb-2b9cacf0a6e6",
+ "subject": "fleet-orchestration",
+ "evaluatedAt": "2026-11-06T02:21:01.530097+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "devcase-eval",
+   "subject": "fleet-orchestration",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/tools/devcases/devEvalTaskState.ts:2 This context renders how ONE background evaluation task turned out for a single submission row. It runs no fleet of autonomous agent sessions. Searching app/features/tools/devcases for fleet/subagent/hibernat/agentSession/headless found nothing; the 'orchestrator' and 'dispatch' hits are comments about the devcase generation pipeline and the comms outbox, plus a React.Dispatch type.",
+   "techniques": [],
+   "absenceTerms": [
+    "fleet",
+    "subagent",
+    "hibernat",
+    "agentSession",
+    "headless"
+   ]
+  },
+  {
+   "context": "shell-simulation-engine",
+   "subject": "fleet-orchestration",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/shell/simulation/simRunLease.ts:1 The simulation is a scripted demo walk run from the browser. Its lease is a single per-workspace run lock with a token (a concurrency guard), not a registry of agent sessions. Searching app/features/shell/simulation for fleet/subagent/hibernat/agentSession/headless found nothing; the 'dispatch' hits are DOM click dispatch and dispatchOffer comms.",
+   "techniques": [],
+   "absenceTerms": [
+    "fleet",
+    "subagent",
+    "hibernat",
+    "agentSession",
+    "headless"
+   ]
+  },
+  {
+   "context": "candidate-apply-flow",
+   "subject": "fleet-orchestration",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/applicant-profile.ts:66 The apply flow spawns one bounded, deterministic Python normalizer per request. That is subprocess-lifecycle territory, not a fleet of autonomous agent sessions. Searching app/_lib for subagent/hibernat/agentSession/agent_session/sub-agent found nothing ('fleet' hit only an Upwork fixture JSON, so it is left out).",
+   "techniques": [],
+   "absenceTerms": [
+    "subagent",
+    "hibernat",
+    "agentSession",
+    "agent_session",
+    "sub-agent"
+   ]
+  },
+  {
+   "context": "devcase-live-work-surface",
+   "subject": "fleet-orchestration",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/devcase/apply/[token]/liveWorkDraft.ts:1 This is a candidate's in-browser editor. It saves a local draft and flushes process events to the server, and it dispatches no agent sessions. Searching app/devcase/apply/[token] for fleet/subagent/hibernat/worktree/headless found nothing.",
+   "techniques": [],
+   "absenceTerms": [
+    "fleet",
+    "subagent",
+    "hibernat",
+    "worktree",
+    "headless"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-06T02:21:01.530097+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "fleet-orchestration"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "devcase-eval",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T02:21:01.530097+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "fleet-orchestration"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "shell-simulation-engine",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T02:21:01.530097+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "fleet-orchestration"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "candidate-apply-flow",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-06T02:21:01.530097+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "fleet-orchestration"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "devcase-live-work-surface",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

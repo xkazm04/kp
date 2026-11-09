@@ -1,0 +1,66 @@
+{
+ "schema": "conform-run/1",
+ "worker": "e7e24db7-6bbb-4813-9fd4-bfd52e6c4ce7",
+ "subject": "seal-and-key-hierarchy",
+ "evaluatedAt": "2026-10-30T22:38:45.612207+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "db-profiles-analyses-store",
+   "subject": "seal-and-key-hierarchy",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/db/skill-profiles.ts:340 The store writes profile rows as plaintext JSON with an HMAC signature beside them. I searched app/_lib/db case-insensitively for unseal, keyring, createCipheriv, aes-256-gcm and root key and found nothing, so there is no encryption at rest, seal, root key or keyring for this subject to govern.",
+   "techniques": [
+    {
+     "technique": "append-only-keyring-rotation",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/skill-profiles.ts:35 Nothing here encrypts stored objects. The same idea is realised for a MAC key, though: every row stores its key_id, the MAC covers that id, and retired keys stay readable through env vars."
+    },
+    {
+     "technique": "per-tenant-seal-chain",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/skill-profiles.ts:321 Tenancy is a workspace_id column stamp, not a key chain. There is nothing encrypted for a tenant to hold under its own root."
+    },
+    {
+     "technique": "usage-triggered-rotation",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/skill-profiles.ts:106 HMAC-SHA256 uses no random nonce and has no per-key nonce-collision budget, so there is no operation count to track."
+    },
+    {
+     "technique": "any-one-seal-unseals",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/skill-profiles.ts:58 The only key is a signing secret read from the environment. No root key exists to wrap, so there is no seal and no plural custody."
+    }
+   ],
+   "absenceTerms": [
+    "unseal",
+    "keyring",
+    "createCipheriv",
+    "aes-256-gcm"
+   ],
+   "registryProposal": "The 'ciphertext carries its term' rule in append-only-keyring-rotation applies equally to MAC and signing keys. This context stores the key id per row, binds it into the MAC, keeps retired keys readable, and refuses a compromised key generation as 'unverifiable' rather than 'tampered'. That pattern may belong in a signed-artifacts technique, because this subject's precondition (encryption at rest) excludes it."
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-30T22:38:45.612207+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "seal-and-key-hierarchy"
+   ],
+   "techniques": [
+    "any-one-seal-unseals",
+    "append-only-keyring-rotation",
+    "per-tenant-seal-chain",
+    "usage-triggered-rotation"
+   ],
+   "deviations": 0,
+   "context": "db-profiles-analyses-store",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

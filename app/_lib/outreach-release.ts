@@ -53,10 +53,13 @@ export async function composeOutreachDraft(
 export async function draftOutreachLetter(
   entry: PipelineEntry,
   result: { subject?: unknown; body?: unknown },
-  workspaceId: string
+  workspaceId: string,
+  // Which engine wrote `result` ("llm" | "template"), kept with the draft so the release can
+  // say a model wrote it (Q10). Omitted is stored as unknown, which the send treats as AI.
+  source?: string | null
 ): Promise<{ letter: OutreachLetter; created: boolean; changed: boolean }> {
   const draft = await composeOutreachDraft(entry, result);
-  return outreachLetterDraft({ entryId: entry.id, ...draft }, workspaceId);
+  return outreachLetterDraft({ entryId: entry.id, ...draft, source }, workspaceId);
 }
 
 export type OutreachReleaseResult =
@@ -129,7 +132,9 @@ export async function releaseOutreachLetter(letterId: string, workspaceId: strin
     try {
       outcome = await dispatchOutreach(
         entry,
-        { subject: letter.subject ?? undefined, body: letter.body },
+        // The STORED source decides the AI-drafted line, at send time; a person's edit
+        // between draft and release does not change it. NULL (a pre-migration row) = AI.
+        { subject: letter.subject ?? undefined, body: letter.body, source: letter.draftSource },
         { messageId: letter.messageId, actor: letter.approvedBy ?? actor }
       );
     } catch (err) {

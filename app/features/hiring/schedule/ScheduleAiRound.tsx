@@ -29,7 +29,16 @@ const InterviewTranscriptModal = dynamic(() =>
   import("./ScheduleInterviewTranscriptModal").then((m) => ({ default: m.InterviewTranscriptModal }))
 );
 
-export function ScheduleAiRound({ calendarEntries, interviews }: { calendarEntries: SchedEntry[]; interviews: Record<string, IvStatus> }) {
+export function ScheduleAiRound({
+  calendarEntries,
+  interviews,
+  voiceEnabled,
+}: {
+  calendarEntries: SchedEntry[];
+  interviews: Record<string, IvStatus>;
+  /** False = the voice interview is switched off: only the record of completed sessions is drawn. */
+  voiceEnabled: boolean;
+}) {
   const t = useTranslations("scheduleTab");
   const tAi = useTranslations("scheduleTab.aiRound");
   const errMsg = useErrorMessage();
@@ -79,11 +88,13 @@ export function ScheduleAiRound({ calendarEntries, interviews }: { calendarEntri
     }
   };
 
-  if (error) return <p role="alert" className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>;
-  if (data === null) return <div className="reveal-quiet min-h-[16rem]" aria-hidden />;
+  if (error) return voiceEnabled ? <p role="alert" className="rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p> : null;
+  if (data === null) return !voiceEnabled ? null : <div className="reveal-quiet min-h-[16rem]" aria-hidden />;
   return (
     <div className="space-y-5">
-      <ScheduleAiLedger sessions={sessions} awaiting={awaiting} interviews={interviews} generating={generating} onGenerate={generateLink} />
+      {voiceEnabled ? (
+        <ScheduleAiLedger sessions={sessions} awaiting={awaiting} interviews={interviews} generating={generating} onGenerate={generateLink} />
+      ) : null}
       <ScheduleAiRoundCompleted sessions={sessions} onTranscript={setTranscriptEntry} />
       {transcriptEntry ? <InterviewTranscriptModal entry={transcriptEntry} onClose={() => setTranscriptEntry(null)} /> : null}
     </div>

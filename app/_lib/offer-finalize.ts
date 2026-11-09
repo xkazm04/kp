@@ -10,6 +10,7 @@ import { hireOutcomeRef, recordPipelineOutcome } from "./dev-outcomes";
 import { expireOfferIfDue, getOfferByToken, markEntryStatus, markOfferResponded, type OfferRow } from "./offers-store";
 import { offerHoursRemaining, offerMinutesRemaining } from "./offer-policy";
 import { INTERVIEW_TZ } from "./schedule-slots";
+import { isSimTitle } from "./sim-marker";
 
 // Direction #4 — capture the candidate's offer response and run the terminal
 // transitions. The offer DECISION was the recruiter's (extend); here we record
@@ -73,6 +74,18 @@ export async function respondToOffer(token: string, response: "accept" | "declin
   };
 
   if (response === "accept") {
+    // Refuse BEFORE the claim when the entry this offer was made for has moved on:
+    // closed (rejected, declined, closed with the role) or no longer on an offer-role
+    // stage of ITS workspace's axis (resolved by role, never by name). Claiming first
+    // told the candidate "accepted" for a hire that never happened and fed the ATS.
+    // The offer stays `extended` and unclaimed. A race that gets past this check is
+    // still caught by `offer_accept_blocked` below.
+    if (offer.entryId) {
+      const current = getPipelineEntry(offer.entryId, offer.workspaceId);
+      if (current && (current.status !== "active" || !stageHasRole(current.stage, "offer", getPipelineAxis(offer.workspaceId).stages))) {
+        return { ok: false, code: "OFFER_NO_LONGER_OPEN" };
+      }
+    }
     const { offer: claimedOffer, claimed } = markOfferResponded(token, "accepted");
     if (!claimed) return reportLoser(claimedOffer);
     if (offer.entryId) {
@@ -112,7 +125,11 @@ export async function respondToOffer(token: string, response: "accept" | "declin
       } else {
         recordAutomationEvent(offer.entryId, "offer_accept_blocked", "accepted on a closed entry — not advanced to Hired", offer.workspaceId);
       }
-      if (hired) {
+      // A (SIM) entry is demo residue: it advances so the guided sim keeps working, but it
+      // is never hire-bearing — no meter debit, no outcome record, no ATS event (comms and
+      // analytics already exclude it by the same marker).
+      const simulated = isSimTitle(offer.jobTitle);
+      if (hired && !simulated) {
         // THE HIRE METER — the headline unit of an outcome-priced product, debited
         // here because this is the only place a candidate can reach the terminal
         // stage (a manual move to it is refused in pipeline-entry-action.ts).
@@ -141,7 +158,7 @@ export async function respondToOffer(token: string, response: "accept" | "declin
       // dev-case calibration loop. Best-effort: calibration must never affect
       // the candidate's accept. (The CAS winner above is the sole caller, so
       // this can't double-fire; recordPipelineOutcome is also ref-idempotent.)
-      if (hired) {
+      if (hired && !simulated) {
         try {
           if (recordPipelineOutcome(hired, "hired")) {
             recordAudit({
@@ -159,7 +176,7 @@ export async function respondToOffer(token: string, response: "accept" | "declin
       // Hired is the TERMINAL state kp owns. What happens after the hire — pre-boarding
       // paperwork, equipment, day one — is deliberately out of scope: this is a hiring
       // studio, and the post-hire hand-off belongs to the HRIS the webhook below feeds.
-      if (hired) {
+      if (hired && !simulated) {
         // P1-5 — mirror the hire into any configured ATS/HRIS webhook so the
         // system of record gets the outcome without re-keying (Marcus #12).
         // Fire-and-forget + self-contained best-effort: a no-op unless a webhook
@@ -172,7 +189,8 @@ export async function respondToOffer(token: string, response: "accept" | "declin
       // ticking `offer.accepted` got a subscription that could not fire). It rides on the
       // CAS winner, not on `hired`: a workspace whose board has a stage after Offer still
       // wants to know the candidate said yes, on the day they said it.
-      void dispatchAtsEvent("offer.accepted", offer.entryId, offer.workspaceId);
+      // Held on the same condition as the decline path: only when the entry advanced.
+      if (advanced && !simulated) void dispatchAtsEvent("offer.accepted", offer.entryId, offer.workspaceId);
     }
     return { ok: true, status: "accepted", alreadyResponded: false, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };
   }
@@ -196,7 +214,7 @@ export async function respondToOffer(token: string, response: "accept" | "declin
     // when the entry actually transitioned. A decline on a stale link that did NOT demote
     // an already-hired candidate must not tell the customer's system of record that it
     // did — the webhook is held to the same truthfulness as the entry's own history.
-    if (transitioned) void dispatchAtsEvent("offer.declined", offer.entryId, offer.workspaceId);
+    if (transitioned && !isSimTitle(offer.jobTitle)) void dispatchAtsEvent("offer.declined", offer.entryId, offer.workspaceId);
   }
   return { ok: true, status: "declined", alreadyResponded: false, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };
 }
@@ -207,6 +225,13 @@ export async function respondToOffer(token: string, response: "accept" | "declin
 export function offerView(token: string) {
   const offer = expireOfferIfDue(token);
   if (!offer) return null;
+  // A lapsed link is dead: it answers its status and the role's title and nothing else, so a
+  // link that outlives its offer (a forwarded email, a browser history) no longer shows the
+  // candidate's name, the salary, the company or the notes. An ANSWERED offer keeps its terms:
+  // the holder is the candidate and it is their own record.
+  if (offer.status === "expired") {
+    return { status: offer.status, jobTitle: offer.jobTitle };
+  }
   // The hiring company lives on the job record (not the pipeline entry), so resolve
   // it from there — this is what lets the public offer page show who it's from.
   const job = offer.jobId ? getJob(offer.jobId) : null;

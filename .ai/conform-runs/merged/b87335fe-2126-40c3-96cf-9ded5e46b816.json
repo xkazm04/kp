@@ -1,0 +1,92 @@
+{
+ "schema": "conform-run/1",
+ "worker": "b87335fe-2126-40c3-96cf-9ded5e46b816",
+ "subject": "prompt-assembly",
+ "evaluatedAt": "2026-11-04T04:03:45.722667+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "voice-interview-api",
+   "subject": "prompt-assembly",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/interview/connect/route.ts:405 The connect route appends a resume addendum onto an already-assembled brief (the stored snapshot at line 422 and the default instructions at line 415). That text sits outside whatever budget, trust classification or snapshot test the brief builders apply, which is the 'door that can be appended to after it closes' failure.",
+   "techniques": [
+    {
+     "technique": "layered-composition",
+     "verdict": "deviation",
+     "evidence": "app/api/interview/connect/route.ts:405 A late layer (resume state) is added to the returned string at the call site instead of being passed in as an assembler input. The directed path does pass resume as an input (line 318); the fallback path suffixes it."
+    },
+    {
+     "technique": "fingerprinting-and-cache-keys",
+     "verdict": "deviation",
+     "evidence": "app/api/interview/connect/route.ts:438 The brief actually sent is rebuilt from the current prep on every connect, but no digest, size or version of it is persisted. Only the mint-time `instructions` snapshot and the agenda are stored, so 'which brief did attempt 2 hear?' cannot be answered: the unrecorded send."
+    },
+    {
+     "technique": "continuation-prompts",
+     "verdict": "conformant",
+     "evidence": "app/api/interview/connect/route.ts:292 Lost-session regime: a reconnect keeps the same session id and attempt counter, rebuilds the standing brief fresh, and carries only the decided state (block ids, earlier turns) as resume context. A resumed attempt also keeps its stored agenda."
+    },
+    {
+     "technique": "deferred-interface-invalidation",
+     "verdict": "conformant",
+     "evidence": "app/api/interview/connect/route.ts:307 The kit version is pinned at mint, so a recruiter's mid-round edit takes effect on the next link rather than mid-round. Revocation applies immediately instead (line 175, revokeInterviewSession), which is the asymmetry the technique asks for."
+    },
+    {
+     "technique": "capability-documentation",
+     "verdict": "conformant",
+     "evidence": "app/api/interview/connect/route.ts:423 Tools ride only with a brief that documents their protocol, and are withheld otherwise. A tool is never offered that the prompt does not teach."
+    },
+    {
+     "technique": "endpoint-sealed-continuation-metadata",
+     "verdict": "not-applicable",
+     "evidence": "app/api/interview/connect/route.ts:543 Provider failover happens at connect, before any turn. The resume carries plain-text turns the browser posted, not provider-minted continuation metadata, so no sealed segment is replayed across endpoints."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "prompt-assembly",
+   "context": "shared-api-utilities",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "prompt-assembly",
+   "context": "llm-config-provider",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "prompt-assembly",
+   "context": "voice-interview-components",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "prompt-assembly",
+   "context": "devcase-session-api",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-04T04:03:45.722667+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "prompt-assembly"
+   ],
+   "techniques": [
+    "capability-documentation",
+    "continuation-prompts",
+    "deferred-interface-invalidation",
+    "endpoint-sealed-continuation-metadata",
+    "fingerprinting-and-cache-keys",
+    "layered-composition"
+   ],
+   "deviations": 1,
+   "context": "voice-interview-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

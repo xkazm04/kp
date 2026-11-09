@@ -1,0 +1,86 @@
+{
+ "schema": "conform-run/1",
+ "worker": "459d27c2-df85-41b9-ac7c-5eb283827561",
+ "subject": "voice-io",
+ "evaluatedAt": "2026-11-06T23:35:01.748152+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "voice-provider-io",
+   "subject": "voice-io",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/voice/preflight.ts:71 The transport probe exists but has no fallback: when the selected provider is WebRTC (OpenAI) and the browser has no RTCPeerConnection, the probe returns an error code (VoiceInterview.tsx:953-957 then stops the call) instead of falling back to the WebSocket provider (ElevenLabs) even when that provider is configured, so the better transport becomes a requirement for talking at all.",
+   "techniques": [
+    {
+     "technique": "duplex-agent-sessions",
+     "verdict": "deviation",
+     "evidence": "app/_lib/voice/preflight.ts:71 Transport is probed but has no fallback that still works. Everything else in the technique is realized: the drift gate's single OVERRIDE_FLAGS list drives both the live read and the comparison (eleven-agent-diff.mjs:157), and a failing brief build is kept outside the failover trigger (connect-failover.ts)."
+    },
+    {
+     "technique": "engine-abstraction",
+     "verdict": "conformant",
+     "evidence": "app/_lib/stt.ts:17 The STT and TTS bindings report three probe states and throw a typed 'unavailable'. Connect failover records failedOver (connect-failover.ts:103), so a fallback is visible."
+    },
+    {
+     "technique": "portable-provider-package",
+     "verdict": "conformant",
+     "evidence": "app/_lib/stt.ts:26 The app binds the packaged engine layer through one narrow host seam (env, a shared per-user home, cwd, a log sink that never logs transcript text); tts.ts:18 mirrors it."
+    },
+    {
+     "technique": "on-device-vs-cloud",
+     "verdict": "conformant",
+     "evidence": "app/_lib/stt.ts:13 The allowed-provider list is the residency control for the input direction, filtered before any probe so no per-request field can widen it. The self-hosted realtime path is derived from the base URL (self-hosted.ts:92)."
+    },
+    {
+     "technique": "tts-pipeline",
+     "verdict": "conformant",
+     "evidence": "app/_lib/tts-cache.ts:159 Synthesis cache is keyed on the validated request (provider, voice, language, speed, format, text digest), bounded by entry count and bytes, and folds concurrent identical requests into one call (inflight map, line 171)."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "voice-io",
+   "context": "voice-interview-session",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "voice-io",
+   "context": "shell-companion-voice",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "voice-io",
+   "context": "interview-tools-api",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "voice-io",
+   "context": "interview-lab-harness",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-06T23:35:01.748152+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "voice-io"
+   ],
+   "techniques": [
+    "duplex-agent-sessions",
+    "engine-abstraction",
+    "on-device-vs-cloud",
+    "portable-provider-package",
+    "tts-pipeline"
+   ],
+   "deviations": 1,
+   "context": "voice-provider-io",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -1,0 +1,68 @@
+{
+  "schema": "conform-run/1",
+  "worker": "ac3053fc-c43c-4610-aeb1-e09260544ee6",
+  "subject": "prompt-assembly",
+  "evaluatedAt": "2026-11-06T02:58:55.066949+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "devcase-eval",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/tools/devcases/DevEvalPanelChecks.tsx:5 These files are client UI and fetch hooks that only render evaluation results computed server-side. A search of app/features/tools/devcases and app/features/tools/interview found 0 hits for systemPrompt, buildPrompt, assemblePrompt, max_tokens and compaction. The bare word 'prompt' does appear there, but as the candidate's captured prompts (a domain concept), never as assembled model input.",
+      "techniques": [],
+      "absenceTerms": [
+        "systemPrompt",
+        "buildPrompt",
+        "assemblePrompt",
+        "max_tokens",
+        "compaction"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "prompt-assembly",
+      "context": "voice-provider-io",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "prompt-assembly",
+      "context": "llm-layer",
+      "reason": "evidence leans on bench/judge.py, which is not a tracked file"
+    },
+    {
+      "subject": "prompt-assembly",
+      "context": "app-master-bench-scenarios",
+      "reason": "withdrawn after review: reviewer (sonnet): The evidence says searching soak and its parent found 0 hits, but the parent has hits in scenarios/kp-default.json (lines 38 and 44, which describe prompt and instruction assembly tasks), gate.mjs, and scenarios.test.mjs:345. The anchor is also night.mjs, the soak runner, not the scenarios the conte"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-06T02:58:55.066949+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "prompt-assembly"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "devcase-eval",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-06T02:58:55.066949+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "prompt-assembly"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "app-master-bench-scenarios",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

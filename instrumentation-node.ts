@@ -475,6 +475,15 @@ export async function startClock(): Promise<void> {
     } catch (e) {
       console.error("[clock] offer lapse sweep failed:", e);
     }
+    // Offers whose pipeline entry has closed (rejected / role closed / …) — lapsed BEFORE
+    // the reminder sweep below, so a closed entry's candidate is not nudged in the same tick.
+    try {
+      const { lapseOffersOfClosedEntries } = await import("./app/_lib/offers-store");
+      const closed = lapseOffersOfClosedEntries();
+      if (closed) console.log("[clock] offers lapsed (entry closed):", closed);
+    } catch (e) {
+      console.error("[clock] closed-entry offer lapse sweep failed:", e);
+    }
     // Proactive offer-expiry reminders (idea-29361408 follow-up) — the heads-up sent at
     // T-48h before the lapse above, so a candidate who forgot doesn't lose a live offer
     // to silence. Independent, best-effort, at-most-once (the sweep CAS-claims

@@ -1,0 +1,106 @@
+{
+ "schema": "conform-run/1",
+ "worker": "47538405-aed4-42a1-9316-6752f1956ca5",
+ "subject": "subscription-billing-periods",
+ "evaluatedAt": "2026-11-07T04:48:58.472431+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "billing-subscriptions",
+   "subject": "subscription-billing-periods",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/billing/plans.ts:194 The allowance recurrence uses billing_state.current_period_start as its anchor. The webhook writer overwrites that value on every renewal (sync.ts:82), and the window end is re-advanced locally (plans.ts:201) instead of read from the provider's currentPeriodEnd. So the 'anchor' is the previous boundary, not durable contract data, and a clamped renewal (31st\u219228 Feb) can either lose the original day or open an extra allowance key before the provider's next period starts.",
+   "techniques": [
+    {
+     "technique": "anchor-re-derived-not-chained",
+     "verdict": "deviation",
+     "evidence": "app/_lib/billing/plans.ts:194 The anchor is the provider's rolling current-period start, rewritten each renewal at sync.ts:82 (currentPeriodStart: action.periodStart). No original anchor is persisted, so b[n] is derived from b[n-1]. period-anchor.test.ts:98-103 holds currentPeriodStart fixed, which hides this."
+    },
+    {
+     "technique": "timezone-anchored-period-dates",
+     "verdict": "conformant",
+     "evidence": "app/_lib/billing/plans.ts:186 Single declared UTC frame: every boundary is built with UTC getters, nothing reads an ambient zone, there is no per-subscriber zone field, and the ledger key is a UTC date. This is the technique's single-zone branch."
+    },
+    {
+     "technique": "boundary-stitch-on-timezone-change",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/billing/plans.ts:169 The boundary input has no zone, and a grep of the billing lib for timezone/timeZone/tz found none. The frame cannot change, so there is nothing to stitch."
+    },
+    {
+     "technique": "hourly-pass-with-derived-idempotency",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/billing/sync.ts:183 Periods advance by provider push (event-driven webhooks), not a local recurring pass. Idempotency rides the provider's minted event id, which the technique's 'when not to use' covers."
+    }
+   ],
+   "registryProposal": "anchor-re-derived-not-chained should name a hybrid case. The provider dictates the paid schedule, and the consumer derives a secondary recurrence (an allowance window) from the provider's rolling current-period start. The rule there should be to key the secondary window on the provider's published [start,end) pair, or to persist the original anchor separately. It should not re-advance from the latest ingested start. The 'externally dictated schedules' carve-out currently reads as if this case were exempt."
+  },
+  {
+   "context": "billing-plan-and-spend",
+   "subject": "subscription-billing-periods",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "app/features/settings/billing/BillingCurrentPlanPanel.tsx:56 Every boundary label on the card, the meter row and the spend panel is drawn from the server-derived boundary through one declared zone (boundaryDateOptions \u2192 BOUNDARY_ZONE='UTC'). The earlier verdict's zoneless paid-period label is gone, and one instant can no longer read as two different days.",
+   "techniques": [
+    {
+     "technique": "timezone-anchored-period-dates",
+     "verdict": "conformant",
+     "evidence": "app/features/settings/billing/BillingCurrentPlanPanel.tsx:56 The label comes from the boundary, in the frame it was computed in. The same options are used at BillingSpendPanel.tsx:142 and BillingUsageMeterRow.tsx:65."
+    },
+    {
+     "technique": "anchor-re-derived-not-chained",
+     "verdict": "conformant",
+     "evidence": "app/features/settings/billing/BillingCurrentPlanPanel.tsx:54 The display reads the biller's own allowanceWindow and the provider periodEnd. The UI computes no second renewal recurrence."
+    },
+    {
+     "technique": "boundary-stitch-on-timezone-change",
+     "verdict": "not-applicable",
+     "evidence": "app/features/settings/billing/BillingCurrentPlanPanel.tsx:51 Display layer in a fixed declared frame. No mutable frame exists here."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "subscription-billing-periods",
+   "context": "billing-api",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-07T04:48:58.472431+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "subscription-billing-periods"
+   ],
+   "techniques": [
+    "anchor-re-derived-not-chained",
+    "boundary-stitch-on-timezone-change",
+    "hourly-pass-with-derived-idempotency",
+    "timezone-anchored-period-dates"
+   ],
+   "deviations": 1,
+   "context": "billing-subscriptions",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-07T04:48:58.472431+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "subscription-billing-periods"
+   ],
+   "techniques": [
+    "anchor-re-derived-not-chained",
+    "boundary-stitch-on-timezone-change",
+    "timezone-anchored-period-dates"
+   ],
+   "deviations": 0,
+   "context": "billing-plan-and-spend",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

@@ -1,0 +1,178 @@
+{
+  "schema": "conform-run/1",
+  "worker": "d565e129-3ee0-4ca7-81ca-366302d0e9d3",
+  "subject": "prompt-assembly",
+  "evaluatedAt": "2026-11-04T04:53:34.498663+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "security-agent-gates",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "scripts/agent/dispatch.mjs:391 The prompt describes the dispatcher's refusal boundary in hand-written prose that names only a subset of PROTECTED_PREFIXES (it leaves out package.json, data/, deploy/helm/, the *-budget.json ceilings and most of scripts/), and it never states the MAX_FILES/MAX_FILE_BYTES/MAX_TOTAL_BYTES caps, so guardPlan can refuse a plan the prompt allowed only after both paid rounds have run.",
+      "techniques": [
+        {
+          "technique": "capability-documentation",
+          "verdict": "deviation",
+          "evidence": "scripts/agent/dispatch.mjs:391 Hand-written subset of the guard's authority, which is PROTECTED_PREFIXES at line 162; the prompt is not rendered from it, and the file caps enforced at lines 311-346 are never taught."
+        },
+        {
+          "technique": "response-reservation-sizing",
+          "verdict": "deviation",
+          "evidence": "scripts/agent/dispatch.mjs:635 No reservation is passed, so the lane inherits the reviewer's fixed max_tokens 4096 (scripts/review/agent-review.mjs:178). Round 2 asks for WHOLE file contents up to MAX_TOTAL_BYTES 240_000 (about 60k tokens). Nobody chose this ceiling for this lane."
+        },
+        {
+          "technique": "variable-interpolation",
+          "verdict": "deviation",
+          "evidence": "scripts/agent/dispatch.mjs:493 The issue text is fenced and labelled untrusted, but the round-1 model output (prior model output derived from that same untrusted issue) is interpolated into round 2 bare: no fence and no trust label."
+        },
+        {
+          "technique": "fingerprinting-and-cache-keys",
+          "verdict": "deviation",
+          "evidence": "scripts/agent/dispatch.mjs:137 Agent-prompt digests only SYSTEM_PROMPT. The constitution rubric (buildRubric, sent first in both rounds) is a standing layer that is left out of the digest, so a rubric edit changes what the model was told without changing the stamp. The harness digest of the dispatch.mjs source (line 120) is conformant."
+        },
+        {
+          "technique": "layered-composition",
+          "verdict": "conformant",
+          "evidence": "scripts/agent/dispatch.mjs:431 Each round has one assembler that takes typed inputs. The system/policy layer is separate (SYSTEM_PROMPT), and the rubric leads each round."
+        },
+        {
+          "technique": "context-budgeting",
+          "verdict": "conformant",
+          "evidence": "scripts/agent/dispatch.mjs:269 Per-file caps name what they dropped in the prompt, and the inventory heading carries total and 'truncated' (line 446). The section caps are reasoned against the lane total in agent-budget.json."
+        },
+        {
+          "technique": "context-reachability",
+          "verdict": "conformant",
+          "evidence": "scripts/agent/dispatch.mjs:244 Round 1 inlines paths only. The contents the model can request are pulled on demand instead of being inlined."
+        },
+        {
+          "technique": "task-envelope",
+          "verdict": "conformant",
+          "evidence": "scripts/agent/dispatch.mjs:379 Opens with a permission/autonomy fact rather than an expertise claim. A decline path and an output contract are stated."
+        },
+        {
+          "technique": "history-compaction",
+          "verdict": "not-applicable",
+          "evidence": "scripts/agent/dispatch.mjs:404 Two stateless single-message calls. No accumulated transcript, so the compaction family (and elision/folding) has no precondition here."
+        }
+      ]
+    },
+    {
+      "context": "devcase-session-api",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/api/devcase/session/[id]/chat/route.ts:77 The candidate's open file is silently cut to 64,000 characters before it reaches the model's context (and the candidate message is cut to 4,000 at line 72) with no flag or notice carried forward, so the assistant reasons over a partial file that presents as complete.",
+      "techniques": [
+        {
+          "technique": "context-budgeting",
+          "verdict": "deviation",
+          "evidence": "app/api/devcase/session/[id]/chat/route.ts:77 The truncation does not name what it dropped. No 'truncated' marker or original length is passed to runSessionChat."
+        },
+        {
+          "technique": "layered-composition",
+          "verdict": "conformant",
+          "evidence": "app/api/devcase/session/[id]/chat/route.ts:123 The route hands typed inputs (case, role, transcript, message, file, lang) to one assembler and builds no prompt text itself. Lines 113-116 record removing a duplicate append of the newest message."
+        },
+        {
+          "technique": "variable-interpolation",
+          "verdict": "conformant",
+          "evidence": "app/api/devcase/session/[id]/chat/route.ts:15 The trust class is declared for the candidate payload, and inputs are type-coerced at lines 71-78. The fencing itself happens outside this context."
+        }
+      ]
+    },
+    {
+      "context": "voice-tts-package",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "packages/voice-tts/src/types.ts:82 The package turns finished text into audio through provider adapters and assembles no model prompt. A search of packages/voice-tts for prompt, compaction, anthropic and max_tokens found no hits.",
+      "techniques": [],
+      "absenceTerms": [
+        "prompt",
+        "compaction",
+        "anthropic",
+        "max_tokens"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "prompt-assembly",
+      "context": "shared-api-utilities",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "prompt-assembly",
+      "context": "decisions-review-ui",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor useDecisionsQueue.ts:51 is a comment about group eval being a paid LLM run that is never auto-fired from a URL. It does not show that the UI builds no prompt text or that its model runs are assembled server-side, so the not-applicable rests on an incidental line and a keyword search over "
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-04T04:53:34.498663+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "prompt-assembly"
+      ],
+      "techniques": [
+        "capability-documentation",
+        "context-budgeting",
+        "context-reachability",
+        "fingerprinting-and-cache-keys",
+        "history-compaction",
+        "layered-composition",
+        "response-reservation-sizing",
+        "task-envelope",
+        "variable-interpolation"
+      ],
+      "deviations": 1,
+      "context": "security-agent-gates",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-04T04:53:34.498663+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "prompt-assembly"
+      ],
+      "techniques": [
+        "context-budgeting",
+        "layered-composition",
+        "variable-interpolation"
+      ],
+      "deviations": 1,
+      "context": "devcase-session-api",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-04T04:53:34.498663+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "prompt-assembly"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "voice-tts-package",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-04T04:53:34.498663+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "prompt-assembly"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "decisions-review-ui",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

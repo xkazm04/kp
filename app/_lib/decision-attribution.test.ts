@@ -479,3 +479,8 @@ test("no catalog label outlives the kind it labels", () => {
     );
   }
 });
+
+test("a person-filed interview scorecard is human; the generated one stays auto", () => {
+  assert.equal(decisionAttribution("interview_scorecard_human"), "human");
+  assert.equal(decisionAttribution("interview_scorecard"), "auto");
+});

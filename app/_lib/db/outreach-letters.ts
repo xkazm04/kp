@@ -74,6 +74,10 @@ export type OutreachLetter = {
   subject: string | null;
   body: string | null;
   lang: string;
+  /** Which engine wrote the draft ("llm" | "template"), or null for a row drafted before
+   *  the source was kept. Read at SEND time (comms-dispatch draftedByModel): null and "llm"
+   *  both carry the AI-drafted line. A person's edit does not change it. */
+  draftSource: string | null;
   /** The delivery identity, minted at draft time and carried to the send. */
   messageId: string;
   /** The human actor ("human:…") who approved this revision. */
@@ -94,6 +98,7 @@ type LetterRow = {
   subject: string | null;
   body: string | null;
   lang: string;
+  draft_source: string | null;
   message_id: string;
   approved_by: string | null;
   approved_at: string | null;
@@ -118,6 +123,7 @@ function rowToLetter(r: LetterRow): OutreachLetter {
     subject: r.subject,
     body: r.body,
     lang: r.lang,
+    draftSource: r.draft_source ?? null,
     messageId: r.message_id,
     approvedBy: r.approved_by,
     approvedAt: r.approved_at,
@@ -144,6 +150,75 @@ export function outreachLetterById(letterId: string, workspaceId: string): Outre
   return r ? rowToLetter(r) : null;
 }
 
+/** One row of the "letters waiting" list: the letter's identity and state plus who it is
+ *  to and for which role — never the body (the list is a queue, the reader opens one). */
+export type OutreachLetterListItem = {
+  id: string;
+  entryId: string;
+  candidateLabel: string;
+  jobTitle: string | null;
+  subject: string | null;
+  state: OutreachLetterState;
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** The list's ceiling: a queue a person reads, not an export. */
+export const OUTREACH_LETTER_LIST_MAX = 200;
+
+/**
+ * The team's letters in ONE state, oldest first (the one waiting longest leads), at most
+ * `limit` (clamped to 1..OUTREACH_LETTER_LIST_MAX). Rides `idx_outreach_letters_open`
+ * (workspace_id, state, created_at). An erased row is left out — its text is gone and
+ * nothing can be approved from it. One row past the limit is read so the caller can say
+ * truthfully that there is more (`truncated`). A created_at tie breaks on rowid (insertion
+ * order), not id: the id is random, so letters drafted in one millisecond would swap places.
+ */
+export function outreachLetterListByState(
+  state: OutreachLetterState,
+  limit: number,
+  workspaceId: string
+): { letters: OutreachLetterListItem[]; truncated: boolean } {
+  const cap = Math.min(Math.max(1, Math.trunc(limit) || 1), OUTREACH_LETTER_LIST_MAX);
+  const rows = ensureDb()
+    .prepare(
+      `SELECT ol.id, ol.entry_id, ol.state, ol.revision, ol.subject, ol.created_at, ol.updated_at,
+              pe.candidate_label, pe.job_title
+         FROM outreach_letters ol
+         JOIN pipeline_entries pe ON pe.id = ol.entry_id AND pe.workspace_id = ol.workspace_id
+        WHERE ol.workspace_id = ? AND ol.state = ? AND ol.erased_at IS NULL
+        ORDER BY ol.created_at ASC, ol.rowid ASC
+        LIMIT ?`
+    )
+    .all(workspaceId, state, cap + 1) as {
+    id: string;
+    entry_id: string;
+    state: string;
+    revision: number;
+    subject: string | null;
+    created_at: string;
+    updated_at: string;
+    candidate_label: string;
+    job_title: string | null;
+  }[];
+  const truncated = rows.length > cap;
+  return {
+    truncated,
+    letters: rows.slice(0, cap).map((r) => ({
+      id: r.id,
+      entryId: r.entry_id,
+      candidateLabel: r.candidate_label,
+      jobTitle: r.job_title,
+      subject: r.subject,
+      state: STATES.has(r.state) ? (r.state as OutreachLetterState) : "drafted",
+      revision: r.revision,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    })),
+  };
+}
+
 /**
  * Record the machine's draft for an application.
  *
@@ -156,32 +231,35 @@ export function outreachLetterById(letterId: string, workspaceId: string): Outre
  *                            released or the row was erased, a late draft is dropped.
  */
 export function outreachLetterDraft(
-  input: { entryId: string; subject: string; body: string; lang: string },
+  input: { entryId: string; subject: string; body: string; lang: string; source?: string | null },
   workspaceId: string
 ): { letter: OutreachLetter; created: boolean; changed: boolean } {
   const db = ensureDb();
   const now = new Date().toISOString();
   input = { ...input, subject: draftSubject(input.subject) };
+  // Kept with the draft (Q10). Omitted stays NULL = unknown, which the send reads as
+  // "a model may have written it".
+  const source = input.source ?? null;
   // ON CONFLICT names the uniqueness target, so ONLY the one-letter-per-application
   // collision is absorbed — `INSERT OR IGNORE` would also swallow a CHECK violation.
   const ins = db
     .prepare(
-      `INSERT INTO outreach_letters (id, workspace_id, entry_id, state, revision, subject, body, lang, message_id, created_at, updated_at)
-       VALUES (?, ?, ?, 'drafted', 1, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO outreach_letters (id, workspace_id, entry_id, state, revision, subject, body, lang, draft_source, message_id, created_at, updated_at)
+       VALUES (?, ?, ?, 'drafted', 1, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(workspace_id, entry_id) DO NOTHING`
     )
-    .run(randomId("ol"), workspaceId, input.entryId, input.subject, input.body, input.lang, randomId("msg"), now, now);
+    .run(randomId("ol"), workspaceId, input.entryId, input.subject, input.body, input.lang, source, randomId("msg"), now, now);
   if (ins.changes === 1) {
     return { letter: mustRead(input.entryId, workspaceId), created: true, changed: true };
   }
   const upd = db
     .prepare(
       `UPDATE outreach_letters
-          SET subject = ?, body = ?, lang = ?, revision = revision + 1, updated_at = ?
+          SET subject = ?, body = ?, lang = ?, draft_source = ?, revision = revision + 1, updated_at = ?
         WHERE entry_id = ? AND workspace_id = ? AND state = 'drafted' AND erased_at IS NULL
           AND (subject IS NOT ? OR body IS NOT ? OR lang IS NOT ?)`
     )
-    .run(input.subject, input.body, input.lang, now, input.entryId, workspaceId, input.subject, input.body, input.lang);
+    .run(input.subject, input.body, input.lang, source, now, input.entryId, workspaceId, input.subject, input.body, input.lang);
   return { letter: mustRead(input.entryId, workspaceId), created: false, changed: upd.changes === 1 };
 }
 

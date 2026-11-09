@@ -1,0 +1,188 @@
+{
+  "schema": "conform-run/1",
+  "worker": "161a7a76-d6c9-40b3-914e-3d62e4aabffb",
+  "subject": "app-shell",
+  "evaluatedAt": "2026-11-06T02:10:11.437116+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "shell-nav",
+      "subject": "app-shell",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/features/shell/nav/NavPanelItem.tsx:85 Nav badges show the raw count with no display cap such as 99+, and a malformed ?tab= arriving mid-session is dropped with no message; both break rules the standard states, while the rest of the nav (derived highlight, lock doors, prefetch on intent) meets it.",
+      "techniques": [
+        {
+          "technique": "badge-and-attention",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/nav/NavPanelItem.tsx:85 The count is shown raw with no '99+' cap, which the technique's Budget rule requires. Badge suppression for viewers who may not see counts is total (line 66), the pill has a text aria-label, and badgeParams routes the click to the counted cohort, so the rest conforms."
+        },
+        {
+          "technique": "navigation-model",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/nav/urlInbox.ts:41 A junk or gated arrival into a running session keeps the current tab (the 'do nothing' option, written down) but never says why the address was refused, and the inbox then wipes it. The active state is derived correctly (NavSectionRail.tsx:243), and the decision to give up per-tab Back is stated in useUrlInboxState.ts."
+        },
+        {
+          "technique": "nav-hierarchy",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/nav/NavSectionRail.tsx:138 Two levels, with the panel scoped to one group. The preview panel snaps back by deriving from the location during render, not from each entry's own handler. Every destination tile has a visible label; only preference chrome is icon-only."
+        },
+        {
+          "technique": "entitlement-gating",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/nav/NavPanelItem.tsx:107 A locked row shows its lock on the entry itself and stays focusable. It is never rendered as disabled, and clicking it opens the locked-door explanation through onSelect → panelFor."
+        },
+        {
+          "technique": "lazy-section-loading",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/nav/NavPanelItem.tsx:149 Prefetch on intent fires on both hover and focus and is idempotent. Rail groups warm all of their items, and locked rows are skipped."
+        }
+      ],
+      "registryProposal": "nav-hierarchy prohibition 6 says 'icon-only entry' but does not say whether rail chrome counts (a theme or language popup trigger, sign-out). An earlier seat applied it to those triggers. This repo draws the line explicitly in recipes.ts (railTile for destinations, railIconBtn for chrome). The technique should say whether non-destination rail controls owe the visual name reveal."
+    },
+    {
+      "context": "analytics-sections",
+      "subject": "app-shell",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/features/insights/analytics/sections/QualityInstrument.tsx:131 The Quality section's root plays its arrival animation on every mount. The section switch is keyed by section, and the section re-fetches through LoadingGap, so returning to Quality repeats first-arrival choreography.",
+      "techniques": [
+        {
+          "technique": "lazy-section-loading",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/sections/QualityInstrument.tsx:131 The arrival animation is unconditional, but the seen-it rule limits entrance choreography to first arrival. The panel chunk gaps do conform: quiet, delayed and with no silhouette (sectionChunks.tsx:23)."
+        },
+        {
+          "technique": "navigation-model",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/sections/analyticsSections.ts:14 The ?sec= sub-vocabulary is a closed registry with a derived union and a guard. An arrival goes through the same inbox, which keeps the current section for an unknown value."
+        },
+        {
+          "technique": "nav-hierarchy",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/sections/AnalyticsSectionNav.tsx:25 Depth below the tab is owned by the page (a segmented radiogroup), not added as a third level in the shell."
+        }
+      ]
+    },
+    {
+      "context": "spark-landing-shell",
+      "subject": "app-shell",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/landing/spark/sections/LegalRow.tsx:34 LegalRow keeps its own list of the policy pages instead of importing app/landing/site/chrome/legal.ts, whose header claims to be 'the same three LegalRow renders'. That is one destination list written twice, so a change to the public front door can update one copy and not the other.",
+      "techniques": [
+        {
+          "technique": "navigation-model",
+          "verdict": "deviation",
+          "evidence": "app/landing/spark/sections/LegalRow.tsx:34 This duplicates app/landing/site/chrome/legal.ts:4 (export const LEGAL_LINKS), the 'same vocabulary spelled twice' anti-pattern. The header and phone menu now live in app/landing/site/chrome/Header.tsx, which is outside this context's files, so the earlier anchor there was not re-used."
+        }
+      ]
+    },
+    {
+      "context": "shell-simulation-engine",
+      "subject": "app-shell",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/features/shell/simulation/SimulationProvider.tsx:102 When the provider unmounts, only the pagehide listener is removed. The ctrl.current stop flag is never set, a parked gate() is never woken, and the lease is never released, so a client-side route change away from the shell leaves a running walk with no reaper.",
+      "techniques": [
+        {
+          "technique": "shell-hosted-services",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/simulation/SimulationProvider.tsx:102 The tour engine is a shell resident, but only one ending class (pagehide) has a reaper; component unmount has none. Nothing in the provider or useSimulationWalk sets stop or releases the lease on unmount (only releaseLease is defined, and it is wired solely to pagehide)."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "app-shell",
+      "context": "workspace-shell-core",
+      "reason": "withdrawn after review: reviewer (sonnet): The last-location-restore claim says sessionStorage holds only the rail preview group, but app/features/shell/recentTabs.ts persists recent tabs under 'kp.recent-tabs' in sessionStorage, so that supporting claim is contradicted by the code I opened."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-06T02:10:11.437116+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "app-shell"
+      ],
+      "techniques": [
+        "badge-and-attention",
+        "entitlement-gating",
+        "lazy-section-loading",
+        "nav-hierarchy",
+        "navigation-model"
+      ],
+      "deviations": 1,
+      "context": "shell-nav",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-06T02:10:11.437116+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "app-shell"
+      ],
+      "techniques": [
+        "badge-and-attention",
+        "entitlement-gating",
+        "lazy-section-loading",
+        "nav-hierarchy",
+        "navigation-model",
+        "screen-contributed-second-level",
+        "shell-hosted-services"
+      ],
+      "deviations": 1,
+      "context": "workspace-shell-core",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-06T02:10:11.437116+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "app-shell"
+      ],
+      "techniques": [
+        "lazy-section-loading",
+        "nav-hierarchy",
+        "navigation-model"
+      ],
+      "deviations": 1,
+      "context": "analytics-sections",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-06T02:10:11.437116+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "app-shell"
+      ],
+      "techniques": [
+        "navigation-model"
+      ],
+      "deviations": 1,
+      "context": "spark-landing-shell",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-06T02:10:11.437116+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "app-shell"
+      ],
+      "techniques": [
+        "shell-hosted-services"
+      ],
+      "deviations": 1,
+      "context": "shell-simulation-engine",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

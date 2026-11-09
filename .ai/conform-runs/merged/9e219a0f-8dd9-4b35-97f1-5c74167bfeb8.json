@@ -1,0 +1,87 @@
+{
+  "schema": "conform-run/1",
+  "worker": "9e219a0f-8dd9-4b35-97f1-5c74167bfeb8",
+  "subject": "optional-dependency-degradation",
+  "evaluatedAt": "2026-11-08T03:49:53.685562+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "db-core-migrations",
+      "subject": "optional-dependency-degradation",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/_lib/db/seed-gate.ts:5 KP_SEED_DEMO and KP_EMPTY are switches whose unrecognised values silently fall back to the default (e.g. KP_EMPTY=\"enabled\" is ignored, so a deployment that also sets KP_SEED_DEMO=1 seeds demo data). This is the 'switch whose parse failure returns the default' the standard names, and a test makes it deliberate.",
+      "techniques": [
+        {
+          "technique": "misconfiguration-never-reaches-a-fallback",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/seed-gate.ts:5 The truthy() reader has no malformed branch: any token outside the set is false and never reported."
+        },
+        {
+          "technique": "absent-degrades-malformed-fails-fast",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/seed-gate.test.ts:20 The test asserts that garbage ('demo', 'banana') behaves like unset, which locks in malformed-as-absent. The boot path itself is right: core.ts:290 rethrows a configuration error such as an unknown KP_DB_BACKEND instead of relabelling it as file damage."
+        },
+        {
+          "technique": "guarded-singleton-accessor",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/core.ts:310 The connection is built lazily in ensureDb(), never at module scope, and memoised on globalThis only after the integrity check, migrations and tenancy assertion succeed (assigned at core.ts:3041). Only success is cached."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "optional-dependency-degradation",
+      "context": "candidate-apply-api",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "optional-dependency-degradation",
+      "context": "jobseeker-profile",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "optional-dependency-degradation",
+      "context": "llm-config-provider",
+      "reason": "withdrawn after review: reviewer (sonnet): The deviation anchors on app/_lib/offline.ts (the KP_OFFLINE parser), which is not among this context's 12 files, and none of the files that are (llm-config.ts, llm-lighttrack.ts, llm-quality.ts, llm-model-defaults.ts) reference offline; the two anchors that are in context (llm-secret.ts:45 and llm-"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-08T03:49:53.685562+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "optional-dependency-degradation"
+      ],
+      "techniques": [
+        "absent-degrades-malformed-fails-fast",
+        "fallback-retirement-condition",
+        "guarded-singleton-accessor",
+        "misconfiguration-never-reaches-a-fallback",
+        "probe-the-grant-not-the-config"
+      ],
+      "deviations": 1,
+      "context": "llm-config-provider",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-08T03:49:53.685562+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "optional-dependency-degradation"
+      ],
+      "techniques": [
+        "absent-degrades-malformed-fails-fast",
+        "guarded-singleton-accessor",
+        "misconfiguration-never-reaches-a-fallback"
+      ],
+      "deviations": 1,
+      "context": "db-core-migrations",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

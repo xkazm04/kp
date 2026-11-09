@@ -86,12 +86,6 @@ export const KEYLESS_SPECS = [
   "analytics-sections",
   "quality-tables",
   "shell-tab-state",
-  // NOT token-doors-axe. It runs and it is right: /offer/[token]'s decline
-  // confirm puts white on `.bg-coral` (#ffffff on #d65a4a, 3.87:1) and fails
-  // WCAG AA on a destructive irreversible action. That is an app finding, not
-  // a spec defect, and enrolling a spec whose only route to green is a holdout
-  // entry would convert a real accessibility bug into a permanent exception.
-  // It joins this list when the token is darkened.
   "locale-smoke",
   // The Journeys board. Keyless by construction: /api/journeys reads the SQLite
   // tables and spawns nothing. It earns its place here because the board shipped
@@ -99,7 +93,17 @@ export const KEYLESS_SPECS = [
   // ICU argument on every unmapped event kind, and a `fixed inset-0` overlay whose
   // containing block was the tab panel's animation transform rather than the
   // viewport, so it measured 1264x0. Neither is reachable without a browser.
-  "journey-board"
+  "journey-board",
+  // The keyless hire: a pasted job ad to an accepted offer on /offer/[token],
+  // rated by hand, no provider. Measured green on a production standalone build.
+  "journey-job-to-accept",
+  // A state-changing /api request with a foreign Origin is refused 403 by
+  // proxy.ts; its own Origin is not. Measured green on a production standalone build.
+  "same-origin-write-door",
+  // axe on the public offer, erasure and invite token doors (the /status timeline
+  // and /skill sweeps skip themselves when no seeded data mints their token).
+  // Measured green on a production standalone build.
+  "token-doors-axe"
 ] as const;
 
 export default defineConfig({
@@ -163,6 +167,10 @@ export default defineConfig({
             // ci.yml's release job) keeps its own setting; the release subset does not
             // touch /me, and journey-role-to-schedule walks the wizard either way.
             KP_JOBSEEKER: "1",
+            // The AI voice interview ships OFF (app/_lib/voice/enabled.ts, owner ruling
+            // 2026-11-09); journey-one-thread mints a session through
+            // POST /api/interview/create, so the suite's own server turns it on.
+            KP_VOICE_INTERVIEW: "1",
             // The demo corpus seeds at boot only on opt-in since operator triage T1
             // (2026-10-22, app/_lib/db/seed-gate.ts) — a fresh kp-e2e.sqlite would
             // otherwise boot empty and stop on the first-run data choice. Every spec
