@@ -1438,6 +1438,36 @@ so `/api/schedule` no longer drags in `interview-run.ts` (115 modules · 1.14 MB
 That work is why every API route in the table above now answers in 7–212 ms warm;
 it did **not** move `/`, which is bounded by the 983-module page graph instead.
 
+**The task hub (2026-11-09).** `app/_lib/tasks.ts` — imported by every route that
+starts or polls a background task — used to import its runners, so its own graph was
+**236 modules** (the automation engine, the devcase, JD-build, interview-prep and
+group-eval graphs) and those routes formed the whole fat tail of the API group.
+Every `TaskKind` now delegates to `externalRunner(kind)`; the implementations are
+registered at boot by `late-bound-boot.ts` (`registerQueueRunners`, called from
+`instrumentation-node.ts` and the unit-test DB bootstrap) and the board batches plus
+`score_entry` live in `task-batch-run.ts`. The hub keeps only what the queue needs —
+labels, tenancy, cancel hooks — and walks **43 modules**. One more cut rode along:
+`jd-build-start.ts` named a type through `import { type JdBuildOptions }`, which the
+walker (correctly) counts as a value edge onto `jd-build-run.ts`; as `import type` it
+costs nothing. Measured from a clean `git archive` export by the perf walker:
+
+| `app/api/**/route.ts` (317) | min | median | p95 | max | mean |
+| --- | --- | --- | --- | --- | --- |
+| modules, before | 6 | 64 | 253 | 263 | 88 |
+| modules, after | 6 | 62 | 150 | 206 | 72 |
+| KB, before | 200 | 997 | 3,424 | 3,547 | 1,359 |
+| KB, after | 200 | 957 | 2,246 | 2,891 | 1,165 |
+
+The routes left above the p95 are ones that *execute* a heavy engine themselves
+(`interview/create` → `interview-invite`, `role-runs/*` → `role-run-live`,
+`interview/*` → `interview-scorecard-commit`), not ones a hub taxes. `perf-budget.json`
+holds the gain: the group ceiling went from 231 modules / 3,132 KB to the new p95 plus
+slack (173 / 2,583), those seven routes are named overrides, and `--tighten` lowered
+the 32 existing overrides and the `app/page.tsx` entry (1,984 → 252 modules; it had
+never been re-tightened after ADR 0032 stopped counting deferred `import()` edges).
+`late-bound-boot.test.ts` pins the hub: no runner and not `db/pipeline.ts` on its
+graph, and at most 60 modules.
+
 ### Layer boundaries — which context may import which
 
 The barrel rule above is a *cost* rule. Three further import rules are *layering*

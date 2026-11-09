@@ -36,6 +36,7 @@ function inNodeTestRun(): boolean {
 }
 
 export function registerLateBoundImplementations(): void {
+  registerQueueRunners();
   // The seeker's manual scan: the whole acquisition graph (adapters, rules engine,
   // reconciliation).
   registerTaskRunner("jobseeker_scan", async (ctx) => {
@@ -239,5 +240,102 @@ export function registerLateBoundImplementations(): void {
   registerStageHookInvite(async (input) => {
     const { mintAndInviteVoiceScreen } = await import("./interview-invite");
     return mintAndInviteVoiceScreen(input);
+  });
+}
+
+/**
+ * The task kinds whose runners lived INSIDE tasks.ts until 2026-11-09 (the engines the
+ * queue drives on a recruiter's behalf). Each call below is the exact call the spec used
+ * to make, argument for argument; only its address moved, so the hub's import graph no
+ * longer carries the automation, devcase, JD-build, interview-prep and group-eval graphs
+ * to every route that starts or polls a task (docs/architecture/app-structure.md).
+ */
+function registerQueueRunners(): void {
+  registerTaskRunner("automation", async (ctx) => {
+    const { runAutomationTask } = await import("./automation-run");
+    return runAutomationTask(String(ctx.params.entryId), String(ctx.params.task), String(ctx.params.notes ?? ""), ctx.signal, undefined, ctx.workspaceId, { manual: true });
+  });
+  registerTaskRunner("reasoning", async (ctx) => {
+    const { runReasoning } = await import("./reasoning-run");
+    return runReasoning(ctx.params, ctx.signal, ctx.workspaceId);
+  });
+  registerTaskRunner("batch_screen", async (ctx) => {
+    const { batchScreen } = await import("./task-batch-run");
+    return batchScreen(ctx);
+  });
+  registerTaskRunner("batch_outreach", async (ctx) => {
+    const { batchOutreach } = await import("./task-batch-run");
+    return batchOutreach(ctx);
+  });
+  // `workspace` on the params is what /api/analyze stamps at request time and what
+  // persistAnalysis files the saved analysis under. It was the ONLY tenant this handler
+  // had: a producer that omitted it (the retry replay, any non-route caller) silently filed
+  // a non-default team's analysis under the default workspace, where the team that paid
+  // the AI-candidate unit could not see it. The task row's own workspace is the
+  // authoritative fallback — same tenant, always present.
+  registerTaskRunner("analyze", async (ctx) => {
+    const { runAnalyze } = await import("./analyze-run");
+    type AnalyzeParams = Parameters<typeof runAnalyze>[0];
+    return runAnalyze(
+      { ...(ctx.params as unknown as AnalyzeParams), workspace: (ctx.params.workspace as string | undefined) || ctx.workspaceId },
+      ctx.progress,
+      ctx.signal
+    );
+  });
+  registerTaskRunner("need_analysis", async (ctx) => {
+    const { runNeedAnalysis } = await import("./devcase-run");
+    return runNeedAnalysis(ctx.params.need as Parameters<typeof runNeedAnalysis>[0], ctx.signal);
+  });
+  registerTaskRunner("design_artifacts", async (ctx) => {
+    const { runDesignArtifacts } = await import("./devcase-run");
+    return runDesignArtifacts(
+      ctx.params.need as Parameters<typeof runDesignArtifacts>[0],
+      (ctx.params.analysis as Record<string, unknown>) ?? {},
+      ctx.signal
+    );
+  });
+  registerTaskRunner("evaluate_submission", async (ctx) => {
+    const { runEvaluateSubmission } = await import("./devcase-run");
+    return runEvaluateSubmission(String(ctx.params.submissionId), ctx.signal, ctx.workspaceId);
+  });
+  registerTaskRunner("lifecycle", async (ctx) => {
+    const { runLifecycle } = await import("./devcase-orchestrator");
+    return runLifecycle(String(ctx.params.lifecycleId), ctx.progress, ctx.signal, ctx.workspaceId);
+  });
+  registerTaskRunner("group_eval", async (ctx) => {
+    const { runGroupEval } = await import("./group-eval-run");
+    return runGroupEval(ctx.params, ctx.signal, ctx.workspaceId);
+  });
+  registerTaskRunner("jd_build", async (ctx) => {
+    const { runJdBuild } = await import("./jd-build-run");
+    return runJdBuild(ctx.params, ctx.progress, ctx.signal, ctx.workspaceId);
+  });
+  registerTaskRunner("interview_prep", async (ctx) => {
+    const { runInterviewPrep } = await import("./interview-prep-run");
+    return runInterviewPrep(ctx.params, ctx.signal, ctx.workspaceId);
+  });
+  registerTaskRunner("agent_fit", async (ctx) => {
+    const { runAgentFit } = await import("./agent-hire/transform-run");
+    return runAgentFit(String(ctx.params.jobId), ctx.signal, ctx.workspaceId);
+  });
+  registerTaskRunner("repo_scan", async (ctx) => {
+    const { runRepoScan } = await import("./repo-scan-run");
+    return runRepoScan(ctx.params, ctx.signal, ctx.workspaceId, String(ctx.params.lang ?? "en"), ctx.progress);
+  });
+  registerTaskRunner("campaign", async (ctx) => {
+    const { runCampaign } = await import("./campaign-run");
+    return runCampaign(ctx.params as unknown as Parameters<typeof runCampaign>[0], ctx.signal, ctx.workspaceId);
+  });
+  registerTaskRunner("profile_draft", async (ctx) => {
+    const { runProfileDraft } = await import("./profile-draft-run");
+    return runProfileDraft(ctx.params as unknown as Parameters<typeof runProfileDraft>[0], ctx.signal);
+  });
+  registerTaskRunner("companion_digest", async (ctx) => {
+    const { runCompanionDigestTask } = await import("./companion-digest-run");
+    return runCompanionDigestTask(ctx);
+  });
+  registerTaskRunner("score_entry", async (ctx) => {
+    const { scoreEntryTask } = await import("./task-batch-run");
+    return scoreEntryTask(ctx);
   });
 }

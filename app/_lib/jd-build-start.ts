@@ -1,6 +1,6 @@
 import { insertAnalyzingJd, markJdAnalyzing, setJdAnalysisTask, type JdBuildIntent } from "./db/jobs";
 import { startTask } from "./tasks";
-import { type JdBuildOptions } from "./jd-build-run";
+import type { JdBuildOptions } from "./jd-build-run";
 
 // THE ONE DOOR into a backgrounded `jd_build`.
 //

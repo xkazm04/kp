@@ -7,7 +7,7 @@ import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { appMasterSpecSchema } from "@/app/_lib/schemas.generated";
-import { type DispatchSpec } from "@/app/_lib/agent-hire/bridge-client";
+import type { DispatchSpec } from "@/app/_lib/agent-hire/bridge-client";
 // ONE authority for the two spend bounds, because the projections build the
 // same DispatchSpec and only the job path used to enforce them (spec-bounds.ts).
 import { boundedTurns } from "./spec-bounds";

@@ -9,7 +9,7 @@ import { runCompanionDigest } from "./companion-run";
 import { deriveThreadTitle } from "./companion-turn";
 import { coerceProposalPayload } from "./companion-proposal-view";
 import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
-import type { TaskCtx } from "./tasks";
+import type { ExternalTaskCtx } from "./task-external-runners";
 
 // The `companion_digest` background task (docs/features/companion/README.md, WP3).
 //
@@ -38,7 +38,7 @@ function openProposalDigestView(workspaceId: string): { id: string; summary: str
     });
 }
 
-export async function runCompanionDigestTask(ctx: TaskCtx): Promise<unknown> {
+export async function runCompanionDigestTask(ctx: ExternalTaskCtx): Promise<unknown> {
   const workspaceId = ctx.workspaceId;
   const locale = isLocale(ctx.params.lang) ? ctx.params.lang : DEFAULT_LOCALE;
   ctx.progress(0, 3, "Reading the studio");

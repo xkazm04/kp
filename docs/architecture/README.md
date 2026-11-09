@@ -95,16 +95,21 @@ A failed row stores a catalogued code for the runtime's own failures
 (`ENGINE_TIMEOUT`, `TASK_TIME_LIMIT`, …), which the Tasks drawer and the Activity
 detail resolve in the reader's language.
 
-Three kinds are **late-bound**: `jobseeker_scan`, `interview_kit` and `interview_letter`
-call `externalRunner(kind)` (`app/_lib/task-external-runners.ts`, a leaf registry on
-`globalThis`) instead of importing their runner. `tasks.ts` sits on every route that
-starts or polls a task, and the perf budget counts every module it reaches, dynamic
-imports included. `registerLateBoundImplementations()` (`app/_lib/late-bound-boot.ts`)
-registers the implementations at boot: `instrumentation-node.ts` calls it at server
-start, and `app/_lib/testing/unit-db.ts` calls it in every unit-test process. Each
-runner module still loads lazily on first use. An unregistered kind fails its task
+**Every kind is late-bound** (since 2026-11-09; earlier only `jobseeker_scan`, the
+interview kit and letter, the gig kinds and `analyze_cohort` were): each spec calls
+`externalRunner(kind)` (`app/_lib/task-external-runners.ts`, a leaf registry on
+`globalThis`) instead of importing its runner. `tasks.ts` sits on every route that
+starts or polls a task, and the perf budget counts every module it reaches statically;
+with the runners imported it walked 236 modules, without them 43
+([app-structure.md](app-structure.md#api-route-graphs)).
+`registerLateBoundImplementations()` (`app/_lib/late-bound-boot.ts`) registers the
+implementations at boot: `instrumentation-node.ts` calls it at server start, and
+`app/_lib/testing/unit-db.ts` calls it in every unit-test process. The board batches
+(`batch_screen`, `batch_outreach`) and `score_entry` live in `app/_lib/task-batch-run.ts`.
+Each runner module still loads lazily on first use. An unregistered kind fails its task
 with an error naming the registration, and `app/_lib/late-bound-boot.test.ts` fails on
-a kind `tasks.ts` delegates that the boot list does not register.
+a kind `tasks.ts` delegates that the boot list does not register, on a `TaskKind` that
+does not delegate, and on a runner imported back onto the hub's graph.
 
 **Task identity.** `app/_lib/task-dedupe.ts` keys each in-flight run so a retry
 coalesces and a different request does not. `batch_screen` used to be a process-wide

@@ -1,7 +1,4 @@
 import { lifecycleByPosting } from "./db/devcase";
-import { getPipelineEntry, listActiveEntriesForAutomation } from "./db/pipeline";
-import { getPipelineAxis } from "./pipeline-axis-server";
-import { screeningStageIds } from "./pipeline-stages";
 import { createTask, finishTask, getActiveTaskByDedupe, getTask, interruptStaleTasks, listQueuedTaskEntries, listRunningTaskTimes, pruneFinishedTasks, markTaskRunning, setTaskProgress, type TaskRecord } from "./db/tasks";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { withLlmRequestId, withSpawnLane } from "./llm-request-context";
@@ -13,29 +10,15 @@ import {
   tasksToReap,
   taskRetentionCutoffIso,
 } from "./task-maintenance.ts";
-import { AutomationError, runAutomationTask } from "./automation-run";
-import { runReasoning } from "./reasoning-run";
-import { runAnalyze, type AnalyzeParams } from "./analyze-run";
-import { runDesignArtifacts, runEvaluateSubmission, runNeedAnalysis, type DevNeed } from "./devcase-run";
-import { runLifecycle } from "./devcase-orchestrator";
 import { RECENT_TASK_WINDOW_DAYS } from "./tasks-window";
 export { RECENT_TASK_WINDOW_DAYS } from "./tasks-window";
-import { runGroupEval } from "./group-eval-run";
-import { runJdBuild } from "./jd-build-run";
-import { runInterviewPrep } from "./interview-prep-run";
-import { runAgentFit } from "./agent-hire/transform-run";
-import { runRepoScan } from "./repo-scan-run";
 import { cancelQueuedRepoScan } from "./db/repo-scans";
-import { runCampaign, type CampaignParams } from "./campaign-run";
-import { runProfileDraft, type ProfileDraftParams } from "./profile-draft-run";
-import { runCompanionDigestTask } from "./companion-digest-run";
 import { externalRunner, scanWholePhaseFailure } from "./task-external-runners";
 import { SCAN_JOB_NAME } from "./scheduler-jobs";
 import type { ScanSummary } from "./jobseeker/types";
 import { recordRun } from "./scheduler-store";
 import { randomId } from "./random-id";
 import { buildDedupeKey } from "./task-dedupe";
-import type { FanoutCode, FanoutItem } from "./task-fanout";
 import { TASK_KINDS, isTaskKind, type TaskKind } from "./task-kinds";
 import { encodeTaskLabel } from "./task-label";
 import { nextTaskToRun, type PumpEntry } from "./task-pump";
@@ -115,127 +98,48 @@ function detail(...candidates: unknown[]): string | null {
   return null;
 }
 
-async function batchScreen(ctx: TaskCtx): Promise<unknown> {
-  // Scope to the CALLER's team. listActiveEntriesForAutomation is tagged
-  // `-- tenancy:global` for the clock-driven automation ENGINE, which legitimately
-  // sweeps every tenant — but batch_screen is a per-recruiter click, and until
-  // 2026-08-22 it ignored the ctx.workspaceId the runner threads in. Team A's click
-  // spent A's LLM budget screening team B's board and wrote advance/hold decisions
-  // into B's pipeline, while the summary A read back counted candidates A cannot see.
-  //
-  // WHICH entries: an explicit cohort when the caller names one (the board row's
-  // "AI evaluate" passes the position's entry-column candidates), else every
-  // candidate standing on a PRE-GATE column of this workspace's axis. The gate used to
-  // be the literal "Screened" — a renamed axis screened nobody, and the entry column
-  // (where triage volume is highest) was never swept from here.
-  const wanted = Array.isArray(ctx.params.entryIds)
-    ? new Set((ctx.params.entryIds as unknown[]).filter((x): x is string => typeof x === "string"))
-    : null;
-  const preGate = new Set(screeningStageIds(getPipelineAxis(ctx.workspaceId).stages));
-  const entries = listActiveEntriesForAutomation().filter(
-    (e) => e.workspaceId === ctx.workspaceId && (wanted ? wanted.has(e.id) : preGate.has(e.stage))
-  );
-  const summary = { advanced: 0, held: 0, advisory: 0, errors: 0, total: entries.length };
-  // Per-candidate ledger (task-fanout.ts): ids and codes only.
-  const results: FanoutItem[] = [];
-  ctx.progress(0, entries.length, entries.length ? "Starting…" : "Nothing to screen");
-  let done = 0;
-  for (const e of entries) {
-    if (ctx.signal.aborted) break;
-    try {
-      const out = await runAutomationTask(e.id, "screen", "", ctx.signal, undefined, e.workspaceId);
-      if (out.applied === "advanced") summary.advanced += 1;
-      else if (out.applied === "held_for_review") summary.held += 1;
-      else summary.advisory += 1;
-      results.push({ id: e.id, ok: true, applied: out.applied });
-    } catch (err) {
-      summary.errors += 1;
-      results.push({ id: e.id, ok: false, code: itemCode(err) });
-    }
-    ctx.progress(++done, entries.length, e.candidateLabel);
-  }
-  return { ...summary, results };
-}
-
-// A per-item failure as a CODE, never its message (task-fanout.ts). The assignment is
-// the compile-time check that every AutomationRefusal has a drawer label.
-function itemCode(err: unknown): FanoutCode {
-  if (err instanceof AutomationError && err.refusal) {
-    const code: FanoutCode = err.refusal;
-    return code;
-  }
-  return "engine_failed";
-}
-
-// Draft tailored OUTREACH for a board-selected cohort — one background job that
-// runs the SAME per-candidate `outreach` automation the drawer's "Draft outreach"
-// action runs (runAutomationTask → the LLM/deterministic letter → a HELD
-// outreach_letters draft; nothing is sent until a person approves and releases each
-// letter, comms scope C2 / outreach-release.ts). Reaching a filtered
-// cohort of 8 was 8 drawer trips; this is one action. Per-candidate ISOLATION: one
-// entry's failure (not found, no profile, consent-suppressed, LLM error) never
-// aborts the others, and each id's outcome is reported back so the board can keep
-// the failures selected for retry while successes deselect — the same batch grammar
-// the synchronous move/decide endpoint uses. Drafting N letters is N LLM calls, so
-// it runs here (backgrounded) instead of blocking the recruiter. Outreach is the
-// ONLY drafting action batched from the board: its output is a reviewable,
-// releasable held letter, whereas a rejection draft is a drawer-only result.
-// Guard a runaway cohort (mirrors the sync batch endpoint's BATCH_CAP): the board
-// rarely selects this many, and each id is an LLM call, so the wall-clock watchdog
-// would otherwise reap a huge run mid-flight.
-const OUTREACH_COHORT_CAP = 200;
-
-async function batchOutreach(ctx: TaskCtx): Promise<unknown> {
-  const ids = (
-    Array.isArray(ctx.params.entryIds)
-      ? (ctx.params.entryIds as unknown[]).filter((x): x is string => typeof x === "string")
-      : []
-  ).slice(0, OUTREACH_COHORT_CAP);
-  const results: FanoutItem[] = [];
-  ctx.progress(0, ids.length, ids.length ? "Starting…" : "Nothing to draft");
-  let done = 0;
-  for (const id of ids) {
-    if (ctx.signal.aborted) break;
-    // Resolve the label for a friendly progress line; the entry is scoped to the
-    // task's tenant, so an id from another workspace resolves null here AND makes
-    // runAutomationTask throw "entry not found" — counted as a per-candidate failure.
-    const entry = getPipelineEntry(id, ctx.workspaceId);
-    try {
-      // lang is undefined by design: outreach is a LETTER task, so runAutomationTask
-      // resolves the CANDIDATE'S comms locale itself — the caller's UI locale must not
-      // override it. Mirrors the single-entry `automation` handler above.
-      // `applied` per item: a `suppressed_*` return is not a sent letter.
-      const out = await runAutomationTask(id, "outreach", "", ctx.signal, undefined, ctx.workspaceId);
-      results.push({ id, ok: true, applied: out.applied });
-    } catch (e) {
-      results.push({ id, ok: false, code: itemCode(e) });
-    }
-    ctx.progress(++done, ids.length, entry?.candidateLabel ?? id);
-  }
-  const ok = results.filter((r) => r.ok).length;
-  return { ok, total: results.length, results };
-}
+// WHERE THE RUNNERS LIVE. Every kind's implementation is registered at boot
+// (late-bound-boot.ts, called from instrumentation-node.ts and the unit-test DB
+// bootstrap) and reached here by name through task-external-runners.ts, a leaf. This
+// table keeps what the QUEUE needs to know about a kind — its label, its declared
+// tenancy, its cancel hook, and for the two clock-verifying scans the run record — and
+// nothing that reaches the engines. Until 2026-11-09 the specs imported their runners
+// directly, which put ~160 modules (the automation engine, the devcase, JD-build,
+// interview-prep and group-eval graphs) on every route that starts or polls a task.
+//
+// Each delegate passes the task's own ctx fields explicitly, `workspaceId:
+// ctx.workspaceId` first: tasks-pump.test.ts reads that off each spec block as the proof
+// a `scoped` kind reaches the enqueuing tenant, and late-bound-boot.test.ts reads the
+// `externalRunner("…")` literals as the list boot must register.
 
 // Keyed by the TaskKind vocabulary (./task-kinds): a kind added there without a spec
 // here is a compile error, and so is a spec for a kind that is not in the vocabulary.
 const HANDLERS: Record<TaskKind, Spec> = {
   automation: {
-    run: (ctx) => runAutomationTask(String(ctx.params.entryId), String(ctx.params.task), String(ctx.params.notes ?? ""), ctx.signal, undefined, ctx.workspaceId, { manual: true }),
+    run: (ctx) =>
+      externalRunner("automation")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
     tenancy: "scoped",
     label: (p) => encodeTaskLabel("automation", { task: String(p.task ?? ""), entry: detail(p.entryLabel, p.entryId) ?? "" }),
   },
   reasoning: {
-    run: (ctx) => runReasoning(ctx.params, ctx.signal, ctx.workspaceId),
+    run: (ctx) =>
+      externalRunner("reasoning")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
     tenancy: "scoped",
     label: (p) => encodeTaskLabel("reasoning", { label: detail(p.label, p.jobId) ?? "" }),
   },
+  // Score the pre-gate columns (or a named cohort) of the caller's board
+  // (task-batch-run.ts `batchScreen`).
   batch_screen: {
-    run: batchScreen,
+    run: (ctx) =>
+      externalRunner("batch_screen")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
     tenancy: "scoped",
     label: () => encodeTaskLabel("batchScreen"),
   },
+  // Draft held outreach letters for a board-selected cohort (task-batch-run.ts
+  // `batchOutreach`): nothing is sent until a person approves and releases each one.
   batch_outreach: {
-    run: batchOutreach,
+    run: (ctx) =>
+      externalRunner("batch_outreach")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
     tenancy: "scoped",
     label: (p) => {
       const n = Array.isArray(p.entryIds) ? (p.entryIds as unknown[]).length : 0;
@@ -247,20 +151,11 @@ const HANDLERS: Record<TaskKind, Spec> = {
   },
   analyze: {
     // The AI-candidate unit is debited INSIDE runAnalyze, only on a delivered non-cached
-    // result — so a failed / canceled / duplicate run never charges. No upfront-debit +
-    // refund dance is needed here (this supersedes that earlier approach).
-    // `workspace` on the params is what /api/analyze stamps at request time and what
-    // persistAnalysis files the saved analysis under. It was the ONLY tenant this
-    // handler had: a producer that omitted it (the retry replay, any non-route caller)
-    // silently filed a non-default team's analysis under the default workspace, where
-    // the team that paid the AI-candidate unit could not see it. The task row's own
-    // workspace is the authoritative fallback — same tenant, always present.
+    // result — so a failed / canceled / duplicate run never charges. The runner
+    // (late-bound-boot.ts `analyze`) files the analysis under `params.workspace`, falling
+    // back to this task's own workspace for a producer that omitted it.
     run: (ctx) =>
-      runAnalyze(
-        { ...(ctx.params as unknown as AnalyzeParams), workspace: (ctx.params.workspace as string | undefined) || ctx.workspaceId },
-        ctx.progress,
-        ctx.signal
-      ),
+      externalRunner("analyze")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
     tenancy: "scoped",
     label: (p) => {
       const variants = (p.variants as { label: string }[]) ?? [];
@@ -271,7 +166,8 @@ const HANDLERS: Record<TaskKind, Spec> = {
     },
   },
   need_analysis: {
-    run: (ctx) => runNeedAnalysis(ctx.params.need as DevNeed, ctx.signal),
+    run: (ctx) =>
+      externalRunner("need_analysis")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
     tenancy: "tenant-free", // pure LLM over the need in params; reads and writes no tenant-scoped row
     label: (p) => {
       const title = detail((p.need as { title?: string })?.title);
@@ -279,7 +175,8 @@ const HANDLERS: Record<TaskKind, Spec> = {
     },
   },
   design_artifacts: {
-    run: (ctx) => runDesignArtifacts(ctx.params.need as DevNeed, (ctx.params.analysis as Record<string, unknown>) ?? {}, ctx.signal),
+    run: (ctx) =>
+      externalRunner("design_artifacts")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
     tenancy: "tenant-free", // pure LLM over params; the caller files the returned artifacts under its own tenant
     label: (p) => {
       const title = detail((p.need as { title?: string })?.title);
@@ -290,8 +187,9 @@ const HANDLERS: Record<TaskKind, Spec> = {
     // The submission row carries its own workspace and the handler scopes every read
     // to it — but it is fetched by an id that is not a secret, so the task's tenant is
     // passed as the OWNERSHIP assertion: evaluating another team's submission (and
-    // spending this team's model budget on it) now throws instead of succeeding.
-    run: (ctx) => runEvaluateSubmission(String(ctx.params.submissionId), ctx.signal, ctx.workspaceId),
+    // spending this team's model budget on it) throws instead of succeeding.
+    run: (ctx) =>
+      externalRunner("evaluate_submission")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
     tenancy: "scoped",
     label: (p) => encodeTaskLabel("evaluateSubmission", { ref: detail(p.candidateRef, p.submissionId) ?? "" }),
   },
@@ -299,12 +197,14 @@ const HANDLERS: Record<TaskKind, Spec> = {
     // Same ownership assertion as evaluate_submission: the orchestrator drives every
     // stage under `lc.workspaceId`, so a lifecycle id from another team would have run
     // a full sourcing/evaluation/promotion walk against that team's board.
-    run: (ctx) => runLifecycle(String(ctx.params.lifecycleId), ctx.progress, ctx.signal, ctx.workspaceId),
+    run: (ctx) =>
+      externalRunner("lifecycle")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
     tenancy: "scoped",
     label: (p) => encodeTaskLabel("lifecycle", { title: detail(p.title, p.lifecycleId) ?? "" }),
   },
   group_eval: {
-    run: (ctx) => runGroupEval(ctx.params, ctx.signal, ctx.workspaceId),
+    run: (ctx) =>
+      externalRunner("group_eval")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
     tenancy: "scoped",
     label: (p) => encodeTaskLabel("groupEval", { role: detail(p.roleTitle, p.roleKey) ?? "" }),
   },
@@ -315,7 +215,8 @@ const HANDLERS: Record<TaskKind, Spec> = {
     // Without this the JD row was created for the right team while its OPENING went
     // to the default one: the building team watched their JD flip to "ready" and then
     // never found it in Jobs, so "Source into Pipeline" dead-ended.
-    run: (ctx) => runJdBuild(ctx.params, ctx.progress, ctx.signal, ctx.workspaceId),
+    run: (ctx) =>
+      externalRunner("jd_build")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
     tenancy: "scoped",
     label: (p) => {
       const title = detail(p.title);
@@ -323,13 +224,15 @@ const HANDLERS: Record<TaskKind, Spec> = {
     },
   },
   interview_prep: {
-    run: (ctx) => runInterviewPrep(ctx.params, ctx.signal, ctx.workspaceId),
+    run: (ctx) =>
+      externalRunner("interview_prep")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
     tenancy: "scoped",
     label: (p) => encodeTaskLabel("interviewPrep", { candidate: detail(p.candidateLabel, p.entryId) ?? "" }),
   },
   // Agent-candidate bridge: job → AgentFitSpec transform (agent-hire/transform-run.ts).
   agent_fit: {
-    run: (ctx) => runAgentFit(String(ctx.params.jobId), ctx.signal, ctx.workspaceId),
+    run: (ctx) =>
+      externalRunner("agent_fit")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
     tenancy: "scoped",
     label: (p) => encodeTaskLabel("agentFit", { job: detail(p.jobTitle, p.jobId) ?? "" }),
   },
@@ -367,7 +270,7 @@ const HANDLERS: Record<TaskKind, Spec> = {
     // ctx.progress is threaded so the task row names the phase (clone → walk →
     // saving) instead of showing four undifferentiated minutes of "running".
     run: (ctx) =>
-      runRepoScan(ctx.params, ctx.signal, ctx.workspaceId, String(ctx.params.lang ?? "en"), ctx.progress),
+      externalRunner("repo_scan")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
     tenancy: "scoped",
     label: (p) => encodeTaskLabel("repoScan", { repo: detail(p.repoUrl, p.rootPath, p.scanId) ?? "" }),
     // Cancelling before the runner picks the scan up: the task disappears from the
@@ -382,7 +285,8 @@ const HANDLERS: Record<TaskKind, Spec> = {
   // persists in campaign_packs, so leaving mid-run loses nothing — the Campaign
   // tab reloads the finished pack on the next visit.
   campaign: {
-    run: (ctx) => runCampaign(ctx.params as unknown as CampaignParams, ctx.signal, ctx.workspaceId),
+    run: (ctx) =>
+      externalRunner("campaign")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
     tenancy: "scoped",
     label: (p) => encodeTaskLabel("campaign", { job: detail(p.jobTitle, p.jobId) ?? "" }),
   },
@@ -390,7 +294,8 @@ const HANDLERS: Record<TaskKind, Spec> = {
   // the task RESULT (not persisted) — the editor applies it live when watched,
   // and it stays readable from the Background-tasks view otherwise.
   profile_draft: {
-    run: (ctx) => runProfileDraft(ctx.params as unknown as ProfileDraftParams, ctx.signal),
+    run: (ctx) =>
+      externalRunner("profile_draft")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
     tenancy: "tenant-free", // the draft IS the task result — never persisted, so there is no row to scope
     label: () => encodeTaskLabel("profileDraft"),
   },
@@ -400,7 +305,8 @@ const HANDLERS: Record<TaskKind, Spec> = {
   // synchronously — they accepted a proposal and moved on, and the durable result
   // is the turn row, so navigating away loses nothing. It never acts on the board.
   companion_digest: {
-    run: runCompanionDigestTask,
+    run: (ctx) =>
+      externalRunner("companion_digest")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
     tenancy: "scoped",
     label: () => encodeTaskLabel("companionDigest"),
   },
@@ -518,14 +424,10 @@ const HANDLERS: Record<TaskKind, Spec> = {
   // The role-fit score of a freshly filed entry (entry-scoring.ts), enqueued by the apply
   // and inbound-CV doors. The runner puts every handler in the BACKGROUND spawn lane, so
   // the score never takes a slot ahead of a recruiter's click and the door assigns no lane.
-  // Imported on demand: the ranker's module graph is paid by the run, not by this hub.
+  // The runner is task-batch-run.ts `scoreEntryTask`, registered at boot.
   score_entry: {
-    run: async (ctx) => {
-      const entry = getPipelineEntry(String(ctx.params.entryId), ctx.workspaceId);
-      if (!entry) return { scored: false };
-      const { scoreFiledEntry } = await import("./entry-scoring");
-      return { scored: await scoreFiledEntry(entry) };
-    },
+    run: (ctx) =>
+      externalRunner("score_entry")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
     tenancy: "scoped",
     label: (p) => encodeTaskLabel("scoreEntry", { entry: detail(p.entryLabel, p.entryId) ?? "" }),
   },

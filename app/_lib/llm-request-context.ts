@@ -1,15 +1,10 @@
 // The ambient "which run is this LLM call part of" id, carried across async
 // boundaries by AsyncLocalStorage.
 //
-// Why not a parameter: the usage ledger's `request_id` column has existed since
-// T0.1 and parseLedgerLine already maps it — but nothing ever set it, so every
-// Activity row landed with a null. Filling it means the id has to reach
-// spawnPython, and spawnPython is called from ~20 modules (analyze-run,
-// automation-run, jd-build-run, group-eval-run, devcase-run, campaign-run …),
-// most of them several frames below the task runner. Threading a `requestId`
-// argument through all of them — and through every helper in between — would be
-// a wide, churn-heavy diff whose only job is to move one string, and any call
-// site that forgot to forward it would silently go back to writing nulls.
+// Why not a parameter: spawnPython is called from ~20 modules, most of them several
+// frames below the task runner. Threading a `requestId` argument through all of them
+// would be a wide diff, and any call site that forgot to forward it would silently go
+// back to writing a null request_id.
 //
 // AsyncLocalStorage keeps the plumbing at the two ends that actually care: the
 // task runner opens a scope around its handler (app/_lib/tasks.ts), and
@@ -23,7 +18,13 @@
 // null request_id — the degraded case, not an error.
 import { AsyncLocalStorage } from "node:async_hooks";
 
-const storage = new AsyncLocalStorage<string>();
+// On globalThis: Next evaluates this module once per bundle, and a boot-registered
+// runner must read the scope tasks.ts opened (see task-external-runners.ts).
+type Als = AsyncLocalStorage<unknown>;
+const g = globalThis as { __kpLlmAmbient?: [Als, Als, Als] };
+const ambient = (g.__kpLlmAmbient ??= [new AsyncLocalStorage(), new AsyncLocalStorage(), new AsyncLocalStorage()]);
+
+const storage = ambient[0] as AsyncLocalStorage<string>;
 
 /**
  * Run `fn` with `requestId` as the ambient LLM request id. Every spawnPython call
@@ -63,7 +64,7 @@ export function withLlmRequestIdIfUnset<T>(requestId: string, fn: () => T): T {
 // site silently undoes. The role-run engine opens ONE scope around a stage runner;
 // spawnPython reads it (synchronously, at spawn) and the ledger fold stamps it onto each
 // row. Outside a scope the column stays NULL: "not part of a role run", never an error.
-const roleRunStorage = new AsyncLocalStorage<string>();
+const roleRunStorage = ambient[1] as AsyncLocalStorage<string>;
 
 /** Run `fn` with `roleRunId` as the ambient role run: every metered LLM call made inside
  *  it, at any async depth, is attributed to that run in llm_usage.role_run_id. */
@@ -85,7 +86,7 @@ export function currentLlmRoleRunId(): string | null {
 /** `interactive`: a human is waiting (the default). `background`: a task or the clock. */
 export type SpawnLane = "interactive" | "background";
 
-const laneStorage = new AsyncLocalStorage<SpawnLane>();
+const laneStorage = ambient[2] as AsyncLocalStorage<SpawnLane>;
 
 /** Run `fn` with every spawnPython call it makes, at any async depth, admitted in `lane`. */
 export function withSpawnLane<T>(lane: SpawnLane, fn: () => T): T {

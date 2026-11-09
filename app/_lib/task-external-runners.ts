@@ -32,6 +32,11 @@
 // Personas run sync plus the outcome pollers). Both are registered in late-bound-boot.ts.
 // Since 2026-09-29 (gig-mastery) two more queue specs delegate here: `gig_research` (the
 // research pass a gig scan enqueues) and `gig_plans` (the three-seat plan runner).
+// Since 2026-11-09 EVERY TaskKind delegates here: the runners tasks.ts still imported
+// (automation, analyze, the devcase three, lifecycle, group_eval, jd_build, interview_prep,
+// agent_fit, repo_scan, campaign, profile_draft, companion_digest, and the two board
+// batches plus score_entry from task-batch-run.ts) moved to late-bound-boot.ts
+// `registerQueueRunners`, which took tasks.ts's own graph from 236 modules to 43.
 //
 // Contract: a spec in tasks.ts that delegates to `externalRunner(kind)` still declares
 // its own `tenancy` and still passes `ctx` (the pump test reads the spec text). A caller
