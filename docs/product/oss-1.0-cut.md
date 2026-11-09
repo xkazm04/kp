@@ -130,11 +130,24 @@ Decision: does a candidate letter say that AI drafted it?
 - B. Add a footer line to every model-drafted letter. Needs the `llm` or `deterministic` source at send time and four-locale copy.
 - C. Add a line only to first-contact outreach. One template change.
 
+### Rulings, 2026-11-09
+
+These are product decisions by the owner, recorded on 2026-11-09. Counsel has not reviewed them. They do not settle the Art. 22 or Art. 50 questions as legal conclusions; they fix what 1.0 ships.
+
+- **Q9 and Q8: the AI voice interview is OUT of 1.0.** Human interviews remain the path. The voice interview ships switched off behind a default-off flag, `KP_VOICE_INTERVIEW` (on only when exactly `1`; `app/_lib/voice/enabled.ts`), with the code kept. Q8 is moot while voice is off. **Delivered by branch `autopilot/accepted-idea-delivery-998e4e4f`.**
+- **Q3: option C.** `auto` is removed for both the screening and offer gates. The gate setting is display only. The `offer_auto_extended` path is removed. `aiDisclosure.body` changes. Existing rows that say `auto` behave as `human`. No column is dropped. Decided, not yet built.
+- **Q1: option B.** A knockout keeps its question but files a held entry for a person to confirm. No instant decline. Decided, not yet built.
+- **Q2: option B.** Score-threshold advances queue for approval the way rejections do. Decided, not yet built.
+- **Q10: option B.** Every model-drafted letter carries an AI-drafted footer line, in four locales. Decided, not yet built.
+- **Q7: option C.** The review-request copy carries a contact address per workspace, in four locales. Decided, not yet built.
+- **Q4, Q5, Q6: option A.** No change.
+
 ## 4. OPEN
 
 - **S1, Slack and Teams desk** (scope.md:87-96). Not on the operator's out list and not in `app/_lib/connect/catalog.ts`. Missing: an in or out call.
 - **Prior scope statement.** `docs/product/coverage-plan.md` does not exist on this base. `docs/product/enterprise-readiness.md` and `docs/ship/` state no 1.0 cut. Missing: whether the E0 to E6 rows bind 1.0.
-- **Modules off the named path:** AI voice interview, devcase work samples, Gigs, the `/me` job-seeker module, Polar billing. Missing: an in or out call for each.
+- **AI voice interview: OUT** (owner ruling 2026-11-09, section 3). Ships off behind `KP_VOICE_INTERVIEW`.
+- **Modules off the named path:** devcase work samples, Gigs, the `/me` job-seeker module, Polar billing. Missing: an in or out call for each.
 - **Shipped work waiting on the owner** (pre-analysis:536-538): T8 key deviation, T9 tunnel exposure, T11, T13 and T15 sign-offs. Missing: the sign-offs and whether 1.0 waits for them.
 - **Earlier pre-analysis gaps:** C2-debt, T6 portability, T7 for SMTP, T10 ops warning (pre-analysis:312, :405, :432, :492). Not re-checked on this base. Missing: a status check.
 - **Offer page accessibility.** Measured at `f3ebb789b` (`e2e/token-doors-axe.spec.ts`, no key, `KP_OFFLINE=1`): the decline confirm on `/offer/[token]` now passes axe, both on the managed server (6 passed, 2 skipped, exit 0) and on the production build (the two offer tests pass). The comment at `playwright.config.ts:89` is stale. The spec is still not enrollable: on the production build `/status/not-a-real-token` fails at `token-doors-axe.spec.ts:291`, where `locator('[role="alert"]')` matches two elements, the dead-link alert and Next's `#__next-route-announcer__`, a strict-mode violation (3 of 3 runs, exit 1; 5 passed, 1 failed, 1 skipped, 1 did not run). It is a spec selector defect, not an accessibility one. The selector is now scoped (`[role="alert"]:not(#__next-route-announcer__)`, commit `5237efa44`) and the stale comment at `playwright.config.ts:89` is deleted. Re-measured at `5237efa44` on a throwaway clone with a real `npm ci`, no key, `KP_OFFLINE=1`: green on the managed server (6 passed, 2 skipped, exit 0) and on the production standalone build (6 passed, 2 skipped, exit 0), including the dead-link test; no axe violation. Enrolment in `KEYLESS_SPECS` is still open (it needs `.claude/CLAUDE.md` and the pin test changed together).
