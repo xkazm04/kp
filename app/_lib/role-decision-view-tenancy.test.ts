@@ -66,5 +66,6 @@ test("the route passes the session workspace and sits behind the operator gate",
   const here = path.dirname(fileURLToPath(import.meta.url));
   const src = readFileSync(path.join(here, "..", "api", "decisions", "role-view", "route.ts"), "utf8");
   assert.match(src, /route\(withOperator\)\(async \(ws: string/);
-  assert.match(src, /loadRoleDecisionView\(jobId, ws\)/);
+  // the session workspace is still the second argument; the caller (independent scoring) the third
+  assert.match(src, /loadRoleDecisionView\(jobId, ws, await resolveScorecardViewer\(\)\)/);
 });
