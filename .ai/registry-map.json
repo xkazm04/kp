@@ -15401,7 +15401,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "e2e/app-master-hire.spec.ts:15 The Playwright suite asserts product behaviour and scores no model output; a search of e2e/ found no golden, scenario, benchmark, passRate or trial, and the one LLM-backed spec (analyze-smoke) is a keyed UI smoke test.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "conformance-checking",
@@ -34162,7 +34166,11 @@
           "revision": 37,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_devcase_judge_independence.py:107 The test pins the same model reached through a second provider as an independent judge, so the self-grading gate can report independence when one model grades its own output.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:85554b740461b19e",
+          "evaluatedRevision": 39
         },
         {
           "subject": "recruiter-anchored-model-evaluation",

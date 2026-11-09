@@ -29492,6 +29492,48 @@
       "evaluatedTs": "2026-11-09T03:45:19.817Z",
       "worker": "fb21127f-ebce-4ff6-b56b-b2abd6200e52",
       "techniques": []
+    },
+    "b1c5ba42-9188-4765-a9e0-3ad6eefc951f/eval-harness": {
+      "context": "tests-devcase",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T04:00:09.940Z",
+      "worker": "4dceabc7-97f4-477e-bc5e-8c7c3e4fd990",
+      "techniques": [
+        {
+          "technique": "judge-stability",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_devcase_judge_independence.py:110 claude-haiku-4-5 via anthropic and via openrouter counts as independent. Lines 243-244 also assert independence while the generator is unpinned, which cannot be proven, and own-family bias is not addressed."
+        },
+        {
+          "technique": "assertion-vs-judgment",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_devcase_calibrate.py:181 A requested judge that produced nothing fails the gate instead of passing on the structural checks."
+        },
+        {
+          "technique": "scenario-design",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_devcase_calibrate.py:109 The scenario set (jobs.json) is held frozen. The cached cases are candidate output, so keying them on model and prompt does not break the exclusion rule for scenario caches."
+        },
+        {
+          "technique": "eval-economics",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_devcase_calibrate.py:164 The expensive generation is cached with a tested key scope, and a changed model or prompt version is a miss."
+        }
+      ],
+      "registryProposal": "judge-stability could state that independence compares the resolved model, not the provider route: the same model served through two providers is one judge."
+    },
+    "1ee35ac8-8811-4919-a9e7-f6ef215bfb41/eval-harness": {
+      "context": "e2e-suite",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T04:00:09.940Z",
+      "worker": "4dceabc7-97f4-477e-bc5e-8c7c3e4fd990",
+      "techniques": []
     }
   }
 }
