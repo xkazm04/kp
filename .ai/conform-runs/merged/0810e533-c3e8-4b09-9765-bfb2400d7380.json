@@ -1,0 +1,135 @@
+{
+ "schema": "conform-run/1",
+ "worker": "0810e533-c3e8-4b09-9765-bfb2400d7380",
+ "subject": "candidate-self-scheduling",
+ "evaluatedAt": "2026-11-09T23:52:19.086252+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "candidate-self-scheduling-page",
+   "subject": "candidate-self-scheduling",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/schedule/[token]/SlotPicker.tsx:101 The candidate sees the propose-your-own-times form only once the whole horizon is booked (or the cap is spent), never next to a working grid. The form is limited to weekday 08:00\u201318:00 and has no free-text field, so a candidate whose only free time is in the evening has no way out on the page.",
+   "techniques": [
+    {
+     "technique": "propose-your-own-times-escalation",
+     "verdict": "deviation",
+     "evidence": "app/schedule/[token]/SlotPicker.tsx:101 The hatch shows only in the dead-end states, not on the picker (procedure 1). ProposeSection's copy fences it to weekday working hours (proposeTimezoneNote: 08:00-18:00) and it has no free-text constraint field, so it is as narrow as the grid."
+    },
+    {
+     "technique": "interviewer-timezone-anchoring",
+     "verdict": "deviation",
+     "evidence": "app/schedule/[token]/SlotPicker.tsx:106 The grid renders only in the candidate's zone ('All times shown in your timezone (GMT+2)'), using a short offset label. The interviewer's anchor zone is not shown next to each slot, so the dual rendering is missing (procedure 4). Only the propose form names interviewTz."
+    },
+    {
+     "technique": "server-authored-slot-labels",
+     "verdict": "conformant",
+     "evidence": "app/schedule/[token]/SlotPicker.tsx:123 The chip text is built at render time from the ISO instant in the reader's locale. The server label is only a fallback. The hook still sends slot:s.label, but the server ignores it."
+    },
+    {
+     "technique": "reschedule-cap-with-a-recruiter-bypass",
+     "verdict": "deviation",
+     "evidence": "app/schedule/[token]/use-schedule-invite.ts:189 The balance is shown and the cap opens ProposeSection on BookedCard. But when a reschedule submit loses the race to the cap (SCHEDULE_RESCHEDULE_LIMIT 409), the handler refreshes slots/noSlots only. capReached is never set and the picker stays in reschedule mode, so the error does not open the proposal route in the page. Also, '0 changes left' stays visible next to the route."
+    },
+    {
+     "technique": "withdraw-is-not-cancel",
+     "verdict": "deviation",
+     "evidence": "app/schedule/[token]/BookedCard.tsx:168 Withdraw has its own verb, separate from the RSVP cancel ('I can't make it'), and the dead-link ordering is correct (SchedulePicker checks closedReason before the booking). But withdraw fires in one click with no undo: the page goes straight to the terminal DeadLinkCard. No optional reason is asked, and it is offered on the booked card without the proposal hatch first."
+    },
+    {
+     "technique": "adjustments-asked-at-the-booking-step",
+     "verdict": "deviation",
+     "evidence": "app/schedule/[token]/SlotPicker.tsx:82 The page states only the duration. It does not say whether the round is live, video or audio, and it never asks about adjustments. A grep for adjustment/accommodat over app/schedule and the schedule catalog finds only the 'couldn't accommodate proposals' copy."
+    }
+   ]
+  },
+  {
+   "context": "interview-scheduling-api",
+   "subject": "candidate-self-scheduling",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/api/schedule/[token]/route.ts:350 A submit is checked against a predicate, not against the set of slots actually offered. The GET offers at most 6 slots starting tomorrow. offeredSlotFor accepts any weekday 10:00/14:00 from now up to 22 days out, including today's slots and slots past the sixth, so a hand-edited payload can book a time the picker never showed.",
+   "techniques": [
+    {
+     "technique": "structural-slot-validation-on-submit",
+     "verdict": "deviation",
+     "evidence": "app/api/schedule/[token]/route.ts:350 schedule-slots.ts says outright that it validates 'rather than membership in the current proposeSlots() page'. proposeSlots starts at day 1 and stops after count=6 (proposeFreeSlots), while offeredSlotFor accepts any future weekday grid time within the horizon plus one day. That is the drift the 'membership, not predicate' rule warns about. State checks do run first (410 gate)."
+    },
+    {
+     "technique": "server-authored-slot-labels",
+     "verdict": "conformant",
+     "evidence": "app/api/schedule/[token]/route.ts:354 body.slot is never read. The label is re-derived from the validated instant for both first confirm and reschedule, and the outbound letter is formatted from slotAt in the candidate's zone."
+    },
+    {
+     "technique": "interviewer-timezone-anchoring",
+     "verdict": "deviation",
+     "evidence": "app/api/schedule/[token]/route.ts:182 Generation and validation do run in a named IANA zone (zonedParts/zonedInstant), not the server zone. But the zone is a deployment-wide env constant (KP_INTERVIEW_TZ, default Europe/Prague), never stored on the invitation, and the booking stores no zone name next to its instant (procedures 1 and 3). Validation also re-implements the generator's rules instead of calling the generator."
+    },
+    {
+     "technique": "reschedule-cap-with-a-recruiter-bypass",
+     "verdict": "deviation",
+     "evidence": "app/api/schedule/route.ts:375 The authenticated recruiter path does bypass the cap without debiting the budget, re-picking the same time is a free no-op, and the counter only increments inside the transaction. But the cap is a global MAX_RESCHEDULES=3, not stored per invite. The recruiter reschedule seals no actor-attributed record (unlike cancel/no_show), and the reschedule row stores no actor."
+    },
+    {
+     "technique": "propose-your-own-times-escalation",
+     "verdict": "deviation",
+     "evidence": "app/api/schedule/[token]/route.ts:282 Proposals are refused (SCHEDULE_SLOTS_STILL_OPEN) unless the candidate is stuck. validateProposedSlots then limits them to weekday 08:00-18:00 within the 21-day horizon, with no free-text constraint, so the hatch is not wider than the grid (no evenings, weekends or later weeks). The TTL restart while a proposal is open, and recruiter-only accept/decline, do match the standard."
+    },
+    {
+     "technique": "withdraw-is-not-cancel",
+     "verdict": "deviation",
+     "evidence": "app/api/schedule/[token]/route.ts:227 Withdraw gets its own terminal 'declined' state, separate from cancel. But it can never be undone: every later verb gets a 410, and no reason is captured. Separately, the candidate's RSVP cancel and the recruiter's cancel action both call cancelAttendance and write the same attendance_status='cancelled'; the actor survives only in the recruiter's sealed decision."
+    },
+    {
+     "technique": "adjustments-asked-at-the-booking-step",
+     "verdict": "deviation",
+     "evidence": "app/api/schedule/[token]/route.ts:200 The public POST accepts slot/slotAt/reschedule/tz/rsvp/withdraw/propose. It has no adjustment field or route, and publicInviteView carries no round-format facts. A grep for adjustment/accommodat in app/api/schedule finds only 'couldn't accommodate proposals' comments."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-09T23:52:19.086252+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-self-scheduling"
+   ],
+   "techniques": [
+    "adjustments-asked-at-the-booking-step",
+    "interviewer-timezone-anchoring",
+    "propose-your-own-times-escalation",
+    "reschedule-cap-with-a-recruiter-bypass",
+    "server-authored-slot-labels",
+    "withdraw-is-not-cancel"
+   ],
+   "deviations": 1,
+   "context": "candidate-self-scheduling-page",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T23:52:19.086252+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-self-scheduling"
+   ],
+   "techniques": [
+    "adjustments-asked-at-the-booking-step",
+    "interviewer-timezone-anchoring",
+    "propose-your-own-times-escalation",
+    "reschedule-cap-with-a-recruiter-bypass",
+    "server-authored-slot-labels",
+    "structural-slot-validation-on-submit",
+    "withdraw-is-not-cancel"
+   ],
+   "deviations": 1,
+   "context": "interview-scheduling-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
