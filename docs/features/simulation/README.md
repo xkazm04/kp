@@ -82,7 +82,7 @@ for the in-flight mutation before deleting the SIM rows.
 **Resuming a walk after a reload.** A reload, a crashed tab or a presenter who
 navigated away mid-demo leaves the walk's rows on the board. When the console has
 residue to explain and no OTHER tab holds a live lease, `SimulationProvider` reads
-the board once and `resumePointOf(board)` (`simWalkResume.ts`) derives where the
+the board once (mounting the code-split runtime to do it) and `resumePointOf(board)` (`simWalkResume.ts`) derives where the
 walk stands: the (SIM) job (only rows whose job title carries the marker; a real
 candidate is never a resume target), the candidate it was following (the furthest
 along, best match first) and the first chapter whose postcondition the board does
@@ -135,6 +135,7 @@ dock, in `dock` an action that toggles the left companion window. See
 | `SimControlDockOrb.tsx` / `SimControlDockRail.tsx` | The rest state, and the two elements outside the panel's borders |
 | `simControlCenterKit.ts` | `useControlMode()`, `useAutomationPass()`, `usePublishBarHeight()` |
 | `SimulationProvider.tsx` + `useSimulationEngine.ts` + `useSimulationWalk.ts` | The run: state, the per-phase engine, the tab walk |
+| `SimulationRuntime.tsx` | Mounts the engine and the walk (the two hooks above) on first need and hands `run` / `releaseLease` / `getBoard` back to the provider. Code-split: the provider loads it on Start or Resume, a `?sim=auto` arrival, or sim residue on the board, so a workspace that never runs the demo never downloads the script (`docs/architecture/app-structure.md`, "First load of `/`") |
 | `simWalkResume.ts` | The PURE resume derivation: `readResume` / `resumePointOf` (board entries + axis -> the chapter to enter at, the job and the followed candidate, or why there is none: `empty` / `complete`) and `chaptersFrom`. Unit-tested beside it |
 | `simWalkSteps.ts` | The PURE chapter sequencing lifted out of the walk: `SIM_CHAPTERS` (id, tab, spotlight target, timings), `simChapter`, and the halt conditions (`matchHalt` / `offerHalt`). Unit-tested beside it, including the invariant that the chapters ARE `SIM_PHASES` |
 | `simMove.ts` | The PURE scripted MOVES: `SIM_MOVES` (per move, the anchors clicked in order and the product file that must render each), `moveSelector`, `moveOutcome` (dom / api, the fallback reason, the halt), `simSubject` (the fallback's (SIM) gate) and `hiredEffect`. The engine's `move()` runs them. Unit-tested beside it, including source scans that every declared anchor exists and that the walk makes no unchecked POST |
@@ -292,7 +293,8 @@ an explicit guard rather than a special-case fake:
 ## Known gaps
 
 - **A closed tab releases its lease on `pagehide`** (`useSimulationWalk.releaseLease`, a
-  `keepalive` DELETE carrying the token this tab claimed, wired by `SimulationProvider`).
+  `keepalive` DELETE carrying the token this tab claimed, wired by `SimulationProvider`
+  through the mounted runtime; a tab whose runtime never mounted never claimed one).
   It is fire-and-forget: a release lost to a dying tab simply expires on the server's
   terms, and the status door above keeps the resulting wait honest.
 - The run lock is per PROCESS. Two `next start` workers (or a future horizontally

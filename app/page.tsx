@@ -13,7 +13,7 @@ import { signupEnabled } from "@/app/_lib/workspace-lock";
 import { jobseekerEnabled } from "@/app/_lib/jobseeker/enabled";
 import { SetupSeekOfferProvider } from "@/app/features/shell/setup/SetupSeekOfferProvider";
 import { demoChoicePending } from "@/app/_lib/db/demo-seed";
-import { FirstRunDataChoice } from "@/app/setup/FirstRunDataChoice";
+import { LazyFirstRunDataChoice } from "@/app/setup/FirstRunDataChoiceLazy";
 
 // '/' is gated SERVER-SIDE between two surfaces: the public landing (SparkHome)
 // for anonymous visitors, and the workspace dashboard once signed in. The gate is
@@ -22,6 +22,13 @@ import { FirstRunDataChoice } from "@/app/setup/FirstRunDataChoice";
 // decision is server-side, the landing is server-rendered for anonymous visitors —
 // crawlable (see robots.ts/sitemap.ts) and with no landing↔dashboard flash.
 // The Suspense boundary is required by Workspace's useSearchParams.
+//
+// Every client component this page reaches statically lands in ONE entry script group
+// that every visitor of '/' downloads: the operator pays for the landing's islands and
+// an anonymous visitor for the workspace shell. Workspace stays static on purpose: put
+// behind next/dynamic, its own lazy children (the default tab, the sim dock) drop out of
+// the document's script list and load after hydration, a waterfall on the operator's
+// path. docs/architecture/app-structure.md, "First load of '/'", has the measurements.
 //
 // `?sim=auto` is the public guided-demo entry (B1): the prospect arrived from
 // /api/demo with an isolated demo-workspace session, so force the workspace
@@ -85,7 +92,7 @@ export default async function Home({
     } catch {
       pending = false; // fail open to the workspace: the choice is an offer, never a wall
     }
-    if (pending) return <FirstRunDataChoice />;
+    if (pending) return <LazyFirstRunDataChoice />;
   }
   // First-run gate: a principal (user, or workspace in open mode) that has never
   // completed/skipped the setup wizard gets it as an overlay on first entry.

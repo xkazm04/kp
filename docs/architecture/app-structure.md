@@ -172,6 +172,72 @@ loses that preference.
 The rail also announces attention-count changes through a stable polite live
 region, including when the last count drops to zero.
 
+### First load of `/`: what the browser downloads before the shell is usable
+
+`perf-budget.json`'s `app/page.tsx` ceiling counts dynamic imports and server code,
+so it says nothing about what an operator downloads. Two instruments do:
+`scripts/perf/first-load.mjs` walks first-party client SOURCE along static imports,
+and `scripts/perf/first-load-browser.mjs` loads a production build in headless
+Chromium and counts the scripts on the wire (its header has the isolated recipe).
+"Eager" is every script the document itself names (its `<script>` tags and the RSC
+payload's chunk list, default tab included); "settled" adds everything up to two quiet
+seconds, which includes the idle tab warm-up above.
+
+Measured 2026-11-09 on `perfection-night`, `KP_EMPTY=1 next build` + `next start` over
+a seeded throwaway DB, three cold runs each (identical to the byte). Both rows ran
+without `KP_ALLOW_OPEN`, so operator routes refused; the after build re-measured with
+it gave the same eager set to the byte (settled: 55 scripts, 777.6 / 2369.3 KB):
+
+| `/` | eager scripts | eager KB wire / decoded | settled scripts | settled KB wire / decoded |
+| --- | --- | --- | --- | --- |
+| workspace, before | 25 | 358.2 / 1085.7 | 53 | 750.4 / 2291.3 |
+| workspace, after | 23 | 337.6 / 1021.2 | 54 | 763.6 / 2330.2 |
+| public landing (anonymous), before | 22 | 328.8 / 994.2 | 22 | 328.8 / 994.2 |
+| public landing (anonymous), after | 20 | 305.5 / 921.3 | 20 | 305.5 / 921.3 |
+
+The source walk agrees: the shell's static client closure went from 142 modules /
+838 KB to 103 / 586 KB, and `/`'s from 184 / 1077 KB to 146 / 853 KB. Settled bytes
+rose by 13 KB on the wire because the palette dialog is now fetched on idle as its own
+chunk instead of riding in the eager set.
+
+What moved behind an on-demand import, and why each was safe:
+
+- **The guided demo's engine and scripted walk** (`simulation/SimulationRuntime.tsx`,
+  9 modules / 116 KB of source, `format.ts` and `screen-wave-contract.ts` among them).
+  `SimulationProvider` keeps the run control and mounts the runtime on first need:
+  Start or Resume, `?sim=auto`, or sim residue on the board (the resume offer reads
+  it). An operator who never starts the demo never downloads it.
+- **The command palette's open surface** (`WorkspacePaletteDialog.tsx`, 30 modules /
+  165 KB of source with the ledger and preview pane). The rail trigger and the
+  Ctrl/Cmd+K listener stay in the shell; the dialog is preloaded on idle and on the
+  trigger's hover/focus, so the first keyboard open does not wait on a download.
+- **The feedback dialog** (`nav/FeedbackDialog.tsx`), preloaded on hover/focus.
+- **The first-run data choice** (`app/setup/FirstRunDataChoiceLazy.tsx`), shown once
+  per install.
+
+What stays eager on purpose: the keyboard chords (they must answer the first press),
+Candi's runtime hooks (hoisted into the provider deliberately; `useCompanionRuntime.ts`
+states the cost), the session-lapse hook, and `framer-motion` (140 KB decoded, needed
+by the root layout's `Toaster` and by the default Pipeline tab).
+
+**The two faces of `/` share one entry.** Every client component `app/page.tsx`
+reaches statically lands in that page's entry scripts, so the operator still
+downloads the landing's islands (`SparkHome`: 39 client modules / 171 KB of source)
+and an anonymous visitor still downloads the workspace shell. Two fixes were measured
+and neither landed:
+
+- `next/dynamic` around the three faces *in the server page* changed nothing (25 to
+  26 scripts, same bytes): Turbopack keeps a server page's client references in its
+  entry, as Next's lazy-loading guide warns.
+- `next/dynamic` around `Workspace` *in a client wrapper* did split it (anonymous
+  landing 790.0 KB decoded, workspace 921.9 KB), but the Workspace's own lazy children
+  (the default tab, the sim dock) then left the document's script list and loaded
+  only after hydration, a request waterfall on the operator's path. Rejected.
+
+The remaining lever is a route-level split, serving the landing from its own route
+(for example a `proxy.ts` rewrite of an anonymous `/`), which moves the auth gate and
+is an owner decision.
+
 ### A nav group may own a DOOR as well as its destinations
 
 `NavGroup.actions` (`shell/tabs.ts`) is a group-level affordance that opens a tab
@@ -387,8 +453,12 @@ pages; wrapped in `Suspense` because it reads `useSearchParams`, and it uses
 `useOptionalSimulation()` so the tour command is simply absent where there is no
 `SimulationProvider`). The surface is a **top-centre, chromeless dialog**
 (`Modal placement="top" bare` — the launcher idiom: the eye starts at the input,
-results grow down). The host owns all state (query, debounced `/api/search`,
-keyboard highlight); while typing, entity hits lead and the tab navigator trails.
+results grow down). The host owns the trigger, the shortcut and what must run while
+the palette is closed (recent tabs are recorded on every switch); the open surface,
+`WorkspacePaletteDialog.tsx`, owns the query, the debounced `/api/search` and the
+keyboard highlight, mounts fresh on each open, and is its own chunk (preloaded on idle
+and on the trigger's hover/focus; see "First load of `/`" above). While typing, entity
+hits lead and the tab navigator trails.
 `tasks` is a valid tab the footer opens but `NAV_GROUPS` omits, so the navigator
 walk would never list it: `useWorkspaceCommandPaletteItems.ts` appends
 `action-tasks` beside `action-new-intake`, offered at rest and on a match of

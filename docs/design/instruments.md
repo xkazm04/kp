@@ -153,6 +153,14 @@ it runs in `npm run test:perf`.
 sees no tree-shaking, no CSS, and nothing inside a package. A route's layout is not
 counted, only its page.
 
+Its built-app sibling, `scripts/perf/first-load-browser.mjs`, measures the same
+question on the wire: a production build loaded cold in headless Chromium, with the
+scripts the document names (eager) and everything up to two quiet seconds (settled), bytes
+transferred and decoded, and the top chunks. `--anonymous` measures the public landing
+instead of the workspace. It needs a running production server; the recipe is in its
+header, and `docs/architecture/app-structure.md` ("First load of `/`") holds its first
+numbers.
+
 ## 4. Web vitals: `e2e/perf-vitals.spec.ts`
 
 `npm run perf:vitals` wraps the spec in `scripts/style/serve.mjs`. The wrapper keeps the

@@ -1,11 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { MessageSquarePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { railTile } from "@/app/_components/ui/recipes";
-import { FeedbackDialog } from "./FeedbackDialog";
 import { navLabel, type WorkspaceTabId } from "../tabs";
+
+// The dialog is only ever needed after a click, so it is its own chunk; hovering or
+// focusing the button starts the download, so the click itself does not wait on it.
+const loadFeedbackDialog = () => import("./FeedbackDialog");
+const FeedbackDialog = dynamic(() => loadFeedbackDialog().then((m) => ({ default: m.FeedbackDialog })));
+const preloadFeedbackDialog = () => {
+  void loadFeedbackDialog().catch(() => {
+    // Best-effort warm-up: the click imports it for real and surfaces a failure there.
+  });
+};
 
 /*
  * The rail's "Send feedback" affordance, in the SAME icon-over-label shape as the
@@ -30,6 +40,8 @@ export function NavFeedbackButton({ active }: { active: WorkspaceTabId }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
+        onPointerEnter={preloadFeedbackDialog}
+        onFocus={preloadFeedbackDialog}
         aria-haspopup="dialog"
         aria-expanded={open}
         title={label}

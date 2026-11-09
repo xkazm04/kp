@@ -1,17 +1,20 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { track } from "@/app/_lib/analytics/plausible";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { buildUrl } from "@/app/features/shell/tabs";
-import { IDLE_STATE, SLOW_FACTOR, SimStop, sleep, type SimCtx, type SimState } from "./simulationProviderTypes";
+import { IDLE_STATE, SLOW_FACTOR, SimStop, sleep, type SimCtx, type SimRuntime, type SimState } from "./simulationProviderTypes";
 import { SIM_DOOR_IDLE, performReset, refreshSimDoor, runControlFlags, simDoorSnapshot, simWaitVariant, subscribeSimDoor, totalCleared } from "./simRunControl";
 import { storedLease, tabStorage } from "./simRunLease";
 import { resumePointOf, type SimResumePoint } from "./simWalkResume";
-import { useSimulationEngine } from "./useSimulationEngine";
-import { useSimulationWalk } from "./useSimulationWalk";
+
+// The engine + scripted walk, code-split out of the shell's first load: an operator who
+// never starts the demo never downloads it. SimulationRuntime.tsx says when it mounts.
+const SimulationRuntime = dynamic(() => import("./SimulationRuntime").then((m) => ({ default: m.SimulationRuntime })));
 
 const Ctx = createContext<SimCtx | null>(null);
 export const useSimulation = () => {
@@ -90,17 +93,40 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   // ---- Observation + real-click engine, and the scripted walk ----------------
-  const engine = useSimulationEngine({ ctrl, patch, log, beat });
-  const { run, releaseLease } = useSimulationWalk({ ctrl, patch, log, nav, beat, gate, engine });
+  // Both live in <SimulationRuntime>, mounted on first need (`armed`, or a resume to
+  // read) and published back here through onReady. `withRuntime` is how an action that
+  // needs the walk waits for it: immediate once loaded, one chunk download the first
+  // time. Waiters are flushed in the effect that adopts the published runtime.
+  const [runtime, setRuntime] = useState<SimRuntime | null>(null);
+  const runtimeRef = useRef<SimRuntime | null>(null);
+  const runtimeWaiters = useRef<((rt: SimRuntime) => void)[]>([]);
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    runtimeRef.current = runtime;
+    if (runtime) for (const resolve of runtimeWaiters.current.splice(0)) resolve(runtime);
+  }, [runtime]);
+  // Once loaded it stays mounted for the document (`armed` is sticky): unmounting it when
+  // the residue that mounted it is reset would drop the walk's lease ref with it.
+  const adoptRuntime = useCallback((rt: SimRuntime) => {
+    setRuntime(rt);
+    setArmed(true);
+  }, []);
+  const withRuntime = useCallback((): Promise<SimRuntime> => {
+    if (runtimeRef.current) return Promise.resolve(runtimeRef.current);
+    setArmed(true);
+    return new Promise((resolve) => runtimeWaiters.current.push(resolve));
+  }, []);
 
   // A reload mid-run used to strand the operator: the lease outlived the tab and
   // the next Start was refused for up to five minutes. pagehide is the last
   // reliable moment a closing or reloading tab gets; the release is keepalive and
-  // releases only a lease this tab claimed (useSimulationWalk.releaseLease).
+  // releases only a lease this tab claimed (useSimulationWalk.releaseLease). No
+  // runtime yet means no walk ever ran in this tab, so there is nothing to release.
   useEffect(() => {
+    const releaseLease = () => runtimeRef.current?.releaseLease();
     window.addEventListener("pagehide", releaseLease);
     return () => window.removeEventListener("pagehide", releaseLease);
-  }, [releaseLease]);
+  }, []);
 
   // RESUME a walk the board still shows (simWalkResume.ts). A reload, a crashed tab or
   // a presenter who navigated away used to have two ways back, Start and Reset, and
@@ -114,17 +140,19 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   const door = useSyncExternalStore(subscribeSimDoor, simDoorSnapshot, () => SIM_DOOR_IDLE);
   const resumeEligible = door.residue > 0 && (!door.runActive || storedLease(tabStorage()) !== null);
   const [boardResume, setBoardResume] = useState<SimResumePoint | null>(null);
-  const { getBoard } = engine;
+  // Reading the board for a resume needs the engine, so residue is one of the things
+  // that mounts the runtime (below); until it has loaded there is no offer to make.
   useEffect(() => {
-    if (state.running || state.done || !resumeEligible) return;
+    if (state.running || state.done || !resumeEligible || !runtime) return;
     let live = true;
-    getBoard()
+    runtime
+      .getBoard()
       .then((board) => live && setBoardResume(resumePointOf(board)))
       .catch(() => live && setBoardResume(null));
     return () => {
       live = false;
     };
-  }, [state.running, state.done, resumeEligible, getBoard]);
+  }, [state.running, state.done, resumeEligible, runtime]);
   const resumable = !state.running && !state.done && resumeEligible ? boardResume : null;
   // A run that just ended (stopped, failed) left the door's residue count stale.
   const wasRunning = useRef(false);
@@ -141,8 +169,12 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
     // own spotlight narration on first watch — it stays opt-in via the dock's
     // Explain toggle (IDLE_STATE has it off).
     setState((s) => ({ ...IDLE_STATE, stepMode: s.stepMode, running: true, status: t(from ? "status.resuming" : "status.starting") }));
-    runPromiseRef.current = run(from);
-  }, [run, t]);
+    // The walk's own first statement runs once the runtime is loaded: immediately
+    // after the first run, one chunk download before it. Stop/reset during that
+    // download is honoured by the walk's first checkpoint, and reset's settle awaits
+    // this same promise.
+    runPromiseRef.current = withRuntime().then((rt) => rt.run(from));
+  }, [withRuntime, t]);
   const start = useCallback(() => begin(null), [begin]);
   const resumeAt = useCallback(() => {
     if (resumable) begin(resumable);
@@ -273,5 +305,12 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
     () => ({ ...state, resumable, resumeAt, start, pause, resume, stop, reset, toggleStep, next, openExplain, closeExplain, closeGroupEval, closeScreenWave, closeFrame, coachmark }),
     [state, resumable, resumeAt, start, pause, resume, stop, reset, toggleStep, next, openExplain, closeExplain, closeGroupEval, closeScreenWave, closeFrame, coachmark]
   );
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={value}>
+      {children}
+      {armed || resumeEligible ? (
+        <SimulationRuntime ctrl={ctrl} patch={patch} log={log} nav={nav} beat={beat} gate={gate} onReady={adoptRuntime} />
+      ) : null}
+    </Ctx.Provider>
+  );
 }

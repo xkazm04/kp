@@ -1,23 +1,36 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
-import { Modal, isAnyModalOpen } from "@/app/_components/Modal";
-import { recordRecent, useRecents } from "./recents";
+import { isAnyModalOpen } from "@/app/_components/Modal";
+import { useRecents } from "./recents";
 import { useRecentTabs } from "./recentTabs";
 import { DEFAULT_TAB, resolveTabParam } from "./tabs";
 import { useCapabilities } from "./useCapabilities";
-import { paletteItemId, paletteListView } from "./workspacePaletteResults";
 import { useOptionalSimulation } from "./simulation/SimulationProvider";
 import { useOptionalCompanionDock } from "./companion/CompanionDockProvider";
 import { requestOnboardingReopen } from "./setup/onboardingReopen";
 import { useSetupUnfinished } from "./setup/useSetupUnfinished";
-import { useWorkspaceCommandPaletteItems } from "./useWorkspaceCommandPaletteItems";
-import { useWorkspaceCommandPaletteSearch } from "./useWorkspaceCommandPaletteSearch";
-import { WorkspacePaletteLedger } from "./WorkspacePaletteLedger";
-import type { PaletteItem, PaletteViewProps } from "./workspaceCommandPaletteTypes";
+
+// The open surface (query, search, items, ledger + preview pane) is its own chunk:
+// WorkspacePaletteDialog.tsx says what moved and what stayed here. It is preloaded
+// on idle after mount and again on the trigger's hover/focus, so the first Ctrl/Cmd+K
+// of a session opens as fast as it did when the dialog was in the shell bundle.
+const loadPaletteDialog = () => import("./WorkspacePaletteDialog");
+const PaletteDialog = dynamic(() => loadPaletteDialog().then((m) => ({ default: m.PaletteDialog })));
+let paletteDialogRequested = false;
+function preloadPaletteDialog(): void {
+  if (paletteDialogRequested) return;
+  paletteDialogRequested = true;
+  void loadPaletteDialog().catch(() => {
+    // A failed preload (offline blip, a deploy that moved the chunk) is retried by
+    // the next hover or by opening, which imports it for real.
+    paletteDialogRequested = false;
+  });
+}
 
 // SHELL1 — the global command palette: one Ctrl/Cmd+K surface that searches
 // candidates, pipeline entries, jobs, saved JDs and analyses (via /api/search)
@@ -28,8 +41,9 @@ import type { PaletteItem, PaletteViewProps } from "./workspaceCommandPaletteTyp
 // The trigger is a RAIL button (icon + label, first in the rail's bottom group,
 // on the SPA shell AND the link-mode deep-link sidebar) and the surface is a
 // top-centre dialog — the launcher idiom: the eye starts at the input and results
-// grow downward. This host owns all state; the body is WorkspacePaletteLedger
-// (index + live preview pane — the /prototype winner).
+// grow downward. This host owns the trigger, the shortcut and what must run while
+// closed; the open surface is WorkspacePaletteDialog (its body is
+// WorkspacePaletteLedger: index + live preview pane — the /prototype winner).
 
 export function CommandPalette({
   variant = "rail",
@@ -46,27 +60,30 @@ export function CommandPalette({
   hotkey?: boolean;
 } = {}) {
   const t = useTranslations("palette");
-  const nav = useTranslations("nav");
-  const router = useRouter();
   const searchParams = useSearchParams();
   const search = searchParams.toString();
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const { hits, error, loading, reset: resetSearch, markPending } = useWorkspaceCommandPaletteSearch(open, query, t);
-  const [selected, setSelected] = useState(0);
-  const inputRef = useRef<HTMLInputElement | null>(null);
   // The server renders "Ctrl K"; an Apple client computes "⌘K" at hydration.
   // suppressHydrationWarning on the <kbd> owns that known, intentional mismatch.
   const kbdHint = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘K" : "Ctrl K";
 
-  // Opening always starts from a clean slate (reset in the event handlers, not
-  // an effect, so a stale query/result list never flashes).
+  // Opening always starts from a clean slate: the dialog mounts fresh on every open
+  // (query, selection and search state live in it), so nothing stale can flash.
   const openPalette = useCallback(() => {
-    setQuery("");
-    resetSearch();
-    setSelected(0);
+    preloadPaletteDialog();
     setOpen(true);
-  }, [resetSearch]);
+  }, []);
+
+  // Warm the dialog's chunk once the browser is idle, so the first keyboard open
+  // never waits on a download. Same idle pattern as tabChunks.ts warmLikelyTabChunks.
+  useEffect(() => {
+    if (typeof window.requestIdleCallback === "function") {
+      const handle = window.requestIdleCallback(preloadPaletteDialog, { timeout: 4000 });
+      return () => window.cancelIdleCallback?.(handle);
+    }
+    const timer = window.setTimeout(preloadPaletteDialog, 1500);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   // Mirror `open` into a ref so the document-level shortcut handler (bound
   // once) can branch on the current value without re-binding per toggle.
@@ -99,14 +116,8 @@ export function CommandPalette({
     return () => document.removeEventListener("keydown", onKey);
   }, [openPalette, hotkey]);
 
-  // Modal's focus trap lands on its first focusable; a rAF runs after that
-  // effect, so the input wins the opening focus.
-  useEffect(() => {
-    if (!open) return;
-    const id = requestAnimationFrame(() => inputRef.current?.focus());
-    return () => cancelAnimationFrame(id);
-  }, [open]);
-
+  // Read here, not in the dialog: useRecentTabs RECORDS every tab switch into session
+  // storage, so it must run while the palette is closed.
   const recents = useRecents();
   const recentTabs = useRecentTabs(resolveTabParam(searchParams.get("tab")) ?? DEFAULT_TAB);
   // The palette is a NAVIGATOR: a "Go to Billing" it knows will 403, or a tour
@@ -127,86 +138,6 @@ export function CommandPalette({
   );
   const setupUnfinished = useSetupUnfinished();
   const finishSetup = sim && setupUnfinished ? requestOnboardingReopen : null;
-  const items = useWorkspaceCommandPaletteItems({
-    query,
-    hits,
-    search,
-    recents,
-    recentTabs,
-    simRunning: sim ? sim.running : true,
-    simStart: sim ? sim.start : () => {},
-    simPaused: sim?.paused ?? false,
-    simPause: sim?.pause ?? null,
-    simResume: sim?.resume ?? null,
-    simStop: sim?.stop ?? null,
-    askCandi,
-    finishSetup,
-    capabilities,
-    nav,
-    t,
-  });
-
-  // Clamp the highlight whenever the list shrinks under it.
-  const active = Math.min(selected, Math.max(0, items.length - 1));
-
-  // #3 — keep the keyboard-highlighted option scrolled into the listbox viewport.
-  useEffect(() => {
-    if (!open) return;
-    document.getElementById(paletteItemId(active))?.scrollIntoView({ block: "nearest" });
-  }, [active, open]);
-
-  const go = (item: PaletteItem) => {
-    // SHELL3: an entity pick is exactly the "I opened this" moment recents capture.
-    if (item.recent && item.href) {
-      recordRecent({ type: item.recent.type, id: item.recent.id, label: item.label, href: item.href });
-    }
-    setOpen(false);
-    if (item.action) item.action();
-    else if (item.href) router.push(item.href);
-  };
-
-  // #4 — pure decision for the results region (see workspacePaletteResults.ts).
-  const listView = paletteListView({ loading, queryLen: query.trim().length, itemCount: items.length, hasError: !!error });
-
-  const onQueryChange = (value: string) => {
-    setQuery(value);
-    setSelected(0);
-    // Pending from the first keystroke (the search effect only schedules the
-    // debounced fetch), so the list can't sit on the prior query's results
-    // without a signal that a newer term is being fetched.
-    if (value.trim().length < 2) resetSearch();
-    else markPending();
-  };
-
-  const onInputKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setSelected(Math.min(active + 1, items.length - 1));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setSelected(Math.max(active - 1, 0));
-    } else if (e.key === "Enter" && items[active]) {
-      e.preventDefault();
-      go(items[active]);
-    }
-  };
-
-  const view: PaletteViewProps = {
-    inputRef,
-    query,
-    onQueryChange,
-    onInputKey,
-    items,
-    active,
-    listView,
-    error,
-    kbdHint,
-    t,
-    nav,
-    go,
-    setSelected,
-    onClose: () => setOpen(false),
-  };
 
   const label = t("title");
   const triggerClass =
@@ -220,6 +151,8 @@ export function CommandPalette({
       <button
         type="button"
         onClick={openPalette}
+        onPointerEnter={preloadPaletteDialog}
+        onFocus={preloadPaletteDialog}
         aria-haspopup="dialog"
         aria-expanded={open}
         title={`${label} (${kbdHint})`}
@@ -233,9 +166,23 @@ export function CommandPalette({
       </button>
 
       {open ? (
-        <Modal title={label} onClose={() => setOpen(false)} size="3xl" placement="top" bare>
-          <WorkspacePaletteLedger {...view} />
-        </Modal>
+        <PaletteDialog
+          title={label}
+          kbdHint={kbdHint}
+          search={search}
+          recents={recents}
+          recentTabs={recentTabs}
+          capabilities={capabilities}
+          simRunning={sim ? sim.running : true}
+          simStart={sim ? sim.start : () => {}}
+          simPaused={sim?.paused ?? false}
+          simPause={sim?.pause ?? null}
+          simResume={sim?.resume ?? null}
+          simStop={sim?.stop ?? null}
+          askCandi={askCandi}
+          finishSetup={finishSetup}
+          onClose={() => setOpen(false)}
+        />
       ) : null}
     </>
   );

@@ -16,7 +16,8 @@ the local SQLite store, and operators read it (read-only) on `/control`.
   the tooltip. (`railIconBtn` remains the recipe for the preference popups and
   sign-out, which are chrome rather than destinations.)
 - **Dialog** — `app/features/shell/nav/FeedbackDialog.tsx` on the shared
-  `Modal` primitive at `size="lg"`: one message (required, ≤ 2000 chars) and
+  `Modal` primitive at `size="lg"`, loaded as its own chunk (`next/dynamic` in
+  `NavFeedbackButton.tsx`, preloaded on the button's hover/focus): one message (required, ≤ 2000 chars) and
   the current route captured automatically. It prefills the active tab's
   localized name because `?tab=` is consumed by the shell and would otherwise
   be absent from that route; the tab name alone cannot be submitted as feedback.

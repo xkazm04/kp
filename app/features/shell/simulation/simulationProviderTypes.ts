@@ -1,6 +1,9 @@
 // Shared types + constants for SimulationProvider.tsx, split out so the provider
 // stays under the 200-line file cap. Verbatim — same shapes, same values.
+import type { MutableRefObject } from "react";
 import type { GroupEvalPayload } from "@/app/features/hiring/decisions/GroupEvalModal";
+import type { PipelineEntryView } from "@/app/_lib/db/pipeline";
+import type { StageDef } from "@/app/_lib/pipeline-stages";
 import { STAGES as PIPELINE_STAGES } from "@/app/features/shared/pipelineTypes";
 import type { ScreenDecisionRead } from "@/app/_lib/screen-wave-contract";
 import type { SimPhaseId } from "./constants";
@@ -177,4 +180,23 @@ export type StepOpts = {
   action?: () => Promise<void>;
   readMs?: number;
   settleMs?: number;
+};
+
+/** What the lazily mounted SimulationRuntime (the engine + scripted walk) hands back
+ *  to SimulationProvider. See SimulationRuntime.tsx for why it is code-split. */
+export type SimRuntime = {
+  run: (from: SimResumePoint | null) => Promise<void>;
+  /** The pagehide seam: release a run lease THIS tab claimed (keepalive). */
+  releaseLease: () => void;
+  getBoard: () => Promise<{ entries: PipelineEntryView[]; axis: StageDef[] }>;
+};
+
+export type SimRuntimeProps = {
+  ctrl: MutableRefObject<{ stop: boolean; paused: boolean; wake: (() => void) | null }>;
+  patch: (p: Partial<SimState>) => void;
+  log: (text: string) => void;
+  nav: (updates: Record<string, string | null>) => void;
+  beat: (ms: number) => Promise<void>;
+  gate: () => Promise<void>;
+  onReady: (runtime: SimRuntime) => void;
 };
