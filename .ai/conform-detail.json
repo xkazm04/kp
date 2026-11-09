@@ -1743,21 +1743,37 @@
       "subject": "agent-memory",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-13",
-      "evaluatedTs": "2026-10-13T00:06:40.160Z",
-      "worker": "08401036-214f-421d-91d4-621f9d917a26",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T05:16:40.577Z",
       "techniques": [
         {
           "technique": "working-memory",
           "verdict": "not-applicable",
-          "evidence": "app/api/auth/login/route.ts:3 Sessions here represent HTTP session cookies for operator authentication rather than agent working memory."
+          "evidence": "app/api/auth/login/route.ts:3 Sessions here represent HTTP session cookies for operator authentication rather than agent working memory.",
+          "carriedFrom": "2026-10-13"
         },
         {
           "technique": "owner-and-counterpart-scope",
           "verdict": "not-applicable",
-          "evidence": "app/api/workspaces/route.ts:11 Workspaces partition platform user teams rather than agent memory ownership or counterpart interaction scopes."
+          "evidence": "app/api/workspaces/route.ts:11 Workspaces partition platform user teams rather than agent memory ownership or counterpart interaction scopes.",
+          "carriedFrom": "2026-10-13"
         }
-      ]
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "app/api/auth/login/route.ts:11 Grep across platform-auth-api files for agent-memory terms (recall, episodic, consolidat, working_memory, belief) found zero matches, as this context handles HTTP session authentication, credential throttling, workspace CRUD, and health checks without an LLM agent memory pipeline.",
+          "evaluatedAt": "2026-10-13T00:06:40.160Z",
+          "worker": "08401036-214f-421d-91d4-621f9d917a26",
+          "reason": "replaced by 979ae6cf-ad70-4a2a-b0b1-1f40ff24d40c"
+        }
+      ],
+      "withdrawn": {
+        "worker": "979ae6cf-ad70-4a2a-b0b1-1f40ff24d40c",
+        "state": "not-applicable",
+        "at": "2026-11-09T05:17:02.449049+00:00",
+        "reason": "reviewer (sonnet): The anchor app/api/rate-limit-contract.test.ts:441 is a companion-route row for another context. It is not in the listed context files, and it does not show that the auth, workspace, ops and health code has no memory pipeline. I could not confirm the \"26 context files\" claim, because only 12 files a"
+      }
     },
     "1427e2ae-3cf6-48f4-a866-6c5a0dc67559/agent-memory": {
       "context": "hiring-decisions-api",
@@ -29976,6 +29992,16 @@
           "evidence": "app/features/library/jobs/jobsFairnessMatrix.ts:11 Cross-scheme robustness of candidate scores; the technique governs published orders over models, prompts or configurations."
         }
       ]
+    },
+    "110a08ce-19c1-41ae-9566-bc45b3f90d47/agent-memory": {
+      "context": "llm-api",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T05:16:40.577Z",
+      "worker": "979ae6cf-ad70-4a2a-b0b1-1f40ff24d40c",
+      "techniques": []
     }
   }
 }

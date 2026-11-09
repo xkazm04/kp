@@ -23082,8 +23082,12 @@
           "revision": 52,
           "changedAt": "2026-10-25",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "app/api/llm/activity/route.ts:16 A recursive search of app/api/llm, app/api/automation and app/api/sim found this one 'in memory' phrase about client table paging and no recall, episode, belief, brain or companion term, so provider configuration, usage, automation and simulation routes hold no agent memory.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:2b62b4004acc600d",
+          "evaluatedRevision": 53
         },
         {
           "subject": "mcp-tools",
@@ -27942,11 +27946,7 @@
           "confidence": "strong",
           "state": "not-applicable",
           "evidence": "app/api/auth/login/route.ts:11 Grep across platform-auth-api files for agent-memory terms (recall, episodic, consolidat, working_memory, belief) found zero matches, as this context handles HTTP session authentication, credential throttling, workspace CRUD, and health checks without an LLM agent memory pipeline.",
-          "evaluatedAt": "2026-10-13",
-          "evaluatedAgainst": "sha256-b2:23599eae61aa7119",
-          "evaluatedRevision": 47,
-          "revisionsBehind": 5,
-          "stale": true
+          "evaluatedAt": "2026-10-13"
         },
         {
           "subject": "test-harness",
