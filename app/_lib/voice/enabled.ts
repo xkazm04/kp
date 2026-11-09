@@ -15,7 +15,9 @@
 // READ routes for sessions already recorded (/api/interview/sessions, .../evidence,
 // /recording, /by-entry), plus /compare, /revoke and /complete, are deliberately NOT gated:
 // a past record and its erasure/revocation must stay reachable whatever the flag says, and
-// none of them starts a session or mints a provider credential.
+// none of them starts a session or mints a provider credential. GET /api/voice/readiness
+// stays open for the same reason (the strip reports voice as off from it); its POST mints
+// one credential per provider to prove them, so that METHOD is gated.
 //
 // Pure and dependency-free (no node:*, no next/*), because proxy.ts imports it. The env is
 // a parameter so tests can drive both states without mutating process.env.
@@ -32,15 +34,31 @@ const GATED_INTERVIEW_API = new Set(["connect", "create", "director", "simulate"
 /** `/api/intake/<id>/<name>` voice doors. */
 const GATED_INTAKE_VOICE = new Set(["voice-connect", "voice-turn", "voice-complete"]);
 
-/** Every URL that starts or serves a live voice session — whole segments only, so
- *  `/interviews`, `/api/interview/sessions` and `/api/interview/connection` are never caught. */
-export function isVoiceInterviewPath(pathname: string): boolean {
-  const seg = pathname.split("/").filter(Boolean);
+/** The path as Next will route it. `nextUrl.pathname` keeps percent-escapes while the router
+ *  resolves the decoded path, so `/api/interview/%63onnect` reaches the connect handler. The
+ *  case fold is fail-closed (a differently-cased path has no route anyway, so hiding it costs
+ *  nothing). Empty segments drop out, which also covers a trailing or doubled slash. */
+function routedSegments(pathname: string): string[] {
+  let decoded = pathname;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    /* a malformed escape decodes to nothing Next could route: judge it as written */
+  }
+  return decoded.toLowerCase().split("/").filter(Boolean);
+}
+
+/** Every request that starts or serves a live voice session or mints a provider credential
+ *  — whole segments only, so `/interviews`, `/api/interview/sessions` and
+ *  `/api/interview/connection` are never caught. `method` matters for one door only. */
+export function isVoiceInterviewPath(pathname: string, method: string = "GET"): boolean {
+  const seg = routedSegments(pathname);
   if (seg[0] === "interview") return true;
   if (seg[0] !== "api") return false;
   if (seg[1] === "interview") return seg[2] !== undefined && GATED_INTERVIEW_API.has(seg[2]);
   if (seg[1] === "intake") return seg[3] !== undefined && GATED_INTAKE_VOICE.has(seg[3]);
   if (seg[1] === "jobs") return seg[3] === "interview-kit" && seg[4] === "rehearse";
+  if (seg[1] === "voice") return seg[2] === "readiness" && method.toUpperCase() === "POST";
   return false;
 }
 

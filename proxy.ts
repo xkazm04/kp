@@ -148,7 +148,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   //     re-verifies itself), just passed through when on and the unknown route when off.
   // 00b) The AI voice interview (app/_lib/voice/enabled.ts) is gated the same way: OFF
   //      unless KP_VOICE_INTERVIEW=1, its session-starting doors answer as an unknown route.
-  const voiceHidden = isVoiceInterviewPath(req.nextUrl.pathname) && !voiceInterviewEnabled();
+  const voiceHidden = isVoiceInterviewPath(req.nextUrl.pathname, req.method) && !voiceInterviewEnabled();
   const seekerHidden = (isJobseekerPath(req.nextUrl.pathname) && !jobseekerEnabled()) || voiceHidden;
   if (isJobseekerPath(req.nextUrl.pathname) && req.nextUrl.pathname.includes(".")) {
     return seekerHidden ? NextResponse.rewrite(new URL(UNKNOWN_ROUTE_PATH, req.url)) : NextResponse.next();

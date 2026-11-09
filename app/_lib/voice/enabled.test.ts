@@ -28,6 +28,47 @@ test("the predicate catches session-starting doors, by whole segment", () => {
   ]) assert.equal(isVoiceInterviewPath(p), false, p);
 });
 
+// Next resolves a route from the DECODED path (server/lib/router-utils/filesystem.js) while
+// nextUrl.pathname stays encoded, so the predicate has to judge what Next will route.
+const GATED_SPELLINGS = [
+  "/api/interview/connect/",
+  "/interview/tok/",
+  "/api/interview/%63onnect",
+  "/api/intake/i1/voice%2Dconnect",
+  "/%69nterview/tok",
+  "/api%2Finterview%2Fconnect",
+  "/api/interview/CONNECT",
+  "/API/Interview/Connect",
+  "/Interview/tok",
+  "/api//interview//connect",
+];
+
+test("the predicate holds for a trailing slash, case and an encoded segment, under both flag states", () => {
+  const hidden = (path: string, env: Record<string, string>, method?: string) =>
+    isVoiceInterviewPath(path, method) && !voiceInterviewEnabled(env);
+  for (const p of GATED_SPELLINGS) {
+    assert.equal(hidden(p, {}), true, `off: ${p}`);
+    assert.equal(hidden(p, { KP_VOICE_INTERVIEW: "1" }), false, `on: ${p}`);
+  }
+  // Decoding must not widen the gate onto a door that is open by design.
+  for (const p of ["/api/interview/sessions/", "/api/interview/%73essions", "/api/interview/REVOKE", "/api/interview/sessions%2Fconnect"]) {
+    assert.equal(hidden(p, {}), false, p);
+  }
+  // A malformed escape is judged as written rather than thrown on.
+  assert.equal(isVoiceInterviewPath("/api/interview/connect%ZZ"), false);
+  assert.equal(isVoiceInterviewPath("/interview/%ZZ"), true);
+});
+
+test("the readiness probe is gated by METHOD: POST mints a credential, GET only reports", () => {
+  const hidden = (method: string, env: Record<string, string>) =>
+    isVoiceInterviewPath("/api/voice/readiness", method) && !voiceInterviewEnabled(env);
+  assert.equal(hidden("POST", {}), true);
+  assert.equal(hidden("post", {}), true);
+  assert.equal(hidden("POST", { KP_VOICE_INTERVIEW: "1" }), false);
+  assert.equal(hidden("GET", {}), false, "the strip still has to read that voice is switched off");
+  assert.equal(isVoiceInterviewPath("/api/voice/%72eadiness", "POST"), true);
+});
+
 const { proxy } = await import("../../../proxy.ts");
 const { NextRequest } = await import("next/server.js");
 
@@ -72,5 +113,19 @@ test("ON: gated paths pass through", async () => {
       assert.equal(rewrittenTo(res), null, p);
       assert.equal(res.headers.get("x-middleware-next"), "1");
     }
+  });
+});
+
+const callPost = (path: string) => proxy(new NextRequest(`https://kp.test${path}`, { method: "POST" }));
+
+test("the real proxy applies the gate to every spelling, and only to the probe's POST", async () => {
+  await withEnv({ ...OPEN, KP_VOICE_INTERVIEW: undefined }, async () => {
+    for (const p of GATED_SPELLINGS) assert.equal(rewrittenTo(await call(p)), UNKNOWN_ROUTE_PATH, p);
+    assert.equal(rewrittenTo(await callPost("/api/voice/readiness")), UNKNOWN_ROUTE_PATH, "the probe mints nothing while off");
+    assert.equal(rewrittenTo(await call("/api/voice/readiness")), null, "the read stays");
+  });
+  await withEnv({ ...OPEN, KP_VOICE_INTERVIEW: "1" }, async () => {
+    for (const p of GATED_SPELLINGS) assert.equal(rewrittenTo(await call(p)), null, p);
+    assert.equal(rewrittenTo(await callPost("/api/voice/readiness")), null);
   });
 });
