@@ -262,7 +262,9 @@ export async function runCodeReview(
   ].join("\n");
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    // genai 3 moved the default Gemini API version to v1. Stay on the version this
+    // call has always used until a keyed run proves the model and JSON mode on v1.
+    const ai = new GoogleGenAI({ apiKey, apiVersion: "v1beta" });
     // Honor a Models-tab re-pin of the github_analysis model (specific row, then
     // "*", when routed to gemini) — this site speaks the Gemini SDK only, so a
     // provider swap can't be honored here, but the model must not be hardcoded
