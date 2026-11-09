@@ -30118,6 +30118,43 @@
         }
       ],
       "registryProposal": "indeterminate-closure-on-interruption covers restart recovery and runtime-held calls. It does not name the case where the host deliberately kills a metering subprocess on timeout or abort, and the child's ledger write dies with it. That is the commonest way a metered generation goes unrecorded in a spawn-per-request runtime, and the fix there is a parent-side synthetic row."
+    },
+    "01cf5f88-41a1-47e6-9310-186589ebf384/agent-runtime-assembly": {
+      "context": "cv-analyze-intake",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T23:06:14.253Z",
+      "worker": "db0d74af-de62-4654-8e39-5a73526d0021",
+      "techniques": [
+        {
+          "technique": "bounded-projection-of-external-work",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/AnalyzeApi.ts:329 The poller is a UI client reading a durable task row, not a model loop holding a remote handle. The store-is-truth shape is already present, but the technique's precondition is not."
+        }
+      ]
+    },
+    "110a08ce-19c1-41ae-9566-bc45b3f90d47/agent-runtime-assembly": {
+      "context": "llm-api",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T23:06:14.253Z",
+      "worker": "db0d74af-de62-4654-8e39-5a73526d0021",
+      "techniques": [
+        {
+          "technique": "operator-tier-code-loading",
+          "verdict": "not-applicable",
+          "evidence": "app/api/llm/config/route.ts:70 Configuration the service can write names a provider from a closed vocabulary, plus only maxTokens and timeoutS (pipeline/jobfit/llm/config.py:100-101). Key routes take network endpoints, not entry points, so no service door can name code."
+        },
+        {
+          "technique": "bounded-projection-of-external-work",
+          "verdict": "not-applicable",
+          "evidence": "app/api/automation/[task]/route.ts:21 Long work goes through the task store. No model turn submits or polls it."
+        }
+      ]
     }
   }
 }

@@ -10452,8 +10452,12 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "not-applicable",
+          "priorNotApplicable": 3,
+          "evidence": "app/features/tools/analyze/AnalyzeApi.ts:151 This context is browser-side intake and delivery code that submits an analysis task and polls its row, with no agent loop, hook chain, extension loading or conversation checkpoint; grep of app/features/tools/analyze for plugin, checkpoint, tool_call, toolCall and subagent found nothing, so the subject does not apply.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:c29c78bbbf9eb4fe",
+          "evaluatedRevision": 29
         },
         {
           "subject": "codebase-scanning",
@@ -23173,8 +23177,12 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "not-applicable",
+          "priorNotApplicable": 3,
+          "evidence": "app/api/automation/run/route.ts:12 The LLM admin routes pin providers and keys and record usage, and the automation and sim routes run single spawned passes, with no hook chain, tool loop or contributed code anywhere; grep of app/api/llm, app/api/automation and app/api/sim for plugin, checkpoint, tool_call, toolCall and subagent found nothing, so the subject's precondition does not hold.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:c29c78bbbf9eb4fe",
+          "evaluatedRevision": 29
         },
         {
           "subject": "agent-instruction-files",

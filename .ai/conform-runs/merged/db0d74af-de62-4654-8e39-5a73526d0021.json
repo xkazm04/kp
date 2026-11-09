@@ -1,0 +1,218 @@
+{
+ "schema": "conform-run/1",
+ "worker": "db0d74af-de62-4654-8e39-5a73526d0021",
+ "subject": "agent-runtime-assembly",
+ "evaluatedAt": "2026-11-09T23:06:14.253686+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "candidate-apply-api",
+   "subject": "agent-runtime-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/intake/[id]/message/route.ts:99 Each intake route runs one spawned engine exchange per HTTP request, with no tool-calling loop, hook chain, contributed extension or checkpoint store; a case-insensitive grep of app/api/intake and app/api/apply for plugin, checkpoint, tool_call, toolCall and subagent found nothing, so the subject's precondition (an assembled agent runtime) does not hold here.",
+   "techniques": [
+    {
+     "technique": "additive-input-at-the-call-boundary",
+     "verdict": "not-applicable",
+     "evidence": "app/api/intake/[id]/message/route.ts:198 There is no running multi-call unit to inject into. A turn that lands while another is in flight is refused by a compare-and-swap on the row, and that refusal is the technique's own fallback for this case."
+    },
+    {
+     "technique": "bounded-projection-of-external-work",
+     "verdict": "not-applicable",
+     "evidence": "app/api/intake/[id]/message/route.ts:141 The model call finishes inside the request. No remote handle outlives a turn, and nothing is polled from a model loop."
+    },
+    {
+     "technique": "operator-tier-code-loading",
+     "verdict": "not-applicable",
+     "evidence": "app/api/intake/[id]/message/route.ts:64 The late-bound runner is host code registered at boot to break an import edge, not contributed code. Even so, when it is missing it degrades the way an observational contribution should: the failure is logged and the round is recorded unclassified."
+    }
+   ],
+   "absenceTerms": [
+    "plugin",
+    "checkpoint",
+    "tool_call",
+    "toolCall",
+    "subagent"
+   ]
+  },
+  {
+   "context": "devcase-lifecycle-api",
+   "subject": "agent-runtime-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/devcase/lifecycle/[id]/redesign/route.ts:58 The lifecycle routes are store transactions plus single spawned design/evaluation passes behind a human approval gate, with no hook chain, tool loop, extension surface or checkpoint mode; grep of app/api/devcase for plugin, checkpoint, tool_call, toolCall and subagent found nothing, so the subject does not govern this context.",
+   "techniques": [
+    {
+     "technique": "bounded-projection-of-external-work",
+     "verdict": "not-applicable",
+     "evidence": "app/api/devcase/lifecycle/[id]/redesign/route.ts:15 The redesign is one synchronous pass inside the request. The resumed lifecycle walk is a task-runner job, which job-coordination and hitl-approval govern, not a model polling remote work."
+    }
+   ],
+   "absenceTerms": [
+    "plugin",
+    "checkpoint",
+    "tool_call",
+    "toolCall",
+    "subagent"
+   ]
+  },
+  {
+   "context": "devcase-session-api",
+   "subject": "agent-runtime-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/devcase/session/[id]/chat/route.ts:123 The candidate chat is one model call per request, stored as a transcript, with no tools, hooks, contributed code or checkpoint representation to assemble; grep of app/api/devcase for plugin, checkpoint, tool_call, toolCall and subagent found nothing, so the subject's precondition does not hold.",
+   "techniques": [
+    {
+     "technique": "indeterminate-closure-on-interruption",
+     "verdict": "not-applicable",
+     "evidence": "app/api/devcase/session/[id]/chat/route.ts:105 An interrupted exchange leaves a user turn with no reply. The work is a pure generation with no side effect that could have escaped, so by the technique's own sort it is re-issuable, not indeterminate."
+    },
+    {
+     "technique": "additive-input-at-the-call-boundary",
+     "verdict": "not-applicable",
+     "evidence": "app/api/devcase/session/[id]/chat/route.ts:113 Each message is its own unit with a single model call. There is no mid-unit model-call boundary for input to join."
+    },
+    {
+     "technique": "substituted-result-attribution",
+     "verdict": "not-applicable",
+     "evidence": "app/api/devcase/session/[id]/chat/route.ts:134 There is no wrapping frame around a tool call. The keyless stub's reply is still labelled with its producer, which matches the technique's spirit outside its precondition."
+    }
+   ],
+   "absenceTerms": [
+    "plugin",
+    "checkpoint",
+    "tool_call",
+    "toolCall",
+    "subagent"
+   ]
+  },
+  {
+   "context": "cv-analyze-intake",
+   "subject": "agent-runtime-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/tools/analyze/AnalyzeApi.ts:151 This context is browser-side intake and delivery code that submits an analysis task and polls its row, with no agent loop, hook chain, extension loading or conversation checkpoint; grep of app/features/tools/analyze for plugin, checkpoint, tool_call, toolCall and subagent found nothing, so the subject does not apply.",
+   "techniques": [
+    {
+     "technique": "bounded-projection-of-external-work",
+     "verdict": "not-applicable",
+     "evidence": "app/features/tools/analyze/AnalyzeApi.ts:329 The poller is a UI client reading a durable task row, not a model loop holding a remote handle. The store-is-truth shape is already present, but the technique's precondition is not."
+    }
+   ],
+   "absenceTerms": [
+    "plugin",
+    "checkpoint",
+    "tool_call",
+    "toolCall",
+    "subagent"
+   ]
+  },
+  {
+   "context": "llm-api",
+   "subject": "agent-runtime-assembly",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/automation/run/route.ts:12 The LLM admin routes pin providers and keys and record usage, and the automation and sim routes run single spawned passes, with no hook chain, tool loop or contributed code anywhere; grep of app/api/llm, app/api/automation and app/api/sim for plugin, checkpoint, tool_call, toolCall and subagent found nothing, so the subject's precondition does not hold.",
+   "techniques": [
+    {
+     "technique": "operator-tier-code-loading",
+     "verdict": "not-applicable",
+     "evidence": "app/api/llm/config/route.ts:70 Configuration the service can write names a provider from a closed vocabulary, plus only maxTokens and timeoutS (pipeline/jobfit/llm/config.py:100-101). Key routes take network endpoints, not entry points, so no service door can name code."
+    },
+    {
+     "technique": "bounded-projection-of-external-work",
+     "verdict": "not-applicable",
+     "evidence": "app/api/automation/[task]/route.ts:21 Long work goes through the task store. No model turn submits or polls it."
+    }
+   ],
+   "absenceTerms": [
+    "plugin",
+    "checkpoint",
+    "tool_call",
+    "toolCall",
+    "subagent"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-09T23:06:14.253686+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-runtime-assembly"
+   ],
+   "techniques": [
+    "additive-input-at-the-call-boundary",
+    "bounded-projection-of-external-work",
+    "operator-tier-code-loading"
+   ],
+   "deviations": 0,
+   "context": "candidate-apply-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T23:06:14.253686+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-runtime-assembly"
+   ],
+   "techniques": [
+    "bounded-projection-of-external-work"
+   ],
+   "deviations": 0,
+   "context": "devcase-lifecycle-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T23:06:14.253686+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-runtime-assembly"
+   ],
+   "techniques": [
+    "additive-input-at-the-call-boundary",
+    "indeterminate-closure-on-interruption",
+    "substituted-result-attribution"
+   ],
+   "deviations": 0,
+   "context": "devcase-session-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T23:06:14.253686+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-runtime-assembly"
+   ],
+   "techniques": [
+    "bounded-projection-of-external-work"
+   ],
+   "deviations": 0,
+   "context": "cv-analyze-intake",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-09T23:06:14.253686+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-runtime-assembly"
+   ],
+   "techniques": [
+    "bounded-projection-of-external-work",
+    "operator-tier-code-loading"
+   ],
+   "deviations": 0,
+   "context": "llm-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
