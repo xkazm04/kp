@@ -28836,6 +28836,134 @@
           "evidence": "pipeline/jobfit/tests/test_appmaster_fixtures.py:84 The parameterised loop has a floor, so an empty case table cannot pass vacuously."
         }
       ]
+    },
+    "bfeaddc0-56a8-4128-9a38-f1a7f89428e7/test-harness": {
+      "context": "pipeline-move-bulk-operations",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T01:49:37.792Z",
+      "worker": "e5c0382d-25c2-4270-bd36-79c1a67e3f32",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/usePipelineBulk.test.ts:38 The technique admits a text pin only where the site cannot be executed; this one can be. Line 55 likewise pins a type declaration under a test named for behaviour."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/pipelineSelectionScope.test.ts:19 The test's own comment records the mutation that proved it."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/pipelineStageFilter.test.ts:37 The fixture is chosen so the wrong authority cannot answer, and the test asserts that."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/pipelineBoardStorage.test.ts:20 The cheapest fixture that can witness the claim, built fresh per test with no shared state."
+        },
+        {
+          "technique": "proved-off-the-path",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/usePipelineBulk.test.ts:87 Pins adoption by the real hook with a call-shaped needle and a floor."
+        }
+      ]
+    },
+    "afa8737b-82be-4548-b99a-5c9624e84ee0/test-harness": {
+      "context": "agent-hire-app-master",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T01:49:37.792Z",
+      "worker": "e5c0382d-25c2-4270-bd36-79c1a67e3f32",
+      "techniques": [
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "deviation",
+          "evidence": "app/_lib/agent-hire/transform-run.test.ts:160 Two producers can yield this outcome and the assertion names neither; for example buildLlmConfigEnv() is evaluated before runJobfitCli is entered."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "app/_lib/agent-hire/agent-hire.test.ts:204 Records the pre-fix behaviour, and the test restores the secret to show the same calls dial through."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "conformant",
+          "evidence": "app/_lib/agent-hire/transform-run.test.ts:89 Normalises line endings, states why, and uses call-shaped needles."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "app/_lib/agent-hire/transform-run.test.ts:49 Gives the process a private temp root after a measured race on the shared one."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "app/_lib/agent-hire/bridge-store.test.ts:42 Reads through the shipped openStore path against a real SQLite file."
+        },
+        {
+          "technique": "proved-off-the-path",
+          "verdict": "conformant",
+          "evidence": "app/_lib/agent-hire/transform-run.ts:142 The unit the suite drives is the one the production runner calls."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "app/_lib/app-master/backbone.test.ts:6 Fixtures are generated from the authority; pipeline/jobfit/tests/test_appmaster_fixtures.py re-scores them. Recomputing all three during this review matched the committed files."
+        }
+      ]
+    },
+    "cc5e60e6-18d9-4c04-8aaa-7b7629216be6/test-harness": {
+      "context": "tests-interview-jobs",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T01:49:37.792Z",
+      "worker": "e5c0382d-25c2-4270-bd36-79c1a67e3f32",
+      "techniques": [
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_interview_eval.py:538 The needle carries no token prose cannot spell; line 535 has the same weakness. Low severity: no current false result was found, and interview_eval.py has no subprocess mention today."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_interview_eval.py:427 Names the crossing and the lane that covers it, alongside a poisoned-subprocess witness of non-reach."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_intake_eval.py:239 Mutates the check set in memory and requires a strict run to go red and name what moved."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_intake_eval.py:21 The bank declares a floor before the eval result is trusted."
+        },
+        {
+          "technique": "a-test-helper-is-a-fork-of-the-driver",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_intake.py:621 The smoke test runs the shipped CLI entry point across a real process boundary."
+        },
+        {
+          "technique": "assert-the-schedule-not-the-stopwatch",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_interview_optimize.py:156 The time cap is tested by injecting elapsed time, not by waiting."
+        },
+        {
+          "technique": "proved-off-the-path",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_intake_eval.py:241 Asserts through the eval's real main rather than a composition built in the test."
+        }
+      ]
     }
   }
 }

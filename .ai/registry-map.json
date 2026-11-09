@@ -2655,7 +2655,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/agent-hire/transform-run.test.ts:160 Any Error satisfies this, and the sibling unknown-job test makes the same observations (a rejection, an unchanged workdir count), so a throw before the spawn would keep a test named for a CLI that cannot run green without the spawn being reached.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "prompt-assembly",
@@ -27252,7 +27256,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/pipeline/usePipelineBulk.test.ts:38 The regex pins the body of foldBatchSettle, a pure exported function already executed by pipelineBulkSelection.test.ts:146-147, so a structural pin stands where the site can be run and a behaviour-preserving reformat turns it red.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "mcp-tools",
@@ -34202,7 +34210,11 @@
           "revision": 27,
           "changedAt": "2026-10-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_interview_eval.py:538 The source-text needle misses `from subprocess import run` and would match the same words in prose, so this absence pin can be wrong in both directions at a site the neighbouring test already executes with subprocess poisoned.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:a3c517733d58374b",
+          "evaluatedRevision": 29
         },
         {
           "subject": "compensation-banding-and-market-honesty",
