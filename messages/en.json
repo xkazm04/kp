@@ -12300,7 +12300,7 @@
       "ai": {
         "title": "AI transparency",
         "oversight": "Under the EU AI Act, screening, scoring, ranking and interviewing candidates is a high-risk use. Every candidate-facing page shows an AI disclosure before an AI reads your data, as Article 50 requires.",
-        "sealed": "By default no candidate is advanced or offered by the machine alone (a workspace can delegate either, and every unattended step is logged). The machine rejects no one alone: answering no to a must-have the role states holds that application for a person, who confirms the rejection or clears the hold, and only a confirmed rejection tells the candidate which must-have it was and how to ask a person to review it. Every adverse decision requires a human, and every decision, human or automated, is sealed into a tamper-evident audit record stating who made it and why."
+        "sealed": "By default no candidate is advanced or offered by the machine alone. The machine rejects no one alone: answering no to a must-have the role states holds that application for a person, who confirms the rejection or clears the hold, and only a confirmed rejection tells the candidate which must-have it was and how to ask a person to review it. Every adverse decision requires a human, and every decision, human or automated, is sealed into a tamper-evident audit record stating who made it and why."
       },
       "subprocessors": {
         "title": "Subprocessors",
@@ -16459,7 +16459,6 @@
         "signed": "Signed · {signer} (sample). She advances, and the decision keeps its receipt."
       },
       "legendLocked": "locked, never delegated",
-      "legendDelegable": "a workspace may delegate it",
       "logNone": "Screening and offers wait for a person; no setting changes that.",
       "logOne": "Unattended now: {stage}. Each such step is logged with its plan.",
       "logTwo": "Unattended now: {first} and {second}. Each such step is logged with its plan."

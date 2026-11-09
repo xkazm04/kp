@@ -12300,7 +12300,7 @@
       "ai": {
         "title": "AI-Transparenz",
         "oversight": "Nach der EU-AI-Verordnung ist das Screenen, Bewerten, Einstufen und Interviewen von Kandidaten eine Hochrisiko-Anwendung. Jede Kandidatenseite zeigt deshalb einen AI-Hinweis, bevor eine AI Ihre Daten liest, wie es Artikel 50 verlangt.",
-        "sealed": "Standardmäßig kommt kein Kandidat allein durch die Maschine weiter oder erhält von ihr ein Angebot (ein Workspace kann beides an die Automatik übergeben, jeder unbeaufsichtigte Schritt wird protokolliert). Die Maschine lehnt niemanden allein ab: ein Nein bei einer Voraussetzung, die die Stelle ausdrücklich nennt, hält die Bewerbung für einen Menschen zurück, der die Ablehnung bestätigt oder die Zurückhaltung aufhebt, und erst eine bestätigte Ablehnung teilt der Person mit, um welche Voraussetzung es ging und wie sie eine Überprüfung durch einen Menschen verlangen kann. Jede nachteilige Entscheidung erfordert einen Menschen, und jede Entscheidung, ob menschlich oder automatisiert, wird in einem manipulationssicheren Audit-Protokoll festgeschrieben, das dokumentiert, wer entschieden hat und warum."
+        "sealed": "Standardmäßig kommt kein Kandidat allein durch die Maschine weiter oder erhält von ihr ein Angebot. Die Maschine lehnt niemanden allein ab: ein Nein bei einer Voraussetzung, die die Stelle ausdrücklich nennt, hält die Bewerbung für einen Menschen zurück, der die Ablehnung bestätigt oder die Zurückhaltung aufhebt, und erst eine bestätigte Ablehnung teilt der Person mit, um welche Voraussetzung es ging und wie sie eine Überprüfung durch einen Menschen verlangen kann. Jede nachteilige Entscheidung erfordert einen Menschen, und jede Entscheidung, ob menschlich oder automatisiert, wird in einem manipulationssicheren Audit-Protokoll festgeschrieben, das dokumentiert, wer entschieden hat und warum."
       },
       "subprocessors": {
         "title": "Unterauftragsverarbeiter",
@@ -16347,7 +16347,6 @@
         "signed": "Unterschrieben · {signer} (Beispiel). Die Kandidatin kommt weiter, und die Entscheidung behält ihren Nachweis."
       },
       "legendLocked": "gesperrt, nie delegiert",
-      "legendDelegable": "ein Arbeitsbereich kann es delegieren",
       "logNone": "Screening und Angebote warten auf einen Menschen; keine Einstellung ändert das.",
       "logOne": "Jetzt unbeaufsichtigt: {stage}. Jeder solche Schritt wird samt der Regel protokolliert, die ihn erlaubt hat.",
       "logTwo": "Jetzt unbeaufsichtigt: {first} und {second}. Jeder solche Schritt wird samt der Regel protokolliert, die ihn erlaubt hat."

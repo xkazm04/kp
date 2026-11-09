@@ -12300,7 +12300,7 @@
       "ai": {
         "title": "Transparentnost AI",
         "oversight": "Podle nařízení EU o umělé inteligenci je třídění, hodnocení, řazení a vedení pohovorů s kandidáty vysoce rizikovým použitím. Každá stránka pro kandidáty proto zobrazuje upozornění na zapojení AI dřív, než AI vaše údaje čte, jak vyžaduje článek 50.",
-        "sealed": "Ve výchozím nastavení žádný kandidát nepostupuje ani nedostává nabídku jen na základě stroje (pracovní prostor může kterékoli z toho svěřit automatice a každý krok bez dozoru se zaznamená). Stroj sám nikoho nezamítne: odpověď „ne“ u požadavku, který pozice výslovně stanoví, nechá přihlášku čekat na člověka, který zamítnutí potvrdí, nebo ji uvolní, a teprve potvrzené zamítnutí kandidátovi sdělí, o který požadavek šlo a jak požádat o přezkoumání člověkem. Každé nepříznivé rozhodnutí vyžaduje člověka a každé rozhodnutí, lidské i automatické, se zapečetí do auditního záznamu chráněného proti manipulaci, který uvádí, kdo rozhodl a proč."
+        "sealed": "Ve výchozím nastavení žádný kandidát nepostupuje ani nedostává nabídku jen na základě stroje. Stroj sám nikoho nezamítne: odpověď „ne“ u požadavku, který pozice výslovně stanoví, nechá přihlášku čekat na člověka, který zamítnutí potvrdí, nebo ji uvolní, a teprve potvrzené zamítnutí kandidátovi sdělí, o který požadavek šlo a jak požádat o přezkoumání člověkem. Každé nepříznivé rozhodnutí vyžaduje člověka a každé rozhodnutí, lidské i automatické, se zapečetí do auditního záznamu chráněného proti manipulaci, který uvádí, kdo rozhodl a proč."
       },
       "subprocessors": {
         "title": "Další zpracovatelé",
@@ -16347,7 +16347,6 @@
         "signed": "Podepsáno · {signer} (ukázka). Postupuje dál a u rozhodnutí zůstane doklad."
       },
       "legendLocked": "zamčeno, nikdy se nedeleguje",
-      "legendDelegable": "dá se delegovat",
       "logNone": "Screening a nabídky čekají na člověka; žádné nastavení to nemění.",
       "logOne": "Teď bez dozoru: {stage}. Každý takový krok se zaznamená i s pravidlem, které ho povolilo.",
       "logTwo": "Teď bez dozoru: {first} a {second}. Každý takový krok se zaznamená i s pravidlem, které ho povolilo."
