@@ -14263,8 +14263,12 @@
           "revision": 28,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "not-applicable",
+          "priorNotApplicable": 3,
+          "evidence": "app/api/devcase/lifecycle/route.ts:80 The lifecycle routes (approve, close, redesign, inbound, feedback, list) are CRUD and gate doors that hand the orchestration to the task runner and return its id. No agent runtime is assembled here: no hook chain, no extension loading, no checkpoint store. A search of app/api/devcase for plugin, checkpoint, subagent, toolCall and tool_use found nothing.",
+          "evaluatedAt": "2026-11-09",
+          "evaluatedAgainst": "sha256-b2:c29c78bbbf9eb4fe",
+          "evaluatedRevision": 29
         },
         {
           "subject": "mcp-tools",

@@ -30155,6 +30155,16 @@
           "evidence": "app/api/automation/[task]/route.ts:21 Long work goes through the task store. No model turn submits or polls it."
         }
       ]
+    },
+    "ee108e0b-98d6-4259-8c7a-5e79ee66d6f0/agent-runtime-assembly": {
+      "context": "devcase-lifecycle-api",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-09",
+      "evaluatedTs": "2026-11-09T23:19:55.804Z",
+      "worker": "82f26546-7c7f-4fb2-8588-9a684660dab3",
+      "techniques": []
     }
   }
 }
