@@ -91,7 +91,7 @@ export function RoleSkillsChips({ data, t, enumLabel }: { data: SummaryData; t: 
             title={strength != null ? t("skillStrengthTitle", { pct: Math.round(strength * 100) }) : undefined}
           >
             {s}
-            <span className={`rounded px-1 text-[10px] uppercase ${pl.tone}`}>{enumLabel("provenance", pl.key)}</span>
+            <span className={`rounded px-1 text-micro uppercase ${pl.tone}`}>{enumLabel("provenance", pl.key)}</span>
           </span>
         );
       })}
@@ -117,7 +117,7 @@ export function UnprovenChips({ data, t }: { data: SummaryData; t: SummaryT }) {
             title={strength != null ? t("unprovenStrengthTitle", { pct: Math.round(strength * 100) }) : undefined}
           >
             {s}
-            <span className="rounded bg-amber-100 px-1 text-[10px] uppercase text-amber-800">{t(unprovenLabelKey(unprovenReason[s]))}</span>
+            <span className="rounded bg-amber-100 px-1 text-micro uppercase text-amber-800">{t(unprovenLabelKey(unprovenReason[s]))}</span>
           </span>
         );
       })}

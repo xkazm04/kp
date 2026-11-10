@@ -346,8 +346,6 @@
       "raw-text-size": 7
     },
     "features/hiring/decisions/DecisionsAnalysisParts.tsx": {
-      "below-floor-text": 2,
-      "arbitrary-text-size": 2,
       "raw-status-hue": 10,
       "raw-button": 1,
       "bare-rounded": 5
@@ -1925,7 +1923,7 @@
     },
     "features/shell/tasks/TasksRowActions.tsx": {
       "raw-text-size": 1,
-      "raw-button": 5,
+      "raw-button": 4,
       "bare-rounded": 3
     },
     "features/shell/tasks/TasksRunsPanel.tsx": {

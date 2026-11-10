@@ -279,8 +279,9 @@ function KeywordRow({ hit }: { hit: KeywordCoverage["hits"][number] }) {
   const t = useTranslations("report");
   const status: KeywordStatusKey = hit.status ?? "unknown";
   return (
-    <div className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-body ${KEYWORD_STATUS_CLS[status]}`}>
-      <span className="truncate font-medium">{hit.keyword}</span>
+    // Wraps rather than squeezing: at narrow widths the tracked stamp left the keyword one letter wide.
+    <div className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 rounded-md border px-3 py-2 text-body ${KEYWORD_STATUS_CLS[status]}`}>
+      <span className="min-w-0 truncate font-medium">{hit.keyword}</span>
       <span className={`${META_LABEL} shrink-0`}>
         {t("panel.kwJdCv", { jd: hit.inJd, cv: hit.inCv })} · {t(KEYWORD_STATUS_KEY[status] as Parameters<typeof t>[0])}
       </span>
