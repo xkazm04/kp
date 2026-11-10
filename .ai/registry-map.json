@@ -16651,12 +16651,11 @@
           "changedAt": "2026-10-25",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/features/hiring/decisions/groupEval/GroupEvalLegacyView.tsx:23 The compact comparison presents a recommended lead even for governed payloads because its lead card checks topPick without checking the governance sealing predicate.",
-          "evaluatedAt": "2026-10-20",
-          "evaluatedAgainst": "sha256-b2:e1455cfce10b4def",
-          "evaluatedRevision": 2,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/features/hiring/decisions/groupEval/GroupEvalLegacyView.tsx:23 The compact LegacyView shows a 'Recommended lead' card whenever evaluation.topPick is set. The server sets topPick in every mode (group-eval-run.ts:961), so committee and eligibility-list payloads without a score breakdown still show a crowned AI pick under an 'advisory' banner, and the view never checks the sealsLead predicate that the comparison table uses.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:a8611b249f54c3dd",
+          "evaluatedRevision": 3,
+          "revisionsBehind": 1
         },
         {
           "subject": "adverse-impact-and-proxy-neutrality",

@@ -1,0 +1,71 @@
+{
+ "schema": "conform-run/1",
+ "worker": "23a40eea-324a-49a8-9339-e99fc22993dd",
+ "subject": "collective-and-statutory-hiring-governance",
+ "evaluatedAt": "2026-11-10T00:29:50.455266+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "group-eval-comparison",
+   "subject": "collective-and-statutory-hiring-governance",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/hiring/decisions/groupEval/GroupEvalLegacyView.tsx:23 The compact LegacyView shows a 'Recommended lead' card whenever evaluation.topPick is set. The server sets topPick in every mode (group-eval-run.ts:961), so committee and eligibility-list payloads without a score breakdown still show a crowned AI pick under an 'advisory' banner, and the view never checks the sealsLead predicate that the comparison table uses.",
+   "techniques": [
+    {
+     "technique": "advisory-machine-that-never-seals",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/decisions/groupEval/GroupEvalLegacyView.tsx:23 The enriched ComparisonTable gates its crown on sealsLead (GroupEvalModal.tsx:179). LegacyView renders 'Recommended lead' on topPick alone, and so does the 'Unique strengths (lead)' block in PerCandidateTabs (isTopPick, line 118). The technique names exactly this failure: a crown drawn beneath an 'advisory' banner."
+    },
+    {
+     "technique": "governance-mode-selection",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/decisions/GroupEvalModal.tsx:179 The sealing predicate is correctly an allowlist (sealsLead === 'recommendation'). But normalizeGovernanceMode (app/_lib/group-eval-governance.ts:17) maps an absent or unrecognised mode to the PERMISSIVE 'recommendation', so an unknown mode gets the crown. The rule says unknown modes go to the most constrained mode."
+    },
+    {
+     "technique": "sticky-governance-against-silent-downgrade",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/decisions/groupEval/governanceCacheSync.ts:65 Some of this is done right: the server refuses governed-to-recommendation downgrades (resolveGovernanceMode) and the dedupe key carries the mode. But on a client cache hit whose stored mode is weaker than the selected one, the client serves the old recommendation-mode artifact, crown included, with a mismatch notice. The decision rule says to discard the cache and recompute, not to adapt how the cached artifact is presented."
+    },
+    {
+     "technique": "machine-ordering-after-independent-reads",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/decisions/groupEval/GroupEvalComparisonTable.tsx:199 In committee mode the machine's numbered ordering (rank badges, the recommendedOrder headline) is shown straight away. There are no locked per-member reads, and nothing withholds the ordering. The committee banner only says to capture assessments 'in your governance process'. It does not say those reads must come before the ordering is seen."
+    },
+    {
+     "technique": "ordinal-eligibility-list-over-a-crowned-lead",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/decisions/GroupEvalModal.tsx:157 The ordinal list exists and KO-failed candidates are excluded. But buildEligibilityList ranks unscored candidates inline (they get a number and a dash) instead of giving them a separate 'unranked' state. Ties are not shown as ties, and the bare score appears with no uncertainty next to it."
+    },
+    {
+     "technique": "name-the-ceiling-you-cannot-compute",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/decisions/groupEval/localize.ts:88 There is a separate localized banner for each mode, shown in the artifact next to the list. The eligibility-list copy says what is missing (statutory preferences), when (before certifying) and why (the app holds no such status and cannot compute it). It names the reader as the owner rather than the examining office."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-10T00:29:50.455266+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "collective-and-statutory-hiring-governance"
+   ],
+   "techniques": [
+    "advisory-machine-that-never-seals",
+    "governance-mode-selection",
+    "machine-ordering-after-independent-reads",
+    "name-the-ceiling-you-cannot-compute",
+    "ordinal-eligibility-list-over-a-crowned-lead",
+    "sticky-governance-against-silent-downgrade"
+   ],
+   "deviations": 1,
+   "context": "group-eval-comparison",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
