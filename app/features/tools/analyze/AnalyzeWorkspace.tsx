@@ -18,8 +18,8 @@ const MODES = [
 // bundle, and vice versa. The loading gap is a quiet reserved-height box, never
 // a skeleton; it is normally invisible since the sibling chunk is already
 // warm by the time anyone switches.
-// The "new" pane is the Cohort Studio (spark analyze-v2-cohort); its v1 variant — the
-// default, and the only one production shows during the prototype round — is AnalyzeTab.
+// The "new" pane is the Cohort Studio (spark analyze-v2-cohort): role first, up to 20
+// candidates compared in the Line-up world. The v1 upload form was retired (git history).
 const CohortStudio = dynamic(() => import("./cohort/CohortStudio").then((m) => ({ default: m.CohortStudio })), {
   loading: () => <div className="reveal-quiet min-h-[24rem]" aria-hidden />,
 });
@@ -28,8 +28,8 @@ const HistoryTab = dynamic(
   { loading: () => <div className="reveal-quiet min-h-[24rem]" aria-hidden /> }
 );
 
-// Consolidates the v1 deep-analysis tool and its saved-runs list into one
-// surface with a segmented switch, so they occupy a single sidebar slot.
+// Consolidates the cohort studio and the saved-runs list into one surface with a
+// segmented switch, so they occupy a single sidebar slot.
 //
 // The active state rides on a shared-layout `bg-ink` pill (layoutId="analyze-seg")
 // that slides between labels instead of hard-flipping, and the panel below

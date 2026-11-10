@@ -2,23 +2,23 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   activeFixture,
-  activeVariant,
   COHORT_POLL_FAILURE_LIMIT,
   isCohortFixtureMode,
   orderCards,
   parseFixtureParam,
+  parseJdParam,
   parseLayerParam,
-  parseVariantParam,
   shouldPollCohort,
 } from "./cohortShell.ts";
 import type { CohortMember } from "./cohortTypes.ts";
 
-test("the variant inbox adopts a known variant and nothing else", () => {
-  assert.equal(parseVariantParam("lineup"), "lineup");
-  assert.equal(parseVariantParam("v1"), "v1");
-  assert.equal(parseVariantParam("Lineup"), null);
-  assert.equal(parseVariantParam(""), null);
-  assert.equal(parseVariantParam(null), null);
+test("the jd inbox adopts a trimmed slug and nothing empty or oversized", () => {
+  assert.equal(parseJdParam("backend-dev"), "backend-dev");
+  assert.equal(parseJdParam("  backend-dev "), "backend-dev");
+  assert.equal(parseJdParam(""), null);
+  assert.equal(parseJdParam("   "), null);
+  assert.equal(parseJdParam(null), null);
+  assert.equal(parseJdParam("x".repeat(201)), null);
 });
 
 test("the fixture inbox knows live, done, running and walkthrough", () => {
@@ -29,9 +29,7 @@ test("the fixture inbox knows live, done, running and walkthrough", () => {
   assert.equal(isCohortFixtureMode(3), false);
 });
 
-test("production shows the baseline form and live data whatever was chosen", () => {
-  assert.equal(activeVariant(false, "lineup"), "v1");
-  assert.equal(activeVariant(true, "lineup"), "lineup");
+test("production shows live data whatever fixture was chosen", () => {
   assert.equal(activeFixture(false, "done"), "live");
   assert.equal(activeFixture(true, "running"), "running");
   assert.equal(activeFixture(false, "walkthrough"), "live");

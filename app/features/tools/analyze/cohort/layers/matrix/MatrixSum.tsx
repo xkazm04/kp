@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import type { CohortDimension, CohortMember } from "../../cohortTypes";
 import { MatrixGlyph } from "./MatrixGlyph";
 import { anatomySum, pointLedger, signed, voiceOf, type Difference, type MatrixColumn } from "./matrixModel";
-import { usePhrase } from "./usePhrase";
+import { usePhrase } from "../../usePhrase";
 import { useMatrixWords } from "./useMatrixWords";
 
 /**

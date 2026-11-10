@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 import { BTN_SECONDARY, NOTICE } from "@/app/_components/ui/recipes";
-import type { CohortRunRequest, CohortVariant, CohortView } from "./cohortTypes";
+import type { CohortRunRequest, CohortView } from "./cohortTypes";
 import { proposalFor, type WalkthroughFixture } from "./cohortWalkthroughModel";
 import { CohortWalkthroughContext, type WalkthroughSource } from "./cohortWalkthroughSource";
 import { CohortFlow, type WalkthroughCompare } from "./CohortFlow";
@@ -21,7 +21,7 @@ type Loaded = { fx: WalkthroughFixture; done: CohortView; running: CohortView };
 /** Run ids for this visit (module memory): unique per Start, never written anywhere. */
 let runSeq = 0;
 
-export function CohortWalkthrough({ variant }: { variant: Exclude<CohortVariant, "v1"> }) {
+export function CohortWalkthrough() {
   const t = useTranslations("analyzeCohort.shell.walkthrough");
   const [data, setData] = useState<Loaded | null>(null);
   const [failed, setFailed] = useState(false);
@@ -70,13 +70,12 @@ export function CohortWalkthrough({ variant }: { variant: Exclude<CohortVariant,
           done={data.done}
           running={data.running}
           request={request}
-          variant={variant}
           onStatus={onStatus}
           onStartOver={onStartOver}
         />
       );
     },
-    [data, runs, variant]
+    [data, runs]
   );
 
   if (!source) {
@@ -94,7 +93,7 @@ export function CohortWalkthrough({ variant }: { variant: Exclude<CohortVariant,
   }
   return (
     <CohortWalkthroughContext.Provider value={source}>
-      <CohortFlow variant={variant} walkthrough={compare} />
+      <CohortFlow walkthrough={compare} />
     </CohortWalkthroughContext.Provider>
   );
 }

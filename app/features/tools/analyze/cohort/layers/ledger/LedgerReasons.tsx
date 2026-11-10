@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/app/_components/kit";
 import type { Reason, ReasonTone } from "../../cohortTypes";
 import { signed } from "./ledgerModel";
-import { usePhrase } from "./usePhrase";
+import { usePhrase } from "../../usePhrase";
 
 /** The tone as a SHAPE before a colour: a plus disc earns, a minus disc costs, an open diamond is context. */
 export function ToneGlyph({ tone }: { tone: ReasonTone }) {

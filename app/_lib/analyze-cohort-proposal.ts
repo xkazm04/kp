@@ -8,7 +8,7 @@
 //   1. applicant — every pipeline entry filed under the JD's job (`jd-<slug>`) whose
 //      candidate resolves (resolveCandidatePoolEntry) to a source WITH CV TEXT. An entry
 //      with no candidate id, an agent row, an erased person or a profile with no source
-//      analysis is skipped (and logged with a count — the wire contract has no field).
+//      analysis is skipped, and counted (`skipped`) so the studio can say how many.
 //   2. matched — a top-up from the workspace pool ranked against the job by the
 //      deterministic recruiter_cli ranker (KO-passed rows only, in rank order), excluding
 //      anyone already in, until COHORT_CAP.
@@ -333,6 +333,7 @@ export async function buildCohortProposal(jdSlug: string, workspaceId: string, d
     orgName: ctx.orgName,
     members,
     leftOut,
+    skipped,
     cap: COHORT_CAP,
     freshCount: members.filter((m) => !m.reusable).length,
   };

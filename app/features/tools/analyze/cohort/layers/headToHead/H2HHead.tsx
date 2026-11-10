@@ -7,7 +7,8 @@ import { CRITERION_STATUSES, type CohortDimension, type CohortMember, type Cohor
 import { CommentMark, DecoyMark, MemberName } from "../../dimensions/dimensionParts";
 import { useAbsentWord } from "../../dimensions/useCohortLabel";
 import { builtOf, deltaOf, type FieldRow } from "./headToHeadModel";
-import { StatusGlyph, signed, usePhrase } from "./h2hParts";
+import { usePhrase } from "../../usePhrase";
+import { StatusGlyph, signed } from "./h2hParts";
 
 const REMOVE = "hh-remove";
 

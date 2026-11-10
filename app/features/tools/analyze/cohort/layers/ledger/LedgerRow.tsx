@@ -9,7 +9,7 @@ import { consFor, headOf, splitShared, type LedgerFilter, type LedgerRow as Row,
 import { CellReasons } from "./LedgerReasons";
 import { LedgerDetail } from "./LedgerDetail";
 import { useCohortLabel } from "../../dimensions/useCohortLabel";
-import { usePhrase } from "./usePhrase";
+import { usePhrase } from "../../usePhrase";
 
 /**
  * The quiet third line: context that neither earns nor costs, two at most, the rest counted. Context the

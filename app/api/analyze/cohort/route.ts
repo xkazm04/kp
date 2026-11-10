@@ -7,7 +7,8 @@ import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonOk, jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom } from "@/app/_lib/rate-limit";
 import { meterGate } from "@/app/_lib/billing";
-import { listRecentTasks } from "@/app/_lib/db/tasks";
+import { getTask, listRecentTasks } from "@/app/_lib/db/tasks";
+import { inFlightCandidateUnits } from "@/app/api/analyze/in-flight-units";
 import { startTask } from "@/app/_lib/tasks";
 import {
   createAnalysisCohort,
@@ -115,14 +116,7 @@ export const POST = route(
     // in-flight cohort the fresh units it declared, so N concurrent starts cannot all pass
     // on the same pre-debit balance. No await from here to startTask.
     if (freshCount > 0) {
-      const inFlight = listRecentTasks(new Date().toISOString(), 200, ws)
-        .filter((t) => t.status === "queued" || t.status === "running")
-        .reduce((n, t) => {
-          if (t.kind === "analyze") return n + 1;
-          if (t.kind !== "analyze_cohort") return n;
-          const units = (t.params as { freshCount?: unknown } | null)?.freshCount;
-          return n + (typeof units === "number" && units > 0 ? units : 0);
-        }, 0);
+      const inFlight = inFlightCandidateUnits(listRecentTasks(new Date().toISOString(), 200, ws), (id) => getTask(id, ws)?.params);
       const quota = meterGate("ai_candidates", { workspace: ws, minUnits: freshCount, inFlight });
       if (quota) return jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter: quota.meter, plan: quota.plan });
     }

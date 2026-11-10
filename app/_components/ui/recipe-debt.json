@@ -20,9 +20,6 @@
     "then undeclared, and the next literal to arrive there is a red build."
   ],
   "ceilings": {
-    "_components/AnalysisProgress.tsx": {
-      "btnAffirm": 1
-    },
     "_components/GithubAnalysisPanel.tsx": {
       "panel": 5
     },
@@ -221,15 +218,6 @@
     },
     "features/shell/tasks/TasksTable.tsx": {
       "metaLabel": 1
-    },
-    "features/tools/analyze/AnalyzeFormFooter.tsx": {
-      "noticeAmber": 1
-    },
-    "features/tools/analyze/AnalyzeFormOptionalColumns.tsx": {
-      "noticeAmber": 1
-    },
-    "features/tools/analyze/AnalyzeTab.tsx": {
-      "noticeAmber": 1
     },
     "features/tools/devcases/DevAnalysisDesignCard.tsx": {
       "noticeAmber": 1

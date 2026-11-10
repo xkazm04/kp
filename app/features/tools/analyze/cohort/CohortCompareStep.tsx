@@ -1,6 +1,6 @@
 "use client";
 
-// Act 3, live: one cohort read (and re-read while it runs) and drawn in the chosen world. Tells
+// Act 3, live: one cohort read (and re-read while it runs) and drawn in the Line-up world. Tells
 // the flow what it learned (status, size, role) so the call sheet stays true, and tells it once
 // when the run settles (the recent strip re-reads). A failed cohort's retry is a NEW run with
 // the same members; a read that cannot be made says so with its code and a way to try again.
@@ -9,7 +9,7 @@ import { useTranslations } from "next-intl";
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { BTN_SECONDARY, NOTICE } from "@/app/_components/ui/recipes";
-import type { CohortRunRequest, CohortStatus, CohortVariant } from "./cohortTypes";
+import type { CohortRunRequest, CohortStatus } from "./cohortTypes";
 import { retryRequest } from "./cohortProposalEdits";
 import { useCohortView } from "./useCohortView";
 import { useCohortRun } from "./useCohortRun";
@@ -17,13 +17,11 @@ import { CohortComparison } from "./CohortComparison";
 
 export function CohortCompareStep({
   cohortId,
-  variant,
   onStatus,
   onSettled,
   onRestarted,
 }: {
   cohortId: string;
-  variant: Exclude<CohortVariant, "v1">;
   onStatus: (status: CohortStatus, castCount: number, roleTitle: string) => void;
   onSettled: () => void;
   onRestarted: (cohortId: string, request: CohortRunRequest, jdTitle: string) => void;
@@ -76,7 +74,6 @@ export function CohortCompareStep({
       ) : null}
       <CohortComparison
         view={view}
-        variant={variant}
         onRetry={() => void rerun.start(retryRequest(view))}
         retrying={rerun.starting}
         retryError={rerun.failure ? errorMessage(rerun.failure, t("retryFailed"), rerun.failure.values) : null}

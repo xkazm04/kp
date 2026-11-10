@@ -28,13 +28,6 @@ export const TECHNICAL_FAMILIES = ["software_engineering", "data_ai"] as const;
 export const isTechnicalFamily = (v: unknown): boolean =>
   typeof v === "string" && (TECHNICAL_FAMILIES as readonly string[]).includes(v);
 
-/** The switcher. `v1` is the baseline (the upload form) and stays production's view until the
- * nested-layer round closes; Line-up won the world round (Loom and Console were deleted). */
-export const COHORT_VARIANTS = ["v1", "lineup"] as const;
-export type CohortVariant = (typeof COHORT_VARIANTS)[number];
-export const isCohortVariant = (v: unknown): v is CohortVariant =>
-  typeof v === "string" && (COHORT_VARIANTS as readonly string[]).includes(v);
-
 // ---- Membership (who is in the set, and by which rule) -------------------------
 
 /** applicant = filed under the job's pipeline; matched = pool top-up by deterministic rank; added = by hand. */
@@ -66,6 +59,8 @@ export interface CohortProposal {
   members: ProposalMember[];
   /** Candidates the cap left out, by rule — the registry requires saying how many. */
   leftOut: { applicants: number; matched: number };
+  /** Applicants and pool rows that could not be offered: no readable CV text behind them. */
+  skipped: number;
   cap: typeof COHORT_CAP;
   /** members.length minus reusable members: the number of ai_candidates units the run would spend (metered installs). */
   freshCount: number;
@@ -362,6 +357,9 @@ export const REASON_SOURCES = [
 ] as const;
 export type ReasonSource = (typeof REASON_SOURCES)[number];
 
+export const POINTS_KINDS = ["term", "forgone"] as const;
+export type PointsKind = (typeof POINTS_KINDS)[number];
+
 export interface Reason {
   tone: ReasonTone;
   phrase: Phrase;
@@ -373,10 +371,11 @@ export interface Reason {
    * points are NEGATIVE and say what the part FAILED to earn against its full value (a missing
    * skill: -17 while its anatomy term is 0; "Experience 8/25": -35 while its term is +16).
    * So reason points do NOT sum to the rating — ScoreAnatomy is the exact source for sums.
-   * Measured by all four round-2 layer builders; a `pointsKind: "term" | "forgone"` field is the
-   * proposed fix for the consolidation round.
+   * `pointsKind` says which of the two a reason's points are; present exactly when points are.
    */
   points?: number;
+  /** term = the part's own contribution (its anatomy term); forgone = what it failed to earn (negative). */
+  pointsKind?: PointsKind;
   /** Supporting lines from the analysis (verbatim), for the expand. Omitted when none. */
   evidence?: string[];
   /** The criterion this reason speaks to, when it maps onto one (DimensionCriterion.id). */
@@ -417,9 +416,10 @@ export interface MemberDimensionWhy {
   criteria: Record<string, { status: CriterionStatus; note?: Phrase }>;
 }
 
-// ---- Round 2: the nested-layer prototypes ----------------------------------------
+// ---- The nested layers (what a dimension descends into) ---------------------------
 
-/** `pages` = the round-1 dimension pages (baseline); the four structures are under judgement. */
+/** `pages` = the round-1 dimension pages; the four structures each explain why a score sits
+ *  where it does. The operator picks one (DimensionLayer); which one wins is the owner's call. */
 export const COHORT_LAYERS = ["pages", "ledger", "anatomy", "headToHead", "matrix"] as const;
 export type CohortLayer = (typeof COHORT_LAYERS)[number];
 export const isCohortLayer = (v: unknown): v is CohortLayer =>

@@ -35,6 +35,7 @@ const proposal = (members: ProposalMember[]): CohortProposal => ({
   orgName: null,
   members,
   leftOut: { applicants: 0, matched: 0 },
+  skipped: 0,
   cap: COHORT_CAP,
   freshCount: members.filter((m) => !m.reusable).length,
 });

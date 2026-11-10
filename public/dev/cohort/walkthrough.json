@@ -291,6 +291,7 @@
         "applicants": 0,
         "matched": 0
       },
+      "skipped": 0,
       "cap": 20,
       "freshCount": 15
     },
@@ -304,6 +305,7 @@
         "applicants": 0,
         "matched": 0
       },
+      "skipped": 0,
       "cap": 20,
       "freshCount": 0
     },
@@ -317,6 +319,7 @@
         "applicants": 0,
         "matched": 0
       },
+      "skipped": 0,
       "cap": 20,
       "freshCount": 0
     },
@@ -330,6 +333,7 @@
         "applicants": 0,
         "matched": 0
       },
+      "skipped": 0,
       "cap": 20,
       "freshCount": 0
     },
@@ -343,6 +347,7 @@
         "applicants": 0,
         "matched": 0
       },
+      "skipped": 0,
       "cap": 20,
       "freshCount": 0
     },
@@ -356,6 +361,7 @@
         "applicants": 0,
         "matched": 0
       },
+      "skipped": 0,
       "cap": 20,
       "freshCount": 0
     }

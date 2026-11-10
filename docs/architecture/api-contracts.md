@@ -846,5 +846,5 @@ needs a key" is never an acceptable reason for a 500.
   `jsonRefusal("TOO_MANY_REQUESTS", 429)` with no `Retry-After`. Only the
   machine-called doors listed in §1.4 use `jsonThrottled`. The rest can adopt it one
   contract row at a time (`retryAfter: true`), since `rateLimit()` keeps its boolean
-  shape. The client reads a `Retry-After` when there is one
-  (`app/features/tools/analyze/AnalyzeApi.ts`) and degrades without it.
+  shape. No client reads a `Retry-After` today (the v1 Analyze form, its one reader,
+  was retired on 2026-11-10); a client that adopts one should degrade without it.

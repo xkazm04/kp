@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import type { CohortDimension, CriterionStatus } from "../../cohortTypes";
 import type { ColMarks } from "./MatrixCells";
 import type { Entry, HeadClaim, MatrixColumn, Voice } from "./matrixModel";
-import { usePhrase } from "./usePhrase";
+import { usePhrase } from "../../usePhrase";
 import { useCohortLabel } from "../../dimensions/useCohortLabel";
 
 /** The matrix's sentences in one place: every accessible name and tip a cell carries. */

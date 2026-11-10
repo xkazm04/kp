@@ -2,8 +2,8 @@
 // to make it from an empty array that could equally mean "still loading" or "the
 // request failed" — the library fetch was unbounded and ended in `.catch(() => {})`.
 // These tests pin the vocabulary that separates the three, the bound on the list,
-// and the two source-level facts a pure test cannot see (the picker renders the
-// failed branch with a retry; the hook no longer swallows a failure).
+// and the two source-level facts a pure test cannot see (the studio's role picker
+// renders the failed branch with a retry; its list hook never swallows a failure).
 //
 // Runner: Node's built-in test runner with type stripping (no extra deps).
 //   node scripts/run-unit-tests.mjs app/features/tools/analyze/analyzeJdLibraryState.test.ts
@@ -71,30 +71,21 @@ test("boundJdLibrary copies rather than aliasing the payload's array", () => {
   assert.equal(rows.length, 1);
 });
 
-test("the hook fetches with the stated limit and reports failure instead of swallowing it", () => {
-  const hook = read("./useAnalyzeJdLibrary.ts");
+test("the role list fetches with the stated limit and reports failure instead of swallowing it", () => {
+  // The v1 form's hook (useAnalyzeJdLibrary) was retired with the form; the studio's role list
+  // is the one reader of this vocabulary now, and holds the same two facts.
+  const hook = read("./cohort/useCohortLists.ts");
   assert.match(hook, /\/api\/jds\?limit=\$\{JD_LIBRARY_LIMIT\}/, "the list fetch carries the stated limit");
-  assert.match(hook, /setJdLibraryState\("failed"\)/, "a failed load is reported");
-  // …and never again by an empty catch. Prose mentioning the old shape is fine;
-  // an actual code line is not, so the source is stripped of comments first (the
-  // house rule bans an empty catch body outright).
+  assert.match(hook, /setState\("failed"\)/, "a failed load is reported");
   const code = hook.replace(/\/\/[^\n]*/g, "");
-  assert.ok(
-    !/\.catch\(\(\) => \{\s*\}\)/.test(code),
-    "the failure-swallowing empty catch must be gone"
-  );
-  assert.match(hook, /jdLibraryState,/, "the state is returned to the surface");
-  assert.match(hook, /reloadJdLibrary/, "…along with the retry the picker offers");
+  assert.ok(!/\.catch\(\(\) => \{\s*\}\)/.test(code), "the failure-swallowing empty catch must be gone");
+  assert.match(hook, /return \{ roles, state, truncated, reload \}/, "the state and its retry are returned to the surface");
 });
 
-test("the picker renders the failed state with a retry, resolved from a code", () => {
-  const picker = read("./AnalyzeSavedJdPicker.tsx");
-  assert.match(picker, /libraryState === "failed"/);
-  assert.match(picker, /onRetryLibrary/, "the failed branch offers a retry");
-  assert.match(
-    picker,
-    /errorMessage\(\{ code: "JD_LIST_FAILED" \}, t\("jdLibraryFailed"\)\)/,
-    "the reason resolves through useErrorMessage, not a server string"
-  );
-  assert.match(picker, /libraryState === "loading"/, "…and loading is distinguished from empty");
+test("the role picker renders the failed state with a retry, resolved from a code", () => {
+  const picker = read("./cohort/CohortRolePicker.tsx");
+  assert.match(picker, /state === "failed"/);
+  assert.match(picker, /onClick=\{reload\}/, "the failed branch offers a retry");
+  assert.match(picker, /errorMessage\(\{ code: "JD_LIST_FAILED" \}, t\("failed"\)\)/, "the reason resolves through useErrorMessage, not a server string");
+  assert.match(picker, /state === "loading"/, "…and loading is distinguished from empty");
 });

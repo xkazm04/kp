@@ -19,11 +19,13 @@ import { CohortRunSheet } from "./CohortRunSheet";
 type Props = {
   jdSlug: string;
   onCount: (n: number) => void;
+  /** The role's title as the proposal names it (once it has loaded). */
+  onTitle?: (jdTitle: string) => void;
   onStarted: (cohortId: string, request: CohortRunRequest) => void;
   onBack: () => void;
 };
 
-export function CohortCastStep({ jdSlug, onCount, onStarted, onBack }: Props) {
+export function CohortCastStep({ jdSlug, onCount, onTitle, onStarted, onBack }: Props) {
   const t = useTranslations("analyzeCohort.shell.cast");
   const errorMessage = useErrorMessage();
   const walkthrough = useWalkthroughSource();
@@ -31,6 +33,10 @@ export function CohortCastStep({ jdSlug, onCount, onStarted, onBack }: Props) {
   const fixed = walkthrough?.proposalFor(jdSlug) ?? null;
   const fixedState: ProposalState = fixed ? { state: "ready", proposal: fixed } : { state: "failed", failure: { code: null, values: {}, status: 404 } };
   const p = walkthrough ? { ...fixedState, reload: live.reload } : live;
+  const title = p.state === "ready" ? p.proposal.jdTitle : null;
+  useEffect(() => {
+    if (title) onTitle?.(title);
+  }, [title, onTitle]);
   if (p.state === "loading") return <LoadingGap className="min-h-[20rem]" label={t("loading")} />;
   if (p.state === "failed") {
     return (

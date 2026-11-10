@@ -69,14 +69,13 @@ test("the task runner stores codes, not English sentences, for the failures it a
 
 test("every surface that shows a stored task error resolves it through the errors catalog", () => {
   // The surfaces that print the row's `error` to a reader. Each resolves the stored
-  // value as a code first (useErrorMessage / the analyze resolver's apiCode) and keeps
+  // value as a code first (useErrorMessage) and keeps
   // the stored text as the fallback for a handler's own message.
   const surfaces: [string, RegExp][] = [
     ["app/features/shell/tasks/TasksTableRow.tsx", /resolveError\(\{ code: task\.error \}, task\.error\)/],
     ["app/features/insights/activity/ActivityDetailModal.tsx", /resolveError\(\{ code: task\.error \}, task\.error\)/],
     ["app/features/tools/profile/ProfileEditorAiDraft.tsx", /resolveError\(\{ code: watch\.error \}, watch\.error\)/],
     ["app/features/jobseeker/ScanNowButton.tsx", /resolveError\(\{ code: scan\.error \}, scan\.error\)/],
-    ["app/features/tools/analyze/AnalyzeApi.ts", /new AnalyzeClientError\("errIncomplete", task\.error, task\.error\)/],
   ];
   for (const [file, shape] of surfaces) assert.match(read(file), shape, `${file} resolves the stored code`);
 });

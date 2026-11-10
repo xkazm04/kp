@@ -18,7 +18,7 @@ function stub(table: Record<string, { status: number; body: unknown } | "throw">
 }
 
 test("the proposal read encodes the role and returns the contract", async () => {
-  const body = { jdSlug: "a b", jdTitle: "T", members: [], leftOut: { applicants: 0, matched: 0 }, cap: 20, freshCount: 0 };
+  const body = { jdSlug: "a b", jdTitle: "T", members: [], leftOut: { applicants: 0, matched: 0 }, skipped: 0, cap: 20, freshCount: 0 };
   const { f, calls } = stub({ "/api/analyze/cohort/proposal?jd=a%20b": { status: 200, body } });
   const r = await fetchProposal(f, "a b");
   assert.equal(calls[0].url, "/api/analyze/cohort/proposal?jd=a%20b");

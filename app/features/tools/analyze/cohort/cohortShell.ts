@@ -1,7 +1,7 @@
-// The Cohort Studio shell's pure rules (spark analyze-v2-cohort, WP3): which variant and
-// which data source the studio shows, when the live view stops polling, and the order the
+// The Cohort Studio shell's pure rules (spark analyze-v2-cohort, WP3): which data source the
+// studio shows, what its URL inbox adopts, when the live view stops polling, and the order the
 // narrow card list reads in. React-free, so each rule is pinned by cohortShell.test.ts.
-import { isCohortLayer, isCohortVariant, type CohortLayer, type CohortMember, type CohortStatus, type CohortVariant } from "./cohortTypes.ts";
+import { isCohortLayer, type CohortLayer, type CohortMember, type CohortStatus } from "./cohortTypes.ts";
 
 /** Where the studio's comparison comes from. `live` = the role-first flow over the real
  *  routes; `done` / `running` = the engine's committed fixtures (a dev aid for judging);
@@ -13,19 +13,20 @@ export const isCohortFixtureMode = (v: unknown): v is CohortFixtureMode =>
   typeof v === "string" && (COHORT_FIXTURE_MODES as readonly string[]).includes(v);
 
 /** The persisted-choice keys (per browser, never read by anyone else). */
-export const VARIANT_KEY = "kp-analyze-variant";
 export const FIXTURE_KEY = "kp-analyze-cohort-fixture";
+/** The dimension level's layer control (DimensionLayer) and the ?layer= deep link share it. */
+export const LAYER_STORAGE_KEY = "kp-analyze-layer";
 
 /** One-shot inbox parse: a valid value is adopted, anything else (absent, junk) is not. */
-export const parseVariantParam = (raw: string | null): CohortVariant | null => (isCohortVariant(raw) ? raw : null);
 export const parseFixtureParam = (raw: string | null): CohortFixtureMode | null => (isCohortFixtureMode(raw) ? raw : null);
 /** ?layer= — which nested-layer structure a descent opens (persisted under DimensionLayer's key). */
 export const parseLayerParam = (raw: string | null): CohortLayer | null => (isCohortLayer(raw) ? raw : null);
 
-/** Production shows the baseline only: the prototype round never reaches a real install. */
-export function activeVariant(prototypesOn: boolean, chosen: CohortVariant): CohortVariant {
-  return prototypesOn ? chosen : "v1";
-}
+/** ?jd= — a JD slug, adopted as given (the proposal route decides whether it names a JD). */
+export const parseJdParam = (raw: string | null): string | null => {
+  const slug = raw?.trim() ?? "";
+  return slug.length > 0 && slug.length <= 200 ? slug : null;
+};
 /** Production is always live: the fixtures are a dev aid, never a recruiter's data. */
 export function activeFixture(prototypesOn: boolean, chosen: CohortFixtureMode): CohortFixtureMode {
   return prototypesOn ? chosen : "live";

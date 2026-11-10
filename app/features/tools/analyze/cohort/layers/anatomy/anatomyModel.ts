@@ -129,7 +129,7 @@ export function attachReasons(an: ScoreAnatomy | undefined, why: { pros: Reason[
     const key = phraseKey(p.phrase);
     const twins = all.filter((r) => !used.has(r) && phraseKey(r.phrase) === key);
     // A con worded like an earning or zero part carries what the part fell short of full by.
-    const shortfall = p.points >= 0 ? twins.find((r) => r.tone === "con" && (r.points ?? 0) < 0) : undefined;
+    const shortfall = p.points >= 0 ? twins.find((r) => r.tone === "con" && r.pointsKind === "forgone") : undefined;
     let reason = twins.find((r) => r !== shortfall && (r.tone === p.tone || (p.points > 0 && r.tone !== "con"))) ?? null;
     if (!reason && p.points === 0 && shortfall) reason = shortfall;
     const short = shortfall ? -(shortfall.points as number) : null;

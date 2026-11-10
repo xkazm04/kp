@@ -87,6 +87,7 @@ function proposal(slug: string, title: string, orgName: string | null, ordered: 
     orgName,
     members,
     leftOut,
+    skipped: 0,
     cap: COHORT_CAP,
     freshCount: members.filter((m) => !m.reusable).length,
   };

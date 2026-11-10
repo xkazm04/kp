@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { getServerLocale } from "@/i18n/server";
 import { isLocale } from "@/i18n/locales";
 import { meterGate } from "@/app/_lib/billing";
-import { listRecentTasks } from "@/app/_lib/db/tasks";
+import { getTask, listRecentTasks } from "@/app/_lib/db/tasks";
+import { inFlightCandidateUnits } from "@/app/api/analyze/in-flight-units";
 import type { AnalyzeParams } from "@/app/_lib/analyze-run";
 import { can } from "@/app/_lib/auth/current-user";
 import { cvVariantHash, dedupeCvVariants } from "@/app/_lib/cv-variant";
@@ -191,9 +192,9 @@ export const POST = withWorkspace(async (workspace: string, request: Request) =>
   // adds its own. TENANCY (P2): both the in-flight count and the meter read are scoped
   // to THIS workspace, and startTask stamps the row with it — so one tenant's burst
   // reserves against its OWN quota only and can't block or drain another tenant's runs.
-  const inFlightAnalyze = listRecentTasks(new Date().toISOString(), 200, workspace).filter(
-    (t) => t.kind === "analyze" && (t.status === "queued" || t.status === "running")
-  ).length;
+  // In-flight cohorts reserve their declared fresh units too (in-flight-units.ts), the same
+  // count the cohort door makes, so racing the two doors cannot overrun a hard cap.
+  const inFlightAnalyze = inFlightCandidateUnits(listRecentTasks(new Date().toISOString(), 200, workspace), (id) => getTask(id, workspace)?.params);
   const reserve = meterGate("ai_candidates", { inFlight: inFlightAnalyze, workspace });
   if (reserve) return jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter: reserve.meter, plan: reserve.plan });
 

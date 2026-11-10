@@ -2,13 +2,13 @@
 
 import { useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { isTextPhrase, type Phrase } from "../../cohortTypes";
+import { isTextPhrase, type Phrase } from "./cohortTypes";
 
 /**
- * A why phrase in the reader's language: analysis prose (`{ text }`) renders verbatim, in the
- * report's language; a code-made word (`{ key, params }`) is a message under analyzeCohort.why.
- * A key the catalog does not hold renders nothing rather than the raw key (cohortFixture.test.ts
- * pins that every engine key resolves).
+ * A why-phrase in the reader's language: analysis prose (`{ text }`) renders verbatim, in the
+ * report's language; a code-made phrase (`{ key, params }`) resolves under analyzeCohort.why. A key
+ * the catalog does not hold renders nothing rather than the raw key (cohortFixture.test.ts pins that
+ * every engine key resolves). The one copy every nested layer reads.
  */
 export function usePhrase(): (p: Phrase) => string {
   const t = useTranslations("analyzeCohort.why");

@@ -135,9 +135,6 @@
     "features/shell/tasks/TasksTab.tsx": {
       "blockGap": 1
     },
-    "features/tools/analyze/AnalyzeTab.tsx": {
-      "blockGap": 2
-    },
     "features/tools/analyze/AnalyzeWorkspace.tsx": {
       "blockGap": 2
     },

@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import type { CohortDimension } from "../../cohortTypes";
 import { entryOf, moveCell, summaryCount, voiceOf, type Cell, type HeadClaim, type MatrixColumn, type MatrixGroup } from "./matrixModel";
 import { FootMark, GridPress, HeadMark, RowHead, StatusMark, type ColMarks } from "./MatrixCells";
-import { usePhrase } from "./usePhrase";
+import { usePhrase } from "../../usePhrase";
 import { useMatrixWords } from "./useMatrixWords";
 
 /** The workspace's chord window: a key within it after a bare `g` belongs to the `g` chord. */

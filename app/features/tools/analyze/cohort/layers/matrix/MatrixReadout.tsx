@@ -7,7 +7,7 @@ import { CommentMark, DecoyMark, MemberName } from "../../dimensions/dimensionPa
 import { pointRoles, type Difference, type MatrixColumn } from "./matrixModel";
 import { MatrixReasons } from "./MatrixReasons";
 import { MatrixAgainst, SumLine } from "./MatrixSum";
-import { usePhrase } from "./usePhrase";
+import { usePhrase } from "../../usePhrase";
 
 /**
  * Under the matrix: the reader's column explained. Who, the rating and its one-line why, how the

@@ -164,6 +164,26 @@ test("skills: one part per skill (matched 100/total, unproven 50/total, missing 
   });
 });
 
+test("pointsKind: present exactly when points are; a shortfall is forgone, a part's own points are a term", () => {
+  const a = analysis({
+    jobFit: { matchingSkills: ["Java", "Kafka"], missingSkills: ["Oracle"], unprovenSkills: [], unprovenSkillReason: {} },
+    score: { total: 80, experience: 24, skills: 25, roleSeniority: 22, education: 10, traits: 5 },
+  });
+  const v = view([{ analysis: a }]);
+  for (const d of COHORT_DIMENSIONS) {
+    const w = v.members[0].why[d];
+    if (!w) continue;
+    for (const r of [...w.pros, ...w.cons, ...w.notes]) assert.equal(r.points === undefined, r.pointsKind === undefined, `${d}: ${JSON.stringify(r)}`);
+  }
+  const skills = v.members[0].why.skills!;
+  assert.deepEqual(skills.pros.map((r) => r.pointsKind), ["term", "term"]);
+  assert.deepEqual(skills.cons.map((r) => r.pointsKind), ["forgone"]);
+  // A forgone con's points are NOT its anatomy term (the missing skill's term is 0).
+  assert.equal(skills.anatomy!.parts.at(-1)!.points, 0);
+  assert.ok(skills.cons[0].points! < 0);
+  assert.deepEqual(v.members[0].why.experience!.cons.map((r) => r.pointsKind), ["forgone", "forgone"]);
+});
+
 // ---- experience ---------------------------------------------------------------------------------
 
 test("experience: two exact parts over 48, the points each part lost, the years against the role's minimum", () => {

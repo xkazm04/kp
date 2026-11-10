@@ -123,6 +123,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:java"
             },
             {
@@ -135,6 +136,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:spring boot"
             },
             {
@@ -147,6 +149,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:oracle"
             },
             {
@@ -159,6 +162,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:kafka"
             },
             {
@@ -171,6 +175,7 @@
               },
               "source": "skills",
               "points": 16,
+              "pointsKind": "term",
               "criterionId": "skill:rest"
             },
             {
@@ -183,6 +188,7 @@
               },
               "source": "skills",
               "points": 16,
+              "pointsKind": "term",
               "criterionId": "skill:microservices architecture"
             }
           ],
@@ -298,6 +304,7 @@
               },
               "source": "evidenceTrace",
               "points": 52,
+              "pointsKind": "term",
               "evidence": [
                 "9 years detected"
               ],
@@ -313,6 +320,7 @@
               },
               "source": "scoreParts",
               "points": 42,
+              "pointsKind": "term",
               "evidence": [
                 "Seniority inferred as senior; role seniority score 20"
               ],
@@ -331,6 +339,7 @@
               },
               "source": "scoreParts",
               "points": -6,
+              "pointsKind": "forgone",
               "criterionId": "seniority"
             }
           ],
@@ -403,6 +412,7 @@
               },
               "source": "softSignal",
               "points": 9,
+              "pointsKind": "term",
               "evidence": [
                 "Ran the on-call rota and carried a service rewrite through to measured latency gains."
               ],
@@ -415,6 +425,7 @@
               },
               "source": "softSignal",
               "points": 7,
+              "pointsKind": "term",
               "evidence": [
                 "Results are quantified (latency, throughput, cost) rather than listed as duties."
               ],
@@ -522,6 +533,7 @@
               },
               "source": "trust",
               "points": -15,
+              "pointsKind": "term",
               "criterionId": "trust:title_unverified"
             }
           ],
@@ -626,7 +638,8 @@
                 }
               },
               "source": "github",
-              "points": 27
+              "points": 27,
+              "pointsKind": "term"
             },
             {
               "tone": "pro",
@@ -637,7 +650,8 @@
                 }
               },
               "source": "github",
-              "points": 26
+              "points": 26,
+              "pointsKind": "term"
             },
             {
               "tone": "pro",
@@ -649,6 +663,7 @@
               },
               "source": "github",
               "points": 8,
+              "pointsKind": "term",
               "criterionId": "gh:java"
             },
             {
@@ -661,6 +676,7 @@
               },
               "source": "github",
               "points": 8,
+              "pointsKind": "term",
               "criterionId": "gh:spring boot"
             },
             {
@@ -673,6 +689,7 @@
               },
               "source": "github",
               "points": 8,
+              "pointsKind": "term",
               "criterionId": "gh:kafka"
             },
             {
@@ -685,6 +702,7 @@
               },
               "source": "github",
               "points": 8,
+              "pointsKind": "term",
               "criterionId": "gh:rest"
             }
           ],
@@ -699,6 +717,7 @@
               },
               "source": "github",
               "points": -8,
+              "pointsKind": "forgone",
               "criterionId": "gh:oracle"
             }
           ],
@@ -1153,6 +1172,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:java"
             },
             {
@@ -1165,6 +1185,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:spring boot"
             },
             {
@@ -1177,6 +1198,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:oracle"
             },
             {
@@ -1189,6 +1211,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:kafka"
             },
             {
@@ -1201,6 +1224,7 @@
               },
               "source": "skills",
               "points": 16,
+              "pointsKind": "term",
               "criterionId": "skill:rest"
             },
             {
@@ -1213,6 +1237,7 @@
               },
               "source": "skills",
               "points": 16,
+              "pointsKind": "term",
               "criterionId": "skill:microservices architecture"
             }
           ],
@@ -1328,6 +1353,7 @@
               },
               "source": "evidenceTrace",
               "points": 52,
+              "pointsKind": "term",
               "evidence": [
                 "11 years detected"
               ],
@@ -1343,6 +1369,7 @@
               },
               "source": "scoreParts",
               "points": 44,
+              "pointsKind": "term",
               "evidence": [
                 "Seniority inferred as senior; role seniority score 20"
               ],
@@ -1361,6 +1388,7 @@
               },
               "source": "scoreParts",
               "points": -4,
+              "pointsKind": "forgone",
               "criterionId": "seniority"
             }
           ],
@@ -1433,6 +1461,7 @@
               },
               "source": "softSignal",
               "points": 9,
+              "pointsKind": "term",
               "evidence": [
                 "Shipped payment and core-banking integrations under audit and change-control rules."
               ],
@@ -1445,6 +1474,7 @@
               },
               "source": "softSignal",
               "points": 6,
+              "pointsKind": "term",
               "evidence": [
                 "Ran the on-call rota and carried a service rewrite through to measured latency gains."
               ],
@@ -1459,6 +1489,7 @@
               },
               "source": "softSignal",
               "points": -5,
+              "pointsKind": "term",
               "evidence": [
                 "Three employers in four years; each role ended before a full delivery cycle."
               ],
@@ -1583,6 +1614,7 @@
               },
               "source": "trust",
               "points": -15,
+              "pointsKind": "term",
               "criterionId": "trust:employment_overlap"
             }
           ],
@@ -1645,6 +1677,7 @@
               },
               "source": "band",
               "points": -7,
+              "pointsKind": "term",
               "criterionId": "band"
             }
           ],
@@ -1694,7 +1727,8 @@
                 }
               },
               "source": "github",
-              "points": 16
+              "points": 16,
+              "pointsKind": "term"
             },
             {
               "tone": "pro",
@@ -1705,7 +1739,8 @@
                 }
               },
               "source": "github",
-              "points": 15
+              "points": 15,
+              "pointsKind": "term"
             },
             {
               "tone": "pro",
@@ -1717,6 +1752,7 @@
               },
               "source": "github",
               "points": 8,
+              "pointsKind": "term",
               "criterionId": "gh:java"
             },
             {
@@ -1729,6 +1765,7 @@
               },
               "source": "github",
               "points": 8,
+              "pointsKind": "term",
               "criterionId": "gh:spring boot"
             },
             {
@@ -1741,6 +1778,7 @@
               },
               "source": "github",
               "points": 8,
+              "pointsKind": "term",
               "criterionId": "gh:oracle"
             }
           ],
@@ -1755,6 +1793,7 @@
               },
               "source": "github",
               "points": -8,
+              "pointsKind": "forgone",
               "criterionId": "gh:kafka"
             },
             {
@@ -1767,6 +1806,7 @@
               },
               "source": "github",
               "points": -8,
+              "pointsKind": "forgone",
               "criterionId": "gh:rest"
             }
           ],
@@ -2236,6 +2276,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:java"
             },
             {
@@ -2248,6 +2289,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:spring boot"
             },
             {
@@ -2260,6 +2302,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:kafka"
             },
             {
@@ -2272,6 +2315,7 @@
               },
               "source": "skills",
               "points": 16,
+              "pointsKind": "term",
               "criterionId": "skill:rest"
             }
           ],
@@ -2286,6 +2330,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:oracle"
             }
           ],
@@ -2412,6 +2457,7 @@
               },
               "source": "evidenceTrace",
               "points": 52,
+              "pointsKind": "term",
               "evidence": [
                 "9 years detected"
               ],
@@ -2427,6 +2473,7 @@
               },
               "source": "scoreParts",
               "points": 42,
+              "pointsKind": "term",
               "evidence": [
                 "Seniority inferred as senior; role seniority score 20"
               ],
@@ -2445,6 +2492,7 @@
               },
               "source": "scoreParts",
               "points": -6,
+              "pointsKind": "forgone",
               "criterionId": "seniority"
             }
           ],
@@ -2517,6 +2565,7 @@
               },
               "source": "softSignal",
               "points": 10,
+              "pointsKind": "term",
               "evidence": [
                 "Shipped payment and core-banking integrations under audit and change-control rules."
               ],
@@ -2529,6 +2578,7 @@
               },
               "source": "softSignal",
               "points": 6,
+              "pointsKind": "term",
               "evidence": [
                 "Results are quantified (latency, throughput, cost) rather than listed as duties."
               ],
@@ -2543,6 +2593,7 @@
               },
               "source": "softSignal",
               "points": -4,
+              "pointsKind": "term",
               "evidence": [
                 "Outcomes are stated for the team; the candidate's own share is not separated out."
               ],
@@ -2747,6 +2798,7 @@
               },
               "source": "github",
               "points": 10,
+              "pointsKind": "term",
               "criterionId": "gh:java"
             },
             {
@@ -2758,7 +2810,8 @@
                 }
               },
               "source": "github",
-              "points": 6
+              "points": 6,
+              "pointsKind": "term"
             },
             {
               "tone": "pro",
@@ -2769,7 +2822,8 @@
                 }
               },
               "source": "github",
-              "points": 6
+              "points": 6,
+              "pointsKind": "term"
             }
           ],
           "cons": [
@@ -2783,6 +2837,7 @@
               },
               "source": "github",
               "points": -10,
+              "pointsKind": "forgone",
               "criterionId": "gh:kafka"
             },
             {
@@ -2795,6 +2850,7 @@
               },
               "source": "github",
               "points": -10,
+              "pointsKind": "forgone",
               "criterionId": "gh:spring boot"
             },
             {
@@ -2807,6 +2863,7 @@
               },
               "source": "github",
               "points": -10,
+              "pointsKind": "forgone",
               "criterionId": "gh:oracle"
             }
           ],
@@ -3240,6 +3297,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:java"
             },
             {
@@ -3252,6 +3310,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:spring boot"
             },
             {
@@ -3264,6 +3323,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:kafka"
             },
             {
@@ -3276,6 +3336,7 @@
               },
               "source": "skills",
               "points": 16,
+              "pointsKind": "term",
               "criterionId": "skill:rest"
             }
           ],
@@ -3290,6 +3351,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:oracle"
             },
             {
@@ -3302,6 +3364,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:microservices architecture"
             }
           ],
@@ -3416,6 +3479,7 @@
               },
               "source": "evidenceTrace",
               "points": 52,
+              "pointsKind": "term",
               "evidence": [
                 "9 years detected"
               ],
@@ -3431,6 +3495,7 @@
               },
               "source": "scoreParts",
               "points": 42,
+              "pointsKind": "term",
               "evidence": [
                 "Seniority inferred as senior; role seniority score 20"
               ],
@@ -3449,6 +3514,7 @@
               },
               "source": "scoreParts",
               "points": -6,
+              "pointsKind": "forgone",
               "criterionId": "seniority"
             }
           ],
@@ -3521,6 +3587,7 @@
               },
               "source": "softSignal",
               "points": 6,
+              "pointsKind": "term",
               "evidence": [
                 "Shipped payment and core-banking integrations under audit and change-control rules."
               ],
@@ -3535,6 +3602,7 @@
               },
               "source": "softSignal",
               "points": -6,
+              "pointsKind": "term",
               "evidence": [
                 "Outcomes are stated for the team; the candidate's own share is not separated out."
               ],
@@ -3641,6 +3709,7 @@
               },
               "source": "trust",
               "points": -15,
+              "pointsKind": "term",
               "criterionId": "trust:date_gap"
             }
           ],
@@ -4021,6 +4090,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:java"
             },
             {
@@ -4033,6 +4103,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:spring boot"
             },
             {
@@ -4045,6 +4116,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:oracle"
             },
             {
@@ -4057,6 +4129,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:kafka"
             },
             {
@@ -4069,6 +4142,7 @@
               },
               "source": "skills",
               "points": 16,
+              "pointsKind": "term",
               "criterionId": "skill:rest"
             },
             {
@@ -4081,6 +4155,7 @@
               },
               "source": "skills",
               "points": 16,
+              "pointsKind": "term",
               "criterionId": "skill:microservices architecture"
             }
           ],
@@ -4196,6 +4271,7 @@
               },
               "source": "scoreParts",
               "points": 19,
+              "pointsKind": "term",
               "evidence": [
                 "Seniority inferred as junior; role seniority score 11"
               ],
@@ -4211,6 +4287,7 @@
               },
               "source": "evidenceTrace",
               "points": 16,
+              "pointsKind": "term",
               "evidence": [
                 "0 years detected"
               ],
@@ -4229,6 +4306,7 @@
               },
               "source": "scoreParts",
               "points": -35,
+              "pointsKind": "forgone",
               "criterionId": "minYears"
             },
             {
@@ -4242,6 +4320,7 @@
               },
               "source": "scoreParts",
               "points": -29,
+              "pointsKind": "forgone",
               "criterionId": "seniority"
             }
           ],
@@ -4314,6 +4393,7 @@
               },
               "source": "softSignal",
               "points": 7,
+              "pointsKind": "term",
               "evidence": [
                 "Moved from coursework to a production Spring service within one internship."
               ],
@@ -4440,6 +4520,7 @@
               },
               "source": "band",
               "points": -68,
+              "pointsKind": "term",
               "criterionId": "band"
             }
           ],
@@ -4749,6 +4830,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:java"
             }
           ],
@@ -4763,6 +4845,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:spring boot"
             },
             {
@@ -4775,6 +4858,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:oracle"
             },
             {
@@ -4787,6 +4871,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:kafka"
             },
             {
@@ -4799,6 +4884,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:rest"
             },
             {
@@ -4811,6 +4897,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:microservices architecture"
             }
           ],
@@ -4925,6 +5012,7 @@
               },
               "source": "evidenceTrace",
               "points": 37,
+              "pointsKind": "term",
               "evidence": [
                 "5 years detected"
               ],
@@ -4940,6 +5028,7 @@
               },
               "source": "scoreParts",
               "points": 19,
+              "pointsKind": "term",
               "evidence": [
                 "Seniority inferred as junior; role seniority score 11"
               ],
@@ -4958,6 +5047,7 @@
               },
               "source": "scoreParts",
               "points": -29,
+              "pointsKind": "forgone",
               "criterionId": "seniority"
             },
             {
@@ -4971,6 +5061,7 @@
               },
               "source": "scoreParts",
               "points": -15,
+              "pointsKind": "forgone",
               "criterionId": "minYears"
             }
           ],
@@ -5043,6 +5134,7 @@
               },
               "source": "softSignal",
               "points": 6,
+              "pointsKind": "term",
               "evidence": [
                 "Moved from coursework to a production Spring service within one internship."
               ],
@@ -5057,6 +5149,7 @@
               },
               "source": "softSignal",
               "points": -5,
+              "pointsKind": "term",
               "evidence": [
                 "Several listed technologies appear in no project or role description."
               ],
@@ -5477,6 +5570,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:java"
             },
             {
@@ -5489,6 +5583,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:spring boot"
             },
             {
@@ -5501,6 +5596,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:oracle"
             },
             {
@@ -5513,6 +5609,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:kafka"
             },
             {
@@ -5525,6 +5622,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:rest"
             },
             {
@@ -5537,6 +5635,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:microservices architecture"
             }
           ],
@@ -5651,6 +5750,7 @@
               },
               "source": "evidenceTrace",
               "points": 52,
+              "pointsKind": "term",
               "evidence": [
                 "9 years detected"
               ],
@@ -5666,6 +5766,7 @@
               },
               "source": "scoreParts",
               "points": 42,
+              "pointsKind": "term",
               "evidence": [
                 "Seniority inferred as senior; role seniority score 20"
               ],
@@ -5684,6 +5785,7 @@
               },
               "source": "scoreParts",
               "points": -6,
+              "pointsKind": "forgone",
               "criterionId": "seniority"
             }
           ],
@@ -5756,6 +5858,7 @@
               },
               "source": "softSignal",
               "points": 7,
+              "pointsKind": "term",
               "evidence": [
                 "Shipped payment and core-banking integrations under audit and change-control rules."
               ],
@@ -5768,6 +5871,7 @@
               },
               "source": "softSignal",
               "points": 7,
+              "pointsKind": "term",
               "evidence": [
                 "Results are quantified (latency, throughput, cost) rather than listed as duties."
               ],
@@ -6330,6 +6434,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:java"
             },
             {
@@ -6342,6 +6447,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:spring boot"
             },
             {
@@ -6354,6 +6460,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:kafka"
             },
             {
@@ -6366,6 +6473,7 @@
               },
               "source": "skills",
               "points": 16,
+              "pointsKind": "term",
               "criterionId": "skill:rest"
             }
           ],
@@ -6380,6 +6488,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:microservices architecture"
             }
           ],
@@ -6506,6 +6615,7 @@
               },
               "source": "evidenceTrace",
               "points": 52,
+              "pointsKind": "term",
               "evidence": [
                 "11 years detected"
               ],
@@ -6521,6 +6631,7 @@
               },
               "source": "scoreParts",
               "points": 44,
+              "pointsKind": "term",
               "evidence": [
                 "Seniority inferred as senior; role seniority score 20"
               ],
@@ -6539,6 +6650,7 @@
               },
               "source": "scoreParts",
               "points": -4,
+              "pointsKind": "forgone",
               "criterionId": "seniority"
             }
           ],
@@ -6611,6 +6723,7 @@
               },
               "source": "softSignal",
               "points": 8,
+              "pointsKind": "term",
               "evidence": [
                 "Shipped payment and core-banking integrations under audit and change-control rules."
               ],
@@ -6623,6 +6736,7 @@
               },
               "source": "softSignal",
               "points": 6,
+              "pointsKind": "term",
               "evidence": [
                 "Mentored two engineers through a promotion cycle and ran the team's code-review guild."
               ],
@@ -6637,6 +6751,7 @@
               },
               "source": "softSignal",
               "points": -3,
+              "pointsKind": "term",
               "evidence": [
                 "The last six years show the same service and the same responsibilities."
               ],
@@ -7107,6 +7222,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:java"
             },
             {
@@ -7119,6 +7235,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:spring boot"
             },
             {
@@ -7131,6 +7248,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:oracle"
             },
             {
@@ -7143,6 +7261,7 @@
               },
               "source": "skills",
               "points": 16,
+              "pointsKind": "term",
               "criterionId": "skill:kafka"
             },
             {
@@ -7155,6 +7274,7 @@
               },
               "source": "skills",
               "points": 16,
+              "pointsKind": "term",
               "criterionId": "skill:microservices architecture"
             }
           ],
@@ -7169,6 +7289,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:rest"
             }
           ],
@@ -7283,6 +7404,7 @@
               },
               "source": "scoreParts",
               "points": 19,
+              "pointsKind": "term",
               "evidence": [
                 "Seniority inferred as junior; role seniority score 11"
               ],
@@ -7298,6 +7420,7 @@
               },
               "source": "evidenceTrace",
               "points": 16,
+              "pointsKind": "term",
               "evidence": [
                 "0 years detected"
               ],
@@ -7316,6 +7439,7 @@
               },
               "source": "scoreParts",
               "points": -35,
+              "pointsKind": "forgone",
               "criterionId": "minYears"
             },
             {
@@ -7329,6 +7453,7 @@
               },
               "source": "scoreParts",
               "points": -29,
+              "pointsKind": "forgone",
               "criterionId": "seniority"
             }
           ],
@@ -7401,6 +7526,7 @@
               },
               "source": "softSignal",
               "points": 8,
+              "pointsKind": "term",
               "evidence": [
                 "Moved from coursework to a production Spring service within one internship."
               ],
@@ -7527,6 +7653,7 @@
               },
               "source": "band",
               "points": -65,
+              "pointsKind": "term",
               "criterionId": "band"
             }
           ],
@@ -7829,6 +7956,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:java"
             },
             {
@@ -7841,6 +7969,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:spring boot"
             },
             {
@@ -7853,6 +7982,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:oracle"
             },
             {
@@ -7865,6 +7995,7 @@
               },
               "source": "skills",
               "points": 16,
+              "pointsKind": "term",
               "criterionId": "skill:kafka"
             },
             {
@@ -7877,6 +8008,7 @@
               },
               "source": "skills",
               "points": 16,
+              "pointsKind": "term",
               "criterionId": "skill:microservices architecture"
             }
           ],
@@ -7891,6 +8023,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:rest"
             }
           ],
@@ -8005,6 +8138,7 @@
               },
               "source": "scoreParts",
               "points": 19,
+              "pointsKind": "term",
               "evidence": [
                 "Seniority inferred as junior; role seniority score 11"
               ],
@@ -8020,6 +8154,7 @@
               },
               "source": "evidenceTrace",
               "points": 16,
+              "pointsKind": "term",
               "evidence": [
                 "0 years detected"
               ],
@@ -8038,6 +8173,7 @@
               },
               "source": "scoreParts",
               "points": -35,
+              "pointsKind": "forgone",
               "criterionId": "minYears"
             },
             {
@@ -8051,6 +8187,7 @@
               },
               "source": "scoreParts",
               "points": -29,
+              "pointsKind": "forgone",
               "criterionId": "seniority"
             }
           ],
@@ -8123,6 +8260,7 @@
               },
               "source": "softSignal",
               "points": 6,
+              "pointsKind": "term",
               "evidence": [
                 "Moved from coursework to a production Spring service within one internship."
               ],
@@ -8137,6 +8275,7 @@
               },
               "source": "softSignal",
               "points": -4,
+              "pointsKind": "term",
               "evidence": [
                 "Several listed technologies appear in no project or role description."
               ],
@@ -8280,6 +8419,7 @@
               },
               "source": "band",
               "points": -71,
+              "pointsKind": "term",
               "criterionId": "band"
             }
           ],
@@ -8604,6 +8744,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:java"
             },
             {
@@ -8616,6 +8757,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:spring boot"
             },
             {
@@ -8628,6 +8770,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:kafka"
             },
             {
@@ -8640,6 +8783,7 @@
               },
               "source": "skills",
               "points": 16,
+              "pointsKind": "term",
               "criterionId": "skill:rest"
             }
           ],
@@ -8654,6 +8798,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:oracle"
             },
             {
@@ -8666,6 +8811,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:microservices architecture"
             }
           ],
@@ -8780,6 +8926,7 @@
               },
               "source": "scoreParts",
               "points": 19,
+              "pointsKind": "term",
               "evidence": [
                 "Seniority inferred as junior; role seniority score 11"
               ],
@@ -8795,6 +8942,7 @@
               },
               "source": "evidenceTrace",
               "points": 16,
+              "pointsKind": "term",
               "evidence": [
                 "0 years detected"
               ],
@@ -8813,6 +8961,7 @@
               },
               "source": "scoreParts",
               "points": -35,
+              "pointsKind": "forgone",
               "criterionId": "minYears"
             },
             {
@@ -8826,6 +8975,7 @@
               },
               "source": "scoreParts",
               "points": -29,
+              "pointsKind": "forgone",
               "criterionId": "seniority"
             }
           ],
@@ -8898,6 +9048,7 @@
               },
               "source": "softSignal",
               "points": 11,
+              "pointsKind": "term",
               "evidence": [
                 "Moved from coursework to a production Spring service within one internship."
               ],
@@ -8910,6 +9061,7 @@
               },
               "source": "softSignal",
               "points": 10,
+              "pointsKind": "term",
               "evidence": [
                 "Results are quantified (latency, throughput, cost) rather than listed as duties."
               ],
@@ -8922,6 +9074,7 @@
               },
               "source": "softSignal",
               "points": 6,
+              "pointsKind": "term",
               "evidence": [
                 "Mentored two engineers through a promotion cycle and ran the team's code-review guild."
               ],
@@ -8936,6 +9089,7 @@
               },
               "source": "softSignal",
               "points": -5,
+              "pointsKind": "term",
               "evidence": [
                 "Several listed technologies appear in no project or role description."
               ],
@@ -9070,6 +9224,7 @@
               },
               "source": "trust",
               "points": -40,
+              "pointsKind": "term",
               "criterionId": "trust:duplicate_text"
             }
           ],
@@ -9132,6 +9287,7 @@
               },
               "source": "band",
               "points": -75,
+              "pointsKind": "term",
               "criterionId": "band"
             }
           ],
@@ -9484,6 +9640,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:kafka"
             }
           ],
@@ -9498,6 +9655,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:java"
             },
             {
@@ -9510,6 +9668,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:spring boot"
             },
             {
@@ -9522,6 +9681,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:oracle"
             },
             {
@@ -9534,6 +9694,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:rest"
             },
             {
@@ -9546,6 +9707,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:microservices architecture"
             }
           ],
@@ -9660,6 +9822,7 @@
               },
               "source": "evidenceTrace",
               "points": 50,
+              "pointsKind": "term",
               "evidence": [
                 "8 years detected"
               ],
@@ -9675,6 +9838,7 @@
               },
               "source": "scoreParts",
               "points": 42,
+              "pointsKind": "term",
               "evidence": [
                 "Seniority inferred as senior; role seniority score 20"
               ],
@@ -9693,6 +9857,7 @@
               },
               "source": "scoreParts",
               "points": -6,
+              "pointsKind": "forgone",
               "criterionId": "seniority"
             },
             {
@@ -9706,6 +9871,7 @@
               },
               "source": "scoreParts",
               "points": -2,
+              "pointsKind": "forgone",
               "criterionId": "minYears"
             }
           ],
@@ -9778,6 +9944,7 @@
               },
               "source": "softSignal",
               "points": 7,
+              "pointsKind": "term",
               "evidence": [
                 "Results are quantified (latency, throughput, cost) rather than listed as duties."
               ],
@@ -9790,6 +9957,7 @@
               },
               "source": "softSignal",
               "points": 6,
+              "pointsKind": "term",
               "evidence": [
                 "Ran the on-call rota and carried a service rewrite through to measured latency gains."
               ],
@@ -10244,6 +10412,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:java"
             },
             {
@@ -10256,6 +10425,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:spring boot"
             },
             {
@@ -10268,6 +10438,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:oracle"
             },
             {
@@ -10280,6 +10451,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:kafka"
             },
             {
@@ -10292,6 +10464,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:rest"
             },
             {
@@ -10304,6 +10477,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:microservices architecture"
             }
           ],
@@ -10418,6 +10592,7 @@
               },
               "source": "evidenceTrace",
               "points": 52,
+              "pointsKind": "term",
               "evidence": [
                 "10 years detected"
               ],
@@ -10433,6 +10608,7 @@
               },
               "source": "scoreParts",
               "points": 42,
+              "pointsKind": "term",
               "evidence": [
                 "Seniority inferred as senior; role seniority score 20"
               ],
@@ -10451,6 +10627,7 @@
               },
               "source": "scoreParts",
               "points": -6,
+              "pointsKind": "forgone",
               "criterionId": "seniority"
             }
           ],
@@ -10523,6 +10700,7 @@
               },
               "source": "softSignal",
               "points": 11,
+              "pointsKind": "term",
               "evidence": [
                 "Ran the on-call rota and carried a service rewrite through to measured latency gains."
               ],
@@ -10535,6 +10713,7 @@
               },
               "source": "softSignal",
               "points": 10,
+              "pointsKind": "term",
               "evidence": [
                 "Mentored two engineers through a promotion cycle and ran the team's code-review guild."
               ],
@@ -10547,6 +10726,7 @@
               },
               "source": "softSignal",
               "points": 7,
+              "pointsKind": "term",
               "evidence": [
                 "Shipped payment and core-banking integrations under audit and change-control rules."
               ],
@@ -11003,6 +11183,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:rest"
             }
           ],
@@ -11017,6 +11198,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:java"
             },
             {
@@ -11029,6 +11211,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:spring boot"
             },
             {
@@ -11041,6 +11224,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:oracle"
             },
             {
@@ -11053,6 +11237,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:kafka"
             },
             {
@@ -11065,6 +11250,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:microservices architecture"
             }
           ],
@@ -11179,6 +11365,7 @@
               },
               "source": "evidenceTrace",
               "points": 52,
+              "pointsKind": "term",
               "evidence": [
                 "9 years detected"
               ],
@@ -11194,6 +11381,7 @@
               },
               "source": "scoreParts",
               "points": 42,
+              "pointsKind": "term",
               "evidence": [
                 "Seniority inferred as senior; role seniority score 20"
               ],
@@ -11212,6 +11400,7 @@
               },
               "source": "scoreParts",
               "points": -6,
+              "pointsKind": "forgone",
               "criterionId": "seniority"
             }
           ],
@@ -11284,6 +11473,7 @@
               },
               "source": "softSignal",
               "points": 7,
+              "pointsKind": "term",
               "evidence": [
                 "Ran the on-call rota and carried a service rewrite through to measured latency gains."
               ],
@@ -11298,6 +11488,7 @@
               },
               "source": "softSignal",
               "points": -6,
+              "pointsKind": "term",
               "evidence": [
                 "Three employers in four years; each role ended before a full delivery cycle."
               ],
@@ -11724,6 +11915,7 @@
               },
               "source": "skills",
               "points": 17,
+              "pointsKind": "term",
               "criterionId": "skill:rest"
             }
           ],
@@ -11738,6 +11930,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:java"
             },
             {
@@ -11750,6 +11943,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:spring boot"
             },
             {
@@ -11762,6 +11956,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:oracle"
             },
             {
@@ -11774,6 +11969,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:kafka"
             },
             {
@@ -11786,6 +11982,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:microservices architecture"
             }
           ],
@@ -11900,6 +12097,7 @@
               },
               "source": "evidenceTrace",
               "points": 52,
+              "pointsKind": "term",
               "evidence": [
                 "9 years detected"
               ],
@@ -11915,6 +12113,7 @@
               },
               "source": "scoreParts",
               "points": 42,
+              "pointsKind": "term",
               "evidence": [
                 "Seniority inferred as senior; role seniority score 20"
               ],
@@ -11933,6 +12132,7 @@
               },
               "source": "scoreParts",
               "points": -6,
+              "pointsKind": "forgone",
               "criterionId": "seniority"
             }
           ],
@@ -12005,6 +12205,7 @@
               },
               "source": "softSignal",
               "points": 10,
+              "pointsKind": "term",
               "evidence": [
                 "Results are quantified (latency, throughput, cost) rather than listed as duties."
               ],
@@ -12017,6 +12218,7 @@
               },
               "source": "softSignal",
               "points": 9,
+              "pointsKind": "term",
               "evidence": [
                 "Mentored two engineers through a promotion cycle and ran the team's code-review guild."
               ],
@@ -12029,6 +12231,7 @@
               },
               "source": "softSignal",
               "points": 6,
+              "pointsKind": "term",
               "evidence": [
                 "Ran the on-call rota and carried a service rewrite through to measured latency gains."
               ],
@@ -12043,6 +12246,7 @@
               },
               "source": "softSignal",
               "points": -5,
+              "pointsKind": "term",
               "evidence": [
                 "Several listed technologies appear in no project or role description."
               ],
@@ -12185,6 +12389,7 @@
               },
               "source": "trust",
               "points": -15,
+              "pointsKind": "term",
               "criterionId": "trust:skills_unevidenced"
             }
           ],
@@ -12603,6 +12808,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:java"
             },
             {
@@ -12615,6 +12821,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:spring boot"
             },
             {
@@ -12627,6 +12834,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:oracle"
             },
             {
@@ -12639,6 +12847,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:kafka"
             },
             {
@@ -12651,6 +12860,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:rest"
             },
             {
@@ -12663,6 +12873,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:microservices architecture"
             }
           ],
@@ -12777,6 +12988,7 @@
               },
               "source": "evidenceTrace",
               "points": 52,
+              "pointsKind": "term",
               "evidence": [
                 "9 years detected"
               ],
@@ -12792,6 +13004,7 @@
               },
               "source": "scoreParts",
               "points": 42,
+              "pointsKind": "term",
               "evidence": [
                 "Seniority inferred as senior; role seniority score 20"
               ],
@@ -12810,6 +13023,7 @@
               },
               "source": "scoreParts",
               "points": -6,
+              "pointsKind": "forgone",
               "criterionId": "seniority"
             }
           ],
@@ -12882,6 +13096,7 @@
               },
               "source": "softSignal",
               "points": 5,
+              "pointsKind": "term",
               "evidence": [
                 "Shipped payment and core-banking integrations under audit and change-control rules."
               ],
@@ -13408,6 +13623,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:java"
             },
             {
@@ -13420,6 +13636,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:spring boot"
             },
             {
@@ -13432,6 +13649,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:oracle"
             },
             {
@@ -13444,6 +13662,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:kafka"
             },
             {
@@ -13456,6 +13675,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:rest"
             },
             {
@@ -13468,6 +13688,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:microservices architecture"
             }
           ],
@@ -13582,6 +13803,7 @@
               },
               "source": "evidenceTrace",
               "points": 52,
+              "pointsKind": "term",
               "evidence": [
                 "9 years detected"
               ],
@@ -13597,6 +13819,7 @@
               },
               "source": "scoreParts",
               "points": 42,
+              "pointsKind": "term",
               "evidence": [
                 "Seniority inferred as senior; role seniority score 20"
               ],
@@ -13615,6 +13838,7 @@
               },
               "source": "scoreParts",
               "points": -6,
+              "pointsKind": "forgone",
               "criterionId": "seniority"
             }
           ],
@@ -14023,6 +14247,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:java"
             },
             {
@@ -14035,6 +14260,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:spring boot"
             },
             {
@@ -14047,6 +14273,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:oracle"
             },
             {
@@ -14059,6 +14286,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:kafka"
             },
             {
@@ -14071,6 +14299,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:rest"
             },
             {
@@ -14083,6 +14312,7 @@
               },
               "source": "skills",
               "points": -17,
+              "pointsKind": "forgone",
               "criterionId": "skill:microservices architecture"
             }
           ],
@@ -14197,6 +14427,7 @@
               },
               "source": "evidenceTrace",
               "points": 50,
+              "pointsKind": "term",
               "evidence": [
                 "8 years detected"
               ],
@@ -14212,6 +14443,7 @@
               },
               "source": "scoreParts",
               "points": 19,
+              "pointsKind": "term",
               "evidence": [
                 "Seniority inferred as junior; role seniority score 11"
               ],
@@ -14230,6 +14462,7 @@
               },
               "source": "scoreParts",
               "points": -29,
+              "pointsKind": "forgone",
               "criterionId": "seniority"
             },
             {
@@ -14243,6 +14476,7 @@
               },
               "source": "scoreParts",
               "points": -2,
+              "pointsKind": "forgone",
               "criterionId": "minYears"
             }
           ],
@@ -14315,6 +14549,7 @@
               },
               "source": "softSignal",
               "points": 10,
+              "pointsKind": "term",
               "evidence": [
                 "Results are quantified (latency, throughput, cost) rather than listed as duties."
               ],
@@ -14327,6 +14562,7 @@
               },
               "source": "softSignal",
               "points": 8,
+              "pointsKind": "term",
               "evidence": [
                 "Mentored two engineers through a promotion cycle and ran the team's code-review guild."
               ],
@@ -14339,6 +14575,7 @@
               },
               "source": "softSignal",
               "points": 7,
+              "pointsKind": "term",
               "evidence": [
                 "Shipped payment and core-banking integrations under audit and change-control rules."
               ],
@@ -14351,6 +14588,7 @@
               },
               "source": "softSignal",
               "points": 6,
+              "pointsKind": "term",
               "evidence": [
                 "Moved from coursework to a production Spring service within one internship."
               ],
@@ -14493,6 +14731,7 @@
               },
               "source": "band",
               "points": -52,
+              "pointsKind": "term",
               "criterionId": "band"
             }
           ],

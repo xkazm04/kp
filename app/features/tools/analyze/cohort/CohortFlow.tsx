@@ -1,17 +1,20 @@
 "use client";
 
 // The role-first flow over the real routes: 1 pick a role, 2 shape who is compared and start,
-// 3 the comparison drawn live in the chosen world. The recent strip reopens any earlier
+// 3 the comparison drawn live in the Line-up world. The recent strip reopens any earlier
 // comparison without re-running it. The step is remembered for this visit (module memory, not
-// the URL — the URL is an inbox), so leaving the tab mid-run and coming back finds the run.
+// the URL — the URL is an inbox), so leaving the tab mid-run and coming back finds the run. A
+// ?jd= deep link (Library's "Analyze a CV") lands on that role's cast step; the title is the
+// slug until the proposal names the role.
 //
 // The walkthrough runs this same flow against fixture data (CohortWalkthrough provides the
 // source): it passes its own compare step (the simulated run), draws no recent strip (that is
 // the real install's history), marks the call sheet as fixture data, and always starts at the
 // role — its runs live only as long as the walkthrough is mounted.
 import { useCallback, useState, type ReactNode } from "react";
-import type { CohortRunRequest, CohortStatus, CohortVariant } from "./cohortTypes";
+import type { CohortRunRequest, CohortStatus } from "./cohortTypes";
 import type { StudioAct, StudioStep } from "./cohortShell";
+import type { DeepJd } from "./useCohortInbox";
 import { CohortSlate } from "./CohortSlate";
 import { CohortRecentStrip } from "./CohortRecentStrip";
 import { CohortRolePicker } from "./CohortRolePicker";
@@ -29,7 +32,14 @@ export type WalkthroughCompare = (props: {
   onStartOver: () => void;
 }) => ReactNode;
 
-export function CohortFlow({ variant, walkthrough = null }: { variant: Exclude<CohortVariant, "v1">; walkthrough?: WalkthroughCompare | null }) {
+export function CohortFlow({
+  walkthrough = null,
+  deepJd = null,
+}: {
+  walkthrough?: WalkthroughCompare | null;
+  /** A role named by the URL (live flow only): each arrival opens its cast step once. */
+  deepJd?: DeepJd | null;
+}) {
   // Only the live flow is remembered across visits; the walkthrough starts at the role.
   const remember = walkthrough === null;
   const [step, setStepState] = useState<StudioStep>(remember ? remembered.step : START.step);
@@ -59,7 +69,27 @@ export function CohortFlow({ variant, walkthrough = null }: { variant: Exclude<C
     [remember]
   );
 
+  // Adopted during render (the seen-value pattern): the arrival's token, taken once.
+  const [takenSeq, setTakenSeq] = useState(0);
+  if (deepJd && !walkthrough && deepJd.seq !== takenSeq) {
+    setTakenSeq(deepJd.seq);
+    go({ act: "cast", jdSlug: deepJd.slug, jdTitle: deepJd.slug }, { roleTitle: deepJd.slug, castCount: null, status: null });
+  }
+
   const onCount = useCallback((castCount: number) => noteFacts({ castCount }), [noteFacts]);
+  // The proposal names the role: a deep-linked step (titled by its slug) takes the real title.
+  const onTitle = useCallback(
+    (jdTitle: string) => {
+      setStepState((cur) => {
+        if (cur.act !== "cast" || cur.jdTitle === jdTitle) return cur;
+        const next = { ...cur, jdTitle };
+        if (remember) remembered = { ...remembered, step: next };
+        return next;
+      });
+      noteFacts({ roleTitle: jdTitle });
+    },
+    [noteFacts, remember]
+  );
   const onStatus = useCallback(
     (status: CohortStatus, castCount: number, roleTitle: string) => noteFacts({ status, castCount, roleTitle }),
     [noteFacts]
@@ -101,6 +131,7 @@ export function CohortFlow({ variant, walkthrough = null }: { variant: Exclude<C
           key={step.jdSlug}
           jdSlug={step.jdSlug}
           onCount={onCount}
+          onTitle={onTitle}
           onStarted={(id, req) => started(id, req, step.jdTitle)}
           onBack={() => onAct("role")}
         />
@@ -110,7 +141,6 @@ export function CohortFlow({ variant, walkthrough = null }: { variant: Exclude<C
         <CohortCompareStep
           key={step.cohortId}
           cohortId={step.cohortId}
-          variant={variant}
           onStatus={onStatus}
           onSettled={settled}
           onRestarted={(id, req, jdTitle) => started(id, req, jdTitle)}

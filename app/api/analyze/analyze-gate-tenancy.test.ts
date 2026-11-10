@@ -83,14 +83,14 @@ test("analyze route scopes the in-flight count, the meter read, and the task sta
 const { cleanupUnitDb } = await import("../../_lib/testing/unit-db.ts");
 after(cleanupUnitDb);
 
-const { createTask, listRecentTasks, DEFAULT_WORKSPACE_ID } = await import("../../_lib/db.ts");
+const { createTask, getTask, listRecentTasks, DEFAULT_WORKSPACE_ID } = await import("../../_lib/db.ts");
 
-// The EXACT expression the route uses to count in-flight analyze reservations for a
-// tenant — kept in lockstep here so the test drives the real filter, not a paraphrase.
+const { inFlightCandidateUnits } = await import("./in-flight-units.ts");
+
+// The EXACT expression the route uses to count in-flight reservations for a tenant, so the
+// test drives the real count (the shared helper), not a paraphrase.
 function inFlightAnalyzeFor(workspace: string): number {
-  return listRecentTasks(new Date().toISOString(), 200, workspace).filter(
-    (t) => t.kind === "analyze" && (t.status === "queued" || t.status === "running"),
-  ).length;
+  return inFlightCandidateUnits(listRecentTasks(new Date().toISOString(), 200, workspace), (id) => getTask(id, workspace)?.params);
 }
 
 test("tenant B's in-flight analyze runs don't count against tenant A's gate", () => {
@@ -113,4 +113,18 @@ test("tenant B's in-flight analyze runs don't count against tenant A's gate", ()
 
   // The pre-fix behavior (all rows under the default workspace) would have made A's
   // count 4 — enough of B's burst to exhaust a small cap and block A. Scoping fixes it.
+});
+
+test("an in-flight cohort's declared fresh units count at the analyze door too", () => {
+  const C = "team-c";
+  createTask("t-c1", "analyze", "analyze:c1", "Analyze · C", { variants: [] }, C);
+  createTask("t-c-cohort", "analyze_cohort", "analyze_cohort:c", "Cohort · C", { cohortId: "coh-c", freshCount: 4 }, C);
+  // A cohort that reuses everyone declares 0 and reserves nothing.
+  createTask("t-c-reused", "analyze_cohort", "analyze_cohort:c2", "Cohort · C2", { cohortId: "coh-c2", freshCount: 0 }, C);
+  assert.equal(inFlightAnalyzeFor(C), 5, "one analyze task + the cohort's four fresh units");
+  // Both doors count through the one helper (no second copy of the rule to drift).
+  for (const rel of ["./route.ts", "./cohort/route.ts"]) {
+    const src = readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
+    assert.match(src, /inFlightCandidateUnits\(listRecentTasks\(/, `${rel} counts through inFlightCandidateUnits`);
+  }
 });

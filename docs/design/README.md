@@ -540,9 +540,9 @@ and imported by nothing. `Radio` even carried its own a11y source-guard
 (`radio.a11y.test.ts`), which made it read as *more* alive than the primitives
 that actually ship — and every apparent `<Radio` in the tree resolved to the
 `lucide-react` icon of the same name. `FileInput`'s one real idea, the
-`focus-within` ring on a label wrapping an `sr-only` file input, already lives on
-as `DROP_ZONE_FOCUS` in `app/features/tools/analyze/analyzeSurfaces.ts`, which is
-now its only copy. Single-choice input, when a surface needs one: group native
+`focus-within` ring on a label wrapping an `sr-only` file input, lived on as
+`DROP_ZONE_FOCUS` in the v1 Analyze form until that form was retired (2026-11-10, in
+git history); a new file drop zone should bring it back as a recipe. Single-choice input, when a surface needs one: group native
 `<input type="radio">` with a shared `name`, or reach for `SegmentedControl`.
 
 `app/_components/primitives-have-consumers.test.ts` now holds the line — a

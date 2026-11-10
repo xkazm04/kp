@@ -74,6 +74,7 @@ export function CohortProposalTray({
           {matched > 0 ? t("leftOutMatched", { n: matched, cap: COHORT_CAP }) : null}
         </p>
       ) : null}
+      {proposal.skipped > 0 ? <p className="text-body text-steel">{t("skipped", { n: proposal.skipped })}</p> : null}
 
       {n === 0 ? (
         <div className={`${PANEL_SUNKEN} space-y-2 p-6`}>

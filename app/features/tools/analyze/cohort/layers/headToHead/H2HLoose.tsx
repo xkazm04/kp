@@ -3,7 +3,8 @@
 import { useTranslations } from "next-intl";
 import type { CohortDimension, CohortMember, CohortView, Reason } from "../../cohortTypes";
 import { alignLoose, type OwnReasons } from "./headToHeadModel";
-import { ReasonLine, signed, usePhrase } from "./h2hParts";
+import { usePhrase } from "../../usePhrase";
+import { ReasonLine, signed } from "./h2hParts";
 
 function OwnCell({ own }: { own: OwnReasons }) {
   const t = useTranslations("analyzeCohort.layerHeadToHead.loose");

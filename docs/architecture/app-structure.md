@@ -1265,8 +1265,8 @@ Some tests read component source as *text* rather than importing it (path-
 and-string assertions) — a rename or split must update these too:
 `tools/devcases/DevTab.approve-error.test.ts`,
 `insights/analytics/analyticsCalibrationFamilyApplyGate.test.ts`,
-`tools/analyze/analyzeDropRouting.test.ts`,
-`tools/analyze/analyzeFileIntakeGate.test.ts`,
+`tools/analyze/analyzeJdLibraryState.test.ts`,
+`tools/analyze/analyzeDesignSurface.test.ts`,
 `hiring/decisions/groupEval/groupEvalComparisonLeadCrown.test.ts`, plus
 `app/api/jds/save/save-ingest-contract.test.ts` and `app/_lib/fit-thresholds.test.ts`
 outside the features tree.

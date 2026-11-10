@@ -6,7 +6,8 @@ import { ScenePress } from "@/app/_components/kit/scene";
 import { ABSENT } from "@/app/_components/kit";
 import type { CohortDimension, CohortMember, CohortView } from "../../cohortTypes";
 import { alignCriteria, type CriterionCell, type CriterionRow } from "./headToHeadModel";
-import { ReasonLine, StatusGlyph, usePhrase } from "./h2hParts";
+import { usePhrase } from "../../usePhrase";
+import { ReasonLine, StatusGlyph } from "./h2hParts";
 
 const FOLD = "hh-fold";
 

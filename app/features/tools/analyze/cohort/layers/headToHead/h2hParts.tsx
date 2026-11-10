@@ -1,26 +1,10 @@
 "use client";
 
-import { useCallback, useId, useState } from "react";
+import { useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import { ScenePress } from "@/app/_components/kit/scene";
-import { isTextPhrase, type CriterionStatus, type Phrase, type Reason } from "../../cohortTypes";
-
-/**
- * A why-phrase in the reader's language: code-made words are keys under analyzeCohort.why, the
- * analysis's own prose renders verbatim. A key the catalog does not hold renders nothing rather
- * than the raw key (the engine's fixture test pins that every key resolves).
- */
-export function usePhrase(): (p: Phrase) => string {
-  const t = useTranslations("analyzeCohort.why");
-  return useCallback(
-    (p: Phrase) => {
-      if (isTextPhrase(p)) return p.text;
-      const key = p.key as Parameters<typeof t>[0];
-      return t.has(key) ? t(key, p.params as Record<string, string | number> | undefined) : "";
-    },
-    [t]
-  );
-}
+import type { CriterionStatus, Reason } from "../../cohortTypes";
+import { usePhrase } from "../../usePhrase";
 
 /** A signed rating-point figure with a typographic minus ("+17", "−17", "0"). */
 export const signed = (n: number): string => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : "0");

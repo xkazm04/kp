@@ -57,8 +57,9 @@ The Python suite covers insights rules, PDF parsing quality, the matching engine
 Claude CLI provider, the automation tasks, fairness gates, and the full devcase module
 (analyze/design/source/evaluate/reflect/provenance). Tests that would need a live LLM
 are skipped unless enabled (`KP_CLAUDE_CLI_LIVE=1`). Playwright splits into
-`e2e/analyze-smoke.spec.ts` (LLM-backed Analyze flow across input combinations, skips
-cleanly without a Gemini key, includes a11y checks) and `e2e/profile-builder.spec.ts`
+`e2e/analyze-cohort.spec.ts` (the Analyze cohort studio, keyless: the live studio's
+inbox, then role → Line-up → every nested layer on the dev-only walkthrough data; the
+v1 form's LLM-backed `analyze-smoke.spec.ts` was retired with the form) and `e2e/profile-builder.spec.ts`
 (deterministic build/save round-trip, no API key needed). The deterministic keyless
 e2e subset and how to run it against an already-running server are listed in
 [`.claude/CLAUDE.md`](../../.claude/CLAUDE.md) under "Common Commands"; the list

@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import type { Phrase } from "../../cohortTypes";
 import { LABEL_MIN_PCT, signed, type Geometry, type Seg } from "./anatomyModel";
-import { useTerse } from "./usePhrase";
+import { useTerse } from "./useTerse";
 
 /** Where the first in order sits on the shared scale, and whether the claim lets it lead. */
 export interface Guide {

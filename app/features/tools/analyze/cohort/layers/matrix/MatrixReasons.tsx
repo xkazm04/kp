@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/app/_components/kit";
 import type { Reason } from "../../cohortTypes";
 import { signed } from "./matrixModel";
-import { usePhrase } from "./usePhrase";
+import { usePhrase } from "../../usePhrase";
 
 /**
  * One reason: its phrase, its points ONLY when the rating is a formula (signed when they are a term

@@ -93,6 +93,7 @@ test("applicants come first, the matched top-up follows in rank order, and a no-
   assert.equal(p.members.find((m) => m.memberId === "m-ko"), undefined, "a KO-failed row is not a top-up");
   assert.equal(p.cap, COHORT_CAP);
   assert.deepEqual(p.leftOut, { applicants: 0, matched: 0 });
+  assert.equal(p.skipped, 1, "the no-CV applicant is counted, not silently dropped");
   assert.equal(p.jdTitle, "Backend Engineer");
 });
 

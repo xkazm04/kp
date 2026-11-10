@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import type { CohortDimension, MemberDimensionWhy, ScoreAnatomy } from "../../cohortTypes";
 import { anatomySum, criteriaTally, signed } from "./ledgerModel";
 import { FullReasons } from "./LedgerReasons";
-import { usePhrase } from "./usePhrase";
+import { usePhrase } from "../../usePhrase";
 
 /**
  * The anatomy as the sum it is: base, then every part signed, then the rating. The engine promises

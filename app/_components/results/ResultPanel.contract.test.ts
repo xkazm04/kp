@@ -15,7 +15,6 @@ import { fileURLToPath } from "node:url";
 
 const src = readFileSync(fileURLToPath(new URL("./ResultPanel.tsx", import.meta.url)), "utf8");
 const history = readFileSync(fileURLToPath(new URL("../../history/[slug]/page.tsx", import.meta.url)), "utf8");
-const live = readFileSync(fileURLToPath(new URL("../../features/tools/analyze/AnalyzeTab.tsx", import.meta.url)), "utf8");
 
 test("self-check: ResultPanel.tsx was read", () => {
   assert.ok(src.includes("export function ResultPanel"), "ResultPanel.tsx did not parse as expected");
@@ -39,13 +38,10 @@ test("an unsaved run (no analysisSlug) omits the editor", () => {
   assert.doesNotMatch(src, /<DispositionEditor(?![^>]*slug=\{analysisSlug\})/);
 });
 
-test("the live tab already hands the slug through after persist", () => {
-  assert.match(live, /analysisSlug=\{result\.analysis\.persistence\?\.slug/);
-});
-
+// The v1 Analyze form (the one caller that passed liveReportActions) was retired; the branch
+// stays pinned while ResultPanel still offers it.
 test("persisted live results expose actions linked to the saved report", () => {
   const actions = readFileSync(fileURLToPath(new URL("./ReportActions.tsx", import.meta.url)), "utf8");
-  assert.match(live, /liveReportActions/);
   assert.match(src, /liveReportActions && analysisSlug \? \(/);
   assert.match(src, /reportPath=\{`\/history\/\$\{encodeURIComponent\(analysisSlug\)\}`\}/);
   assert.match(actions, /new URL\(reportPath \?\? window\.location\.href, window\.location\.origin\)/);

@@ -9,7 +9,7 @@ import { useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
-import type { CohortRunRequest, CohortStatus, CohortVariant, CohortView } from "./cohortTypes";
+import type { CohortRunRequest, CohortStatus, CohortView } from "./cohortTypes";
 import { narrativeWithheld, pendingShape, type WalkthroughRun } from "./cohortWalkthroughModel";
 import { useWalkthroughRun } from "./useWalkthroughRun";
 import { CohortComparison } from "./CohortComparison";
@@ -18,14 +18,12 @@ export function CohortWalkthroughCompare({
   done,
   running,
   request,
-  variant,
   onStatus,
   onStartOver,
 }: {
   done: CohortView;
   running: CohortView;
   request: CohortRunRequest;
-  variant: Exclude<CohortVariant, "v1">;
   onStatus: (status: CohortStatus, castCount: number, roleTitle: string) => void;
   onStartOver: () => void;
 }) {
@@ -48,7 +46,7 @@ export function CohortWalkthroughCompare({
         ) : null}
       </div>
       {finished && narrativeWithheld(run) ? <p className="text-body text-steel">{t("narrativeWithheld")}</p> : null}
-      <CohortComparison view={view} variant={variant} />
+      <CohortComparison view={view} />
     </div>
   );
 }

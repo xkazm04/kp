@@ -23,6 +23,7 @@ import type {
   DimensionCriterion,
   MemberDimensionWhy,
   Phrase,
+  PointsKind,
   Reason,
   ReasonSource,
   ReasonTone,
@@ -79,10 +80,13 @@ function reason(
   tone: ReasonTone,
   phrase: Phrase,
   source: ReasonSource,
-  extra: { points?: number; evidence?: string[]; criterionId?: string } = {}
+  extra: { points?: number; pointsKind?: PointsKind; evidence?: string[]; criterionId?: string } = {}
 ): Reason {
   const out: Reason = { tone, phrase, source };
-  if (extra.points !== undefined) out.points = extra.points;
+  if (extra.points !== undefined) {
+    out.points = extra.points;
+    out.pointsKind = extra.pointsKind ?? "term";
+  }
   if (extra.evidence?.length) out.evidence = extra.evidence;
   if (extra.criterionId) out.criterionId = extra.criterionId;
   return out;
@@ -112,7 +116,8 @@ export function capReasons(list: Reason[]): Reason[] {
     dropped[0].tone,
     { key: "more", params: { n: dropped.length } },
     dropped[0].source,
-    scored.length ? { points: sum(scored.map((r) => r.points!)) } : {}
+    // A list's points are one kind (a dimension's cons are all shortfalls or all terms).
+    scored.length ? { points: sum(scored.map((r) => r.points!)), pointsKind: scored[0].pointsKind } : {}
   );
   return [...ranked.slice(0, WHY_CAP), more];
 }
@@ -238,7 +243,7 @@ export function skillsWhy(a: Analysis, r: Redact): Why | null {
     },
     {
       pros: sets.matched.map((s, i) => reason("pro", matchedPhrase(s), "skills", { points: an.parts[i].points, criterionId: skillCriterionId(s) })),
-      cons: sets.missing.map((s) => reason("con", missingPhrase(s), "skills", { points: cost, criterionId: skillCriterionId(s) })),
+      cons: sets.missing.map((s) => reason("con", missingPhrase(s), "skills", { points: cost, pointsKind: "forgone", criterionId: skillCriterionId(s) })),
       notes: sets.unproven.map((s) =>
         reason("note", unprovenPhrase(s), "unproven", { evidence: texts([unprovenReason(a, s)], r), criterionId: skillCriterionId(s) })
       ),
@@ -269,8 +274,8 @@ export function experienceWhy(a: Analysis, r: Redact, role: RoleContext | null):
   if (levelPts > 0)
     pros.push(reason("pro", { key: "exp.level", params: { seniority } }, "scoreParts", { points: levelPts, evidence: texts(a.evidenceTrace?.seniority, r), criterionId: "seniority" }));
   const cons: Reason[] = [];
-  if (lostExp > 0) cons.push(reason("con", expPhrase, "scoreParts", { points: -lostExp, criterionId: "minYears" }));
-  if (lostLevel > 0) cons.push(reason("con", levelPhrase, "scoreParts", { points: -lostLevel, criterionId: "seniority" }));
+  if (lostExp > 0) cons.push(reason("con", expPhrase, "scoreParts", { points: -lostExp, pointsKind: "forgone", criterionId: "minYears" }));
+  if (lostLevel > 0) cons.push(reason("con", levelPhrase, "scoreParts", { points: -lostLevel, pointsKind: "forgone", criterionId: "seniority" }));
   const [seniorityText] = texts([a.jobFit?.seniorityAlignment], r);
   const min = role?.minYears ?? null;
   return why(
@@ -422,11 +427,11 @@ export function publicWorkWhy(gh: GithubAnalysis): Why {
   const pts = an.parts.map((p) => p.points);
   const [activePts, starsPts] = pts.slice(-2);
   const pros = matched.map((s, i) => reason("pro", skillPhrase(s), "github", { points: pts[i], criterionId: githubCriterionId(s) }));
-  const cons = gaps.map((s) => reason("con", gapPhrase(s), "github", { points: -Math.round(w.skills / f.compared), criterionId: githubCriterionId(s) }));
+  const cons = gaps.map((s) => reason("con", gapPhrase(s), "github", { points: -Math.round(w.skills / f.compared), pointsKind: "forgone", criterionId: githubCriterionId(s) }));
   if (f.active > 0) pros.push(reason("pro", activePhrase, "github", { points: activePts }));
-  else cons.push(reason("con", { key: "gh.noActive" }, "github", { points: -w.active }));
+  else cons.push(reason("con", { key: "gh.noActive" }, "github", { points: -w.active, pointsKind: "forgone" }));
   if (f.stars > 0) pros.push(reason("pro", starsPhrase, "github", { points: starsPts }));
-  else cons.push(reason("con", { key: "gh.noStars" }, "github", { points: -w.stars }));
+  else cons.push(reason("con", { key: "gh.noStars" }, "github", { points: -w.stars, pointsKind: "forgone" }));
   const criteria: Why["criteria"] = {};
   for (const s of matched) criteria[githubCriterionId(s)] = { status: "meets" };
   for (const s of gaps) criteria[githubCriterionId(s)] ??= { status: "misses" };

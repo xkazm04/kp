@@ -20,9 +20,6 @@
       "raw-text-size": 1,
       "raw-button": 1
     },
-    "_components/AnalysisProgress.tsx": {
-      "raw-text-size": 6
-    },
     "_components/Badge.tsx": {
       "raw-text-size": 1,
       "raw-stone-text": 1,
@@ -1948,55 +1945,6 @@
     "features/shell/tasks/TasksTableRow.tsx": {
       "raw-text-size": 9,
       "raw-button": 1
-    },
-    "features/tools/analyze/AnalyzeColumn.tsx": {
-      "below-floor-text": 1,
-      "raw-text-size": 3,
-      "raw-button": 1
-    },
-    "features/tools/analyze/AnalyzeFileDropZone.tsx": {
-      "raw-text-size": 6,
-      "raw-button": 1
-    },
-    "features/tools/analyze/AnalyzeForm.tsx": {
-      "raw-text-size": 5
-    },
-    "features/tools/analyze/AnalyzeFormCollapsed.tsx": {
-      "raw-text-size": 4,
-      "raw-button": 2
-    },
-    "features/tools/analyze/AnalyzeFormFooter.tsx": {
-      "raw-text-size": 6,
-      "raw-status-hue": 5
-    },
-    "features/tools/analyze/AnalyzeFormOptionalColumns.tsx": {
-      "raw-text-size": 2,
-      "raw-status-hue": 3
-    },
-    "features/tools/analyze/AnalyzePasteRow.tsx": {
-      "raw-text-size": 4,
-      "raw-button": 2
-    },
-    "features/tools/analyze/AnalyzeProfileInput.tsx": {
-      "raw-text-size": 5,
-      "raw-button": 3,
-      "bare-rounded": 2
-    },
-    "features/tools/analyze/AnalyzeProfileInputFileList.tsx": {
-      "raw-text-size": 5,
-      "raw-button": 1
-    },
-    "features/tools/analyze/AnalyzeReadabilityStrip.tsx": {
-      "raw-text-size": 5,
-      "raw-status-hue": 1
-    },
-    "features/tools/analyze/AnalyzeSavedJdPicker.tsx": {
-      "raw-text-size": 9,
-      "raw-button": 1
-    },
-    "features/tools/analyze/AnalyzeTab.tsx": {
-      "raw-text-size": 4,
-      "raw-status-hue": 3
     },
     "features/tools/analyze/AnalyzeWorkspace.tsx": {
       "raw-text-size": 1,

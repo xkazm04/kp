@@ -18,7 +18,7 @@ import { AnatomyField } from "./AnatomyField";
 import { AnatomyLegend } from "./AnatomyLegend";
 import { AnatomySheet } from "./AnatomySheet";
 import { useAnatomyKeys } from "./useAnatomyKeys";
-import { usePhrase } from "./usePhrase";
+import { usePhrase } from "../../usePhrase";
 import "../../dimensions/dimensions.css";
 import "./anatomy.css";
 
