@@ -5,7 +5,6 @@ import { AlertTriangle, Ban, Check, Clock, Loader2 } from "lucide-react";
 import { formatRelativeTime } from "@/app/_lib/format";
 import { RECENT_TASK_WINDOW_DAYS } from "@/app/_lib/tasks-window";
 import type { ReplayBlockReason } from "@/app/_lib/task-replay";
-import type { WorkspaceTabId } from "@/app/features/shell/tabs";
 import type { Task, TaskStatus } from "./TasksProvider";
 
 // Default window the live view shows; older runs page in via the history table.
@@ -114,15 +113,13 @@ export function sortTasks(tasks: readonly Task[]): Task[] {
 // retry door decided only after the click. The server now stamps a replay verdict on
 // each row (app/_lib/task-replay.ts — the same function the retry door refuses by),
 // and the row renders from it: Retry where the replay would run, otherwise the reason
-// it cannot and, where one exists, the tab that can re-create the inputs.
-
-/** Where a blocked row sends the recruiter — a tab that can start the work afresh. */
-export type RetryDoor = { tab: WorkspaceTabId };
+// it cannot. There is no door any more: the one kind that had one (analyze, to its
+// upload form) lost both the form and its route on 2026-11-10.
 
 export type RowRetryAction =
   | { kind: "none" }
   | { kind: "retry" }
-  | { kind: "blocked"; reason: ReplayBlockReason; door: RetryDoor | null };
+  | { kind: "blocked"; reason: ReplayBlockReason };
 
 /** The catalog key (`tasks.replay.<key>`) for each blocked reason — the row renders a
  *  CODE through the reader's catalog, never a server sentence. */
@@ -131,10 +128,6 @@ export const REPLAY_REASON_KEY: Record<ReplayBlockReason, "inputsGone" | "kindRe
   "kind-retired": "kindRetired",
   "no-seat": "noSeat",
 };
-
-/** The tab that can re-create a path-bearing kind's inputs. Only analyze today: its
- *  upload lives on the Analyze tab. A seat or retired-kind block has no door. */
-const INPUTS_DOOR: Partial<Record<string, WorkspaceTabId>> = { analyze: "analyze" };
 
 const DEAD_STATUSES: ReadonlySet<TaskStatus> = new Set(["failed", "interrupted", "canceled"]);
 
@@ -145,6 +138,5 @@ export function rowRetryAction(task: Pick<Task, "kind" | "status" | "replay">): 
   if (!DEAD_STATUSES.has(task.status)) return { kind: "none" };
   const replay = task.replay;
   if (replay === undefined || replay === null || replay.replayable) return { kind: "retry" };
-  const tab = replay.reason === "inputs-gone" ? INPUTS_DOOR[task.kind] : undefined;
-  return { kind: "blocked", reason: replay.reason, door: tab ? { tab } : null };
+  return { kind: "blocked", reason: replay.reason };
 }

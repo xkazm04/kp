@@ -212,7 +212,7 @@
       },
       "apply": {
         "title": "Přihláška kandidáta / nahrání CV",
-        "summary": "CV (PDF/DOCX/TXT/MD) nahrané v záložce Analyze se předá Python analyzačnímu CLI jako podproces a výsledek se uloží. Průvodce Profile ukládá strukturovaný profil V2."
+        "summary": "CV (PDF/DOCX/TXT/MD) přichází přes přihlášku nebo kanál a zůstává u kandidáta. V záložce Analýza náborář vybere pozici, CV každého kandidáta se předá Python CLI pro analýzu jako podproces a výsledek se uloží. Řízený formulář Profilu ukládá strukturovaný profil V2."
       },
       "extract": {
         "title": "Extrakce textu + pole z LLM",
@@ -1460,8 +1460,6 @@
     "LOGIN_CREDENTIALS_INVALID": "Nesprávné přihlašovací údaje. Zkuste to znovu.",
     "UPLOAD_UNSUPPORTED_TYPE": "Použijte soubor PDF, DOCX, TXT nebo MD.",
     "UPLOAD_TOO_LARGE": "Tento soubor překračuje limit 8 MB pro nahrání.",
-    "ANALYZE_CV_REQUIRED": "Přiložte životopis nebo profil, který se má analyzovat.",
-    "ANALYZE_TOO_MANY_VARIANTS": "V jednom běhu lze porovnat nejvýše 3 varianty životopisu.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "Toto odevzdání se nepodařilo najít.",
     "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Před spuštěním hlasového screeningu odevzdání vyhodnoťte.",
     "INTERVIEW_ENTRY_NOT_ACTIVE": "Tento kandidát už není aktivní, proto nelze založit novou hodnoticí kartu.",
@@ -5406,7 +5404,7 @@
       "detailOpenPublic": "Otevřít veřejnou stránku",
       "copyPublicLink": "Kopírovat veřejný odkaz",
       "publicLinkCopied": "Zkopírováno",
-      "detailAnalyzeCv": "Analyzovat CV",
+      "detailCompareCandidates": "Porovnat kandidáty na tuto pozici",
       "detailLoadError": "Tento popis se teď nepodařilo načíst.",
       "noDescriptionYet": "Tato pozice zatím nemá popis.",
       "buildingTitle": "Sestavujeme tento popis pozice…",
@@ -5487,7 +5485,7 @@
       "shelfDraftCta": "Nechat návrh na AI",
       "shelfCtaNote": "Panel Generovat převezme štafetu: uložte, co napíšete, jako koncept, nebo to předejte AI, ať sestaví popis, tržní mzdové rozpětí a pracovní zadání.",
       "shelfReuseLabel": "Jeden list využijete pro",
-      "shelfReuseAnalyze": "Hodnocení CV proti němu",
+      "shelfReuseCompare": "Srovnání kandidátů na tuto pozici",
       "shelfReuseIngest": "Převod na otevřenou pozici",
       "shelfReuseDuplicate": "Kopii pro příští nábor",
       "intake": {
@@ -6675,7 +6673,7 @@
       "emptyPrompt": "Vyberte kandidáta a spusťte párování, abyste viděli seřazené, KO-filtrované a ohodnocené pozice.",
       "emptyChainBody": "Kandidáti pocházejí z uložených profilů nebo z uložených analýz CV.",
       "emptyCtaProfile": "Vytvořit profil",
-      "emptyCtaAnalyze": "Analyzovat CV"
+      "emptyCtaCompare": "Porovnat kandidáty na pozici"
     },
     "dims": {
       "skills": "Dovednosti",
@@ -6856,7 +6854,7 @@
       "intro": "Každý uložený profil i analyzované CV, zařazené do archetypu, do kterého byly směrovány. Štítek značí, ze kterého úložiště pochází. Otevřením upravíte profil nebo zobrazíte analýzu.",
       "loadFailed": "Kandidáty se nepodařilo načíst.",
       "emptyTitle": "Zatím žádní kandidáti",
-      "emptyBody": "Vytvořte profil výše nebo nechte analyzovat CV v záložce <b>Analýza</b>. Každý se směruje do archetypu a objeví se tady.",
+      "emptyBody": "Vytvořte profil výše nebo porovnejte kandidáty na pozici v záložce <b>Analýza</b>. Každý se směruje do archetypu a objeví se tady.",
       "openProfileTitle": "Upravit profil: {name}",
       "sourceProfile": "Profil",
       "sourceAnalysis": "Analýza",
@@ -7161,14 +7159,14 @@
       "listTitle": "V kartotéce zatím nejsou žádné karty",
       "listBody": "Profil je jeden strukturovaný záznam o kandidátovi: to, co porovnáváte s otevřenými pozicemi. Zatím sem nebylo nic založeno.",
       "listCta": "Vytvořit profil",
-      "listCtaAnalyze": "Nebo analyzovat CV a povýšit ho na profil",
+      "listCtaCompare": "Nebo porovnat kandidáty na pozici",
       "matrixTitle": "Přihrádky jsou připravené, karty chybí",
       "matrixBodyDefined": "{count, plural, one {Výše jste definovali # archetyp.} few {Výše jste definovali # archetypy.} other {Výše jste definovali # archetypů.}} Každý kandidát se zakládá právě do jednoho. Tento pohled je pak umí porovnat vedle sebe.",
       "matrixBodyNone": "Každý kandidát se zakládá právě do jednoho archetypu a tento pohled je porovnává vedle sebe. Definujte archetyp výše a otevřete první přihrádku.",
       "filed": "{count, plural, one {# založena} few {# založeny} other {# založeno}}",
       "moreArchetypes": "{count, plural, one {+# další} few {+# další} other {+# dalších}}",
       "matrixCta": "Založit první kartu",
-      "matrixCtaAnalyze": "Nebo analyzovat CV"
+      "matrixCtaCompare": "Nebo porovnat kandidáty na pozici"
     }
   },
   "pipelineShape": {
@@ -9996,7 +9994,7 @@
     "notAcceptingTitle": "Poznámka pro náboráře: kandidáti mohou reagovat, jakmile pozici nasadíte do pipeline (záložka Pozice → Nasadit do pipeline). Do té doby se kandidátům nezobrazuje jako aktivní.",
     "publish": "Zveřejnit na pracovních portálech",
     "publishTitle": "Integrace zveřejňování na pracovních portálech se připravuje. Rozešle popis pozice na externí pracovní portály, což je něco jiného než zařazení kandidátů do pipeline",
-    "analyzeCv": "Analyzovat CV",
+    "compareCandidates": "Porovnat kandidáty na tuto pozici",
     "archivedBanner": "Tento popis pozice je archivovaný. Už se nezobrazuje v knihovně ani ve výběru pro analýzu, ale tato stránka (a každý odkaz z analýzy na ni) funguje dál.",
     "editJd": "Upravit popis",
     "archive": "Archivovat",
@@ -12179,8 +12177,7 @@
     "replay": {
       "inputsGone": "Nahrané soubory již nejsou k dispozici, běh proto nelze zopakovat.",
       "kindRetired": "Tento typ úlohy v této verzi již neexistuje.",
-      "noSeat": "Vaše role nemůže tuto úlohu spustit znovu.",
-      "openAnalyze": "Nahrát znovu v Analýze"
+      "noSeat": "Vaše role nemůže tuto úlohu spustit znovu."
     }
   },
   "legal": {

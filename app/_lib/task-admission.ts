@@ -46,7 +46,7 @@ export const TASK_KIND_ADMISSION: Record<TaskKind, TaskAdmission> = {
   campaign: RECRUITER_DOCK,
 
   // ── server: a dedicated route builds the params, then enqueues ──
-  analyze: RECRUITER_SERVER, // /api/analyze — params are paths into its own workdir
+  analyze: RECRUITER_SERVER, // door retired 2026-11-10; legacy rows hold workdir paths
   lifecycle: RECRUITER_SERVER, // /api/devcase/lifecycle, control, [id]/approve
   jd_build: RECRUITER_SERVER, // jd-build-start.ts (/api/jds/generate, intake promote)
   agent_fit: RECRUITER_SERVER, // /api/jobs/[id]/agent-fit

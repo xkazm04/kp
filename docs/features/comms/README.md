@@ -1632,7 +1632,7 @@ already returns alongside the entries. Both rules are pinned by
   the bytes read off the wire (`readTextWithLimit`); the CV branch only fast-rejects
   on the header and then calls `request.formData()`, so a chunked upload that
   declares no length is buffered whole before `validateUploadServer` ever sees a
-  size. Same shape as `/api/analyze` and the public `/api/extract-text`, so the fix
+  size. Same shape as the public `/api/extract-text`, so the fix
   is a shared streaming-multipart cap, not a per-route patch.
 - **Closed: the outreach task names the halt, and the letter doors have their own codes.**
   A halted sequence now reads `suppressed_replied` / `suppressed_manual` /

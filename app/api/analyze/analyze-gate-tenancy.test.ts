@@ -46,27 +46,25 @@ registerHooks({
   },
 });
 
-// ── (a) Source guard: the route wires the workspace through the whole gate ──────
-test("analyze route scopes the in-flight count, the meter read, and the task stamp per workspace", () => {
-  const src = readFileSync(fileURLToPath(new URL("./route.ts", import.meta.url)), "utf8");
-  // The requesting workspace is resolved once (by withWorkspace) and reused.
-  assert.match(src, /withWorkspace\(async \(workspace: string/, "must receive the requesting workspace");
-  // The in-flight reservation count is scoped to that workspace (3rd arg to listRecentTasks).
+// ── (a) Source guard: the door wires the workspace through the whole gate ───────
+// The single-CV door (POST /api/analyze) was retired on 2026-11-10; the cohort door is
+// the one that spends ai_candidates units now, so the guard reads it.
+test("the cohort door scopes the in-flight count, the meter read, and the task stamp per workspace", () => {
+  const src = readFileSync(fileURLToPath(new URL("./cohort/route.ts", import.meta.url)), "utf8");
+  // The in-flight reservation count is scoped to the requesting workspace (3rd arg).
   assert.match(
     src,
-    /listRecentTasks\(new Date\(\)\.toISOString\(\),\s*200,\s*workspace\)/,
-    "the in-flight count must pass `workspace` to listRecentTasks",
+    /listRecentTasks\(new Date\(\)\.toISOString\(\),\s*200,\s*ws\)/,
+    "the in-flight count must pass the workspace to listRecentTasks",
   );
   // The authoritative reservation reads the meter for that workspace.
   assert.match(
     src,
-    /meterGate\("ai_candidates",\s*\{\s*inFlight:\s*inFlightAnalyze,\s*workspace\s*\}\)/,
-    "the reservation gate must scope the meter read to `workspace`",
+    /meterGate\("ai_candidates",\s*\{\s*workspace:\s*ws,[^}]*inFlight\s*\}\)/,
+    "the reservation gate must scope the meter read to the workspace",
   );
-  // The cheap pre-check is scoped too, so an early refusal reads the same tenant.
-  assert.match(src, /meterGate\("ai_candidates",\s*\{\s*workspace\s*\}\)/, "the pre-check must scope to `workspace`");
   // The task row is stamped with the workspace so its reservation counts for the right tenant.
-  assert.match(src, /startTask\("analyze",[^)]*,\s*workspace\)/, "startTask must stamp the task with `workspace`");
+  assert.match(src, /startTask\("analyze_cohort",[^)]*\},\s*ws\)/, "startTask must stamp the task with the workspace");
 });
 
 // ── (b) Behavioral: prove the count is genuinely per-tenant on the real store ────
@@ -122,8 +120,8 @@ test("an in-flight cohort's declared fresh units count at the analyze door too",
   // A cohort that reuses everyone declares 0 and reserves nothing.
   createTask("t-c-reused", "analyze_cohort", "analyze_cohort:c2", "Cohort · C2", { cohortId: "coh-c2", freshCount: 0 }, C);
   assert.equal(inFlightAnalyzeFor(C), 5, "one analyze task + the cohort's four fresh units");
-  // Both doors count through the one helper (no second copy of the rule to drift).
-  for (const rel of ["./route.ts", "./cohort/route.ts"]) {
+  // The door counts through the one helper (no second copy of the rule to drift).
+  for (const rel of ["./cohort/route.ts"]) {
     const src = readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
     assert.match(src, /inFlightCandidateUnits\(listRecentTasks\(/, `${rel} counts through inFlightCandidateUnits`);
   }

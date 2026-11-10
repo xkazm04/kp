@@ -140,7 +140,7 @@ test("no file is a NAMED refusal, not a bare English sentence", async () => {
   assert.equal(((await res.json()) as { code?: string }).code, "EXTRACT_FILE_REQUIRED");
 });
 
-test("the upload gate's own code travels, exactly as /api/analyze forwards it", async () => {
+test("the upload gate's own code travels beside its English error", async () => {
   const res = await route.POST(upload("photo.png", "image/png"));
   assert.equal(res.status, 400);
   assert.equal(((await res.json()) as { code?: string }).code, "UPLOAD_UNSUPPORTED_TYPE");

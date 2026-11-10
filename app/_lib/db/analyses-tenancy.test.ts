@@ -20,7 +20,7 @@ import path from "node:path";
 // exception — there the column list IS the stamp, and the value rides in the VALUES
 // tuple. Same shape as profiles-tenancy.test.ts, which already made this correction.
 const dir = path.dirname(fileURLToPath(import.meta.url));
-const files = ["analyses.ts", "analyses-prior.ts"];
+const files = ["analyses.ts"];
 const sqlBlocks = files.flatMap((file) => {
   const content = readFileSync(path.join(dir, file), "utf8");
   return [...content.matchAll(/`([^`]*)`/g)].map((m) => m[1]);

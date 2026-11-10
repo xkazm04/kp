@@ -29,7 +29,7 @@ export async function extractUploadedText(
   file: File,
   signal?: AbortSignal
 ): Promise<{ ok: true; text: string } | { ok: false; error: string; status: number }> {
-  // Same MIME + size gate as /api/analyze and /api/extract-text, so the CV upload
+  // Same MIME + size gate as /api/extract-text, so the CV upload
   // endpoints can't drift on accepted types or the size cap.
   const rejection = validateUploadServer(file, "file");
   if (rejection) return { ok: false, error: rejection.error, status: rejection.status };

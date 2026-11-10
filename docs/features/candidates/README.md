@@ -132,15 +132,6 @@ career-switcher) that other features key off. Downstream ranking is
   prunes rows the active decision filter no longer matches (`pruneToFilter`), as a
   refetch would. Opening a row also repaints it with the disposition the server
   holds now. Pure half: `historyTriage.ts`, pinned by `historyTriage.test.ts`.
-- **Prior-runs footprint pre-spend** (challenge-r10 analyze-workspace/B) — when CVs
-  are attached in Analyze, `AnalyzePriorRunsStrip` computes `cvVariantHash` (the same
-  SHA-256 digest persisted on analysis records) and queries `GET /api/analyze/prior`.
-  If the CV has been scored or decided before in the workspace, the strip surfaces that
-  footprint before the recruiter spends another run: naming recorded dispositions
-  ('pass', 'advance', 'hold') with a link to the decided report, warning that a re-run
-  appears in History as undecided, or listing other roles the candidate was analyzed
-  for. In blind screening mode, the query and strip are completely disabled to avoid
-  candidate re-identification.
 - **Report deep links** — the tabbed report (`app/_components/results/ResultPanel.tsx`)
   mounts `DispositionEditor` in the header row next to Add-to-pipeline once
   `analysisSlug` is set (live Analyze after persist, and the saved report), so
@@ -293,12 +284,21 @@ pick a JD, kp proposes up to 20 candidates, and every fresh member goes through 
 single-CV engine run described here. The v1 upload form (drop zones, pasted CV, saved-JD
 picker, readability preflight, multi-CV compare, GitHub-only run, prior-runs strip) was
 retired on 2026-11-10 by owner decision ("a v2 surface should not carry v1 input habits");
-its last version is in git history. `POST /api/analyze` itself stays — same guards, same
-coded refusals — but nothing in the app calls it any more; CVs reach the workspace through
-the apply doors, the Channels receivers (`/api/sim/apply-cv` from a receiver's
-"test with a real CV") and the inbound channels.
+its last version is in git history. Its routes went with it on the same day:
+`POST /api/analyze` (the single-CV upload door) and `GET /api/analyze/prior` (the strip's read)
+had no caller left and were deleted with their helpers (`cv-variant.ts`,
+`db/analyses-prior.ts`, `analyzePriorRuns.ts`). CVs reach the workspace through the apply
+doors, the Channels receivers (`/api/sim/apply-cv` from a receiver's "test with a real CV")
+and the inbound channels.
 
-`app/api/analyze/route.ts` and the cohort runner both reach `runAnalyze`
+Every entry point elsewhere in the app that used to promise an upload ("Analyze a CV")
+now says what it does: **Compare candidates for this role** on the Library rail and the
+operator's JD page (both deep-link `/?tab=analyze&jd=<slug>`, so the studio opens on that
+role), **Compare candidates for a role** on the Matrix and Archetypes empty states, and
+**Compare candidates for it** on the empty Library shelf. A failed legacy `analyze` task
+whose upload is gone states the reason in the Tasks table and offers no door.
+
+The cohort runner reaches `runAnalyze`
 (`app/_lib/analyze-run.ts`, phases in `app/_lib/analyze-phases.ts`) → Gemini extraction in
 `pipeline/jobfit/gemini.py`. Extraction is archetype-aware: it emits structured
 `experiences` (including `thesis`/`project` kinds), skill claims **with
@@ -314,17 +314,14 @@ renders truncated under the disposition pill, full text in the cell title.
 (`app/_lib/upload-constraints.ts`) returns `UPLOAD_UNSUPPORTED_TYPE` /
 `UPLOAD_TOO_LARGE` — the document twins of the audio gate's `AUDIO_*` pair — and
 `validateUploadServer` puts the same code beside its English `error` (which stays,
-naming the offending field for the server log). `/api/analyze`'s own refusals are
-coded too — `ANALYZE_CV_REQUIRED` (400), `ANALYZE_TOO_MANY_VARIANTS` (400),
-`TOO_MANY_REQUESTS` (429 via `jsonRefusal`), the billing quota code (402). The size
-hint is `analyze.uploadHint` with `MAX_FILE_MB` interpolated, so the cap is data
-rather than copy; `upload-constraints.test.ts` fails if any locale's
-`UPLOAD_TOO_LARGE` stops naming the real cap.
+naming the offending field for the server log). `upload-constraints.test.ts` fails if
+any locale's `UPLOAD_TOO_LARGE` stops naming the real cap.
 
-**Both doors reserve against one count.** `ai_candidates` units are debited later,
-inside the task, so each door reserves before it starts: `inFlightCandidateUnits`
+**The door reserves against one count.** `ai_candidates` units are debited later,
+inside the task, so the cohort door reserves before it starts: `inFlightCandidateUnits`
 (`app/api/analyze/in-flight-units.ts`) counts one unit per queued/running `analyze`
-task and each queued/running `analyze_cohort` task's declared `freshCount`. The task
+task (rows from before the single-CV door was retired) and each queued/running
+`analyze_cohort` task's declared `freshCount`. The task
 list omits params, so the cohort's figure is read through `getTask` by id; before
 2026-11-10 the cohort door read it off the list row (always null), so an in-flight
 cohort reserved nothing at either door. Pinned by
@@ -455,8 +452,8 @@ the same cohort axis, so every figure the compare report quotes is one the ranki
 actually used. Pinned by `comparison.test.ts`.
 
 **A CV run's GitHub deep-dive is a stage of the analyze task, not a browser
-request beside it.** When a run carries a handle (`githubProfile` on `/api/analyze`, or
-a technical cohort member's CV link) `runAnalyze` (`app/_lib/analyze-run.ts`) starts the
+request beside it.** When a run carries a handle (a technical cohort member's CV link;
+legacy `analyze` rows carry `githubProfile`) `runAnalyze` (`app/_lib/analyze-run.ts`) starts the
 deep-dive beside the CV variants through `runGithubStage`
 (`app/_lib/analyze-github-stage.ts`). The stage attaches a delivered deep-dive to
 the saved row itself (`setAnalysisGithub`, once the CV half has persisted) and
@@ -476,16 +473,13 @@ failure can neither fail nor re-bill the CV run.
 - **Blind mode is enforced on the server.** A blind run never forwards the handle
   (not even onto the task row), and both `runAnalyze` and `runGithubStage` answer
   `skipped` for any params that carry one anyway.
-- **The door's guards come along.** `/api/analyze` reads `can("pipeline:write")` and
-  charges the same `github-analysis:<ip>` bucket (10 per 10 minutes) as the door.
-  Neither guard refuses the CV run. The handle is dropped with
-  `FORBIDDEN_CAPABILITY` or `REQUEST_THROTTLED`, recorded on the task result.
-  Pinned by `app/api/rate-limit-contract.test.ts`.
+- **The door's guards come along.** The cohort door holds `pipeline:write` and
+  charges the starting IP's `github-analysis:<ip>` bucket (10 per 10 minutes), the
+  same one `/api/github-analysis` charges. A member the budget refuses gets no
+  deep-dive; its CV analysis still runs.
 - **Wiring.** `analyze-run.ts` is on the task hub's import graph, so it looks the
   stage up in the late-bound runner registry (`task-external-runners.ts`) rather
-  than importing it. `/api/analyze` registers it when the module loads. A run that
-  is replayed after a restart, before that route has been hit, finds no runner and
-  reports `ANALYSIS_FAILED`.
+  than importing it. `app/_lib/late-bound-boot.ts` registers it at server boot.
 - **What still uses the door.** The saved report's GitHub panel Retry runs through
   `/api/github-analysis`.
 
@@ -1296,7 +1290,7 @@ expiry instant, and the card switches from hours to minutes in the final hour.
 
 | Concern | Files |
 |---|---|
-| CV extraction (Gemini) | `pipeline/jobfit/gemini.py`, `app/api/analyze/route.ts` |
+| CV extraction (Gemini) | `pipeline/jobfit/gemini.py`, `app/_lib/analyze-run.ts` |
 | Analysis orchestration | `app/_lib/analyze-run.ts`, `app/_lib/analyze-phases.ts`, `app/_lib/completeness-followup.ts`, `app/_lib/provenance-dossier.ts` |
 | Cohort studio (Analyze) | `app/features/tools/analyze/cohort/` (see "Cohort Studio"), `app/api/analyze/cohort/`, `app/api/analyze/in-flight-units.ts` |
 | Apply intake | `app/_lib/apply-intake.ts`, `app/_lib/apply.ts`, `app/apply/[id]/ConversationalApply.tsx` (+ `use-apply-draft.ts`, `use-apply-submit.ts`, `use-apply-followup.ts`, `ApplyStepControls.tsx`, `ApplyDoneCard.tsx`, `ApplyErrorBlock.tsx`, `ApplyFollowup.tsx`, `apply-chat-types.ts`), `app/apply/[id]/quick/QuickApplyForm.tsx`, `app/api/apply/[id]/route.ts`, `app/api/apply/[id]/quick/route.ts` |
@@ -1398,10 +1392,8 @@ judgement about a named person, so a `viewer` seat that may read the board must 
 able to commission one. Open dev and an operator session both fold to owner, so local
 use is unchanged; the refusal is `FORBIDDEN_CAPABILITY` (403) or a 401 with no session.
 The route is no longer on `route-capability-coverage.test.ts`'s unjudged list.
-The in-task deep-dive a CV run carries asks the same question from `/api/analyze`, as
-a boolean read. Without `pipeline:write` the handle is dropped
-(`FORBIDDEN_CAPABILITY`) and the CV analysis still runs, because that route
-has always allowed it.
+The in-task deep-dive a cohort member carries rides the cohort door, which already
+requires `pipeline:write`.
 
 ### Run bounds: cache, throttle, timeout, offline
 
@@ -1637,19 +1629,18 @@ the seat: `read` for the three GETs, `pipeline:write` for the POST (403
    repeated CV), every member re-resolved inside the workspace through the proposal's
    resolver, then the `ai_candidates` reservation for `freshCount` units on top of the
    in-flight analyze tasks (1 each) and in-flight cohorts (their declared `freshCount`,
-   read by task id through `inFlightCandidateUnits` — `/api/analyze` counts the same) —
-   the same `meterGate` as `/api/analyze`, so an unmetered self-hosted install stays
-   unmetered. The row is inserted `queued`, the task started, its id stored.
+   read by task id through `inFlightCandidateUnits`) — `meterGate`, so an unmetered
+   self-hosted install stays unmetered. The row is inserted `queued`, the task started, its id stored.
 4. **Run** (three members at a time, the task's abort honoured between schedules):
    - *reused* → `runState "reused"`, `analysisSlug` set, **no debit**;
    - *fresh* → the source's `candidate.rawText` is written to a per-run workdir and goes
-     through the existing single-variant `runAnalyze` (same CLI args as `/api/analyze`:
+     through the existing single-variant `runAnalyze` (the engine's CLI args:
      JD text from `loadJd`, `--blind`, `--lang`, the company text; spilled to a file past
      8 KB), persisted with `jd_slug` = the cohort's JD (History shows it under the JD)
-     and debited **one unit** exactly as `/api/analyze` does (delivered, non-cached);
+     and debited **one unit** inside `runAnalyze` (delivered, non-cached);
    - *GitHub* — not blind, a technical family (`TECHNICAL_FAMILIES`), a `github.com` link
      on the CV, no deep-dive stored yet → the existing `analyze_github` stage, charged to
-     the starting IP's `github-analysis` bucket (10/10 min, shared with `/api/analyze`);
+     the starting IP's `github-analysis` bucket (10/10 min, shared with `/api/github-analysis`);
    - one member failing is `failed` with a code (`ENGINE_FAILED`, `ANALYZE_TIMEOUT`,
      `COHORT_MEMBER_NOT_FOUND`, …) and the cohort continues; all failing fails it.
 5. **Comparative pass.** The view is projected, the claims computed, and
@@ -1760,7 +1751,7 @@ differ from the row label); the numbers stay as the record.
 
 ### Keyless
 
-Nothing in the cohort needs a key beyond what `/api/analyze` already degrades: the
+Nothing in the cohort needs a key beyond what `runAnalyze` already degrades: the
 ranker is deterministic, the analyses fall back as they always do, and
 `cohort_compare.py`'s floor writes no cell comments, a templated note per dimension from
 the claims and a templated narrative naming what it covers and how many it leaves out —
@@ -1775,12 +1766,16 @@ in the report language (en/cs/de/fr) — with `engine: "keyless"`.
   dropped (counted as `contradicts-claim`) and the narrative falls back to the template.
 - Rows written before `shownNames` existed carry only `label`: an erasure masks the names
   the old row stored, not a CV name the model quoted that was never stored.
-- **No operator CV upload on Analyze** (owner decision). Five "Analyze a CV" doors elsewhere
-  still say so (Matrix tab empty state, Archetypes empty states, the Library rail, the JD
-  page, the pipeline's empty-board "candidates" move): they land on the role-first studio,
-  and only the two that carry `?jd=` land on a role. Their copy is the owning features' call.
-- `POST /api/analyze` and `GET /api/analyze/prior` have no in-app caller since the v1
-  form went; `ResultPanel`'s `liveReportActions` branch has no caller either.
+- **No operator CV upload on Analyze** (owner decision). The doors elsewhere now say
+  "Compare candidates"; only the two that know a role (the Library rail, the JD page)
+  carry `?jd=`, the empty states open the studio at its role step.
+- `ResultPanel`'s `liveReportActions` branch has no caller.
+- The `analyze` task kind has no producer since its door was retired; it stays so
+  rows written before can still be listed, explained and cancelled
+  (`task-admission.test.ts` names it in `RETIRED_DOOR`).
+- A fresh CV gets no content hash: the retired door was the only producer of
+  `analyses.cv_hash`, so re-run grouping and profile lineage cover only rows that
+  already carry one.
 - The analysis-vs-cohort `reportLang`/blind settings are chosen on the run sheet; a CV-only
   run (no JD), a multi-CV same-person compare and a GitHub-only run have no studio path.
 

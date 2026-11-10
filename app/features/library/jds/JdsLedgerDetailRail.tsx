@@ -137,7 +137,7 @@ export function JdsLedgerDetailRail({
           <Link2 size={15} aria-hidden /> {copied ? t("publicLinkCopied") : t("copyPublicLink")}
         </button>
         <Link href={`/?tab=analyze&jd=${encodeURIComponent(row.slug)}`} className={`${BTN_PRIMARY} w-full gap-2 bg-ink px-3 py-2 text-sm font-semibold hover:bg-steel`}>
-          <Sparkles size={15} aria-hidden /> {t("detailAnalyzeCv")}
+          <Sparkles size={15} aria-hidden /> {t("detailCompareCandidates")}
         </Link>
       </div>
       <div className={`space-y-2 ${DIVIDER} pt-4`}>

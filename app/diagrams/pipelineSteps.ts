@@ -62,15 +62,17 @@ api ..> boards`,
   },
   apply: {
     status: "live",
-    files: ["app/features/tools/analyze/*", "app/api/analyze/route.ts", "app/_lib/analyze-run.ts", "pipeline/jobfit/pipeline.py"],
+    files: ["app/features/tools/analyze/cohort/*", "app/api/analyze/cohort/route.ts", "app/_lib/analyze-cohort-run.ts", "app/_lib/analyze-run.ts", "pipeline/jobfit/pipeline.py"],
     puml: `actor "Candidate" as c
-[Analyze / Profile tab] <<auto>> as ui
-[POST /api/analyze] as api
+[Apply door · channels] as door
+[Analyze tab\\npick a role] <<auto>> as ui
+[POST /api/analyze/cohort] as api
 [pipeline.jobfit.cli\\nanalyze_cv] as cli
 database "analyses · profiles" as db
-c --> ui : upload CV
+c --> door : upload CV
+door ..> ui : applicants
 ui --> api
-api --> cli : spawn
+api --> cli : spawn per candidate
 cli --> db : saveAnalysis`,
   },
   extract: {

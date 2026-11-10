@@ -175,7 +175,7 @@ export function MatrixCandidateFocus() {
             body={t("emptyChainBody")}
             links={[
               { tab: "archetypes", label: t("emptyCtaProfile") },
-              { tab: "analyze", label: t("emptyCtaAnalyze") },
+              { tab: "analyze", label: t("emptyCtaCompare") },
             ]}
           />
         )}

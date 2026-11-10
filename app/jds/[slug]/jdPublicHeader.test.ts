@@ -1,4 +1,4 @@
-// Pins the public JD header: Analyze CV and job-board Publish are operator
+// Pins the public JD header: Compare candidates and job-board Publish are operator
 // tools, never part of the candidate share-link chrome.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -24,23 +24,23 @@ test("live JD metadata advertises only the languages it serves, never all four b
   assert.match(src, /publicJdAlternates\(slug,/);
 });
 
-test("an anonymous header has no Analyze CV or Publish controls", () => {
+test("an anonymous header has no Compare candidates or Publish controls", () => {
   const actions = publicJdHeaderActions({ canManage: false, applyOpen: true });
-  assert.equal(actions.includes("analyzeCv"), false);
+  assert.equal(actions.includes("compareCandidates"), false);
   assert.equal(actions.includes("publish"), false);
   assert.deepEqual(actions, ["apply"]);
 });
 
 test("a closed anonymous header still has no operator tools", () => {
   const actions = publicJdHeaderActions({ canManage: false, applyOpen: false });
-  assert.equal(actions.includes("analyzeCv"), false);
+  assert.equal(actions.includes("compareCandidates"), false);
   assert.equal(actions.includes("publish"), false);
   assert.deepEqual(actions, ["notAccepting"]);
 });
 
-test("an operator header still has Analyze CV and Publish beside Apply", () => {
+test("an operator header still has Compare candidates and Publish beside Apply", () => {
   const actions = publicJdHeaderActions({ canManage: true, applyOpen: true });
-  assert.ok(actions.includes("analyzeCv"));
+  assert.ok(actions.includes("compareCandidates"));
   assert.ok(actions.includes("publish"));
   assert.ok(actions.includes("apply"));
 });

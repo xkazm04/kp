@@ -4,7 +4,7 @@
 // big" is reported the same way wherever a file enters, and the limit + status
 // live in exactly one place.
 //
-// Both routes now reach that contract through the one shared server gate,
+// The upload routes reach that contract through the one shared server gate,
 // validateUploadServer (idea-5b61d729): the over-limit branch lives in
 // upload-constraints.ts, and each route just delegates to it instead of
 // re-checking MIME/size inline. So this source-level guard (the route modules
@@ -40,7 +40,7 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-const ROUTES = ["./analyze/route.ts", "./extract-text/route.ts"];
+const ROUTES = ["./extract-text/route.ts"];
 
 for (const rel of ROUTES) {
   test(`${rel} rejects an over-limit upload via the shared server gate`, () => {

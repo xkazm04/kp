@@ -207,15 +207,17 @@ test("a REAL route behind the wrapper: workspace A's cookie cannot read workspac
   upsertMembership(u.id, WS_A, "recruiter");
   upsertMembership(u.id, WS_B, "recruiter");
 
-  const { GET: getPrior } = await import("../../api/analyze/prior/route.ts");
+  // History's list door (withWorkspace + a `read` seat). `q` names both labels, so only
+  // the tenant scope can keep the other workspace's row out (the default one is seeded).
+  const { GET: getAnalyses } = await import("../../api/analyses/route.ts");
   const cvA = "a".repeat(64);
   const cvB = "b".repeat(64);
   const seed = (cv: string, label: string, ws: string) =>
     saveAnalysis({ candidateLabel: label, jdSlug: "backend-dev", score: 70, roleFamily: "engineering", seniority: "mid", payload: {}, cvHash: cv }, ws);
   const sA = seed(cvA, "Only in A", WS_A);
   const sB = seed(cvB, "Only in B", WS_B);
-  const get = () => getPrior(new Request(`http://localhost/api/analyze/prior?cv=${cvA}&cv=${cvB}&jd=backend-dev`) as unknown as NextRequest);
-  const slugs = async () => ((await (await get()).json()) as { rows: { slug: string }[] }).rows.map((r) => r.slug);
+  const get = () => getAnalyses(new Request("http://localhost/api/analyses?q=Only%20in") as unknown as NextRequest);
+  const slugs = async () => ((await (await get()).json()) as { analyses: { slug: string }[] }).analyses.map((r) => r.slug);
 
   cookieValue = signSession(WS_A, Date.now(), { sub: u.id, org: ORG });
   assert.deepEqual(await slugs(), [sA.slug]);

@@ -65,8 +65,6 @@ test("the analyze task's GitHub stage is registered at BOOT, not by the route th
   assert.throws(() => externalRunner("analyze_github"), /not registered/);
   registerLateBoundImplementations();
   assert.equal(typeof externalRunner("analyze_github"), "function", "analyze_github is registered at boot");
-  const route = readFileSync(fileURLToPath(new URL("../api/analyze/route.ts", import.meta.url)), "utf8");
-  assert.doesNotMatch(route, /registerTaskRunner\(/, "the route no longer registers (and so no longer imports the stage)");
 });
 
 test("the stage hook's interview-invite door is registered by the boot list", () => {

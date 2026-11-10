@@ -212,7 +212,7 @@
       },
       "apply": {
         "title": "Candidate apply / CV upload",
-        "summary": "A CV (PDF/DOCX/TXT/MD) uploaded in the Analyze tab is bridged to the Python analysis CLI as a subprocess and the result is saved. The guided Profile form persists a structured V2 profile."
+        "summary": "A CV (PDF/DOCX/TXT/MD) arrives through an apply door or a channel and stays with the candidate. In the Analyze tab the recruiter picks a role, and each candidate's CV is bridged to the Python analysis CLI as a subprocess and the result is saved. The guided Profile form persists a structured V2 profile."
       },
       "extract": {
         "title": "Extract text + LLM fields",
@@ -1460,8 +1460,6 @@
     "LOGIN_CREDENTIALS_INVALID": "Incorrect credentials. Try again.",
     "UPLOAD_UNSUPPORTED_TYPE": "Use a PDF, DOCX, TXT or MD file.",
     "UPLOAD_TOO_LARGE": "That file is over the 8 MB upload limit.",
-    "ANALYZE_CV_REQUIRED": "Attach a CV or profile file to analyze.",
-    "ANALYZE_TOO_MANY_VARIANTS": "Compare at most 3 CV variants in one run.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "That submission could not be found.",
     "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Evaluate the submission before starting a voice screen.",
     "INTERVIEW_ENTRY_NOT_ACTIVE": "This candidate is no longer active, so a new scorecard can’t be filed.",
@@ -5406,7 +5404,7 @@
       "detailOpenPublic": "Open public page",
       "copyPublicLink": "Copy public link",
       "publicLinkCopied": "Copied",
-      "detailAnalyzeCv": "Analyze a CV",
+      "detailCompareCandidates": "Compare candidates for this role",
       "detailLoadError": "Couldn't load this description right now.",
       "noDescriptionYet": "This role doesn't have a description yet.",
       "buildingTitle": "Building this job description…",
@@ -5487,7 +5485,7 @@
       "shelfDraftCta": "Have the builder draft it",
       "shelfCtaNote": "The Generate panel takes it from here: save what you type as a draft, or hand it to the AI to build the description, a market salary band and a work-sample assignment.",
       "shelfReuseLabel": "One sheet is reusable for",
-      "shelfReuseAnalyze": "Score CVs against it",
+      "shelfReuseCompare": "Compare candidates for it",
       "shelfReuseIngest": "Ingest it as an open role",
       "shelfReuseDuplicate": "Duplicate it for the next opening",
       "intake": {
@@ -6675,7 +6673,7 @@
       "emptyPrompt": "Pick a candidate and run matching to see ranked, KO-filtered, scored jobs.",
       "emptyChainBody": "Candidates come from saved profiles or persisted CV analyses.",
       "emptyCtaProfile": "Create a profile",
-      "emptyCtaAnalyze": "Analyze a CV"
+      "emptyCtaCompare": "Compare candidates for a role"
     },
     "dims": {
       "skills": "Skills",
@@ -6856,7 +6854,7 @@
       "intro": "Every saved profile and analyzed CV, placed in the archetype it routed to. A chip marks which store each is from. Open one to edit the profile or see its analysis.",
       "loadFailed": "Couldn't load candidates.",
       "emptyTitle": "No candidates yet",
-      "emptyBody": "Build a profile above, or run a CV in the <b>Analyze</b> tab. Each is routed to an archetype and appears here.",
+      "emptyBody": "Build a profile above, or compare candidates for a role in the <b>Analyze</b> tab. Each is routed to an archetype and appears here.",
       "openProfileTitle": "Edit {name}'s profile",
       "sourceProfile": "Profile",
       "sourceAnalysis": "Analysis",
@@ -7161,14 +7159,14 @@
       "listTitle": "No cards in the drawer yet",
       "listBody": "A profile is one structured record of a candidate: the thing you match against open roles. Nothing has been filed here yet.",
       "listCta": "Build a profile",
-      "listCtaAnalyze": "Or analyze a CV and promote it",
+      "listCtaCompare": "Or compare candidates for a role",
       "matrixTitle": "The drawers are ready, the cards aren't",
       "matrixBodyDefined": "{count, plural, one {You've defined # archetype above.} other {You've defined # archetypes above.}} Every candidate gets filed into exactly one. This view can then compare them side by side.",
       "matrixBodyNone": "Each candidate is filed into exactly one archetype, and this view compares them side by side. Define an archetype above to open the first drawer.",
       "filed": "{count, plural, one {# filed} other {# filed}}",
       "moreArchetypes": "{count, plural, one {+# more} other {+# more}}",
       "matrixCta": "File the first card",
-      "matrixCtaAnalyze": "Or analyze a CV"
+      "matrixCtaCompare": "Or compare candidates for a role"
     }
   },
   "pipelineShape": {
@@ -9996,7 +9994,7 @@
     "notAcceptingTitle": "Recruiter note: candidates can apply once the role is sourced into the Pipeline (Jobs tab → Source into Pipeline). Not shown as actionable to candidates until then.",
     "publish": "Publish to job boards",
     "publishTitle": "Job-board publishing integration coming soon. It distributes the JD to external job boards, which is distinct from sourcing candidates into the Pipeline",
-    "analyzeCv": "Analyze CV",
+    "compareCandidates": "Compare candidates for this role",
     "archivedBanner": "This JD is archived. It no longer appears in the library or the Analyze picker, but this page (and every analysis link to it) keeps working.",
     "editJd": "Edit JD",
     "archive": "Archive",
@@ -12179,8 +12177,7 @@
     "replay": {
       "inputsGone": "The uploaded files are gone, so this run cannot repeat.",
       "kindRetired": "This task type no longer exists in this version.",
-      "noSeat": "Your role cannot re-run this task.",
-      "openAnalyze": "Upload again in Analyze"
+      "noSeat": "Your role cannot re-run this task."
     }
   },
   "legal": {

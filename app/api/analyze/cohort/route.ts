@@ -131,7 +131,7 @@ export const POST = route(
       ws
     );
     // The GitHub deep-dives a technical member's CV link earns ride the SAME
-    // github-analysis bucket /api/analyze and /api/github-analysis charge, keyed to the IP
+    // github-analysis bucket /api/github-analysis charges, keyed to the IP
     // that started the run; the runner spends it per deep-dive. A blind run carries none.
     const githubBudgetKey = body.blind ? null : `github-analysis:${clientIpFrom(request.headers)}`;
     const task = startTask("analyze_cohort", { cohortId: rec.id, jdSlug: body.jdSlug, jdTitle: ctx.jdTitle, freshCount, githubBudgetKey }, ws);

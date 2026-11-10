@@ -2,7 +2,7 @@
 
 // The studio's URL inbox (app-structure.md "The URL is their inbox"): every param here is read on
 // arrival, adopted when valid, and the bar emptied at once.
-//   ?jd=<slug>            open the studio on that role's cast step (Library's "Analyze a CV").
+//   ?jd=<slug>            open the studio on that role's cast step (Library's "Compare candidates for this role").
 //   ?layer=<COHORT_LAYERS> the nested layer a descent opens, persisted under the layer control's key.
 //   ?cohortFixture=<mode> DEV ONLY: where the comparison comes from (live / done / running /
 //                         walkthrough); production is always live.

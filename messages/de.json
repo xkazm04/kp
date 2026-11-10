@@ -212,7 +212,7 @@
       },
       "apply": {
         "title": "Bewerbung / Lebenslauf-Upload",
-        "summary": "Ein im Analyze-Tab hochgeladener Lebenslauf (PDF/DOCX/TXT/MD) wird als Subprozess an das Python-Analyse-CLI übergeben und das Ergebnis gespeichert. Das geführte Profile-Formular speichert ein strukturiertes V2-Profil."
+        "summary": "Ein Lebenslauf (PDF/DOCX/TXT/MD) kommt über eine Bewerbung oder einen Kanal herein und bleibt beim Kandidaten. Im Tab Analyse wählt die Recruiterin oder der Recruiter eine Stelle, der Lebenslauf jedes Kandidaten wird als Unterprozess an die Python-Analyse-CLI übergeben und das Ergebnis gespeichert. Das geführte Profilformular speichert ein strukturiertes V2-Profil."
       },
       "extract": {
         "title": "Text extrahieren + LLM-Felder",
@@ -1460,8 +1460,6 @@
     "LOGIN_CREDENTIALS_INVALID": "Falsche Anmeldedaten. Versuchen Sie es erneut.",
     "UPLOAD_UNSUPPORTED_TYPE": "Verwenden Sie eine PDF-, DOCX-, TXT- oder MD-Datei.",
     "UPLOAD_TOO_LARGE": "Diese Datei überschreitet das Upload-Limit von 8 MB.",
-    "ANALYZE_CV_REQUIRED": "Hängen Sie einen Lebenslauf oder ein Profil zur Analyse an.",
-    "ANALYZE_TOO_MANY_VARIANTS": "Pro Durchlauf lassen sich höchstens 3 Lebenslauf-Varianten vergleichen.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "Diese Einreichung wurde nicht gefunden.",
     "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Bewerten Sie die Einreichung, bevor Sie ein Voice-Screening starten.",
     "INTERVIEW_ENTRY_NOT_ACTIVE": "Diese Kandidatin bzw. dieser Kandidat ist nicht mehr aktiv, daher kann keine neue Scorecard abgelegt werden.",
@@ -5406,7 +5404,7 @@
       "detailOpenPublic": "Öffentliche Seite öffnen",
       "copyPublicLink": "Öffentlichen Link kopieren",
       "publicLinkCopied": "Kopiert",
-      "detailAnalyzeCv": "Lebenslauf analysieren",
+      "detailCompareCandidates": "Kandidat/innen für diese Stelle vergleichen",
       "detailLoadError": "Diese Beschreibung konnte gerade nicht geladen werden.",
       "noDescriptionYet": "Diese Position hat noch keine Beschreibung.",
       "buildingTitle": "Diese Stellenbeschreibung wird erstellt…",
@@ -5487,7 +5485,7 @@
       "shelfDraftCta": "Vom Builder entwerfen lassen",
       "shelfCtaNote": "Der Generieren-Bereich übernimmt: Speichern Sie Ihren Text als Entwurf oder lassen Sie die KI daraus die Beschreibung, eine Marktgehaltsspanne und eine Arbeitsprobe bauen.",
       "shelfReuseLabel": "Ein Blatt lässt sich mehrfach nutzen",
-      "shelfReuseAnalyze": "Lebensläufe damit bewerten",
+      "shelfReuseCompare": "Kandidat/innen dafür vergleichen",
       "shelfReuseIngest": "Als offene Stelle übernehmen",
       "shelfReuseDuplicate": "Für die nächste Vakanz duplizieren",
       "intake": {
@@ -6675,7 +6673,7 @@
       "emptyPrompt": "Wählen Sie einen Kandidaten und starten Sie das Matching, um gerankte, KO-gefilterte, bewertete Stellen zu sehen.",
       "emptyChainBody": "Kandidaten stammen aus gespeicherten Profilen oder gespeicherten CV-Analysen.",
       "emptyCtaProfile": "Profil erstellen",
-      "emptyCtaAnalyze": "CV analysieren"
+      "emptyCtaCompare": "Kandidat/innen für eine Stelle vergleichen"
     },
     "dims": {
       "skills": "Skills",
@@ -6856,7 +6854,7 @@
       "intro": "Jedes gespeicherte Profil und jeder analysierte Lebenslauf, eingeordnet in den zugewiesenen Archetyp. Ein Chip zeigt die Herkunft. Öffnen Sie eines, um das Profil zu bearbeiten oder die Analyse zu sehen.",
       "loadFailed": "Kandidaten konnten nicht geladen werden.",
       "emptyTitle": "Noch keine Kandidaten",
-      "emptyBody": "Erstellen Sie oben ein Profil oder analysieren Sie einen Lebenslauf im Tab <b>Analyse</b>. Jedes wird einem Archetyp zugewiesen und erscheint hier.",
+      "emptyBody": "Erstellen Sie oben ein Profil oder vergleichen Sie Kandidat/innen für eine Stelle im Tab <b>Analyse</b>. Jedes wird einem Archetyp zugewiesen und erscheint hier.",
       "openProfileTitle": "Profil von {name} bearbeiten",
       "sourceProfile": "Profil",
       "sourceAnalysis": "Analyse",
@@ -7161,14 +7159,14 @@
       "listTitle": "Noch keine Karten in der Ablage",
       "listBody": "Ein Profil ist ein strukturierter Datensatz zu einer Kandidatin oder einem Kandidaten: das, was Sie mit offenen Stellen abgleichen. Hier wurde noch nichts abgelegt.",
       "listCta": "Profil anlegen",
-      "listCtaAnalyze": "Oder einen Lebenslauf analysieren und als Profil übernehmen",
+      "listCtaCompare": "Oder Kandidat/innen für eine Stelle vergleichen",
       "matrixTitle": "Die Fächer stehen bereit, die Karten fehlen",
       "matrixBodyDefined": "{count, plural, one {Sie haben oben # Archetyp definiert.} other {Sie haben oben # Archetypen definiert.}} Jede Kandidatin und jeder Kandidat wird genau einem zugeordnet. Diese Ansicht kann sie dann nebeneinander vergleichen.",
       "matrixBodyNone": "Jede Kandidatin und jeder Kandidat wird genau einem Archetyp zugeordnet, und diese Ansicht vergleicht sie nebeneinander. Definieren Sie oben einen Archetyp, um das erste Fach zu öffnen.",
       "filed": "{count, plural, one {# abgelegt} other {# abgelegt}}",
       "moreArchetypes": "{count, plural, one {+# weiterer} other {+# weitere}}",
       "matrixCta": "Erste Karte ablegen",
-      "matrixCtaAnalyze": "Oder einen Lebenslauf analysieren"
+      "matrixCtaCompare": "Oder Kandidat/innen für eine Stelle vergleichen"
     }
   },
   "pipelineShape": {
@@ -9996,7 +9994,7 @@
     "notAcceptingTitle": "Hinweis für Recruiter: Kandidaten können sich bewerben, sobald die Stelle in die Pipeline übernommen wurde (Reiter Stellen → In Pipeline übernehmen). Bis dahin wird sie Kandidaten nicht als aktiv angezeigt.",
     "publish": "Auf Jobbörsen veröffentlichen",
     "publishTitle": "Die Integration zur Veröffentlichung auf Jobbörsen ist in Vorbereitung. Sie verteilt die Stellenbeschreibung an externe Jobbörsen, was sich vom Übernehmen von Kandidaten in die Pipeline unterscheidet",
-    "analyzeCv": "Lebenslauf analysieren",
+    "compareCandidates": "Kandidat/innen für diese Stelle vergleichen",
     "archivedBanner": "Diese Stellenbeschreibung ist archiviert. Sie erscheint nicht mehr in der Bibliothek oder der Analyse-Auswahl, aber diese Seite (und jeder Analyse-Link darauf) funktioniert weiterhin.",
     "editJd": "Beschreibung bearbeiten",
     "archive": "Archivieren",
@@ -12179,8 +12177,7 @@
     "replay": {
       "inputsGone": "Die hochgeladenen Dateien sind nicht mehr vorhanden, daher lässt sich dieser Lauf nicht wiederholen.",
       "kindRetired": "Diesen Aufgabentyp gibt es in dieser Version nicht mehr.",
-      "noSeat": "Ihre Rolle darf diese Aufgabe nicht erneut ausführen.",
-      "openAnalyze": "In Analyse erneut hochladen"
+      "noSeat": "Ihre Rolle darf diese Aufgabe nicht erneut ausführen."
     }
   },
   "legal": {

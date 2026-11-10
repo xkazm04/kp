@@ -96,7 +96,7 @@ export type SaveAnalysisInput = {
   // History list can flag degraded analyses straight off the summary SELECT.
   reviewFlags?: number | null;
   // Content-addressed candidate identity — SHA-256 of the CV bytes, already
-  // computed by the analyze intake (cvVariantHash). Threaded, not re-hashed.
+  // computed at intake. Threaded, not re-hashed.
   // Absent ⇒ NULL (the identity features degrade to per-row, never grouping).
   cvHash?: string | null;
   // Which engine produced `payload`. Absent ⇒ derived from the payload's own

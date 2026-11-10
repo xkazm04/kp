@@ -267,7 +267,7 @@ function registerQueueRunners(): void {
     const { batchOutreach } = await import("./task-batch-run");
     return batchOutreach(ctx);
   });
-  // `workspace` on the params is what /api/analyze stamps at request time and what
+  // `workspace` on the params is what the door stamps at request time and what
   // persistAnalysis files the saved analysis under. It was the ONLY tenant this handler
   // had: a producer that omitted it (the retry replay, any non-route caller) silently filed
   // a non-default team's analysis under the default workspace, where the team that paid

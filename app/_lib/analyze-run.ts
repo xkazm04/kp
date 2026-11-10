@@ -48,14 +48,13 @@ export type AnalyzeParams = {
   // (the task runs outside request scope, so it can't read the cookie) and stamped
   // on the saved analysis. Absent ⇒ saveAnalysis defaults to the single workspace.
   workspace?: string;
-  // The GitHub deep-dive rides this task as a stage (analyze-github-stage.ts). Set by
-  // /api/analyze only for a non-blind run whose caller holds pipeline:write and whose
-  // github-analysis budget admitted it; otherwise `githubDropped` names why it did not.
+  // The GitHub deep-dive rides this task as a stage (analyze-github-stage.ts). Legacy
+  // rows only (the retired single-CV door set them); `githubDropped` names why not.
   githubProfile?: string | null;
   githubDropped?: string | null;
 };
 
-/** The registry key /api/analyze registers the GitHub stage under. */
+/** The registry key the GitHub stage is registered under (late-bound-boot.ts). */
 export const ANALYZE_GITHUB_RUNNER = "analyze_github";
 
 export class AnalyzeError extends Error {

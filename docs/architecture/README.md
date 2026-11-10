@@ -147,7 +147,8 @@ the params and enqueues the task. Nine kinds are server kinds: `analyze`,
 `interview_letter`, `companion_digest` and `jobseeker_scan`. The dock refuses them
 with 403 `TASK_KIND_SERVER_ONLY`, after the overall IP bucket and before the
 per-class budget. `analyze` is the reason the rule exists: its params are paths into
-the workdir that `/api/analyze` built. `runAnalyze` and `cleanupWorkdir` still refuse
+the workdir its upload door built (that door, `POST /api/analyze`, was retired on
+2026-11-10; the kind stays for the rows written before). `runAnalyze` and `cleanupWorkdir` still refuse
 any path outside a jobfit workdir on their own, whatever the door does. The
 capability is what a start, retry or cancel of the kind asks of the caller's seat.
 Today every kind asks `pipeline:write`, so a viewer can watch the dock but cannot

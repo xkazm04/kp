@@ -1,7 +1,7 @@
-// The ai_candidates units already reserved by in-flight work, for BOTH doors that spend them:
+// The ai_candidates units already reserved by in-flight work:
 // each queued/running `analyze` task holds one unit, each queued/running `analyze_cohort`
-// the fresh units it declared (`params.freshCount`). /api/analyze and /api/analyze/cohort
-// both count through this, so neither door can overrun a hard cap past the other's work.
+// the fresh units it declared (`params.freshCount`). /api/analyze/cohort counts through
+// this; `analyze` rows predate the retired single-CV door (2026-11-10) and still reserve.
 //
 // listRecentTasks omits params (params: null on every list row), so a cohort's declared
 // units are read through `paramsOf` (getTask by id). Before this helper the cohort door read

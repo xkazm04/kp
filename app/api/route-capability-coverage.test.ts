@@ -82,7 +82,6 @@ const ALLOWED = new Map<string, string>([
   ["analytics/calibration/apply-threshold/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["analytics/spend/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["analytics/targets/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["analyze/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["apply/[id]/followup/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
   ["apply/[id]/quick/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
   ["apply/[id]/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],

@@ -72,7 +72,6 @@ test("the quota code the routes name is the registered one", () => {
   assert.deepEqual(users.sort(), [
     // spark analyze-v2-cohort: a cohort reserves one ai_candidates unit per FRESH member.
     "analyze/cohort/route.ts",
-    "analyze/route.ts",
     "devcase/lifecycle/[id]/redesign/route.ts",
     "devcase/lifecycle/route.ts",
     "interview/create/route.ts",

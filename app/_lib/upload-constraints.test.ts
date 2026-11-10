@@ -15,11 +15,9 @@ import {
   fileTooLargeMessage,
   MAX_AUDIO_BYTES,
   MAX_AUDIO_MB,
-  MAX_CV_VARIANTS,
   MAX_FILE_BYTES,
   MAX_FILE_MB,
   validateAudioUploadServer,
-  validateOptionalUploadServer,
   validateUploadServer,
 } from "./upload-constraints.ts";
 
@@ -78,7 +76,6 @@ test("every locale's UPLOAD_TOO_LARGE states the real cap", async () => {
   for (const locale of ["en", "cs", "de", "fr"]) {
     const catalog = (await import(`../../messages/${locale}.json`, { with: { type: "json" } })).default as {
       errors: Record<string, string>;
-      analyze: Record<string, string>;
     };
     assert.match(
       catalog.errors.UPLOAD_TOO_LARGE,
@@ -86,16 +83,6 @@ test("every locale's UPLOAD_TOO_LARGE states the real cap", async () => {
       `${locale}: errors.UPLOAD_TOO_LARGE no longer names MAX_FILE_MB`
     );
     assert.equal(typeof catalog.errors.UPLOAD_UNSUPPORTED_TYPE, "string", `${locale}: missing UPLOAD_UNSUPPORTED_TYPE`);
-    assert.equal(typeof catalog.errors.ANALYZE_CV_REQUIRED, "string", `${locale}: missing ANALYZE_CV_REQUIRED`);
-    // The variant cap is copy in the catalogs the same way the MB figure is.
-    assert.match(
-      catalog.errors.ANALYZE_TOO_MANY_VARIANTS,
-      new RegExp(String(MAX_CV_VARIANTS)),
-      `${locale}: errors.ANALYZE_TOO_MANY_VARIANTS no longer names MAX_CV_VARIANTS`
-    );
-    // The hint takes the cap as DATA, so it must keep its placeholder rather than
-    // a translator's typed-in number.
-    assert.match(catalog.analyze.uploadHint, /\{max\}/, `${locale}: analyze.uploadHint lost its {max} placeholder`);
   }
 });
 
@@ -120,7 +107,7 @@ test("fileTooLargeMessage names the input and the one shared limit", () => {
   assert.equal(fileTooLargeMessage("CV variant 2"), `The CV variant 2 exceeds the ${MAX_FILE_MB} MB upload limit.`);
 });
 
-// validateUploadServer is the one server-side gate shared by /api/analyze and
+// validateUploadServer is the one server-side gate shared by the CV intake and
 // /api/extract-text (idea-5b61d729). These lock the two rejections — a wrong
 // MIME type (400) and an over-limit size (413) — plus the accepted (null) case,
 // so the two routes can't drift on accepted types or the size cap.
@@ -189,14 +176,8 @@ test("validateUploadServer checks MIME before size (wrong-type-and-too-big is a 
   assert.equal(rejection?.status, 400);
 });
 
-test("validateOptionalUploadServer treats a missing or empty field as accepted", () => {
-  assert.equal(validateOptionalUploadServer(null, "company overview"), null);
-  assert.equal(validateOptionalUploadServer("some text value", "company overview"), null);
-  assert.equal(validateOptionalUploadServer(fileOf("empty.pdf", 0, "application/pdf"), "company overview"), null);
-});
-
-test("validateOptionalUploadServer validates a present file like validateUploadServer", () => {
-  const rejection = validateOptionalUploadServer(fileOf("scan.jpg", 1024, "image/jpeg"), "company overview");
+test("validateUploadServer names the offending input and carries the code beside it", () => {
+  const rejection = validateUploadServer(fileOf("scan.jpg", 1024, "image/jpeg"), "company overview");
   assert.deepEqual(rejection, {
     status: 400,
     error: "Use PDF, DOCX, TXT, or MD for the company overview.",

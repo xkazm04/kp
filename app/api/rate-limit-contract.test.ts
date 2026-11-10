@@ -1,7 +1,6 @@
 // Locks the per-IP / per-token throttles on the open-mode money/compute routes
 // (backlog #7 + #15). When KP_OPERATOR_PASSWORD is unset the whole API is open
 // (proxy.ts), so these routes must self-limit:
-//   /api/analyze          — a paid Gemini multimodal call per uncached run
 //   /api/github-analysis  — up to ~31 GitHub REST calls + a paid Gemini call
 //   /api/extract-text     — a Python subprocess per request; PUBLIC_API_EXACT,
 //                           public even on a gated deploy
@@ -164,19 +163,6 @@ const ROUTES: RouteSpec[] = [
     expensive: "getStt().transcribe(",
   },
   {
-    rel: "./analyze/route.ts",
-    // Per-IP. 30/10min: the UI submits ONE request per run (multi-CV variants
-    // ride together inside it), so a single operator never hits this.
-    key: "`analyze:${clientIpFrom(request.headers)}`",
-    limit: 30,
-    // Moved onto the chokepoint with the analyze-refusal conversion: the form
-    // renders errors.TOO_MANY_REQUESTS in the reader's language (and "try again
-    // in N seconds" when a fronting proxy sent a Retry-After) instead of the
-    // server's English string.
-    refusalCode: "TOO_MANY_REQUESTS",
-    expensive: "startTask(",
-  },
-  {
     // ADDED spark analyze-v2-cohort (Cohort Studio). POST starts an `analyze_cohort` task:
     // up to COHORT_CAP paid CV analyses plus a comparative pass run under two orders. Per
     // IP, 10/10min — one start is a whole screening session, not a click. Ahead of the
@@ -204,7 +190,7 @@ const ROUTES: RouteSpec[] = [
   },
   {
     // ADDED scan-sweep 2026-08-22. This route reaches the SAME startTask that
-    // ./analyze throttles and ./jds/generate operator-gates — it had neither, so an
+    // ./analyze/cohort throttles and ./jds/generate operator-gates — it had neither, so an
     // anonymous /api/demo session could spend unbounded LLM credit through it.
     // 120/10min is deliberately generous: a 50-card bulk accept in the Decisions
     // queue is a legitimate 50-request burst.
@@ -894,7 +880,7 @@ const ROUTES: RouteSpec[] = [
   },
   {
     rel: "./intake/[id]/message/route.ts",
-    // Per-IP. 30/10min, same budget as /api/analyze: each accepted message is a
+    // Per-IP. 30/10min: each accepted message is a
     // potentially-paid LLM exchange, and in open mode the operator gate is a
     // no-op so the route must self-limit. A coaching-paced human never meets
     // one message per 20s; a scripted loop is pinned. The 404/409/400 lifecycle
@@ -3419,39 +3405,4 @@ test("no route sets Retry-After by hand — login, invite, tts and stt delegate 
       `${rel}: the engine's own wait, uncapped, and nothing when the engine said nothing`,
     );
   }
-});
-
-// ADDED challenge-r02 analyze-engine/A. A CV run's GitHub deep-dive is a STAGE of the
-// analyze task now, so ./analyze carries the deep-dive door's two guards for the handle
-// that rides it. Neither is a refusal: the CV run the recruiter asked for is otherwise
-// valid, so a guard that fails DROPS the handle with a code and the run still starts.
-// That is why this is its own case rather than a ROUTES row (every row there pins a 429).
-test("./analyze/route.ts charges a riding GitHub handle to the SAME github-analysis budget, and a throttle drops the handle instead of refusing the run", () => {
-  const src = read("./analyze/route.ts");
-  const call = "rateLimit(`github-analysis:${clientIpFrom(request.headers)}`, { limit: 10, windowMs: 10 * 60_000 })";
-  const at = src.indexOf(call);
-  assert.ok(at >= 0, `expected the deep-dive's pinned limiter, the same key and budget as ./github-analysis:\n  ${call}`);
-  // …the same bucket the door charges, so a handle cannot buy a second allowance.
-  assert.ok(read("./github-analysis/route.ts").includes(call), "the door still charges this exact bucket");
-
-  // Charged only once the run is certain to start: after the authoritative reservation
-  // refusal, before startTask — and only for a handle that survived the blind and
-  // capability checks (both read before it).
-  const reserveAt = src.indexOf('if (reserve) return jsonRefusal("BILLING_QUOTA_EXCEEDED"');
-  const startAt = src.indexOf('startTask("analyze"');
-  assert.ok(reserveAt >= 0 && reserveAt < at, "a run refused for quota spends none of the GitHub budget");
-  assert.ok(at < startAt, "the budget is charged before the task starts");
-  const handleAt = src.indexOf("const githubHandle = !blind &&");
-  const capAt = src.indexOf('await can("pipeline:write")');
-  assert.ok(handleAt >= 0 && handleAt < at, "a blind run never forwards (or charges) a handle");
-  assert.ok(capAt > handleAt && capAt < reserveAt, "the capability is read before the reservation count (no await after it)");
-
-  // The throttle is NOT a 429 for the CV run: the handle is dropped with the deep-dive
-  // namespace's throttle code, and the run proceeds to startTask.
-  const branch = src.slice(at, at + 200);
-  assert.ok(branch.includes('params.githubDropped = "REQUEST_THROTTLED"'), "a throttled handle is dropped, coded");
-  assert.ok(!branch.includes("429"), "the CV run is never refused because its optional deep-dive was throttled");
-
-  // The run's OWN limiter is untouched and still precedes everything.
-  assert.ok(src.indexOf("rateLimit(`analyze:${clientIpFrom(request.headers)}`") < at);
 });

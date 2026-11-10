@@ -117,9 +117,9 @@ test("the dwell-ack is wired to the PAGED rows, not to the polled window", () =>
 
 // ── challenge-r05 workspace-config-api/B: the row reads the server's replay verdict ──
 
-test("rowRetryAction: a dead analyze whose inputs are gone names the reason and the Analyze door", () => {
+test("rowRetryAction: a dead analyze whose inputs are gone names the reason, with no door (its upload is retired)", () => {
   const row = { ...task("a", "failed"), kind: "analyze", replay: { replayable: false as const, reason: "inputs-gone" as const } };
-  assert.deepEqual(rowRetryAction(row), { kind: "blocked", reason: "inputs-gone", door: { tab: "analyze" } });
+  assert.deepEqual(rowRetryAction(row), { kind: "blocked", reason: "inputs-gone" });
 });
 
 test("rowRetryAction: a replayable dead row offers Retry", () => {
@@ -139,16 +139,14 @@ test("rowRetryAction: a succeeded or active row offers nothing", () => {
   }
 });
 
-test("rowRetryAction: seat and retired-kind blocks carry no door (no tab can run them for this caller)", () => {
+test("rowRetryAction: seat and retired-kind blocks name their reason", () => {
   assert.deepEqual(rowRetryAction({ ...task("e", "failed"), kind: "batch_screen", replay: { replayable: false as const, reason: "no-seat" as const } }), {
     kind: "blocked",
     reason: "no-seat",
-    door: null,
   });
   assert.deepEqual(rowRetryAction({ ...task("f", "failed"), kind: "old", replay: { replayable: false as const, reason: "kind-retired" as const } }), {
     kind: "blocked",
     reason: "kind-retired",
-    door: null,
   });
 });
 
@@ -158,5 +156,4 @@ test("every blocked reason resolves to a catalog key, never server English", () 
     const key = REPLAY_REASON_KEY[reason];
     assert.equal(typeof en.tasks.replay[key], "string", `tasks.replay.${key}`);
   }
-  assert.equal(typeof en.tasks.replay.openAnalyze, "string");
 });

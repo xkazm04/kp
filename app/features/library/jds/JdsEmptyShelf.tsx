@@ -44,8 +44,8 @@ function GhostCell({ label, wide }: { label: string; wide?: boolean }) {
 // What one shelved spec is reusable FOR — the real downstream affordances, each a
 // live destination so the payoff is reachable, not just described. The label is a
 // catalog key, resolved at render so the row localizes with the rest of the tab.
-const REUSE: { tab: WorkspaceTabId; icon: LucideIcon; labelKey: "shelfReuseAnalyze" | "shelfReuseIngest" | "shelfReuseDuplicate" }[] = [
-  { tab: "analyze", icon: Sparkles, labelKey: "shelfReuseAnalyze" },
+const REUSE: { tab: WorkspaceTabId; icon: LucideIcon; labelKey: "shelfReuseCompare" | "shelfReuseIngest" | "shelfReuseDuplicate" }[] = [
+  { tab: "analyze", icon: Sparkles, labelKey: "shelfReuseCompare" },
   { tab: "jobs", icon: ArrowRight, labelKey: "shelfReuseIngest" },
   { tab: "library", icon: Copy, labelKey: "shelfReuseDuplicate" },
 ];

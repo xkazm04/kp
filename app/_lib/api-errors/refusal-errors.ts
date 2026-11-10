@@ -294,13 +294,6 @@ export const REFUSAL_ERRORS = {
   UPLOAD_UNSUPPORTED_TYPE: "Use a PDF, DOCX, TXT or MD file.",
   /** The file is over MAX_FILE_BYTES (413, or the client gate). */
   UPLOAD_TOO_LARGE: "That file is over the 8 MB upload limit.",
-  // ---- /api/analyze's own two form refusals. Both were bare English 400s that
-  // the client collapsed into one generic "analysis failed" line.
-  /** The submitted form carried no CV/profile file at all (400). */
-  ANALYZE_CV_REQUIRED: "Attach a CV or profile file to analyze.",
-  /** More CV variants than one run compares (400) — MAX_CV_VARIANTS, pinned to
-   *  this copy by upload-constraints.test.ts the same way the MB figure is. */
-  ANALYZE_TOO_MANY_VARIANTS: "Compare at most 3 CV variants in one run.",
   // ---- App-master intake refusals (docs/features/intake/README.md §"Shape
   // app_master"). Both routes used to answer these as bare English strings with
   // no code, so the card collapsed a throttle, "the scan has not landed" and

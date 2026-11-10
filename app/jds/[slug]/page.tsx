@@ -213,7 +213,7 @@ export default async function JdDetailPage({
   // everyone, a candidate on the share link — would be shown Edit/Archive buttons
   // whose every click comes back "JD not found."
   const canManage = (await isOperator()) && (await currentWorkspace()) === owner;
-  // Analyze CV and the job-board Publish teaser are operator tools (the ledger
+  // Compare candidates and the job-board Publish teaser are operator tools (the ledger
   // rail already has Analyze). A candidate on the share link must not see them.
   const headerActions = publicJdHeaderActions({ canManage, applyOpen });
 
@@ -289,14 +289,14 @@ export default async function JdDetailPage({
                     <Send size={15} /> {t("publish")}
                   </button>
                 );
-              case "analyzeCv":
+              case "compareCandidates":
                 return (
                   <Link
-                    key="analyzeCv"
+                    key="compareCandidates"
                     href={`/?tab=analyze&jd=${encodeURIComponent(slug)}`}
                     className="focus-ring inline-flex h-10 items-center justify-center gap-2 rounded-md bg-ink px-3 text-sm font-semibold text-white hover:bg-steel"
                   >
-                    {t("analyzeCv")}
+                    {t("compareCandidates")}
                   </Link>
                 );
             }

@@ -4,7 +4,7 @@
 // 3 the comparison drawn live in the Line-up world. The recent strip reopens any earlier
 // comparison without re-running it. The step is remembered for this visit (module memory, not
 // the URL — the URL is an inbox), so leaving the tab mid-run and coming back finds the run. A
-// ?jd= deep link (Library's "Analyze a CV") lands on that role's cast step; the title is the
+// ?jd= deep link (Library's "Compare candidates for this role") lands on that role's cast step; the title is the
 // slug until the proposal names the role.
 //
 // The walkthrough runs this same flow against fixture data (CohortWalkthrough provides the

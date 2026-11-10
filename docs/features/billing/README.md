@@ -858,7 +858,7 @@ credit-covered (an overrun past an empty balance) is `qty − from_included − 
   spending and switch to their deterministic fallbacks when exhausted — the
   same paths that run when an LLM provider is down. Reads never hard-fail.
 - **Enforcement is wired** (`enforce.ts`): hard 402 gates where new metered
-  work is created — `/api/analyze` (debits 1 `ai_candidates`),
+  work is created — `/api/analyze/cohort` (debits 1 `ai_candidates` per fresh member),
   `/api/devcase/lifecycle` + `…/redesign` (debit `case_designs`),
   `/api/interview/create` (gate only; the debit is wall-time minutes at
   `/api/interview/complete`, completed calls only, clamped to 2× the booked

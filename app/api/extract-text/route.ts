@@ -80,8 +80,8 @@ export async function POST(request: Request) {
   const rejection = validateUploadServer(file, "file");
   if (rejection) {
     // The gate's `error` names the constraint in English for the log and for API
-    // consumers; `code` is the half the surface renders, localized — the exact
-    // pair /api/analyze forwards, and the half this route used to drop.
+    // consumers; `code` is the half the surface renders, localized — the half
+    // this route used to drop.
     return NextResponse.json({ error: rejection.error, code: rejection.code }, { status: rejection.status });
   }
 

@@ -44,7 +44,7 @@ export const COHORT_MEMBER_CONCURRENCY = 3;
 export const COHORT_COMPARE_TIMEOUT_MS = 180_000;
 
 /** The JD/company text past which it rides as a workdir file, not one argv element
- *  (the same limit /api/analyze spills at: ~32KB total argv on Windows). */
+ *  (~32KB total argv on Windows). */
 const ARGV_TEXT_LIMIT = 8 * 1024;
 
 /** A coded member failure. `code` is an errors.<CODE> key, never engine text. */
@@ -387,7 +387,7 @@ export async function runCohortCore(deps: CohortRunDeps): Promise<CohortRunSumma
 
 // ---- the wiring --------------------------------------------------------------------
 
-/** The github-analysis bucket (the SAME one /api/github-analysis and /api/analyze charge). */
+/** The github-analysis bucket (the SAME one /api/github-analysis charges). */
 export const COHORT_GITHUB_BUDGET = { limit: 10, windowMs: 10 * 60_000 };
 
 /** Shape-check one CLI answer; anything malformed reads as "said nothing". */

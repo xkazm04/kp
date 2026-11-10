@@ -212,7 +212,7 @@
       },
       "apply": {
         "title": "Candidature / dépôt de CV",
-        "summary": "Un CV (PDF/DOCX/TXT/MD) déposé dans l'onglet Analyze est transmis au CLI d'analyse Python en sous-processus et le résultat est enregistré. Le formulaire guidé Profile enregistre un profil V2 structuré."
+        "summary": "Un CV (PDF/DOCX/TXT/MD) arrive par une candidature ou un canal et reste rattaché au candidat. Dans l’onglet Analyse, le recruteur choisit un poste, le CV de chaque candidat est transmis à la CLI d’analyse Python en sous-processus et le résultat est enregistré. Le formulaire guidé de Profil enregistre un profil V2 structuré."
       },
       "extract": {
         "title": "Extraction du texte + champs LLM",
@@ -1460,8 +1460,6 @@
     "LOGIN_CREDENTIALS_INVALID": "Identifiants incorrects. Réessayez.",
     "UPLOAD_UNSUPPORTED_TYPE": "Utilisez un fichier PDF, DOCX, TXT ou MD.",
     "UPLOAD_TOO_LARGE": "Ce fichier dépasse la limite de téléversement de 8 Mo.",
-    "ANALYZE_CV_REQUIRED": "Joignez un CV ou un profil à analyser.",
-    "ANALYZE_TOO_MANY_VARIANTS": "Vous pouvez comparer au maximum 3 variantes de CV par analyse.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "Cette soumission est introuvable.",
     "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Évaluez la soumission avant de lancer une présélection vocale.",
     "INTERVIEW_ENTRY_NOT_ACTIVE": "Ce candidat n’est plus actif : une nouvelle scorecard ne peut pas être enregistrée.",
@@ -5406,7 +5404,7 @@
       "detailOpenPublic": "Ouvrir la page publique",
       "copyPublicLink": "Copier le lien public",
       "publicLinkCopied": "Copié",
-      "detailAnalyzeCv": "Analyser un CV",
+      "detailCompareCandidates": "Comparer les candidats pour ce poste",
       "detailLoadError": "Impossible de charger cette description pour le moment.",
       "noDescriptionYet": "Ce poste n’a pas encore de description.",
       "buildingTitle": "Création de cette fiche de poste…",
@@ -5487,7 +5485,7 @@
       "shelfDraftCta": "Laisser le générateur la rédiger",
       "shelfCtaNote": "Le panneau Générer prend le relais : enregistrez votre texte comme brouillon, ou confiez-le à l'IA pour qu'elle produise la description, une fourchette de salaire du marché et un exercice pratique.",
       "shelfReuseLabel": "Une fiche sert à",
-      "shelfReuseAnalyze": "Évaluer des CV par rapport à elle",
+      "shelfReuseCompare": "Comparer des candidats pour ce poste",
       "shelfReuseIngest": "La convertir en poste ouvert",
       "shelfReuseDuplicate": "La dupliquer pour la prochaine ouverture",
       "intake": {
@@ -6675,7 +6673,7 @@
       "emptyPrompt": "Choisissez un candidat et lancez le matching pour voir des postes classés, filtrés KO et notés.",
       "emptyChainBody": "Les candidats proviennent de profils enregistrés ou d’analyses de CV enregistrées.",
       "emptyCtaProfile": "Créer un profil",
-      "emptyCtaAnalyze": "Analyser un CV"
+      "emptyCtaCompare": "Comparer des candidats pour un poste"
     },
     "dims": {
       "skills": "Compétences",
@@ -6856,7 +6854,7 @@
       "intro": "Chaque profil enregistré et chaque CV analysé, placé dans l’archétype vers lequel il a été orienté. Une puce indique la source. Ouvrez-en un pour modifier le profil ou voir l’analyse.",
       "loadFailed": "Impossible de charger les candidats.",
       "emptyTitle": "Aucun candidat pour l’instant",
-      "emptyBody": "Créez un profil ci-dessus, ou lancez un CV dans l’onglet <b>Analyse</b>. Chacun est orienté vers un archétype et apparaît ici.",
+      "emptyBody": "Créez un profil ci-dessus, ou comparez des candidats pour un poste dans l’onglet <b>Analyse</b>. Chacun est orienté vers un archétype et apparaît ici.",
       "openProfileTitle": "Modifier le profil de {name}",
       "sourceProfile": "Profil",
       "sourceAnalysis": "Analyse",
@@ -7161,14 +7159,14 @@
       "listTitle": "Aucune fiche dans le tiroir pour l’instant",
       "listBody": "Un profil est un enregistrement structuré d’un candidat : ce que vous rapprochez des postes ouverts. Rien n’a encore été classé ici.",
       "listCta": "Créer un profil",
-      "listCtaAnalyze": "Ou analyser un CV et le promouvoir",
+      "listCtaCompare": "Ou comparer des candidats pour un poste",
       "matrixTitle": "Les tiroirs sont prêts, les fiches manquent",
       "matrixBodyDefined": "{count, plural, one {Vous avez défini # archétype ci-dessus.} other {Vous avez défini # archétypes ci-dessus.}} Chaque candidat est classé dans un seul. Cette vue pourra alors les comparer côte à côte.",
       "matrixBodyNone": "Chaque candidat est classé dans un seul archétype, et cette vue les compare côte à côte. Définissez un archétype ci-dessus pour ouvrir le premier tiroir.",
       "filed": "{count, plural, one {# classée} other {# classées}}",
       "moreArchetypes": "{count, plural, one {+# autre} other {+# autres}}",
       "matrixCta": "Classer la première fiche",
-      "matrixCtaAnalyze": "Ou analyser un CV"
+      "matrixCtaCompare": "Ou comparer des candidats pour un poste"
     }
   },
   "pipelineShape": {
@@ -9996,7 +9994,7 @@
     "notAcceptingTitle": "Note pour le recruteur : les candidats peuvent postuler une fois le poste intégré au pipeline (onglet Postes → Intégrer au pipeline). Jusque-là, il n’apparaît pas comme actif pour les candidats.",
     "publish": "Publier sur les sites d’emploi",
     "publishTitle": "L’intégration de publication sur les sites d’emploi arrive bientôt. Elle diffuse la fiche de poste sur des sites d’emploi externes, ce qui est distinct de l’intégration des candidats au pipeline",
-    "analyzeCv": "Analyser le CV",
+    "compareCandidates": "Comparer les candidats pour ce poste",
     "archivedBanner": "Cette fiche de poste est archivée. Elle n’apparaît plus dans la bibliothèque ni dans le sélecteur d’analyse, mais cette page (et chaque lien d’analyse vers elle) reste fonctionnelle.",
     "editJd": "Modifier la fiche de poste",
     "archive": "Archiver",
@@ -12179,8 +12177,7 @@
     "replay": {
       "inputsGone": "Les fichiers importés ne sont plus disponibles, ce traitement ne peut donc pas être relancé.",
       "kindRetired": "Ce type de tâche n’existe plus dans cette version.",
-      "noSeat": "Votre rôle ne permet pas de relancer cette tâche.",
-      "openAnalyze": "Réimporter dans Analyse"
+      "noSeat": "Votre rôle ne permet pas de relancer cette tâche."
     }
   },
   "control": {

@@ -181,5 +181,14 @@ test("every kind only a server module enqueues is a server kind, resolved throug
     assert.equal(dockMayStart(k), false, `${k} is only enqueued by ${SERVER.get(k)!.join(", ")} — it must be a server kind`);
   }
   // …and the converse: a server kind with no server producer is a kind nobody can start.
-  for (const k of serverOnlyTaskKinds()) assert.ok(SERVER.has(k), `${k} is closed to the dock but no server module enqueues it`);
+  // RETIRED_DOOR names a kind whose door was deleted on purpose while its rows live on:
+  // `analyze` lost POST /api/analyze on 2026-11-10 (the cohort door runs the same engine
+  // as `analyze_cohort`); the kind stays so rows written before can still be listed,
+  // explained and cancelled. Each entry must really have no producer, or it is stale.
+  const RETIRED_DOOR = new Set(["analyze"]);
+  for (const k of RETIRED_DOOR) assert.ok(!SERVER.has(k), `${k} has a producer again; drop it from RETIRED_DOOR`);
+  for (const k of serverOnlyTaskKinds()) {
+    if (RETIRED_DOOR.has(k)) continue;
+    assert.ok(SERVER.has(k), `${k} is closed to the dock but no server module enqueues it`);
+  }
 });

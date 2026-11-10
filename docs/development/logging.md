@@ -6,7 +6,7 @@ usage without rerunning the full e2e suite.
 | File | Written by | One line per |
 | --- | --- | --- |
 | `tmp/pipeline.log` | `pipeline/jobfit/logger.py` | `analyze_cv()` invocation — request_id, CV path, JD/company flags, total + per-stage durations, Gemini token usage (`prompt_tokens`, `candidate_tokens`, `total_tokens`, `cached_tokens`), error |
-| `tmp/analyze.log` | `app/_lib/logger.ts` | `/api/analyze` request — request_id, route, candidate label, JD slug, `cache_hit` flag, duration, saved slug, error |
+| `tmp/analyze.log` | `app/_lib/logger.ts` | `runAnalyze` run (one per fresh cohort member) — request_id, route, candidate label, JD slug, `cache_hit` flag, duration, saved slug, error |
 | `tmp/github.log` | `app/api/github-analysis/route.ts` | `/api/github-analysis` request — request_id, GitHub user, REST repo count, `code_review` status, duration, error |
 
 Logs are append-only JSONL (one JSON object per line) so they're tail-friendly and

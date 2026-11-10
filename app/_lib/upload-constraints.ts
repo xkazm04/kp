@@ -25,7 +25,7 @@ export const ACCEPT_MIME = new Set([
 // way wherever it enters:
 //   • client — acceptUpload() (below) rejects at the drop/select moment, before
 //     the bytes ever upload.
-//   • server — the /api/analyze and /api/extract-text Route Handlers re-check
+//   • server — the upload Route Handlers (/api/extract-text, cv-intake) re-check
 //     every File and reject an over-limit one with FILE_TOO_LARGE_STATUS (413)
 //     *before* any work starts. The user therefore never depends on whichever
 //     downstream buffer happens to overflow first to learn the file was too big.
@@ -43,16 +43,14 @@ export const ACCEPT_MIME = new Set([
 //     never truncated. See its comment for the reverse cross-reference.
 //
 // To change the contract, change MAX_FILE_BYTES / MAX_FILE_MB here — the client
-// gate, both routes, and the drop-zone hint all read from this one place. If you
+// gate, the upload routes, and the drop-zone hint all read from this one place. If you
 // raise MAX_FILE_MB toward ~9, raise next.config.ts's 10mb too.
 //
 // There is deliberately NO exported hint STRING any more: "PDF · DOCX · TXT · MD
 // up to 8 MB" is copy, and copy belongs in the catalogs where all four locales
-// carry it (`analyze.uploadHint`, which takes the cap as `{max}` so the number
-// still comes from MAX_FILE_MB rather than from a translator).
+// carry it, with the cap as data so the number still comes from MAX_FILE_MB.
 export const MAX_FILE_BYTES = 8 * 1024 * 1024;
 export const MAX_FILE_MB = 8;
-export const MAX_CV_VARIANTS = 3;
 
 /**
  * HTTP status a route returns when an upload exceeds MAX_FILE_BYTES — 413
@@ -129,8 +127,8 @@ export type ServerUploadRejection = { status: number; error: string; code: Uploa
  * The single server-side gate every uploaded CV / job-description / company File
  * passes through — the server twin of acceptUpload(). Where the client gates by
  * extension before the bytes upload, each Route Handler re-checks the MIME type
- * and size after they arrive, so the upload endpoints (/api/analyze and
- * /api/extract-text) can't drift on accepted types or size limits. `label`
+ * and size after they arrive, so the upload endpoints (/api/extract-text and
+ * the CV intake) can't drift on accepted types or size limits. `label`
  * names the offending input ("profile", "job description", "file", …) so the
  * error says which file to fix. Returns null when the file is accepted.
  *
@@ -212,17 +210,4 @@ export function validateAudioUploadServer(file: File): AudioUploadRejection | nu
   if (!ACCEPT_AUDIO_MIME.has(file.type)) return { status: 400, code: "AUDIO_UNSUPPORTED_TYPE" };
   if (file.size > MAX_AUDIO_BYTES) return { status: FILE_TOO_LARGE_STATUS, code: "AUDIO_TOO_LARGE" };
   return null;
-}
-
-/**
- * validateUploadServer for an optional form field: a missing or empty entry is
- * not an error (returns null); a present File is validated. Use for fields like
- * the job description or company overview that may be supplied as text instead.
- */
-export function validateOptionalUploadServer(
-  file: FormDataEntryValue | null,
-  label: string,
-): ServerUploadRejection | null {
-  if (!(file instanceof File) || file.size === 0) return null;
-  return validateUploadServer(file, label);
 }

@@ -127,7 +127,7 @@ function DossierList({ onNewProfile }: ProfileEmptyProps) {
       </div>
       <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
         <BuildProfileButton onNewProfile={onNewProfile} label={t("empty.listCta")} />
-        <ChainLink tab="analyze" label={t("empty.listCtaAnalyze")} />
+        <ChainLink tab="analyze" label={t("empty.listCtaCompare")} />
       </div>
     </div>
   );
@@ -171,7 +171,7 @@ function DossierMatrix({ archetypes, onNewProfile }: ProfileEmptyProps) {
       {rest > 0 ? <p className="mt-2 text-sm text-steel">{t("empty.moreArchetypes", { count: rest })}</p> : null}
       <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
         <BuildProfileButton onNewProfile={onNewProfile} label={t("empty.matrixCta")} />
-        <ChainLink tab="analyze" label={t("empty.matrixCtaAnalyze")} />
+        <ChainLink tab="analyze" label={t("empty.matrixCtaCompare")} />
       </div>
     </div>
   );
