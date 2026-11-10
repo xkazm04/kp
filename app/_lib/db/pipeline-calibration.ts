@@ -1,5 +1,7 @@
 // Type-only: calibration.ts is deliberately pure/import-free, so this is erased.
 import type { CalibrationOutcomeAxis } from "../calibration";
+import type { AdvanceConfidence, OutcomeAxis, OutcomeEntry, OutcomeEvent } from "../calibration-outcomes";
+import { screeningGateIndex, stagesWithRole } from "../pipeline-stages";
 import { isTerminalEntryStatus } from "../pipeline-status";
 import { ensureDb } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
@@ -139,4 +141,81 @@ export function pipelineCalibrationBandCandidates(
     });
   }
   return out;
+}
+
+// ─── Score vs outcome inputs (calibration-outcomes.ts) ────────────────────────
+// READ-ONLY, one workspace. Which writer owns each field, and whether it is an event:
+//   pipeline_entries.match_score — rewritten row (scoring/rematch); read as the score
+//     only, never as an outcome or an event time.
+//   pipeline_events.{kind,from_stage,to_stage,actor,created_at} — append-only trail
+//     (recordEvent). Rewrites are stage renames (migratePipelineStages) and erasure
+//     masking of candidate_label, neither of which changes kind, author or time.
+//   profiles.payload_json $.potentialScore — the scorer's blended potential, when a
+//     producer stored it (0..1). Its four components are stored by NO producer:
+//     transform.compute_potential returns only the blend, so they read as null.
+//   decision_records.payload_json $.inputs.aiConfidence — the sealed screening
+//     confidence beside an advance (pipeline-entry-action.ts), append-only chain.
+export type ScoreOutcomeInputs = {
+  entries: OutcomeEntry[];
+  events: OutcomeEvent[];
+  confidences: AdvanceConfidence[];
+  axis: OutcomeAxis;
+};
+
+export function scoreOutcomeInputs(workspaceId: string = DEFAULT_WORKSPACE_ID): ScoreOutcomeInputs {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT e.id, e.match_score AS match, json_extract(p.payload_json, '$.potentialScore') AS potential
+       FROM pipeline_entries e
+       LEFT JOIN profiles p ON p.id = e.candidate_id AND p.workspace_id = e.workspace_id
+       WHERE e.workspace_id = ? AND e.match_score IS NOT NULL`
+    )
+    .all(workspaceId) as { id: string; match: number; potential: unknown }[];
+  const entries: OutcomeEntry[] = rows.map((r) => ({
+    entryId: r.id,
+    scores: {
+      match: Number.isFinite(r.match) ? r.match : null,
+      potential: typeof r.potential === "number" && Number.isFinite(r.potential) ? r.potential * 100 : null,
+      potentialDepth: null,
+      potentialVelocity: null,
+      potentialFoundation: null,
+      potentialInitiative: null,
+    },
+  }));
+  const events = (
+    db
+      .prepare(
+        `SELECT entry_id, kind, from_stage, to_stage, actor, created_at FROM pipeline_events
+         WHERE workspace_id = ? AND entry_id IS NOT NULL AND kind != 'stage_migrated'
+         ORDER BY created_at, id`
+      )
+      .all(workspaceId) as { entry_id: string; kind: string; from_stage: string | null; to_stage: string | null; actor: string | null; created_at: string }[]
+  ).map((r) => ({ entryId: r.entry_id, kind: r.kind, fromStage: r.from_stage, toStage: r.to_stage, actor: r.actor, at: r.created_at }));
+  let confidences: AdvanceConfidence[] = [];
+  try {
+    confidences = (
+      db
+        .prepare(
+          `SELECT candidate_ref, kind, json_extract(payload_json, '$.inputs.aiConfidence') AS c, created_at FROM decision_records
+           WHERE workspace_id = ? AND kind IN ('advanced', 'auto_advanced')`
+        )
+        .all(workspaceId) as { candidate_ref: string; kind: string; c: unknown; created_at: string }[]
+    )
+      .filter((r) => typeof r.c === "number" && Number.isFinite(r.c))
+      .map((r) => ({ entryId: r.candidate_ref, kind: r.kind, confidence: r.c as number, at: r.created_at }));
+  } catch (err) {
+    // The decision store creates its table lazily: on a cold DB "no confidence sealed"
+    // is the truth. Anything else is a real fault and propagates.
+    if (!/no such table/i.test(String((err as Error)?.message))) throw err;
+  }
+  const stages = getPipelineAxis(workspaceId).stages;
+  const terminal = stagesWithRole("terminal", stages)[0];
+  const terminalIndex = terminal ? stages.findIndex((s) => s.id === terminal) : stages.length - 1;
+  return {
+    entries,
+    events,
+    confidences,
+    axis: { stages: stages.map((s) => s.id), advanceIndex: screeningGateIndex(stages), terminalIndex },
+  };
 }

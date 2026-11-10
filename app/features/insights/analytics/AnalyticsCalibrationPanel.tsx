@@ -28,6 +28,7 @@ import { ScoreBands } from "./AnalyticsScoreBands";
 import { ThresholdSuggestion, ThresholdSuggestionAbsent } from "./AnalyticsThresholdSuggestion";
 import { ThresholdHistoryStrip } from "./AnalyticsThresholdHistoryStrip";
 import { AnalyticsFamilyFloorChips } from "./AnalyticsFamilyFloorChips";
+import { ScoreOutcomes } from "./AnalyticsScoreOutcomes";
 
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 import { PANEL } from "@/app/_components/ui/recipes";
@@ -333,6 +334,9 @@ export function CalibrationPanel() {
           ) : null}
         </>
       )}
+      {/* Score vs what people decided: its own read (the event trail, not the curve's
+          pairs), so it stands outside the curve's gate and the source switch. */}
+      <ScoreOutcomes />
     </section>
   );
 }

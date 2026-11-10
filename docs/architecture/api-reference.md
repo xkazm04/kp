@@ -77,7 +77,7 @@ live on the other side of a route.
 
 <!-- BEGIN GENERATED ROUTES -->
 
-_317 routes, 426 handlers._
+_318 routes, 427 handlers._
 
 ### `/api/agents`
 
@@ -108,6 +108,7 @@ _317 routes, 426 handlers._
 | `/api/analytics/calibration/apply-threshold` | POST | gated |
 | `/api/analytics/calibration/band` | GET | gated |
 | `/api/analytics/calibration/floor-preview` | GET | gated |
+| `/api/analytics/calibration/outcomes` | GET | gated |
 | `/api/analytics/calibration/threshold-history` | GET | gated |
 | `/api/analytics/decisions` | GET | gated |
 | `/api/analytics/metric-pack` | GET | gated |

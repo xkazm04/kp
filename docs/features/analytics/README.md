@@ -521,6 +521,40 @@ fair-share floor that decides who gets flagged.
 `sections/QualityInstrument.tsx` answers the question that comes before every decision below
 it: should this score be allowed to decide at all.
 
+- **Score vs what people decided (`GET /api/analytics/calibration/outcomes`).** A second
+  instrument at the foot of the calibration panel (`AnalyticsScoreOutcomes.tsx`), read from the
+  append-only `pipeline_events` trail rather than the rewritten `pipeline_entries` row, so every
+  outcome has an author and an event time. Pure maths in `app/_lib/calibration-outcomes.ts`
+  (`computeScoreOutcomes`), inputs from `scoreOutcomeInputs(ws)` (`app/_lib/db/pipeline-calibration.ts`,
+  read-only, every query bound to `workspace_id`). Three grids, each with its sentence first:
+  - *Score band → stage a person took them to.* Five match-score bands × each stage from
+    Screened to the terminal one. A cell counts candidates whose outcome **a person** settled for
+    that stage (reached it, or a person rejected them first); an automated advance is never
+    evidence, and candidates moved only by automation are counted in their own column. A hire
+    after `offer_accepted` counts as a person's outcome (the candidate's act after a person's offer).
+  - *Rank per score.* AUC (Mann-Whitney, mid-rank ties) for match, potential and potential's four
+    terms (depth 35 · velocity 25 · foundation 25 · initiative 15), on "advanced to the screening
+    gate stage" and "reached the terminal stage". Potential is read from the profile payload's
+    `potentialScore` when a producer stored it; the four terms are stored by **no** producer
+    (`pipeline/jobfit/transform.py` `compute_potential` returns only the blend), so those rows say
+    "not stored" rather than draw a number.
+  - *Auto-advance band audit.* Advances sealed with a screening confidence
+    (`decision_records` `inputs.aiConfidence`): automated at ≥ 80 (`AUTO_ADVANCE_CONFIDENCE`,
+    pinned by test to `automation.py` `POLICY["screen_advance_conf"]`) versus person-advanced at
+    70–79, and how many a person later rejected or moved back. The screen task's own
+    advance (`automation-run.ts`) seals no confidence today, so on live data the grid states that
+    the band cannot be audited yet and counts the advances it cannot read.
+  Honesty floors, each argued beside its constant: a rate needs **8** decided candidates in the
+  cell (`OUTCOME_RATE_FLOOR`, the same bar the floor recommendation uses), an AUC needs **8 on
+  each side** (`OUTCOME_RANK_FLOOR`). Below the floor a cell shows "k of n" and "n of 8 needed",
+  never a percentage; rates carry a 95 % Wilson interval. The "would support raising the bar"
+  line appears only when both audit cells are measured and the intervals separate, and nothing
+  applies it — the bar is a Python policy constant with no apply door. Seeded and simulated rows
+  are **excluded and counted**: the demo seeder is the only writer of `matched` events (and
+  writes a `from_stage`-less `advanced` that would otherwise read as a recruiter's), and the
+  guided simulation acts as `auto:sim`. Run on a copy of the operator DB (2026-11-10): 102 scored,
+  50 seeded + 9 simulation excluded, 43 live, 3 decided by a person — every cell thin, no AUC, no
+  confidence sealed on any advance. Nothing can be concluded yet, and the surface says so.
 - **The reliability diagram exports.** A calibrated arm offers `kp-reliability.csv` (bin, lo,
   hi, n, predicted, observed; empty bins omitted) with provenance naming source, outcome,
   floor and whether that floor is enforced. The uncalibrated branch has no curve and no
