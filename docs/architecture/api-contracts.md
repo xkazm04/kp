@@ -253,6 +253,14 @@ Five facts about that gate that are easy to get wrong:
   marketing link and OG unfurl on the site's own front door met a login form. What
   the root can render anonymously is the static landing — the workspace behind it
   is a client shell whose every `/api/*` call is still gated.
+  Since 2026-11-10 the landing is served by its own route: the proxy asks the same
+  question first (`app/_lib/auth/root-surface.ts`, the edge-safe twin of
+  `hasEnteredWorkspace()`) and **rewrites** an anonymous `/` to `/landing/home`, so the
+  browser URL stays `/` and the two faces are separate route entries
+  (`app-structure.md`, "First load of `/`"). A direct request for `/landing/home` is
+  redirected to `/`. `app/page.tsx` keeps its own gate and answers a disagreement (only
+  possible at a session's expiry instant) with a redirect to `/`, which the proxy then
+  routes to the landing; `root-surface.test.ts` pins the two predicates together.
 
 **A session is not an authorisation.** `requireOperator()` answers "is this a
 trusted operator", which on a TEAM deployment every member satisfies. A route

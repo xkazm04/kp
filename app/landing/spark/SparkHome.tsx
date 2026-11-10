@@ -10,13 +10,13 @@ import CtaDock from "../site/chrome/CtaDock";
 import LandingPage from "../site/land/LandingPage";
 
 /*
- * The signed-out homepage ('/', server-gated in app/page.tsx): the fused
+ * The signed-out homepage ('/', rewritten by proxy.ts to app/landing/home): the fused
  * prototype's landing (app/landing/site/, see its README). The route shell only:
  * the site root with its fonts, the shared header / footer / phone dock, and the
  * landing's bands. `../site/land/styles` is imported first on purpose: it is the
  * landing's whole stylesheet list, in cascade order.
  *
- * `signupOpen` is resolved SERVER-SIDE by the caller (app/page.tsx) from
+ * `signupOpen` is resolved SERVER-SIDE by the caller (app/landing/home/page.tsx) from
  * `workspace-lock.signupEnabled` and threaded to every "Start hiring free"
  * (chrome/Ctas StartCta), which needs it to pick /signup over /login on a gated
  * deploy. A single serializable boolean: the env never crosses to the client.

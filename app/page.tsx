@@ -1,15 +1,12 @@
 import { Suspense } from "react";
-import { headers } from "next/headers";
-import { isOpenMode, openEntryOffered } from "@/app/_lib/auth/open-entry";
+import { redirect } from "next/navigation";
 import { Workspace } from "@/app/features/shell/Workspace";
-import SparkHome from "@/app/landing/spark/SparkHome";
 import { hasEnteredWorkspace } from "@/app/_lib/auth/home-gate-server";
 import { callerCapabilities, currentSession } from "@/app/_lib/auth/current-user";
 import { isOperator } from "@/app/_lib/auth/require-operator";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import type { ShellPrincipal } from "@/app/features/shell/shellPrincipal";
 import { needsOnboarding } from "@/app/_lib/auth/onboarding-gate";
-import { signupEnabled } from "@/app/_lib/workspace-lock";
 import { jobseekerEnabled } from "@/app/_lib/jobseeker/enabled";
 import { SetupSeekOfferProvider } from "@/app/features/shell/setup/SetupSeekOfferProvider";
 import { demoChoicePending } from "@/app/_lib/db/demo-seed";
@@ -23,12 +20,13 @@ import { LazyFirstRunDataChoice } from "@/app/setup/FirstRunDataChoiceLazy";
 // crawlable (see robots.ts/sitemap.ts) and with no landing↔dashboard flash.
 // The Suspense boundary is required by Workspace's useSearchParams.
 //
-// Every client component this page reaches statically lands in ONE entry script group
-// that every visitor of '/' downloads: the operator pays for the landing's islands and
-// an anonymous visitor for the workspace shell. Workspace stays static on purpose: put
-// behind next/dynamic, its own lazy children (the default tab, the sim dock) drop out of
-// the document's script list and load after hydration, a waterfall on the operator's
-// path. docs/architecture/app-structure.md, "First load of '/'", has the measurements.
+// The landing is NOT rendered here. proxy.ts asks the same question first
+// (app/_lib/auth/root-surface.ts, its edge-safe twin) and rewrites an anonymous '/'
+// to app/landing/home/page.tsx, so the two faces are two route entries: a page's
+// statically reached client components all land in its entry scripts, and one page
+// serving both made each audience download the other's tree. Workspace stays static
+// on purpose (behind next/dynamic its lazy children load after hydration, a
+// waterfall). docs/architecture/app-structure.md, "First load of '/'", has the numbers.
 //
 // `?sim=auto` is the public guided-demo entry (B1): the prospect arrived from
 // /api/demo with an isolated demo-workspace session, so force the workspace
@@ -67,19 +65,11 @@ export default async function Home({
   const sp = await searchParams;
   const demoMode = sp?.sim === "auto";
   const entered = demoMode || (await hasEnteredWorkspace());
-  // `signupOpen` is the ONE bit of deployment policy the landing needs: whether
-  // /signup exists on this deploy (KP_SIGNUP_ENABLED — the page 404s when unset,
-  // which the client cannot detect). Resolved here with the same predicate the
-  // page and the register route use, never re-parsed from a NEXT_PUBLIC_ mirror,
-  // so the hero's primary CTA can send a refused (gated-deploy) visitor to a
-  // surface where a stranger can actually finish. Pure env read — the anonymous
-  // landing stays DB-free.
-  if (!entered) {
-    // Local open-mode install: the landing leads into the app (cx T2). Password mode,
-    // hosted and public-link visits keep today's labels and Sign in flow.
-    const openEntry = openEntryOffered({ openMode: isOpenMode(), host: (await headers()).get("host") });
-    return <SparkHome signupOpen={signupEnabled()} openEntry={openEntry} />;
-  }
+  // Not entered: the proxy disagreed with this gate, which its twin predicate allows only
+  // at a session's expiry instant (both read the clock, the proxy first). Ask again: the
+  // proxy now sees the expired cookie and rewrites to the landing. root-surface.test.ts
+  // pins the two predicates to each other, so this cannot loop.
+  if (!entered) redirect("/");
   // First-run DATA choice (operator triage T1): a fresh install no longer seeds the demo
   // corpus at boot, so before anything else the default workspace is asked "start empty,
   // or explore with demo data?" — once, the answer is recorded in the DB

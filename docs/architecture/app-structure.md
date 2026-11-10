@@ -220,11 +220,36 @@ Candi's runtime hooks (hoisted into the provider deliberately; `useCompanionRunt
 states the cost), the session-lapse hook, and `framer-motion` (140 KB decoded, needed
 by the root layout's `Toaster` and by the default Pipeline tab).
 
-**The two faces of `/` share one entry.** Every client component `app/page.tsx`
-reaches statically lands in that page's entry scripts, so the operator still
-downloads the landing's islands (`SparkHome`: 39 client modules / 171 KB of source)
-and an anonymous visitor still downloads the workspace shell. Two fixes were measured
-and neither landed:
+**The two faces of `/` are two route entries (since 2026-11-10).** Every client
+component a page reaches statically lands in that page's entry scripts, so while
+`app/page.tsx` rendered both faces the operator downloaded the landing's islands
+(`SparkHome`: 39 client modules / 171 KB of source, plus its stylesheets) and an
+anonymous visitor the workspace shell. Now `proxy.ts` rewrites an anonymous `/` to
+`app/landing/home/page.tsx` (the decision is `app/_lib/auth/root-surface.ts`, the
+edge-safe twin of `hasEnteredWorkspace()`, pinned to it by `root-surface.test.ts`).
+The browser URL stays `/`, so every link, `?tab=`, `?lang=`, `/#spotlight-<key>` and
+`?sim=auto` keeps working; the landing route pins its canonical and hreflang to `/`
+(the root layout's are relative to the rendered path, which a rewrite changes), and a
+direct request for `/landing/home` is redirected to `/`. `app/page.tsx` keeps its own
+gate: if it ever disagrees (possible only at a session's expiry instant) it redirects
+to `/`, where the proxy now sees the expired cookie.
+
+Measured 2026-11-10, same recipe as above (`KP_EMPTY=1 next build` + `next start`,
+`KP_ALLOW_OPEN=1`, fresh throwaway DB, three cold runs each, identical to the byte);
+stylesheets counted with a one-off Playwright probe of `stylesheet` responses:
+
+| `/` | eager scripts | eager KB wire / decoded | settled KB wire / decoded | stylesheets (decoded) |
+| --- | --- | --- | --- | --- |
+| workspace, before | 23 | 338.2 / 1022.1 | 779.1 / 2373.6 | 13 / 505.5 KB |
+| workspace, after | 23 | 312.7 / 931.9 | 753.6 / 2283.4 | 9 / 295.4 KB |
+| public landing, before | 20 | 305.8 / 922.1 | 305.8 / 922.1 | 6 / 387.5 KB |
+| public landing, after | 16 | 251.2 / 770.7 | 251.2 / 770.7 | 6 / 387.5 KB |
+
+The static walk agrees: `app/page.tsx` went from 220 modules / 1777 KB to 151 / 1323
+(`check-budget.mjs --explain`; ceiling tightened), the client closure of `/` from 147 /
+858 KB to 114 / 711 (`first-load.mjs`), and the landing route alone walks 79 / 487 KB.
+
+Before the route split, two in-page fixes were measured and neither landed:
 
 - `next/dynamic` around the three faces *in the server page* changed nothing (25 to
   26 scripts, same bytes): Turbopack keeps a server page's client references in its
@@ -234,9 +259,7 @@ and neither landed:
   (the default tab, the sim dock) then left the document's script list and loaded
   only after hydration, a request waterfall on the operator's path. Rejected.
 
-The remaining lever is a route-level split, serving the landing from its own route
-(for example a `proxy.ts` rewrite of an anonymous `/`), which moves the auth gate and
-is an owner decision.
+That left the route-level split above, which the owner ruled in (2026-11-10).
 
 ### A nav group may own a DOOR as well as its destinations
 

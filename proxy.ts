@@ -6,6 +6,7 @@ import { isPublicPath } from "./app/_lib/auth/public-routes";
 import { crossSiteWriteRefused } from "./app/_lib/auth/same-origin";
 import { isJobseekerPath, jobseekerEnabled, UNKNOWN_ROUTE_PATH } from "./app/_lib/jobseeker/enabled";
 import { isVoiceInterviewPath, voiceInterviewEnabled } from "./app/_lib/voice/enabled";
+import { LANDING_HOME_PATH, ROOT_ENTERED_COOKIE, rootServesLanding } from "./app/_lib/auth/root-surface";
 
 // Auth foundation (P2) — the recruiter-surface gate (Next 16 `proxy` convention,
 // the renamed successor to `middleware`). FAIL-CLOSED: every path is gated EXCEPT
@@ -175,8 +176,35 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     headers.set("Content-Security-Policy", csp);
     headers.set("x-nonce", nonce);
     if (seekerHidden) return withCsp(NextResponse.rewrite(new URL(UNKNOWN_ROUTE_PATH, req.url), { request: { headers } }));
+    if (landingHome) {
+      const to = req.nextUrl.clone();
+      to.pathname = LANDING_HOME_PATH;
+      return withCsp(NextResponse.rewrite(to, { request: { headers } }));
+    }
     return withCsp(NextResponse.next({ request: { headers } }));
   };
+
+  // 0a) The two faces of '/' (app/_lib/auth/root-surface.ts): an anonymous '/' is
+  //     REWRITTEN to the landing's own route, so the landing and the workspace are two
+  //     route entries and neither audience downloads the other's client tree. The URL
+  //     stays '/'. The landing route is internal: a direct hit goes back to '/'.
+  if (req.nextUrl.pathname === LANDING_HOME_PATH) {
+    const home = req.nextUrl.clone();
+    home.pathname = "/";
+    return withCsp(NextResponse.redirect(home));
+  }
+  const hasPasswordSet = Boolean(process.env.KP_OPERATOR_PASSWORD);
+  const landingHome =
+    req.nextUrl.pathname === "/" &&
+    (await rootServesLanding({
+      sim: req.nextUrl.searchParams.get("sim"),
+      passwordSet: hasPasswordSet,
+      sessionCookie: req.cookies.get(SESSION_COOKIE)?.value,
+      enteredCookie: req.cookies.get(ROOT_ENTERED_COOKIE)?.value,
+      secret: process.env.KP_SECRET,
+      epoch: sessionEpochFromEnv(),
+      now: Date.now(),
+    }));
 
   // 0b) Same-origin rule for state-changing /api calls, in EVERY mode and ahead of the
   //     auth decision (app/_lib/auth/same-origin.ts owns the rule and the exempt
