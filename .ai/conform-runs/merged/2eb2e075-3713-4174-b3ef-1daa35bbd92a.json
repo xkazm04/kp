@@ -1,0 +1,72 @@
+{
+  "schema": "conform-run/1",
+  "worker": "2eb2e075-3713-4174-b3ef-1daa35bbd92a",
+  "subject": "remote-capability-probing",
+  "evaluatedAt": "2026-11-10T01:22:15.688326+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "login-flow",
+      "subject": "remote-capability-probing",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/login/LoginClient.tsx:46 The only network call is a same-origin POST to the app's own login route, classified by status into an outcome. There is no remote peer to probe. Searching app/login found no probe, capability, Accept-Ranges/Content-Range, readahead or advertised terms.",
+      "techniques": [
+        {
+          "technique": "advertised-support-is-not-evidence",
+          "verdict": "not-applicable",
+          "evidence": "app/login/LoginClient.tsx:46 Same-origin request to its own server; nothing about a peer's capabilities is established"
+        }
+      ],
+      "absenceTerms": [
+        "readahead",
+        "advertised",
+        "Accept-Ranges",
+        "probe"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "remote-capability-probing",
+      "context": "setup-studio",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "remote-capability-probing",
+      "context": "platform-auth-api",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor app/api/health/route.ts is not among the context's listed files (auth, workspace and workspaces routes), so it is incidental and shows nothing about their code. In those routes I found no fetch, Accept-Ranges, Content-Range or readahead, but the verdict rests on the health route, not on t"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-10T01:22:15.688326+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "remote-capability-probing"
+      ],
+      "techniques": [
+        "advertised-support-is-not-evidence"
+      ],
+      "deviations": 0,
+      "context": "platform-auth-api",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-10T01:22:15.688326+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "remote-capability-probing"
+      ],
+      "techniques": [
+        "advertised-support-is-not-evidence"
+      ],
+      "deviations": 0,
+      "context": "login-flow",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

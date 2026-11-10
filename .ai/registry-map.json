@@ -23876,7 +23876,11 @@
           "revision": 3,
           "changedAt": "2026-10-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/login/LoginClient.tsx:46 The only network call is a same-origin POST to the app's own login route, classified by status into an outcome. There is no remote peer to probe. Searching app/login found no probe, capability, Accept-Ranges/Content-Range, readahead or advertised terms.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:9bb6b3bf0d353d66",
+          "evaluatedRevision": 3
         },
         {
           "subject": "prompt-assembly",

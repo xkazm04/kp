@@ -30385,6 +30385,43 @@
       "evaluatedTs": "2026-11-10T01:01:56.017Z",
       "worker": "7bf4f81a-385c-43b5-a209-fd3063690014",
       "techniques": []
+    },
+    "145b5d07-e126-4749-8ada-b0fa84fcfa37/remote-capability-probing": {
+      "context": "platform-auth-api",
+      "subject": "remote-capability-probing",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T01:22:15.688Z",
+      "techniques": [
+        {
+          "technique": "advertised-support-is-not-evidence",
+          "verdict": "not-applicable",
+          "evidence": "app/api/health/route.ts:12 No peer advertisement is read; the probe asks about the app's own readiness"
+        }
+      ],
+      "withdrawn": {
+        "worker": "2eb2e075-3713-4174-b3ef-1daa35bbd92a",
+        "state": "not-applicable",
+        "at": "2026-11-10T01:22:33.788985+00:00",
+        "reason": "reviewer (sonnet): The anchor app/api/health/route.ts is not among the context's listed files (auth, workspace and workspaces routes), so it is incidental and shows nothing about their code. In those routes I found no fetch, Accept-Ranges, Content-Range or readahead, but the verdict rests on the health route, not on t"
+      }
+    },
+    "9e0369a9-bb6b-4d4c-b165-b8c36a8a4fa3/remote-capability-probing": {
+      "context": "login-flow",
+      "subject": "remote-capability-probing",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T01:22:15.688Z",
+      "worker": "2eb2e075-3713-4174-b3ef-1daa35bbd92a",
+      "techniques": [
+        {
+          "technique": "advertised-support-is-not-evidence",
+          "verdict": "not-applicable",
+          "evidence": "app/login/LoginClient.tsx:46 Same-origin request to its own server; nothing about a peer's capabilities is established"
+        }
+      ]
     }
   }
 }
