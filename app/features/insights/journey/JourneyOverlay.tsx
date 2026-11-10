@@ -19,7 +19,7 @@
 // descends into the board for one role (or all of them) from there. The header
 // always says which level is showing and how to go back up.
 
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
@@ -42,7 +42,19 @@ const JourneyKitView = dynamic(() => import("./kit/JourneyKitView"), {
   loading: () => <LoadingGap className="m-5 min-h-[28rem]" />,
 });
 
+const noSubscribe = () => () => {};
+
+// Client-only, decided the hydration-safe way. `typeof document` in render made the
+// server render null and the hydrating client a portal: React #418 on every
+// `?tab=journeys` deep link (journey-board e2e). The gate lives in this wrapper, not
+// in the panel, because useDialogA11y wires focus and the trap ONCE on mount and
+// must find the dialog element there.
 export function JourneyOverlay({ onClose }: { onClose: () => void }) {
+  const mounted = useSyncExternalStore(noSubscribe, () => true, () => false);
+  return mounted ? <JourneyOverlayPanel onClose={onClose} /> : null;
+}
+
+function JourneyOverlayPanel({ onClose }: { onClose: () => void }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const t = useTranslations("journey");
   const kit = useKitFlag();
@@ -58,8 +70,6 @@ export function JourneyOverlay({ onClose }: { onClose: () => void }) {
   // place, `fixed inset-0` resolved against that panel instead of the viewport and
   // the overlay measured 1264x0: present in the DOM, correct in the a11y tree,
   // and zero pixels tall. Same portal idiom as app/_components/Modal.tsx.
-  if (typeof document === "undefined") return null;
-
   return createPortal(
     <>
       <div className="fixed inset-0 z-40 bg-scrim" aria-hidden="true" />
