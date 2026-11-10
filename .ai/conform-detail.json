@@ -30167,6 +30167,48 @@
       "evaluatedTs": "2026-11-09T23:19:55.804Z",
       "worker": "82f26546-7c7f-4fb2-8588-9a684660dab3",
       "techniques": []
+    },
+    "03ead2c6-6756-41a6-84c9-7b0843d9e216/ci-execution-trust": {
+      "context": "jd-build-templates",
+      "subject": "ci-execution-trust",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T00:12:29.415Z",
+      "techniques": [
+        {
+          "technique": "untrusted-contribution-lanes",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/jd-build-run.ts:3 No CI lane or build definition here. The subprocess is an app runtime concern."
+        }
+      ],
+      "withdrawn": {
+        "worker": "6888e88c-4871-436b-ac06-4479e94d8543",
+        "state": "not-applicable",
+        "at": "2026-11-10T00:12:50.150658+00:00",
+        "reason": "reviewer (sonnet): The anchor app/_lib/jd-build-run.ts:3 is only an import line (python-runner helpers) and doesn't show that no delivery-system role exists; the 'no CI role' claim rests on the header comment at lines 17-19 and a grep that only covers GitHub Actions keywords."
+      }
+    },
+    "77829982-8043-4752-ae30-4475929d182e/ci-execution-trust": {
+      "context": "pipeline-scheduler-sla",
+      "subject": "ci-execution-trust",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T00:12:29.415Z",
+      "techniques": [
+        {
+          "technique": "secret-materialization-discipline",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/pipeline/schedulerRunState.ts:14 No credential reaches a build job from this code. It is client UI state."
+        }
+      ],
+      "withdrawn": {
+        "worker": "6888e88c-4871-436b-ac06-4479e94d8543",
+        "state": "not-applicable",
+        "at": "2026-11-10T00:12:50.251245+00:00",
+        "reason": "reviewer (sonnet): The anchor app/features/hiring/pipeline/schedulerRunState.ts:14 is a comment line about the liveness-chip bug and doesn't show that the subject's precondition is absent; the 'hiring pipeline, not delivery pipeline' and 'client UI state' claims rest on other lines and on a GitHub-Actions-only grep."
+      }
     }
   }
 }
