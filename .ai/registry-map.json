@@ -23980,13 +23980,12 @@
           "changedAt": "2026-10-22",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "app/login/LoginClient.tsx:46 This context submits a user's credentials to the application API; searches found no daemon, locator, or playwright references in app/login, while repository matches concern other contexts and testing.",
-          "evaluatedAt": "2026-10-19",
-          "evaluatedAgainst": "sha256-b2:0d439bfcafe8cabd",
-          "evaluatedRevision": 3,
+          "evidence": "app/login/LoginClient.tsx:46 This context is a human-facing sign-in form whose only I/O is a fetch to the app's own auth API. A case-insensitive grep of app/login for playwright, puppeteer, daemon, chromium, mcp, snapshot, locator, cdp and selector returned no hits, so this context gives no agent a browser and none of the five techniques' preconditions hold.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:13f62133e12a86a7",
+          "evaluatedRevision": 6,
           "source": "retained",
-          "revisionsBehind": 2,
-          "stale": true
+          "revisionsBehind": 2
         }
       ],
       "governance": "governed"

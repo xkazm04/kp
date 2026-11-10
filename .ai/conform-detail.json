@@ -17096,34 +17096,43 @@
       "subject": "agent-browser-control",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-19",
-      "evaluatedTs": "2026-10-19T12:30:51.989Z",
-      "worker": "f3b38117-d843-40da-8921-d221dad19d2b",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T00:19:05.593Z",
+      "worker": "c764ce33-f6fe-4c8b-85ed-4fb2b6c0fac9",
       "techniques": [
-        {
-          "technique": "agent-actionable-errors",
-          "verdict": "not-applicable",
-          "evidence": "app/login/LoginClient.tsx:82 Errors reach the user through translated UI toasts, rather than an agent consuming browser-command failures."
-        },
-        {
-          "technique": "effect-classed-commands",
-          "verdict": "not-applicable",
-          "evidence": "app/login/LoginClient.tsx:49 The request carries login credentials; this context exposes no agent browser-command registry or dispatcher."
-        },
         {
           "technique": "persistent-browser-daemon",
           "verdict": "not-applicable",
-          "evidence": "app/login/LoginClient.tsx:43 The timeout aborts a login fetch; this context does not launch or manage a browser process."
+          "evidence": "app/login/LoginClient.tsx:46 No browser process is spawned or kept alive. The page runs inside a user's browser and posts credentials."
         },
         {
           "technique": "references-over-selectors",
           "verdict": "not-applicable",
-          "evidence": "app/login/LoginClient.tsx:100 This is application-owned form markup, rather than a runtime that snapshots arbitrary pages and resolves agent element references."
+          "evidence": "app/login/LoginClient.tsx:46 No agent names or acts on elements here. There is no snapshot or ref vocabulary."
         },
         {
           "technique": "socket-scoped-surface",
           "verdict": "not-applicable",
-          "evidence": "app/login/page.tsx:35 Request-derived origin information supports a login redirect; it does not classify callers of a browser daemon or expose a tunneled command listener."
+          "evidence": "app/login/LoginClient.tsx:46 No daemon listener or tunnel exists here. page.tsx reads x-forwarded-host only to build a redirect origin, not to decide whether a request is local for a browser daemon."
+        },
+        {
+          "technique": "effect-classed-commands",
+          "verdict": "not-applicable",
+          "evidence": "app/login/LoginClient.tsx:46 There is no browser command registry to classify as read, write or meta."
+        },
+        {
+          "technique": "agent-actionable-errors",
+          "verdict": "not-applicable",
+          "evidence": "app/login/LoginClient.tsx:65 The outcome classification feeds a human user's UI (toasts and inline error), not an agent recovering from a failed browser action."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "app/login/LoginClient.tsx:46 This context submits a user's credentials to the application API; searches found no daemon, locator, or playwright references in app/login, while repository matches concern other contexts and testing.",
+          "evaluatedAt": "2026-10-19T12:30:51.989Z",
+          "worker": "f3b38117-d843-40da-8921-d221dad19d2b",
+          "reason": "replaced by c764ce33-f6fe-4c8b-85ed-4fb2b6c0fac9"
         }
       ]
     },
