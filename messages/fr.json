@@ -8493,7 +8493,7 @@
         "aucBasis": "{pos} l'ont atteint, {neg} non",
         "rankNeeded": "{floor} de chaque côté nécessaires",
         "notRecordedPotential": "Non enregistré pour aucun candidat noté",
-        "notRecordedComponent": "Non conservé : le modèle de notation ne garde que le potentiel global",
+        "notRecordedComponent": "Pas encore enregistré : les composantes ne sont conservées que pour les profils analysés depuis leur ajout, et les anciens ne sont jamais estimés",
         "scoreMatch": "Score de correspondance",
         "scorePotential": "Score de potentiel",
         "scorePotentialDepth": "Potentiel : profondeur démontrée (35 %)",
@@ -8506,8 +8506,9 @@
         "colOverturned": "Refusés ou renvoyés en arrière ensuite par une personne",
         "auditAbove": "Automatiquement, confiance de {bar} ou plus",
         "auditBelow": "Par une personne, confiance de {lo}–{hi}",
-        "auditCoverage": "{with} passages automatiques sur {total} portent une confiance de présélection enregistrée.",
-        "auditNoConfidence": "La confiance de présélection derrière un passage automatique n'est pas enregistrée ; cette tranche ne peut donc pas encore être vérifiée. Les passages eux-mêmes sont comptés plus haut.",
+        "auditCoverage": "{with} passages automatiques sur {total} ont enregistré la confiance de présélection sur laquelle ils reposaient.",
+        "auditNotRecorded": "{missing} sont antérieurs à son enregistrement : ils comptent comme non enregistrés et sont écartés, jamais estimés.",
+        "auditNoConfidence": "Aucun de ces passages automatiques n'a enregistré la confiance de présélection sur laquelle il reposait (seuls les passages postérieurs à son ajout le font) ; cette tranche ne peut donc pas encore être vérifiée. Les passages eux-mêmes sont comptés plus haut.",
         "auditSupport": "Les données justifieraient de relever le seuil de passage automatique au-dessus de {bar} : les passages automatiques sont annulés plus souvent que ceux décidés par une personne juste en dessous. Rien ne change de soi-même ; le seuil est un réglage de la politique de présélection.",
         "measureOnly": "Cette section ne fait que mesurer. Elle ne modifie jamais un seuil ni une pondération."
       }

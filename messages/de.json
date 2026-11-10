@@ -8493,7 +8493,7 @@
         "aucBasis": "{pos} erreicht, {neg} nicht",
         "rankNeeded": "{floor} auf jeder Seite nötig",
         "notRecordedPotential": "Bei keinem bewerteten Kandidaten erfasst",
-        "notRecordedComponent": "Nicht gespeichert: Das Bewertungsmodell behält nur das zusammengefasste Potenzial",
+        "notRecordedComponent": "Noch nicht erfasst: Die Teilwerte werden nur bei Profilen gespeichert, die seit ihrer Einführung analysiert wurden; ältere werden nie geschätzt",
         "scoreMatch": "Match-Score",
         "scorePotential": "Potenzial-Score",
         "scorePotentialDepth": "Potenzial: nachgewiesene Tiefe (35 %)",
@@ -8506,8 +8506,9 @@
         "colOverturned": "Später von einem Menschen abgelehnt oder zurückgesetzt",
         "auditAbove": "Automatisch, Konfidenz {bar} oder höher",
         "auditBelow": "Von einem Menschen, Konfidenz {lo}–{hi}",
-        "auditCoverage": "{with} von {total} automatischen Fortschritten tragen eine erfasste Screening-Konfidenz.",
-        "auditNoConfidence": "Die Screening-Konfidenz hinter einem automatischen Fortschritt wird nicht erfasst, daher lässt sich dieses Band noch nicht prüfen. Die Fortschritte selbst sind oben gezählt.",
+        "auditCoverage": "{with} von {total} automatischen Fortschritten haben die Screening-Konfidenz erfasst, auf der sie beruhten.",
+        "auditNotRecorded": "{missing} entstanden, bevor sie gespeichert wurde: Sie gelten als nicht erfasst und bleiben außen vor; sie werden nie geschätzt.",
+        "auditNoConfidence": "Keiner dieser automatischen Fortschritte hat die Screening-Konfidenz erfasst, auf der er beruhte (das tun nur Fortschritte seit ihrer Einführung), daher lässt sich dieses Band noch nicht prüfen. Die Fortschritte selbst sind oben gezählt.",
         "auditSupport": "Die Daten würden eine Anhebung der Schwelle für automatischen Fortschritt über {bar} stützen: Automatische Fortschritte werden öfter rückgängig gemacht als die eines Menschen knapp darunter. Von selbst ändert sich nichts; die Schwelle ist eine Einstellung der Screening-Richtlinie.",
         "measureOnly": "Dieser Bereich misst nur. Er ändert nie eine Schwelle oder eine Gewichtung."
       }

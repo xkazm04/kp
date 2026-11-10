@@ -8493,7 +8493,7 @@
         "aucBasis": "{pos} dosáhlo, {neg} ne",
         "rankNeeded": "potřeba {floor} na každé straně",
         "notRecordedPotential": "Není zaznamenáno u žádného ohodnoceného kandidáta",
-        "notRecordedComponent": "Neukládá se: hodnoticí model si ponechává jen souhrnný potenciál",
+        "notRecordedComponent": "Zatím nezaznamenáno: složky se ukládají jen u profilů analyzovaných od jejich zavedení, u starších se nikdy neodhadují",
         "scoreMatch": "Skóre shody",
         "scorePotential": "Skóre potenciálu",
         "scorePotentialDepth": "Potenciál: doložená hloubka (35 %)",
@@ -8506,8 +8506,9 @@
         "colOverturned": "Později zamítnuti nebo vráceni člověkem",
         "auditAbove": "Automaticky, jistota {bar} nebo vyšší",
         "auditBelow": "Člověkem, jistota {lo}–{hi}",
-        "auditCoverage": "Zaznamenanou jistotu předvýběru má {with} z {total} automatických postupů.",
-        "auditNoConfidence": "Jistota předvýběru, na které automatický postup stál, se nezaznamenává, takže toto pásmo zatím nelze ověřit. Samotné postupy jsou započteny výše.",
+        "auditCoverage": "Jistotu předvýběru, na které stály, zaznamenalo {with} z {total} automatických postupů.",
+        "auditNotRecorded": "Postupů z doby, kdy se ještě neukládala: {missing}. Vedou se jako nezaznamenané a jsou vynechány, nikdy odhadovány.",
+        "auditNoConfidence": "Žádný z těchto automatických postupů nezaznamenal jistotu předvýběru, na které stál (zaznamenávají ji jen postupy od jejího zavedení), takže toto pásmo zatím nelze ověřit. Samotné postupy jsou započteny výše.",
         "auditSupport": "Data by podpořila zvýšení hranice automatického postupu nad {bar}: automatické postupy se ruší častěji než postupy člověka těsně pod ní. Samo se nic nezmění; hranice je nastavení zásad předvýběru.",
         "measureOnly": "Tato část pouze měří. Nikdy nemění hranici ani váhu."
       }

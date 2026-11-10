@@ -49,6 +49,18 @@ def compute_potential(profile: CandidateProfileV2, *, count_bare_claims: bool = 
     ``count_bare_claims=True`` is the historical arithmetic (every bare claim is breadth),
     kept only so the legacy scorer (``score_job(..., proof=None)``) can still be measured
     against it."""
+    score, signals, _parts = compute_potential_detail(profile, count_bare_claims=count_bare_claims)
+    return score, signals
+
+
+def compute_potential_detail(
+    profile: CandidateProfileV2, *, count_bare_claims: bool = False
+) -> tuple[float, list[str], dict[str, float]]:
+    """``compute_potential`` plus the four components the blend was made from, each in
+    [0,1] and rounded to 3 places. The score is computed from the unrounded components,
+    so it is exactly what ``compute_potential`` has always returned. The parts exist so
+    the score-vs-outcome instrument can read the 35/25/25/15 weighting term by term
+    (owner ruling 6); nothing scores with them."""
     signals: list[str] = []
     ev = profile.evidence
     project_like = [e for e in ev if e.kind in ("project", "thesis")]
@@ -117,7 +129,8 @@ def compute_potential(profile: CandidateProfileV2, *, count_bare_claims: bool = 
             signals.append("distant prior field — the bridge runs through meta-skills")
 
     score = round(0.35 * depth + 0.25 * velocity + 0.25 * foundation + 0.15 * initiative, 3)
-    return score, signals
+    parts = {"depth": depth, "velocity": velocity, "foundation": foundation, "initiative": initiative}
+    return score, signals, {k: round(v, 3) for k, v in parts.items()}
 
 
 def _norm(skill: str) -> str:

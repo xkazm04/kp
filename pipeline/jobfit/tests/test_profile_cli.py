@@ -90,6 +90,19 @@ class TestProfileCliErrorStatus(unittest.TestCase):
         self.assertEqual(len(payload["reasonCodes"]), len(payload["reasons"]))
         self.assertEqual(payload["reasonCodes"][0]["kind"], "signal_enrolled")
 
+    def test_potential_parts_survive_the_save_round_trip(self):
+        # Owner ruling 6: a profile saved from an analysis keeps its composite potential
+        # AND the four parts beside it, since that saved payload is what calibration reads.
+        parts = {"depth": 0.5, "velocity": 0.4, "foundation": 0.6, "initiative": 0.3}
+        code, out, _err = _run(json.dumps({"profile": {"potentialScore": 0.48, "potentialParts": parts}, "signals": {}}))
+        self.assertEqual(code, 0)
+        profile = _last_json(out)["profile"]
+        self.assertEqual(profile["potentialScore"], 0.48)
+        self.assertEqual(profile["potentialParts"], parts)
+        # A profile without parts stays without them (exclude_none): nothing is imputed.
+        code, out, _err = _run(json.dumps({"profile": {"potentialScore": 0.48}, "signals": {}}))
+        self.assertNotIn("potentialParts", _last_json(out)["profile"])
+
 
 class TestProfileCliSpeaksTheSharedVocabulary(unittest.TestCase):
     """profile_cli used to declare its own ERR_* literals and hand-roll the envelope.

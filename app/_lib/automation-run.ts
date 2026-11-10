@@ -16,6 +16,7 @@ import {
   computeCorpusFingerprint,
   GITHUB_EVIDENCE_TASKS,
   LETTER_LANG_TASKS,
+  SCREEN_ADVANCE_CONF,
   UI_LANG_TASKS,
 } from "./automation-cache-key";
 import { screenStageOutcome } from "./pipeline-stages";
@@ -614,7 +615,13 @@ export async function runAutomationTask(
     // move a candidate unattended is the Q3 question (the screening gate), decided and
     // built separately. Do not fold it into the Q2 queue by reflex.
     if (advance) {
-      const moved = actOnPipelineEntry(entry.id, "accept", undefined, { expectedStage: entry.stage, actor: "system" }, workspaceId);
+      // Owner ruling 6: the auto_advanced event records the number this move acted on, so the
+      // calibration audit can judge the bar. It is the screen verdict's `confidence` (0-100),
+      // the value automation.py compared against POLICY.screen_advance_conf to set route
+      // "advance"; the bar rides beside it. A non-numeric confidence records nothing.
+      const conf = result.confidence;
+      const inputs = typeof conf === "number" && Number.isFinite(conf) ? { screeningConfidence: conf, screeningConfidenceBar: SCREEN_ADVANCE_CONF } : undefined;
+      const moved = actOnPipelineEntry(entry.id, "accept", undefined, { expectedStage: entry.stage, actor: "system", inputs }, workspaceId);
       if (!moved) {
         // Stage changed mid-hop — skip the move AND the dependent approval/event so
         // the screening_review can't land on a now-unexpected (or terminal) stage.

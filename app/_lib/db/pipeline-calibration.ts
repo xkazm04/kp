@@ -150,11 +150,14 @@ export function pipelineCalibrationBandCandidates(
 //   pipeline_events.{kind,from_stage,to_stage,actor,created_at} — append-only trail
 //     (recordEvent). Rewrites are stage renames (migratePipelineStages) and erasure
 //     masking of candidate_label, neither of which changes kind, author or time.
-//   profiles.payload_json $.potentialScore — the scorer's blended potential, when a
-//     producer stored it (0..1). Its four components are stored by NO producer:
-//     transform.compute_potential returns only the blend, so they read as null.
-//   decision_records.payload_json $.inputs.aiConfidence — the sealed screening
-//     confidence beside an advance (pipeline-entry-action.ts), append-only chain.
+//   profiles.payload_json $.potentialScore / $.potentialParts — the blended potential
+//     (0..1) and, since owner ruling 6, its four components (pipeline.py via
+//     compute_potential_detail). A profile saved before then has no parts: null.
+//   pipeline_events.inputs_json $.screeningConfidence — the confidence an automated
+//     screen advance compared to the bar, written on its auto_advanced event
+//     (automation-run.ts). NULL on every event before ruling 6: not recorded.
+//   decision_records.payload_json $.inputs.aiConfidence — the confidence on the card
+//     a PERSON advanced from (pipeline-entry-action.ts), append-only chain.
 export type ScoreOutcomeInputs = {
   entries: OutcomeEntry[];
   events: OutcomeEvent[];
@@ -166,44 +169,50 @@ export function scoreOutcomeInputs(workspaceId: string = DEFAULT_WORKSPACE_ID): 
   const db = ensureDb();
   const rows = db
     .prepare(
-      `SELECT e.id, e.match_score AS match, json_extract(p.payload_json, '$.potentialScore') AS potential
+      `SELECT e.id, e.match_score AS match, json_extract(p.payload_json, '$.potentialScore') AS potential,
+              json_extract(p.payload_json, '$.potentialParts') AS parts
        FROM pipeline_entries e
        LEFT JOIN profiles p ON p.id = e.candidate_id AND p.workspace_id = e.workspace_id
        WHERE e.workspace_id = ? AND e.match_score IS NOT NULL`
     )
-    .all(workspaceId) as { id: string; match: number; potential: unknown }[];
-  const entries: OutcomeEntry[] = rows.map((r) => ({
-    entryId: r.id,
-    scores: {
-      match: Number.isFinite(r.match) ? r.match : null,
-      potential: typeof r.potential === "number" && Number.isFinite(r.potential) ? r.potential * 100 : null,
-      potentialDepth: null,
-      potentialVelocity: null,
-      potentialFoundation: null,
-      potentialInitiative: null,
-    },
-  }));
-  const events = (
-    db
-      .prepare(
-        `SELECT entry_id, kind, from_stage, to_stage, actor, created_at FROM pipeline_events
-         WHERE workspace_id = ? AND entry_id IS NOT NULL AND kind != 'stage_migrated'
-         ORDER BY created_at, id`
-      )
-      .all(workspaceId) as { entry_id: string; kind: string; from_stage: string | null; to_stage: string | null; actor: string | null; created_at: string }[]
-  ).map((r) => ({ entryId: r.entry_id, kind: r.kind, fromStage: r.from_stage, toStage: r.to_stage, actor: r.actor, at: r.created_at }));
-  let confidences: AdvanceConfidence[] = [];
-  try {
-    confidences = (
-      db
-        .prepare(
-          `SELECT candidate_ref, kind, json_extract(payload_json, '$.inputs.aiConfidence') AS c, created_at FROM decision_records
-           WHERE workspace_id = ? AND kind IN ('advanced', 'auto_advanced')`
-        )
-        .all(workspaceId) as { candidate_ref: string; kind: string; c: unknown; created_at: string }[]
+    .all(workspaceId) as { id: string; match: number; potential: unknown; parts: string | null }[];
+  const entries: OutcomeEntry[] = rows.map((r) => {
+    const parts = potentialParts(r.parts);
+    return {
+      entryId: r.id,
+      scores: {
+        match: Number.isFinite(r.match) ? r.match : null,
+        potential: pct(r.potential),
+        potentialDepth: pct(parts?.depth),
+        potentialVelocity: pct(parts?.velocity),
+        potentialFoundation: pct(parts?.foundation),
+        potentialInitiative: pct(parts?.initiative),
+      },
+    };
+  });
+  const eventRows = db
+    .prepare(
+      `SELECT entry_id, kind, from_stage, to_stage, actor, created_at,
+              json_extract(inputs_json, '$.screeningConfidence') AS c FROM pipeline_events
+       WHERE workspace_id = ? AND entry_id IS NOT NULL AND kind != 'stage_migrated'
+       ORDER BY created_at, id`
     )
-      .filter((r) => typeof r.c === "number" && Number.isFinite(r.c))
-      .map((r) => ({ entryId: r.candidate_ref, kind: r.kind, confidence: r.c as number, at: r.created_at }));
+    .all(workspaceId) as { entry_id: string; kind: string; from_stage: string | null; to_stage: string | null; actor: string | null; created_at: string; c: unknown }[];
+  const events = eventRows.map((r) => ({ entryId: r.entry_id, kind: r.kind, fromStage: r.from_stage, toStage: r.to_stage, actor: r.actor, at: r.created_at }));
+  // An automated advance's confidence comes from its own event; a person's from the seal.
+  const confidences: AdvanceConfidence[] = eventRows
+    .filter((r) => r.kind === "auto_advanced" && typeof r.c === "number" && Number.isFinite(r.c))
+    .map((r) => ({ entryId: r.entry_id, kind: r.kind, confidence: r.c as number, at: r.created_at }));
+  try {
+    const sealed = db
+      .prepare(
+        `SELECT candidate_ref, kind, json_extract(payload_json, '$.inputs.aiConfidence') AS c, created_at FROM decision_records
+         WHERE workspace_id = ? AND kind = 'advanced'`
+      )
+      .all(workspaceId) as { candidate_ref: string; kind: string; c: unknown; created_at: string }[];
+    for (const r of sealed) {
+      if (typeof r.c === "number" && Number.isFinite(r.c)) confidences.push({ entryId: r.candidate_ref, kind: r.kind, confidence: r.c, at: r.created_at });
+    }
   } catch (err) {
     // The decision store creates its table lazily: on a cold DB "no confidence sealed"
     // is the truth. Anything else is a real fault and propagates.
@@ -218,4 +227,21 @@ export function scoreOutcomeInputs(workspaceId: string = DEFAULT_WORKSPACE_ID): 
     confidences,
     axis: { stages: stages.map((s) => s.id), advanceIndex: screeningGateIndex(stages), terminalIndex },
   };
+}
+
+/** A 0..1 store value on the 0-100 scale the report reads; anything else is null. */
+function pct(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v * 100 : null;
+}
+
+/** $.potentialParts as stored (a JSON object of four numbers), or null. */
+function potentialParts(raw: string | null): Record<string, unknown> | null {
+  if (!raw) return null;
+  try {
+    const o = JSON.parse(raw) as unknown;
+    return o && typeof o === "object" && !Array.isArray(o) ? (o as Record<string, unknown>) : null;
+  } catch {
+    // A malformed blob reads as "not recorded", the same as an absent one.
+    return null;
+  }
 }

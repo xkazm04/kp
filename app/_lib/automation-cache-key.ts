@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { SCREEN_VOLUME_MODERATE_MAX, SCREEN_VOLUME_SPARSE_MAX } from "./contract-constants.generated.ts";
+import { SCREEN_ADVANCE_CONF, SCREEN_VOLUME_MODERATE_MAX, SCREEN_VOLUME_SPARSE_MAX } from "./contract-constants.generated.ts";
 
 // Pure, dependency-free derivation of the automation prompt-cache key. Split out
 // of automation-run.ts (mirroring cache-key.ts) so the keying contract — above
@@ -60,7 +60,7 @@ export const LANG_KEYED_TASKS: ReadonlySet<string> = new Set([...LETTER_LANG_TAS
 // CONTRACT_CONSTANTS -> contract-constants.generated.ts), never typed here: if TS
 // bucketed on different boundaries than Python tiers on, one bucket would span two
 // rules and a lenient verdict would be served to a strict run.
-export { SCREEN_VOLUME_SPARSE_MAX, SCREEN_VOLUME_MODERATE_MAX };
+export { SCREEN_VOLUME_SPARSE_MAX, SCREEN_VOLUME_MODERATE_MAX, SCREEN_ADVANCE_CONF };
 
 /** sparse | moderate | dense — the cache bucket AND the tier Python resolves. */
 export type ScreenVolumeTier = "sparse" | "moderate" | "dense";

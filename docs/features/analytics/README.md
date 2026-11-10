@@ -535,15 +535,23 @@ it: should this score be allowed to decide at all.
   - *Rank per score.* AUC (Mann-Whitney, mid-rank ties) for match, potential and potential's four
     terms (depth 35 · velocity 25 · foundation 25 · initiative 15), on "advanced to the screening
     gate stage" and "reached the terminal stage". Potential is read from the profile payload's
-    `potentialScore` when a producer stored it; the four terms are stored by **no** producer
-    (`pipeline/jobfit/transform.py` `compute_potential` returns only the blend), so those rows say
-    "not stored" rather than draw a number.
-  - *Auto-advance band audit.* Advances sealed with a screening confidence
-    (`decision_records` `inputs.aiConfidence`): automated at ≥ 80 (`AUTO_ADVANCE_CONFIDENCE`,
-    pinned by test to `automation.py` `POLICY["screen_advance_conf"]`) versus person-advanced at
-    70–79, and how many a person later rejected or moved back. The screen task's own
-    advance (`automation-run.ts`) seals no confidence today, so on live data the grid states that
-    the band cannot be audited yet and counts the advances it cannot read.
+    `potentialScore` when a producer stored it, and the four terms from `potentialParts` beside it
+    (owner ruling 6, 2026-11-10): `pipeline/jobfit/transform.py` `compute_potential_detail` returns
+    the blend plus `{depth, velocity, foundation, initiative}` (each 0..1, 3 places; the blend is
+    unchanged), `pipeline.py` writes both onto the analysis's `v2Profile`, and `profile_cli` keeps
+    them when that profile is saved. A profile saved before then has no parts and its rows say
+    "not recorded yet"; the composite is never split back into parts.
+  - *Auto-advance band audit.* Automated advances at ≥ 80 (`AUTO_ADVANCE_CONFIDENCE`, pinned by
+    test to `automation.py` `POLICY["screen_advance_conf"]`) versus person-advanced at 70–79, and
+    how many a person later rejected or moved back. An automated advance's confidence is on its
+    own `auto_advanced` event: since owner ruling 6 the screen task (`automation-run.ts`) passes
+    `inputs` to `actOnPipelineEntry`, which writes `pipeline_events.inputs_json`
+    `{"screeningConfidence": <the screen verdict's confidence, 0-100, the value automation.py
+    compared to the bar>, "screeningConfidenceBar": <SCREEN_ADVANCE_CONF, generated from the same
+    POLICY key>}`. A person's advance keeps its confidence on the sealed record
+    (`decision_records` `inputs.aiConfidence`, the card they advanced from). Advances made before
+    the column existed are counted as **not recorded** (`audit.notRecorded`) and left out of both
+    cells, never imputed.
   Honesty floors, each argued beside its constant: a rate needs **8** decided candidates in the
   cell (`OUTCOME_RATE_FLOOR`, the same bar the floor recommendation uses), an AUC needs **8 on
   each side** (`OUTCOME_RANK_FLOOR`). Below the floor a cell shows "k of n" and "n of 8 needed",

@@ -76,6 +76,8 @@ class RoutedProfilePotentialTest(unittest.TestCase):
         self.assertEqual(v2["archetype"], "student")
         self.assertIsInstance(v2["potentialScore"], float)
         self.assertGreater(v2["potentialScore"], 0)
+        # The four components ride beside the composite (owner ruling 6).
+        self.assertEqual(set(v2["potentialParts"]), {"depth", "velocity", "foundation", "initiative"})
 
 
 class PromptInjectionUnitTest(unittest.TestCase):

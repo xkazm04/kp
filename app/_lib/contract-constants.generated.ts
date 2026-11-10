@@ -13,6 +13,8 @@ export const MAX_SCORECARD_NOTES_CHARS = 6000;
 export const SCREEN_VOLUME_SPARSE_MAX = 5;
 // pipeline/jobfit/automation.py POLICY["screen_volume_moderate_max"]
 export const SCREEN_VOLUME_MODERATE_MAX = 30;
+// pipeline/jobfit/automation.py POLICY["screen_advance_conf"]
+export const SCREEN_ADVANCE_CONF = 80;
 // pipeline/jobfit/calibration_drift.py MIN_CALIBRATION_OUTCOMES
 export const MIN_CALIBRATION_OUTCOMES = 20;
 // pipeline/jobfit/calibration_drift.py CALIBRATION_BIN_COUNT

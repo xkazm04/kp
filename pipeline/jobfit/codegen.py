@@ -229,6 +229,7 @@ CONTRACT_CONSTANTS: tuple[ContractConstant, ...] = (
     ContractConstant("MAX_SCORECARD_NOTES_CHARS", "interview-transcript.ts", "automation", "MAX_SCORECARD_NOTES_CHARS"),
     ContractConstant("SCREEN_VOLUME_SPARSE_MAX", "automation-cache-key.ts", "automation", "POLICY", "screen_volume_sparse_max"),
     ContractConstant("SCREEN_VOLUME_MODERATE_MAX", "automation-cache-key.ts", "automation", "POLICY", "screen_volume_moderate_max"),
+    ContractConstant("SCREEN_ADVANCE_CONF", "automation-cache-key.ts", "automation", "POLICY", "screen_advance_conf"),
     ContractConstant("MIN_CALIBRATION_OUTCOMES", "calibration.ts", "calibration_drift", "MIN_CALIBRATION_OUTCOMES"),
     ContractConstant("CALIBRATION_BIN_COUNT", "calibration.ts", "calibration_drift", "CALIBRATION_BIN_COUNT"),
     ContractConstant("KIT_MAX_COMPETENCIES", "interview-kit-types.ts", "automation", "KIT_MAX_COMPETENCIES"),

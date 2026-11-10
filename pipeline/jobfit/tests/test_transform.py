@@ -7,7 +7,7 @@ from pipeline.jobfit.matching import match, score_job
 from pipeline.jobfit.profile import CandidateProfileV2, Evidence, SkillClaim
 from pipeline.jobfit.taxonomy import PROVENANCE_WEIGHTS
 from pipeline.jobfit.transferable import domain_distance
-from pipeline.jobfit.transform import build_match_candidate, compute_potential
+from pipeline.jobfit.transform import build_match_candidate, compute_potential, compute_potential_detail
 
 
 def _student() -> CandidateProfileV2:
@@ -41,6 +41,20 @@ class PotentialTest(unittest.TestCase):
         thin = CandidateProfileV2(archetype="student", education_level="unknown")
         score, _ = compute_potential(thin)
         self.assertLess(score, 0.3)
+
+    def test_detail_returns_the_four_parts_the_score_was_blended_from(self) -> None:
+        # Owner ruling 6: the parts are stored beside the composite; they must be the
+        # very numbers the 35/25/25/15 blend used, and the score must not move.
+        for profile in (_student(), CandidateProfileV2(archetype="student", education_level="unknown")):
+            score, signals, parts = compute_potential_detail(profile)
+            self.assertEqual((score, signals), compute_potential(profile))
+            self.assertEqual(set(parts), {"depth", "velocity", "foundation", "initiative"})
+            for value in parts.values():
+                self.assertGreaterEqual(value, 0.0)
+                self.assertLessEqual(value, 1.0)
+            blend = 0.35 * parts["depth"] + 0.25 * parts["velocity"] + 0.25 * parts["foundation"] + 0.15 * parts["initiative"]
+            # Parts are rounded to 3 places for storage, so the re-blend is within rounding.
+            self.assertAlmostEqual(blend, score, delta=0.002)
 
 
 class BuildCandidateTest(unittest.TestCase):

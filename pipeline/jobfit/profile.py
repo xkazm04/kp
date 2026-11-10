@@ -121,6 +121,11 @@ class CandidateProfileV2(_Base):
 
     # derived in Phase 5
     potential_score: float | None = None
+    # The four components potential_score was blended from (depth / velocity /
+    # foundation / initiative, each 0..1; transform.compute_potential_detail). Stored
+    # beside the composite so calibration can read the weighting term by term. None
+    # wherever potential_score is None, and on every profile built before it existed.
+    potential_parts: dict[str, float] | None = None
     learning_signals: list[str] = Field(default_factory=list)
     completeness: float = 0.0
 

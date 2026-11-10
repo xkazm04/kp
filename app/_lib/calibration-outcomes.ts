@@ -73,7 +73,9 @@ export type OutcomeEntry = {
   scores: Partial<Record<OutcomeScoreKey, number | null>>;
 };
 
-/** A screening confidence sealed beside an advance (decision_records inputs.aiConfidence). */
+/** The screening confidence an advance acted on: an automated advance's own event
+ *  (pipeline_events.inputs_json screeningConfidence, recorded since owner ruling 6) or the
+ *  card a person advanced from (decision_records inputs.aiConfidence). */
 export type AdvanceConfidence = { entryId: string; kind: string; confidence: number; at: string };
 
 export type OutcomeAxis = {
@@ -260,9 +262,11 @@ export type RankRow = {
 
 export type BandAudit = {
   bar: number;
-  /** Live automated advances in the trail, and how many carry a sealed confidence. */
+  /** Live automated advances in the trail, how many recorded the confidence they acted
+   *  on, and how many did not (made before it was recorded: left out, never imputed). */
   automatedAdvances: number;
   withConfidence: number;
+  notRecorded: number;
   above: RateCell; // auto-advanced at >= bar: k = later overturned by a person
   below: RateCell; // person-advanced at bar-10 … bar-1: k = later overturned by a person
   /** Display-only: set only when BOTH cells are measured and the above-bar overturn
@@ -436,7 +440,15 @@ export function computeScoreOutcomes(
     ladder: summary,
     bands,
     rank,
-    audit: { bar: AUTO_ADVANCE_CONFIDENCE, automatedAdvances, withConfidence, above: aboveCell, below: belowCell, support },
+    audit: {
+      bar: AUTO_ADVANCE_CONFIDENCE,
+      automatedAdvances,
+      withConfidence,
+      notRecorded: Math.max(0, automatedAdvances - withConfidence),
+      above: aboveCell,
+      below: belowCell,
+      support,
+    },
     floors: { rate: OUTCOME_RATE_FLOOR, rank: OUTCOME_RANK_FLOOR },
   };
 }

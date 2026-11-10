@@ -514,6 +514,7 @@ def _scorers() -> dict[str, Scorer]:
             ("label", "experienceHighlights"),
         ),
         "transform.compute_potential": Scorer(lambda p: {"v": transform.compute_potential(p)}, "v"),
+        "transform.compute_potential_detail": Scorer(lambda p: {"v": transform.compute_potential_detail(p)}, "v"),
         "profile.completeness": Scorer(lambda p: {"v": profile_mod.completeness(p)}, "v"),
         "profile.completeness_gaps": Scorer(lambda p: {"v": profile_mod.completeness_gaps(p)}, "v"),
         "profile.normalize_profile": Scorer(

@@ -884,9 +884,9 @@ def _v2_profile_from_payload(payload: dict[str, Any], profile: CandidateProfile)
     )
     normalize_profile(v2)
     if early:
-        from .transform import compute_potential
+        from .transform import compute_potential_detail
 
-        v2.potential_score, v2.learning_signals = compute_potential(v2)
+        v2.potential_score, v2.learning_signals, v2.potential_parts = compute_potential_detail(v2)
     return v2
 
 

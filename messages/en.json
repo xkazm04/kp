@@ -8493,7 +8493,7 @@
         "aucBasis": "{pos} reached, {neg} did not",
         "rankNeeded": "{floor} on each side needed",
         "notRecordedPotential": "Not recorded on any scored candidate",
-        "notRecordedComponent": "Not stored: the scorer keeps only the blended potential",
+        "notRecordedComponent": "Not recorded yet: the parts are stored only on profiles analyzed since they were added, and older ones are never estimated",
         "scoreMatch": "Match score",
         "scorePotential": "Potential score",
         "scorePotentialDepth": "Potential: demonstrated depth (35%)",
@@ -8506,8 +8506,9 @@
         "colOverturned": "Later rejected or moved back by a person",
         "auditAbove": "Automatically, confidence {bar} or higher",
         "auditBelow": "By a person, confidence {lo}–{hi}",
-        "auditCoverage": "{with} of {total} automated advances carry a recorded screening confidence.",
-        "auditNoConfidence": "The screening confidence behind an automated advance is not recorded, so this band cannot be audited yet. The advances themselves are counted above.",
+        "auditCoverage": "{with} of {total} automated advances recorded the screening confidence they acted on.",
+        "auditNotRecorded": "{missing} were made before it was stored: counted as not recorded and left out, never estimated.",
+        "auditNoConfidence": "None of these automated advances recorded the screening confidence it acted on (only advances made since it was added do), so this band cannot be audited yet. The advances themselves are counted above.",
         "auditSupport": "The data would support raising the auto-advance bar above {bar}: automatic advances are overturned more often than a person's just below it. Nothing changes by itself; the bar is a screening policy setting.",
         "measureOnly": "This section only measures. It never changes a threshold or a weight."
       }

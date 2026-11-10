@@ -66,6 +66,7 @@ makes "mount the volume in your region" a complete answer to data residency
 | `pipeline_entries.contact` | **Email / phone.** The reachback address every outbound message uses | `app/_lib/db/pipeline.ts` |
 | `pipeline_entries.notes`, `.profile_gaps_json`, `.github_json`, `.github_handle` | Recruiter notes, gap analysis, linked public repo signal | `app/_lib/db/pipeline.ts` |
 | `pipeline_events.detail`, `.actor` | The decision chain — what happened to this person and who did it | `app/_lib/db/pipeline.ts` |
+| `pipeline_events.inputs_json` | What an automated decision compared: the screening confidence and the bar on an `auto_advanced` event (machine scores, no PII; kept through erasure like the scores on the entry, NULL before 2026-11-10) | `app/_lib/db/core.ts` `recordEvent`, from `app/_lib/automation-run.ts` |
 | `interview_sessions.transcript_json`, `.scorecard_json`, `.instructions` | **The voice-interview transcript** and its scoring | `app/_lib/db/interviews.ts` |
 | `dev_submissions` | Work-sample answers and their evaluation | `app/_lib/db/devcase.ts` |
 | `dev_outbox` | Queued/sent candidate messages, including `failure_detail` | `app/_lib/db/devcase.ts`, dispatched by `app/_lib/comms-dispatch.ts` |

@@ -162,6 +162,7 @@ export function ScoreOutcomes() {
           {audit.withConfidence === 0 && audit.automatedAdvances > 0
             ? t("auditNoConfidence")
             : t("auditCoverage", { with: audit.withConfidence, total: audit.automatedAdvances })}
+          {audit.withConfidence > 0 && audit.notRecorded > 0 ? <> {t("auditNotRecorded", { missing: audit.notRecorded })}</> : null}
         </p>
         <div className="mt-3 overflow-x-auto" role="table" aria-label={t("auditTitle", { bar: audit.bar })}>
           <div className={`${GRID_ROW} grid-cols-[minmax(14rem,1.6fr)_minmax(10rem,1fr)] border-t-0`} role="row">

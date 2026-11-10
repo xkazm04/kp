@@ -3602,7 +3602,7 @@ export function actOnPipelineEntry(
   // the log row and the seal emitted beside it name the same actor. Server-derived by the
   // caller (humanActor() in operator-approver.ts); omitted ⇒ NULL ⇒ "not identified",
   // never a defaulted person (guardrail G3).
-  opts?: { expectedStage?: string; expectedApprovalKind?: ApprovalKind | null; actor?: "human" | "system"; actorRef?: string | null; outcome?: "offer_accepted" },
+  opts?: { expectedStage?: string; expectedApprovalKind?: ApprovalKind | null; actor?: "human" | "system"; actorRef?: string | null; outcome?: "offer_accepted"; inputs?: Record<string, number> },
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): PipelineEntry | null {
   const db = ensureDb();
@@ -3733,7 +3733,7 @@ export function actOnPipelineEntry(
     db.prepare(
       `UPDATE pipeline_entries SET stage=?, approval_kind='calendar', approval_detail=?, stage_changed_at=?, updated_at=? WHERE id=? AND workspace_id=?`
     ).run(next, "Tue 14:00", now, now, id, workspaceId);
-    recordEvent(db, { ...meta, kind: auto ? "auto_advanced" : "advanced", toStage: next, detail: decisionNote });
+    recordEvent(db, { ...meta, kind: auto ? "auto_advanced" : "advanced", toStage: next, detail: decisionNote, inputs: opts?.inputs });
   } else {
     // accept: advance one stage, clear any pending approval. A screening_review queued
     // on an ENTRY-role stage (a policy advance out of the entry column, Q2) lands here:
@@ -3745,7 +3745,7 @@ export function actOnPipelineEntry(
       db.prepare(
         `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail=NULL, stage_changed_at=?, updated_at=? WHERE id=? AND workspace_id=?`
       ).run(next, now, now, id, workspaceId);
-      recordEvent(db, { ...meta, kind: auto ? "auto_advanced" : "advanced", toStage: next, detail: decisionNote });
+      recordEvent(db, { ...meta, kind: auto ? "auto_advanced" : "advanced", toStage: next, detail: decisionNote, inputs: opts?.inputs });
     } else {
       // Already at the terminal stage (Hired): clear the approval but don't bump
       // stage_changed_at — that timestamp anchors time-to-hire and must not move.

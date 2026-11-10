@@ -636,7 +636,9 @@ export function ensureDb(): Database.Database {
       -- carries identity ("human:Petra Nováková"). NULLABLE on purpose (guardrail G3):
       -- legacy rows, and any writer that genuinely cannot name an actor, read as "not
       -- identified" — never as a default person.
-      actor TEXT
+      actor TEXT,
+      -- JSON: what an automated decision compared (screeningConfidence + bar). NULL = not recorded.
+      inputs_json TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_pipeline_events_created ON pipeline_events (created_at DESC);
@@ -2289,6 +2291,8 @@ export function ensureDb(): Database.Database {
     // exists to make real. A legacy row reads as "not identified" forever, which is the
     // truth about it (guardrail G3).
     "ALTER TABLE pipeline_events ADD COLUMN actor TEXT",
+    // Additive, no backfill: rows before it read as "not recorded", never imputed.
+    "ALTER TABLE pipeline_events ADD COLUMN inputs_json TEXT",
     "ALTER TABLE consent_events ADD COLUMN workspace_id TEXT",
     // Tenant scope (P1): the Channels surface — inbound webhook bindings + the comms
     // outbox (a team's outbound candidate messages). Backfilled below (the outbox from
@@ -3698,6 +3702,7 @@ export function recordEvent(
     // reads "not identified" rather than crediting anyone (guardrail G3). Never
     // client-supplied — every caller derives it server-side.
     actor?: string | null;
+    inputs?: Record<string, number> | null;
     // Tenant (P1): the team the event belongs to. AUTO-DERIVED from the linked
     // entry when omitted (the common case — an event always mirrors its entry's
     // tenant), so the ~15 recordEvent call sites don't each have to thread it.
@@ -3713,8 +3718,8 @@ export function recordEvent(
       : undefined) ??
     "workspace";
   db.prepare(
-    `INSERT INTO pipeline_events (entry_id, candidate_label, job_title, archetype, kind, from_stage, to_stage, detail, created_at, actor, workspace_id)
-     VALUES (@entry_id, @candidate_label, @job_title, @archetype, @kind, @from_stage, @to_stage, @detail, @created_at, @actor, @workspace_id)`
+    `INSERT INTO pipeline_events (entry_id, candidate_label, job_title, archetype, kind, from_stage, to_stage, detail, created_at, actor, workspace_id, inputs_json)
+     VALUES (@entry_id, @candidate_label, @job_title, @archetype, @kind, @from_stage, @to_stage, @detail, @created_at, @actor, @workspace_id, @inputs_json)`
   ).run({
     entry_id: e.entryId ?? null,
     candidate_label: e.candidateLabel ?? null,
@@ -3728,6 +3733,7 @@ export function recordEvent(
     // Empty string is treated as absent: a blank actor is not an identification.
     actor: e.actor?.trim() || null,
     workspace_id: workspaceId,
+    inputs_json: e.inputs ? JSON.stringify(e.inputs) : null,
   });
 }
 

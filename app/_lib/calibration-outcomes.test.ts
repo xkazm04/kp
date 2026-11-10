@@ -193,6 +193,7 @@ test("an automated advance with NO sealed confidence is counted, but never audit
   const r = computeScoreOutcomes([entry("x", 90)], events, [], AXIS);
   assert.equal(r.audit.automatedAdvances, 1);
   assert.equal(r.audit.withConfidence, 0);
+  assert.equal(r.audit.notRecorded, 1, "named as not recorded, never imputed");
   assert.equal(r.audit.above.state, "empty");
 });
 
