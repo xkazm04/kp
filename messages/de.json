@@ -6105,6 +6105,7 @@
       "colSeniority": "Seniorität",
       "colFamily": "Familie",
       "colSalary": "Gehalt ({currency}/{period, select, year {Jahr} hour {Std.} other {Mon.}})",
+      "bandOtherUnit": "{currency}/{period, select, year {Jahr} hour {Std.} other {Mon.}} · in einem anderen Markt festgelegt, nicht umgerechnet",
       "colEntry": "Einstieg",
       "colStatus": "Status"
     },
@@ -7754,7 +7755,7 @@
       },
       "changes": "Alle Gehaltsangaben, die dieser Arbeitsbereich anzeigt, aus Stellenanzeigen und Lebensläufen liest oder in ein Angebot übernimmt, verwenden die Währung und den Gehaltszeitraum dieses Marktes. Eine Anzeige ohne Ortsangabe wird seiner Hauptstadt zugeordnet.",
       "noBenchmark": "Für diesen Markt hat kp keinen Gehalts-Benchmark. Eigene Gehaltsschätzungen, die Gehaltspassung und der Marktvergleich zeigen statt einer Zahl „kein Benchmark für diesen Markt“, und Angebote warten, bis ein Mensch den Betrag festlegt. Spannen, die eine Anzeige oder ein Kandidat nennt, werden weiterhin angezeigt, in der Währung, in der sie genannt wurden.",
-      "noRewrite": "Ein Marktwechsel rechnet nichts bereits Gespeichertes um: Die Beträge bleiben gleich. Eine ohne eigene Währung gespeicherte Spanne einer Stelle wird danach in der Währung des neuen Marktes gelesen. Wählen Sie den Markt daher, bevor Sie Stellen anlegen.",
+      "noRewrite": "Ein Marktwechsel rechnet nichts bereits Gespeichertes um und benennt nichts um: Die Spanne einer Stelle behält die Währung und den Gehaltszeitraum, in denen sie festgelegt wurde. Eine Spanne in einer anderen Währung als der dieses Marktes wird in dieser Währung angezeigt und nicht in Vergleiche einbezogen.",
       "readOnly": "Nur wer Teams verwalten darf, kann den Markt ändern.",
       "saved": "Markt gespeichert.",
       "failed": "Der Markt konnte nicht gespeichert werden.",
@@ -18007,7 +18008,9 @@
         "salaryBandFrom": "Spanne der Rolle ab {min, number} {currency}/{period, select, month {Monat} year {Jahr} hour {Std.} day {Tag} other {{period}}}",
         "salaryBandUpTo": "Spanne der Rolle bis {max, number} {currency}/{period, select, month {Monat} year {Jahr} hour {Std.} day {Tag} other {{period}}}",
         "salaryCohort": "Höchstens {tolerance} % vom {currency}-Median der Gruppe entfernt",
-        "salaryNone": "Keine Spanne zum Vergleich"
+        "salaryNone": "Keine Spanne zum Vergleich",
+        "salaryBandOtherUnit": "Die Spanne der Rolle ist in {bandCurrency}/{bandPeriod, select, month {Monat} year {Jahr} hour {Std.} day {Tag} other {{bandPeriod}}}, der Einheit eines anderen Marktes: kein Vergleich",
+        "salaryCohortBandOtherUnit": "Höchstens {tolerance} % vom {currency}-Median der Gruppe entfernt; die Spanne der Rolle ist in {bandCurrency}/{bandPeriod, select, month {Monat} year {Jahr} hour {Std.} day {Tag} other {{bandPeriod}}} und wird nicht verglichen"
       }
     },
     "layerAnatomy": {

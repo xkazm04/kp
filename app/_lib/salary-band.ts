@@ -34,6 +34,46 @@ export function isSameCurrency(a: string | null | undefined, b: string | null | 
   return normalizeCurrency(a) === normalizeCurrency(b);
 }
 
+// ---- A stored band's own unit (docs/architecture/markets.md) ------------------
+// A role band (jobs.salary_min/max) carries the currency and pay period it was set in
+// (jobs.band_currency / band_period): the workspace's market at write time, or a
+// grounded band's own unit. Changing the market never relabels it. A band whose unit is
+// not the workspace market's is SHOWN in its own unit with a label, never converted,
+// and left out of every comparison that assumes one currency.
+
+/** The unit a figure is denominated in: ISO-4217 currency + pay period. */
+export type BandUnit = { currency: string; period: string };
+
+/** Stamp a band's unit onto a job record before `insertJob` writes it. */
+export function withBandUnit<T extends object>(job: T, unit: BandUnit): T & { bandCurrency: string; bandPeriod: string } {
+  return { ...job, bandCurrency: normalizeCurrency(unit.currency), bandPeriod: unit.period };
+}
+
+/** The unit a stored band is in. A band with no stamp is legacy or the Czech seed
+ *  corpus, which the boot backfill (db/core.ts backfillTenantScope) also reads as
+ *  CZK per month — the one rule, so the reader and the backfill cannot disagree. */
+export function bandUnitOf(job: { bandCurrency?: string | null; bandPeriod?: string | null } | null | undefined): BandUnit {
+  return { currency: normalizeCurrency(job?.bandCurrency) || APP_CURRENCY, period: job?.bandPeriod?.trim().toLowerCase() || "month" };
+}
+
+/** The one comparability predicate for two units: same currency AND same period. */
+export function isSameBandUnit(a: BandUnit, b: BandUnit): boolean {
+  return isSameCurrency(a.currency, b.currency) && a.period.trim().toLowerCase() === b.period.trim().toLowerCase();
+}
+
+/** Whether a stored band was set in another unit than `market`'s (a market change since):
+ *  label it, never convert it, never compare it against figures in the market's unit. */
+export function bandInOtherUnit(
+  job: { bandCurrency?: string | null; bandPeriod?: string | null } | null | undefined,
+  market: BandUnit
+): boolean {
+  return !isSameBandUnit(bandUnitOf(job), market);
+}
+
+/** The coded absence a comparison states when the role band is in another unit than the
+ *  workspace market's (mirrors pipeline/jobfit/winnability.py BAND_OTHER_CURRENCY). */
+export const BAND_OTHER_CURRENCY = "band_other_currency";
+
 export type SalaryBandPosition = "over" | "under" | "within";
 
 /**
@@ -108,6 +148,15 @@ export function groundedJdBand(analysisJson: string | null | undefined): SalaryB
   const salary = parsed && typeof parsed === "object" ? (parsed as { salary?: unknown }).salary : undefined;
   const s = normalizeMarketSalary(salary);
   return s.available ? [s.suggestedMinimum, s.suggestedMaximum] : null;
+}
+
+/** The unit of the grounded band on a JD row (the build's own currency and period), or
+ *  null when there is no usable band. The re-sync stamps THIS, not the current market:
+ *  a band researched in CZK stays CZK after the workspace moves to another market. */
+export function groundedJdUnit(analysisJson: string | null | undefined): BandUnit | null {
+  if (!groundedJdBand(analysisJson)) return null;
+  const s = normalizeMarketSalary((JSON.parse(analysisJson as string) as { salary?: unknown }).salary);
+  return { currency: s.currency, period: s.period };
 }
 
 // The grounded market-salary band the JD builder renders and persists, as

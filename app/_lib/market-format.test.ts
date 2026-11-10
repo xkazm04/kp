@@ -41,8 +41,11 @@ test("a withheld CV salary estimate is recognised by its finding code", () => {
   assert.equal(salaryWithheldForMarket(null), false);
 });
 
-test("a bare role band is read in the workspace's market units (period year proven)", () => {
+test("a role band is read in its OWN unit; the market never relabels it (period year proven)", () => {
+  // Owner ruling 3: an unstamped band is CZK/month (the boot backfill's rule), in every market.
   const job = { salaryBand: [50000, 70000], defaultedFields: [] } as unknown as Parameters<typeof cohortRoleBand>[0];
   assert.deepEqual(cohortRoleBand(job), { currency: "CZK", period: "month", min: 50000, max: 70000 });
-  assert.deepEqual(cohortRoleBand(job, MARKETS.gb), { currency: "GBP", period: "year", min: 50000, max: 70000 });
+  assert.deepEqual(cohortRoleBand(job, MARKETS.gb), { currency: "CZK", period: "month", min: 50000, max: 70000, otherUnit: true });
+  const gbp = { ...job, bandCurrency: "GBP", bandPeriod: "year" } as unknown as Parameters<typeof cohortRoleBand>[0];
+  assert.deepEqual(cohortRoleBand(gbp, MARKETS.gb), { currency: "GBP", period: "year", min: 50000, max: 70000 });
 });

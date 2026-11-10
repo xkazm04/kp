@@ -559,6 +559,13 @@ one-candidate field reads "*X* is the **only candidate** … nothing to compare"
 with no `Advance` crown, so no other caller can obtain the verdict the floor
 refuses.
 
+**The role band reaches the narrative only in its own unit.** `compareBand` hands
+`group_compare_cli` the role band with its stored currency (`jobs.band_currency`), and
+a candidate's expectation only when it shares that currency. A band set in another
+unit than the workspace market's (the market changed since) is not sent at all, so
+the narrative never weighs budget fit across an unconverted gap
+(`docs/architecture/markets.md` § "A role band carries its own unit").
+
 **The narrative only claims what was measured.** Every candidate the recruiter
 ranker could not resolve is still part of the compared field but arrives with
 `total: null` and empty `matchedSkills`/`missingSkills` (a manually added

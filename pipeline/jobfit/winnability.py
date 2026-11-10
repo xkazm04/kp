@@ -34,6 +34,12 @@ from .matching import FIT_PROMISING_THRESHOLD, MatchCandidate, _norm_currency, k
 # Must-haves considered for the pair fallback: C(8, 2) = 28 extra passes at most.
 _PAIR_CANDIDATES = 8
 
+# The coded absence for a role band stored in another unit than the active market's
+# (the workspace's market changed after the band was set). Mirrors the TS
+# ``BAND_OTHER_CURRENCY`` (app/_lib/salary-band.ts): the band is never converted and
+# never compared against the market benchmark.
+BAND_OTHER_CURRENCY = "band_other_currency"
+
 
 def _same_currency(a: str | None, b: str | None) -> bool:
     """Whether two currency codes are directly comparable (the pipeline does no FX).
@@ -61,11 +67,19 @@ def assess_winnability(
     *,
     fit_threshold: int = FIT_PROMISING_THRESHOLD,
     market: MarketConfig = ACTIVE_MARKET,
+    band_currency: str | None = None,
+    band_period: str | None = None,
 ) -> dict:
     """Grade how fillable ``job`` is against the current candidate pool.
 
     Every figure is derived by re-running the production scorers, so the coach's
     "+N if you loosen this" promises are exactly what publishing would yield.
+
+    ``band_currency``/``band_period`` are the stored band's OWN unit (the caller's
+    jobs.band_currency/band_period). When either differs from ``market``'s, the band
+    is refused for the salary comparison: ``belowMarket`` is None and the result
+    carries ``bandAbsence: "band_other_currency"``. Absent = the band is in the
+    market's unit (every caller before the stamp existed).
     """
     pool = len(candidates)
     base_elig = _eligible(candidates, job)
@@ -180,7 +194,13 @@ def assess_winnability(
     # market it was authored for. Answering every ad in the market's currency compared
     # a EUR-stated range with the CZK benchmark as if it were CZK.
     job_currency = _norm_currency(job.salary_currency) if job.salary_currency else market.currency
-    comparable = _same_currency(job_currency, market_currency)
+    # A band stored in another unit than the market's: its own currency, refused below.
+    band_other_unit = bool(band_currency) and not (
+        _same_currency(band_currency, market.currency) and (band_period or market.period) == market.period
+    )
+    if band_other_unit and not job.salary_currency:
+        job_currency = _norm_currency(band_currency)
+    comparable = _same_currency(job_currency, market_currency) and not band_other_unit
     # Both sides of the comparison must be STATED by the ad. A salary_band stamped from
     # the market anchor IS the market band, so top-vs-floor against itself can never
     # read "below" and the coach answers a clean "not below market" for an ad that
@@ -214,6 +234,9 @@ def assess_winnability(
     if not has_benchmark(ACTIVE_MARKET):
         # No benchmark for this market: the verdict is a stated absence, not "not below".
         salary["marketAbsence"] = "no_market_benchmark"
+    if band_other_unit:
+        # Set in another market's unit: never converted, never compared (stated).
+        salary["bandAbsence"] = BAND_OTHER_CURRENCY
     if comparable and not assumed and job_band and market_band and market_band[0] > 0:
         # How far the JD's top sits relative to the market floor (negative = below).
         salary["topVsMarketFloorPct"] = round(100 * (job_band[1] - market_band[0]) / market_band[0])

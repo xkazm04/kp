@@ -7,12 +7,12 @@ import { effectiveOrgName } from "@/app/_lib/org-name-server";
 import { companyOrDefault } from "@/app/_lib/org-settings";
 import { isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { canDeleteJd, jdDeleteActor } from "@/app/_lib/jds-delete-access";
-import { groundedJdBand, withGroundedBand } from "@/app/_lib/salary-band";
+import { groundedJdBand, groundedJdUnit, withBandUnit, withGroundedBand } from "@/app/_lib/salary-band";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
-import { marketSpawnEnv } from "@/app/_lib/workspace-market";
+import { getWorkspaceMarket, marketSpawnEnv } from "@/app/_lib/workspace-market";
 
 // The best-effort re-ingest on a body edit is one LLM parse.
 export const maxDuration = 60;
@@ -168,7 +168,9 @@ export const PATCH = withWorkspace(async (ws: string, request: Request, context:
         // The edited wording rarely restates the employer: a blank parsed company keeps
         // the role's own, then the org name — it must never wipe the apply page's "who".
         const company = companyOrDefault(job.company, linkedJob.company?.trim() || (await effectiveOrgName()));
-        insertJob(withGroundedBand({ ...job, id: jobId, company }, groundedJdBand(existing.analysis_json)), undefined, "draft", ws);
+        // The grounded band keeps the unit it was researched in; a parsed one is the market's.
+        const unit = groundedJdUnit(existing.analysis_json) ?? getWorkspaceMarket(ws);
+        insertJob(withBandUnit(withGroundedBand({ ...job, id: jobId, company }, groundedJdBand(existing.analysis_json)), unit), undefined, "draft", ws);
         jobResynced = true;
       } catch (ingestError) {
         console.error(`[api:jds] JD ${slug} edited but job re-ingest failed`, ingestError);

@@ -832,15 +832,27 @@ export function closeRoleIfOpen(id: string, workspaceId?: string): boolean {
  *  function so the page read and the point read can never decorate differently. */
 function withLifecycle(
   parsed: JobRecord,
-  row: { status: JobRecord["status"]; target_hires: number | null; posting_langs: string | null }
+  row: LifecycleCols
 ): JobRecord {
   return {
     ...parsed,
     status: row.status ?? null,
     targetHires: roleTargetHires(row.target_hires),
     postingLangs: parsePostingLangs(row.posting_langs),
+    // The band's own unit (the columns, never the payload): a band keeps the currency
+    // and period it was set in when the workspace's market changes (salary-band.ts).
+    bandCurrency: row.band_currency ?? null,
+    bandPeriod: row.band_period ?? null,
   };
 }
+
+type LifecycleCols = {
+  status: JobRecord["status"];
+  target_hires: number | null;
+  posting_langs: string | null;
+  band_currency?: string | null;
+  band_period?: string | null;
+};
 
 /** One page of the browse read plus an HONEST truncation flag — same contract as
  *  buildCandidatePool's `{ entries, truncated }`. `truncated` is true when the corpus
@@ -869,18 +881,13 @@ export function listJobsPage(filter: JobFilter = {}, workspaceId: string = DEFAU
     .prepare(
       `SELECT payload_json, COALESCE(s.status, jobs.status) AS status,
               COALESCE(s.target_hires, jobs.target_hires) AS target_hires,
-              COALESCE(s.posting_langs, jobs.posting_langs) AS posting_langs${join ? ", COALESCE(h.n, 0) AS hired" : ""}
+              COALESCE(s.posting_langs, jobs.posting_langs) AS posting_langs,
+              jobs.band_currency, jobs.band_period${join ? ", COALESCE(h.n, 0) AS hired" : ""}
        FROM jobs LEFT JOIN job_workspace_state s ON s.workspace_id = @workspaceId AND s.job_id = jobs.id ${join}
        WHERE (jobs.workspace_id IS NULL OR jobs.workspace_id = @workspaceId) ${extra}
        ORDER BY ${orderBy} LIMIT @limit OFFSET @offset`
     )
-    .all({ ...params, limit: limit + 1, offset }) as {
-    payload_json: string;
-    status: JobRecord["status"];
-    target_hires: number | null;
-    posting_langs: string | null;
-    hired?: number;
-  }[];
+    .all({ ...params, limit: limit + 1, offset }) as (LifecycleCols & { payload_json: string; hired?: number })[];
   const truncated = rows.length > limit;
   // Decorate each parsed payload with the lifecycle COLUMNS — payload_json predates
   // the lifecycle and never carries it, so without this the UI can't tell a
@@ -967,13 +974,12 @@ export function getJob(id: string, workspaceId?: string): JobRecord | null {
     .prepare(
       `SELECT payload_json, COALESCE(s.status, jobs.status) AS status,
               COALESCE(s.target_hires, jobs.target_hires) AS target_hires,
-              COALESCE(s.posting_langs, jobs.posting_langs) AS posting_langs
+              COALESCE(s.posting_langs, jobs.posting_langs) AS posting_langs,
+              jobs.band_currency, jobs.band_period
        FROM jobs LEFT JOIN job_workspace_state s ON s.workspace_id = ? AND s.job_id = jobs.id
        WHERE jobs.id = ?`
     )
-    .get(lifecycleTeam(workspaceId), id) as
-    | { payload_json: string; status: JobRecord["status"]; target_hires: number | null; posting_langs: string | null }
-    | undefined;
+    .get(lifecycleTeam(workspaceId), id) as (LifecycleCols & { payload_json: string }) | undefined;
   if (!row) return null;
   const parsed = safeRowParse<JobRecord>(row.payload_json, "getJob", id);
   // Same lifecycle decoration as listJobs — the columns are the authority.
@@ -1052,12 +1058,13 @@ export function getJobsByIds(ids: string[], workspaceId: string = DEFAULT_WORKSP
     const placeholders = part.map(() => "?").join(",");
     const rows = db
       .prepare(
-        `SELECT id, payload_json FROM jobs WHERE id IN (${placeholders}) AND (workspace_id IS NULL OR workspace_id = ?)`
+        `SELECT id, payload_json, band_currency, band_period FROM jobs WHERE id IN (${placeholders}) AND (workspace_id IS NULL OR workspace_id = ?)`
       )
-      .all(...part, workspaceId) as { id: string; payload_json: string }[];
+      .all(...part, workspaceId) as { id: string; payload_json: string; band_currency: string | null; band_period: string | null }[];
     for (const r of rows) {
       const parsed = safeRowParse<JobRecord>(r.payload_json, "getJobsByIds", r.id);
-      if (parsed) byId.set(r.id, parsed);
+      // The band's own unit, from the columns (as withLifecycle decorates it).
+      if (parsed) byId.set(r.id, { ...parsed, bandCurrency: r.band_currency ?? null, bandPeriod: r.band_period ?? null });
     }
   }
   return ids.map((id) => byId.get(id)).filter((j): j is JobRecord => j !== undefined);

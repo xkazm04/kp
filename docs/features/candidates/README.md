@@ -1787,8 +1787,11 @@ for, the engine withholds its salary estimate (`pipeline.withhold_uncalibrated_s
 an empty band in the market's units plus the finding `salary_no_market_benchmark`),
 the report's Salary tab states the absence instead of a 0–0 gauge, and the Cohort
 Studio's salary cell is absent with reason `noMarketBenchmark` — out of the
-comparison, never rated as a zero. A role band in the cohort is read in the market's
-currency and period. See `docs/architecture/markets.md`.
+comparison, never rated as a zero. A role band in the cohort is read in its OWN
+currency and period (`jobs.band_currency` / `band_period`); one set in another unit
+than the workspace market's is marked `otherUnit`, never rated against — the members
+are rated against the cohort median instead and the criterion says the band is not
+compared. See `docs/architecture/markets.md`.
 
 ## Known gaps
 

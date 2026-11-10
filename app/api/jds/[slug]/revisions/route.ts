@@ -7,7 +7,8 @@ import { companyOrDefault } from "@/app/_lib/org-settings";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
-import { marketSpawnEnv } from "@/app/_lib/workspace-market";
+import { getWorkspaceMarket, marketSpawnEnv } from "@/app/_lib/workspace-market";
+import { withBandUnit } from "@/app/_lib/salary-band";
 
 // A revert re-ingests the linked job — one LLM parse, best-effort.
 export const maxDuration = 60;
@@ -70,7 +71,7 @@ export const POST = withWorkspace(async (ws: string, request: Request, context: 
         if (source !== "llm") return NextResponse.json({ ok: true, restored, jobResynced: false });
         // Same as the PATCH re-sync: a blank parsed company keeps the role's own, then the org name.
         const company = companyOrDefault(job.company, linkedJob.company?.trim() || (await effectiveOrgName()));
-        insertJob({ ...job, id: jobId, company }, undefined, "draft", ws);
+        insertJob(withBandUnit({ ...job, id: jobId, company }, getWorkspaceMarket(ws)), undefined, "draft", ws);
         jobResynced = true;
       } catch (ingestError) {
         console.error(`[api:jds/revisions] JD ${slug} reverted but job re-ingest failed`, ingestError);

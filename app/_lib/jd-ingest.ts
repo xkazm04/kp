@@ -1,8 +1,8 @@
 import { insertJob, jobContentHash, normalizeJob } from "@/app/_lib/job-ingest";
-import { normalizeSalaryBand, withGroundedBand } from "@/app/_lib/salary-band";
+import { normalizeSalaryBand, withBandUnit, withGroundedBand } from "@/app/_lib/salary-band";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
-import { marketSpawnEnv } from "@/app/_lib/workspace-market";
+import { getWorkspaceMarket, marketSpawnEnv } from "@/app/_lib/workspace-market";
 import { parseRoleSpec } from "@/app/_lib/rolespec";
 
 // Turn a generated JD's role into a structured, matchable Job: build a record
@@ -50,6 +50,7 @@ export async function ingestStructuredJob(input: {
 
   // Authored JDs start as a DRAFT — "Source into Pipeline" takes them live and
   // sources them into the pipeline.
-  insertJob(job, jobContentHash(`${input.title}\n${input.markdown}`), "draft", workspaceId);
+  // The band's unit: the workspace's market now (the build ran in it moments ago).
+  insertJob(withBandUnit(job, getWorkspaceMarket(workspaceId)), jobContentHash(`${input.title}\n${input.markdown}`), "draft", workspaceId);
   return true;
 }

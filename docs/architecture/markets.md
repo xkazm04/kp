@@ -41,7 +41,7 @@ The `market` phase of the tiered decision config (`app/_lib/decision-config-sche
 choice wins, else the org baseline, else `cz`. It reuses the `decision_config` table,
 which is already workspace-scoped (`TENANCY_SCOPED_TABLES`), exported `org_shared`,
 and holds no personal data (nothing to erase) — no new table, no new column, no
-restart. `app/_lib/workspace-market-tenancy.test.ts` pins that one team's market
+restart. (The role band's own unit, below, IS two new columns on `jobs`.) `app/_lib/workspace-market-tenancy.test.ts` pins that one team's market
 never reaches another.
 
 - Read: `app/_lib/workspace-market.ts` — `getWorkspaceMarketId(ws)`,
@@ -93,6 +93,52 @@ The honest degraded path (registry: recruiting
 Bands a job ad or a candidate **states** are still shown and compared, in the
 currency they were stated in.
 
+## A role band carries its own unit
+
+A role's salary band is stored WITH the unit it was set in: `jobs.band_currency`
+(ISO-4217) and `jobs.band_period` (`month` / `year` / `hour`), beside
+`jobs.salary_min` / `salary_max`. Changing the market converts nothing and relabels
+nothing: a band keeps the currency and period it was set in.
+
+| Store | Before | After |
+| --- | --- | --- |
+| `jobs.salary_min/max` + `payload_json.salaryBand` (the role band) | bare numbers, read in the CURRENT market | `band_currency` + `band_period` columns, stamped at write |
+| `jds.analysis_json.salary` (the JD builder's grounded band) | `currency` + `period` (`market_salary_cli`) | unchanged; the JD re-sync stamps THIS unit onto the role, not the current market |
+| `offers.currency` + `offers.salary` (one figure, not a band) | currency stamped from the market at draft | unchanged; no period column (`offers-store.ts`, the market's period by construction) |
+| `jobseeker_postings.salary_currency/period` | already carried both | unchanged (candidate-side module) |
+| `payload_json.salaryCurrency/salaryPeriod` | the AD's raw statement, not the band's unit | unchanged |
+
+- **Write.** Every production caller of `insertJob` stamps the band through
+  `withBandUnit(job, unit)` (`app/_lib/salary-band.ts`): the workspace's market
+  (`getWorkspaceMarket(ws)`), or for a JD re-sync the grounded band's own unit
+  (`groundedJdUnit`). `app/_lib/db/job-band-unit.test.ts` scans the callers; an
+  unbanded one is listed with its reason. A job with no band stores no unit.
+- **Migration.** Two additive ALTERs in `app/_lib/db/core.ts`. The backfill
+  (`backfillTenantScope`, every boot, only unstamped rows that hold a band) stamps
+  **CZK/month**: the market setting shipped in `166bc9557` and no band could have
+  been written in another unit before it, and the seed corpus is Czech by
+  construction. Verified 2026-11-10 on every database on the build machine: no
+  `decision_config` row for the `market` phase existed. A server that was running
+  when the columns arrived must be **restarted** before it writes jobs (its
+  prepared statements predate the columns).
+- **Read.** `getJob`, `listJobsPage` and `getJobsByIds` decorate `bandCurrency` /
+  `bandPeriod` from the columns. `bandUnitOf(job)` is the reader (an unstamped band
+  is CZK/month, the backfill's rule); `isSameBandUnit` is the one comparability
+  predicate (currency AND period); `bandInOtherUnit(job, market)` says the band was
+  set in another unit than the workspace's.
+- **A band in another unit** is shown in its own unit with a label, never converted,
+  and left out of every comparison that assumes one currency, with a stated reason:
+
+| Surface | Behaviour |
+| --- | --- |
+| Jobs table | the cell adds "CZK/mo · set in another market, not converted" under the band (`jobs.table.bandOtherUnit`); the header still names the market's unit |
+| Posting preview | the salary line is printed in the band's own unit |
+| Cohort salary dimension | the band is marked `otherUnit` and not rated against; members are rated against the cohort median, and the criterion says the band is not compared (`criteria.salaryCohortBandOtherUnit` / `salaryBandOtherUnit`) |
+| Manual offer draft | no midpoint and no `salaryMin/Max` from the band; the draft carries `bandAbsence: "band_other_currency"` and waits for a typed figure |
+| Winnability | the route passes `bandCurrency` / `bandPeriod`; `winnability.py` refuses: `belowMarket: null`, `currencyComparable: false`, `bandAbsence: "band_other_currency"` (`BAND_OTHER_CURRENCY` on both sides) |
+| Group evaluation | the compare spawn gets no band, and a candidate's expectation is shown to it only in the band's own currency |
+| Decision card salary rail | plotted only when the expectation shares the band's OWN currency (`peer-context` `salaryBandCurrency`) |
+
 ## The Czech regression bar
 
 With the default market every output is byte-identical: `KP_MARKET` is unset in
@@ -104,12 +150,14 @@ runs the switch in a child interpreter, the way the app does.
 
 ## Known gaps
 
-- A role band is stored bare (`jobs.salaryBand`, no currency column). It is read in
-  the workspace's CURRENT market, so changing the market after roles exist relabels
-  their bands; the picker says to choose the market first.
+- The band's own unit does not yet reach: the matcher's salary eligibility flag
+  (`matching.py` `_salary_flag`, fed by `listCorpusJobs`; a band in another unit is
+  still read in the market's units there), the group-evaluation modal's band label
+  (`groupEvalSalaryScale.ts`), the compact match band label (`matchTypes.ts`), the
+  coach's band text (`jobsCoachSalary.ts`, which also shows nothing for a refused
+  verdict) and the demo simulation's offer.
 - Not yet market-aware: the guided simulation's demo offer (Czech seed data by
-  construction), `jobsCoachSalary.ts`, `matchTypes.ts`'s compact band label,
-  `groupEvalSalaryScale.ts`, `group-eval-run.ts`'s band currency, the posting
+  construction), the posting
   translation's source render (`job-translate-run.ts`), the analytics money panels,
   the background `policy-pass` (market-agnostic today), the jobseeker module (a
   candidate-side product with its own currency parsing) and gigs (USD/EUR gig

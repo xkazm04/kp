@@ -6105,6 +6105,7 @@
       "colSeniority": "Seniorita",
       "colFamily": "Obor",
       "colSalary": "Mzda ({currency, select, CZK {Kč} other {{currency}}}/{period, select, year {rok} hour {hod} other {měs}})",
+      "bandOtherUnit": "{currency}/{period, select, year {rok} hour {hod} other {měs}} · zadáno na jiném trhu, nepřevedeno",
       "colEntry": "Junior",
       "colStatus": "Stav"
     },
@@ -7754,7 +7755,7 @@
       },
       "changes": "Všechny mzdové údaje, které tento pracovní prostor zobrazuje, čte z inzerátů a životopisů nebo vkládá do nabídky, používají měnu a mzdové období tohoto trhu. Inzerát bez uvedeného města se přiřadí k jeho hlavnímu městu.",
       "noBenchmark": "Pro tento trh kp nemá mzdový benchmark. Vlastní odhady mezd, hodnocení mzdové shody a srovnání s trhem místo čísla uvedou „pro tento trh chybí benchmark“ a nabídky počkají, až částku stanoví člověk. Rozpětí uvedená v inzerátu nebo kandidátem se dál zobrazují, v měně, ve které byla uvedena.",
-      "noRewrite": "Změna trhu nic z již uloženého nepřevádí: částky zůstanou stejné. Rozpětí role uložené bez vlastní měny se pak čte v měně nového trhu, proto trh zvolte dřív, než přidáte role.",
+      "noRewrite": "Změna trhu nic z již uloženého nepřevádí ani nepřeznačuje: rozpětí role si ponechá měnu a mzdové období, ve kterých bylo zadáno. Rozpětí v jiné měně, než má tento trh, se zobrazí v této měně a do srovnání se nezahrnuje.",
       "readOnly": "Trh může změnit jen ten, kdo smí spravovat týmy.",
       "saved": "Trh byl uložen.",
       "failed": "Trh se nepodařilo uložit.",
@@ -18007,7 +18008,9 @@
         "salaryBandFrom": "Rozpětí role od {min, number} {currency}/{period, select, month {měs.} year {rok} hour {hod.} day {den} other {{period}}}",
         "salaryBandUpTo": "Rozpětí role do {max, number} {currency}/{period, select, month {měs.} year {rok} hour {hod.} day {den} other {{period}}}",
         "salaryCohort": "Nejvýše {tolerance} % od mediánu skupiny v {currency}",
-        "salaryNone": "Není rozpětí k porovnání"
+        "salaryNone": "Není rozpětí k porovnání",
+        "salaryBandOtherUnit": "Rozpětí role je v {bandCurrency}/{bandPeriod, select, month {měs.} year {rok} hour {hod.} day {den} other {{bandPeriod}}}, tedy v jednotce jiného trhu: neporovnává se",
+        "salaryCohortBandOtherUnit": "Nejvýše {tolerance} % od mediánu skupiny v {currency}; rozpětí role je v {bandCurrency}/{bandPeriod, select, month {měs.} year {rok} hour {hod.} day {den} other {{bandPeriod}}} a neporovnává se"
       }
     },
     "layerAnatomy": {

@@ -5,6 +5,7 @@ import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { buildCandidatePool } from "@/app/_lib/candidate-pool";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { marketSpawnEnv } from "@/app/_lib/workspace-market";
+import { bandUnitOf } from "@/app/_lib/salary-band";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import {
@@ -63,7 +64,11 @@ export const GET = withWorkspace(async (ws: string, request: Request, context: {
 
     workdir = await createWorkdir();
     const inputPath = path.join(workdir, "winnability.json");
-    await writeFile(inputPath, JSON.stringify({ jobId: id, candidates: entries }), "utf-8");
+    // The band's OWN unit rides along: the CLI refuses to compare a band set in another
+    // market's unit (salary.bandAbsence "band_other_currency"), never converts it.
+    const unit = job.salaryBand?.length ? bandUnitOf(job) : null;
+    const bandUnit = unit ? { bandCurrency: unit.currency, bandPeriod: unit.period } : {};
+    await writeFile(inputPath, JSON.stringify({ jobId: id, candidates: entries, ...bandUnit }), "utf-8");
     // Pass the DB job directly so a freshly-ingested draft (not in the static
     // corpus) can be graded before it's ever published.
     const jobPath = path.join(workdir, "job.json");

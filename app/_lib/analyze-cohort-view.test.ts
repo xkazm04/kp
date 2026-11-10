@@ -8,6 +8,7 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { assembleAnalysisCohortView, cohortRoleContext, projectAnalysisCohortMembers, type ViewDeps } from "./analyze-cohort-view.ts";
 import type { JobRecord } from "./db/core.ts";
+import { MARKETS } from "./markets.ts";
 import type { RoleContext } from "../features/tools/analyze/cohort/cohortTypes.ts";
 import type { AnalysisCohortRecord } from "./db/analysis-cohorts.ts";
 import type { ProjectInput } from "../features/tools/analyze/cohort/cohortProject.ts";
@@ -113,6 +114,22 @@ test("cohortRoleContext reads the job row: min years, seniority, family and the 
   const phantom = cohortRoleContext({ ...JOB, seniority: "medior", minYearsExperience: 0, defaultedFields: ["seniority", "salary_band"] });
   assert.deepEqual(phantom, { minYears: null, seniority: null, band: null, roleFamily: "software_engineering" });
   assert.equal(cohortRoleContext(null), null);
+});
+
+test("the band is read in its OWN unit; one set in another unit than the market's is marked, never relabelled", () => {
+  const eur = MARKETS.de;
+  // An unstamped band is CZK/month (the boot backfill's rule) — in a de workspace that is another unit.
+  assert.deepEqual(cohortRoleContext(JOB, eur)?.band, { currency: "CZK", period: "month", min: 110000, max: 160000, otherUnit: true });
+  // A band stamped in the market's own unit is the market's band.
+  assert.deepEqual(cohortRoleContext({ ...JOB, bandCurrency: "EUR", bandPeriod: "month", salaryBand: [4000, 5000] }, eur)?.band, {
+    currency: "EUR",
+    period: "month",
+    min: 4000,
+    max: 5000,
+  });
+  // A GBP/year band read back in the default market keeps GBP/year and is marked.
+  const gbp = cohortRoleContext({ ...JOB, bandCurrency: "GBP", bandPeriod: "year", salaryBand: [50000, 60000] });
+  assert.deepEqual(gbp?.band, { currency: "GBP", period: "year", min: 50000, max: 60000, otherUnit: true });
 });
 
 test("the stored cohort's view hands the engine the job row's RoleContext, for every member and for the assembly", () => {

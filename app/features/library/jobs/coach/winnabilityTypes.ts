@@ -22,6 +22,9 @@ export type Salary = {
   // The ad's own inputs the verdict was silenced for ("salary_band" = it stated no pay,
   // "seniority" = the market band is for a level it never claimed). Empty/absent = none.
   assumedInputs?: ("salary_band" | "seniority")[];
+  // "band_other_currency" = the role band was set in another unit than the workspace
+  // market's (the market changed since): refused, so belowMarket is null (winnability.py).
+  bandAbsence?: "band_other_currency";
 };
 export type Winnability = {
   poolSize: number;

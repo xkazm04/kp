@@ -11,11 +11,11 @@ import { getGroupEval, readGroupEvalCohortState, saveGroupEval } from "./group-e
 import { candidateSetFingerprint } from "./group-eval-dedupe";
 import { isEarlyCareer } from "./archetypes";
 import { APP_CURRENCY } from "./format";
-import { isSameCurrency } from "./salary-band";
+import { bandInOtherUnit, bandUnitOf, isSameCurrency } from "./salary-band";
 import { FIT_PROMISING_FLOOR } from "./fit-thresholds";
 import { poolEntryFromAnalysis, type CandidatePoolEntry } from "./candidate-pool";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
-import { marketSpawnEnv } from "@/app/_lib/workspace-market";
+import { getWorkspaceMarket, marketSpawnEnv } from "@/app/_lib/workspace-market";
 import { buildLlmConfigEnv } from "./llm-config";
 import { rankPoolForJob } from "./recruiter-run";
 import { computeDifferentiators } from "./group-eval-differentiators";
@@ -278,13 +278,22 @@ async function rankCandidates(
   return { rows: map, fairness: parsed.fairness ?? null };
 }
 
+/** The role band the comparison may weigh, in its OWN currency. A band set in another
+ *  unit than the workspace market's (the market changed since) is left out — the
+ *  narrative never weighs budget fit across an unconverted gap. */
+function compareBand(job: JobRecord | null, workspaceId: string): { band: number[]; currency: string } {
+  const band = job?.salaryBand ?? [];
+  if (band.length < 2 || bandInOtherUnit(job, getWorkspaceMarket(workspaceId))) return { band: [], currency: APP_CURRENCY };
+  return { band, currency: bandUnitOf(job).currency };
+}
+
 // AI "compare all" narrative across the ranked field (ONE Python process), with a
 // deterministic synthesis as the fallback. Returns null on failure so the caller
 // keeps the deterministic one-line `summary`.
 async function runGroupCompare(
   roleTitle: string,
   candidates: PerCandidate[],
-  roleSalaryBand: number[],
+  roleBand: { band: number[]; currency: string },
   // TENANCY: the workspace this eval is being run FOR. The narrative is persisted and
   // shared across that team, so its language is the team's own configured default —
   // never a fixed tenant's. Threaded as a parameter rather than read inside, so the
@@ -298,7 +307,7 @@ async function runGroupCompare(
     const context = {
       roleTitle,
       // The role's recommended band so the AI can weigh budget fit per candidate.
-      roleSalaryBand: roleSalaryBand.length >= 2 ? roleSalaryBand.slice(0, 2) : null,
+      roleSalaryBand: roleBand.band.length >= 2 ? roleBand.band.slice(0, 2) : null,
       candidates: candidates.map((c) => ({
         label: c.label,
         archetype: c.archetype,
@@ -313,12 +322,12 @@ async function runGroupCompare(
         potentialScore: c.potentialScore ?? null,
         // Candidate's own salary expectation (midpoint) so the narrative can flag
         // an over/under-budget candidate alongside fit — but ONLY when it shares the
-        // band's currency. roleSalaryBand is in APP_CURRENCY and the app does no FX,
+        // band's OWN currency (roleBand.currency, the band's stamp) — the app does no FX,
         // so handing the LLM a cross-currency number (a EUR expectation against a CZK
         // band) would let it assert a false "over/under budget" claim; on a mismatch
         // we withhold the number so it can't compare incomparable figures.
         salaryExpectation:
-          c.salaryExpectation && isSameCurrency(c.salaryExpectation.currency, APP_CURRENCY)
+          c.salaryExpectation && isSameCurrency(c.salaryExpectation.currency, roleBand.currency)
             ? c.salaryExpectation.midpoint
             : null,
       })),
@@ -732,7 +741,7 @@ export async function runGroupEval(
   // AiVerdict falls back to the honest insufficient-sample summary.
   const compareStage = stageSignal(signal, stageTimeoutMs(GROUP_EVAL_COMPARE_TIMEOUT_MS));
   const compare = comparable
-    ? await runGroupCompare(roleTitle, candidates, job?.salaryBand ?? [], workspaceId, compareStage.signal)
+    ? await runGroupCompare(roleTitle, candidates, compareBand(job, workspaceId), workspaceId, compareStage.signal)
     : null;
   // A null compare over a comparable field means the narrative did not arrive — the
   // spawn failed, passed its deadline, or returned a headline-less body. Either way

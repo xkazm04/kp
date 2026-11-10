@@ -266,7 +266,8 @@ export const COHORT_MEDIAN_TOLERANCE = 0.15;
 
 /** A band is usable only when it names a currency AND a period AND at least one edge. */
 export function usableBand(band: RoleBand | null): band is RoleBand & { currency: string; period: string } {
-  return Boolean(band && band.currency && band.period && (band.min != null || band.max != null));
+  // A band in another market's unit is left out of the comparison: the cohort decides.
+  return Boolean(band && !band.otherUnit && band.currency && band.period && (band.min != null || band.max != null));
 }
 
 function salaryLabel(key: "cells.salaryBand" | "cells.salaryCohort", s: Analysis["salary"]): ShortLabel {

@@ -11,6 +11,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useWorkspaceMarket } from "@/app/_lib/use-workspace-market";
+import { bandUnitOf } from "@/app/_lib/salary-band";
 import { namespaceTranslator } from "@/app/_lib/catalog-translator";
 import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import { buildUrl } from "@/app/features/shell/tabs";
@@ -220,8 +221,14 @@ export function useJobPostingModalLogic(
   // common case (posting language == app language, the default) renders on first
   // paint with nothing to await.
   const tRoot = useTranslations();
-  // A bare band is in the workspace's market units (markets.ts).
-  const market = useWorkspaceMarket();
+  // The band is printed in its OWN unit (jobs.band_currency/band_period), which is the
+  // workspace market's unless the market changed since the band was set — never
+  // relabelled. A job read without the stamp falls back to the market.
+  const workspaceMarket = useWorkspaceMarket();
+  const stamped = job.bandCurrency ? bandUnitOf(job) : null;
+  const unitCurrency = stamped?.currency ?? workspaceMarket.currency;
+  const unitPeriod = stamped?.period ?? workspaceMarket.period;
+  const market = useMemo(() => ({ currency: unitCurrency, period: unitPeriod }), [unitCurrency, unitPeriod]);
   const localStrings = useMemo(
     () =>
       buildJobMarkdownStrings(appLocale, Object.assign((key: string, values?: Record<string, string | number>) => tRoot(key as never, values as never), {

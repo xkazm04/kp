@@ -6,6 +6,8 @@ import { StatusLegend } from "@/app/_components/StatusChip";
 import { clampPage, TablePager } from "@/app/_components/table/TablePager";
 import { CHIP_TOGGLE } from "@/app/_components/ui/recipes";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { useWorkspaceMarket } from "@/app/_lib/use-workspace-market";
+import { bandInOtherUnit, bandUnitOf } from "@/app/_lib/salary-band";
 import type { Job } from "./JobsTypes";
 import { EmptyState } from "./JobsShared";
 import { JobsTableFrame } from "./JobsTable";
@@ -38,6 +40,8 @@ export function JobsTabResults({
   onImport?: () => void;
 }) {
   const t = useTranslations("jobs.tab");
+  const tTable = useTranslations("jobs.table");
+  const market = useWorkspaceMarket();
   // ONE `enums` translator subscription for the whole table, passed down. Each row
   // used to open its own, so a 300-row catalog paid for 300 of them per render.
   const enumLabel = useEnumLabel();
@@ -126,7 +130,15 @@ export function JobsTabResults({
                 {jobs.map((job) => (
                   // `onOpen` takes the job so the row's memo boundary is not erased
                   // by a fresh arrow per row per render.
-                  <JobRow key={job.id} job={job} onOpen={onOpen} enumLabel={enumLabel} />
+                  // A band set in another market keeps its own unit, said in the cell
+                  // (the header names the market's), and is never converted.
+                  <JobRow
+                    key={job.id}
+                    job={job}
+                    onOpen={onOpen}
+                    enumLabel={enumLabel}
+                    bandNote={job.salaryBand?.length && bandInOtherUnit(job, market) ? tTable("bandOtherUnit", bandUnitOf(job)) : null}
+                  />
                 ))}
               </tbody>
             </JobsTableFrame>

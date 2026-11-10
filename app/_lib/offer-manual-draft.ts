@@ -7,7 +7,7 @@ import { getWorkspaceMarket } from "@/app/_lib/workspace-market";
 import { validateOfferTerms } from "@/app/_lib/offer-policy";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
 import { stageHasRole } from "@/app/_lib/pipeline-stages";
-import { normalizeSalaryBand } from "@/app/_lib/salary-band";
+import { BAND_OTHER_CURRENCY, bandInOtherUnit, normalizeSalaryBand } from "@/app/_lib/salary-band";
 
 // A recruiter's own offer draft: the keyless way to an offer for a real entry
 // (docs/features/hiring-pipeline/keyless-rating.md). The AI draft (automation task
@@ -54,9 +54,14 @@ export async function draftManualOffer(input: { id: string; workspaceId: string;
     return { status: 400, body: { error: REFUSAL_ERRORS.OFFER_SALARY_INVALID, code: "OFFER_SALARY_INVALID" } };
   }
 
-  const stored = (entry.jobId ? getJob(entry.jobId, workspaceId)?.salaryBand : null) ?? [];
-  const band = normalizeSalaryBand(stored[0], stored[1]);
-  const terms = validateOfferTerms({ salary: manualOfferFigure(input.salary, band), currency: getWorkspaceMarket(workspaceId).currency });
+  const job = entry.jobId ? getJob(entry.jobId, workspaceId) : null;
+  const stored = job?.salaryBand ?? [];
+  const market = getWorkspaceMarket(workspaceId);
+  // The offer is denominated in the market's currency, so a band set in another unit (the
+  // market changed since) prices nothing and bounds nothing: never converted, stated.
+  const otherUnit = stored.length >= 2 && bandInOtherUnit(job, market);
+  const band = otherUnit ? null : normalizeSalaryBand(stored[0], stored[1]);
+  const terms = validateOfferTerms({ salary: manualOfferFigure(input.salary, band), currency: market.currency });
   if (!terms.ok) return { status: 400, body: { error: REFUSAL_ERRORS[terms.code], code: terms.code, max: terms.max } };
 
   // The letter dispatchOffer sends, so it is written in the candidate's language. It
@@ -70,6 +75,7 @@ export async function draftManualOffer(input: { id: string; workspaceId: string;
     recommended: terms.salary,
     salaryMin: band ? band[0] : null,
     salaryMax: band ? band[1] : null,
+    ...(otherUnit ? { bandAbsence: BAND_OTHER_CURRENCY } : {}),
     // The card's disclosure: this letter is a template, not a model's judgment.
     verdictSource: "template",
   };

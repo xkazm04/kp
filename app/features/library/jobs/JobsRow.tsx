@@ -17,10 +17,14 @@ export const JobRow = memo(function JobRow({
   job,
   onOpen,
   enumLabel,
+  bandNote = null,
 }: {
   job: Job;
   onOpen: (job: Job) => void;
   enumLabel: ReturnType<typeof useEnumLabel>;
+  /** The band's own unit when it is not the workspace market's (the header's), else null.
+   *  A string, so the memo boundary holds. */
+  bandNote?: string | null;
 }) {
   return (
     <tr
@@ -48,7 +52,10 @@ export const JobRow = memo(function JobRow({
       <Td className="capitalize">{job.workMode ? enumLabel("workMode", job.workMode) : "—"}</Td>
       <Td className="capitalize">{job.seniority ? enumLabel("seniority", job.seniority) : "—"}</Td>
       <Td>{job.roleFamily ? enumLabel("family", job.roleFamily) : "—"}</Td>
-      <Td>{formatBand(job.salaryBand)}</Td>
+      <Td>
+        {formatBand(job.salaryBand)}
+        {bandNote ? <span className="block text-meta text-steel">{bandNote}</span> : null}
+      </Td>
       {/* Status: the chip and its "hired / target" progress are ONE fact and must
           read as one line, so the cell does not wrap (the same reason the Entry
           column it replaced did not). The lifecycle badge that used to sit beside

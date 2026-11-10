@@ -85,8 +85,9 @@ export function AiReviewCardLadder({
   unbounded?: boolean;
 }) {
   const t = useTranslations("decisions.summary");
-  // The role band is bare [min, max] in the workspace's market currency.
-  const bandCurrency = useWorkspaceMarket().currency;
+  // The band's OWN currency (peer-context's salaryBandCurrency); the market's when absent.
+  const marketCurrency = useWorkspaceMarket().currency;
+  const bandCurrency = peerFacts?.salaryBandCurrency ?? marketCurrency;
   const own = peerFacts?.byEntry[entry.id] ?? null;
   const salary = own?.salary ?? null;
   const band = peerFacts?.salaryBand ?? null;

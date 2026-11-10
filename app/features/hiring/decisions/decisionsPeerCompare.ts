@@ -20,7 +20,7 @@ export type PeerEntryFacts = {
   // declared skills ∩ role requirements (the honest corpus-job fallback).
   skills: { matched: number; missing: number; basis: "verified" | "declared" } | null;
 };
-export type JobPeerContext = { salaryBand: number[] | null; byEntry: Record<string, PeerEntryFacts> };
+export type JobPeerContext = { salaryBand: number[] | null; salaryBandCurrency?: string; byEntry: Record<string, PeerEntryFacts> };
 export type PeerContextMap = Record<string, JobPeerContext>;
 
 /** The score of record for peer ranking — the same precedence the card header

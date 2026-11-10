@@ -1,4 +1,4 @@
-import { DEFAULT_MARKET_ID, MARKETS, type MarketSpec } from "@/app/_lib/markets";
+import { DEFAULT_MARKET_ID, MARKETS } from "@/app/_lib/markets";
 import { LOCALES, type Locale } from "@/i18n/locales";
 import { splitRequirements, type Job } from "./JobsTypes";
 
@@ -93,12 +93,12 @@ export type PostingLookup = {
  *  `t` takes ROOT-level keys because the table spans two namespaces — the
  *  posting's own copy (`jobs.posting.doc.*`) and the shared enum labels
  *  (`enums.*`), which must read the same in a posting as they do in the app. */
-/** `market` is the workspace's (markets.ts): a bare band is in its currency per its
- *  period. The default reproduces the Czech posting exactly. */
+/** `market` is the band's unit: its own stamp (jobs.band_currency/band_period), else the
+ *  workspace's market (markets.ts). The default reproduces the Czech posting exactly. */
 export function buildJobMarkdownStrings(
   locale: PostingLocale,
   t: PostingLookup,
-  market: MarketSpec = MARKETS[DEFAULT_MARKET_ID]
+  market: { currency: string; period: string } = MARKETS[DEFAULT_MARKET_ID]
 ): JobMarkdownStrings {
   const doc = (key: string, values?: Record<string, string | number>) => t(`jobs.posting.doc.${key}`, values);
   const enumLabel: JobMarkdownStrings["enumLabel"] = (group, slug) => {

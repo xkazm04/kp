@@ -494,6 +494,13 @@ const humanize = (code: string): string => code.trim().replace(/[_-]+/g, " ").to
 
 function salaryCriterion(band: RoleBand | null, cohortKey: string | null): DimensionCriterion {
   const target = (phrase: Phrase): DimensionCriterion => ({ id: "band", phrase, kind: "target" });
+  // A band in another unit than the market's is stated and left out, never converted.
+  if (band?.otherUnit && band.currency && band.period) {
+    const other = { bandCurrency: band.currency, bandPeriod: band.period };
+    if (!cohortKey) return target({ key: "criteria.salaryBandOtherUnit", params: other });
+    const [currency, period] = cohortKey.split("/");
+    return target({ key: "criteria.salaryCohortBandOtherUnit", params: { currency, period, tolerance: 15, ...other } });
+  }
   if (band?.currency && band.period && (band.min != null || band.max != null)) {
     const unit = { currency: band.currency, period: band.period };
     if (band.min != null && band.max != null) return target({ key: "criteria.salaryBand", params: { min: band.min, max: band.max, ...unit } });

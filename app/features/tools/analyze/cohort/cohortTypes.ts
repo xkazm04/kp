@@ -310,6 +310,9 @@ export interface RoleBand {
   period: string | null;
   min: number | null;
   max: number | null;
+  /** The band was set in another unit than the workspace market's (the market changed
+   *  since): shown in its own unit, never rated against (salary-band.ts bandInOtherUnit). */
+  otherUnit?: true;
 }
 
 /**

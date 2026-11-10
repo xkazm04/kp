@@ -141,6 +141,28 @@ class WinnabilityTest(unittest.TestCase):
         self.assertTrue(out["salary"]["belowMarket"])
         self.assertLess(out["salary"]["topVsMarketFloorPct"], 0)
 
+    def test_a_band_stored_in_another_unit_is_refused_with_a_coded_absence(self) -> None:
+        # The band was set while the workspace ran in another market (its stamp says EUR);
+        # the active market is CZK. Never converted, never compared: a coded absence.
+        job = _job(role_family="software_engineering", seniority="senior", salary_band=[10000, 20000])
+        salary = assess_winnability([_cand("c", ["python"])], job, band_currency="EUR", band_period="month")["salary"]
+        self.assertEqual(salary["bandAbsence"], "band_other_currency")
+        self.assertEqual(salary["jobCurrency"], "EUR")
+        self.assertFalse(salary["currencyComparable"])
+        self.assertIsNone(salary["belowMarket"])
+        self.assertNotIn("topVsMarketFloorPct", salary)
+        # The period is half the unit: CZK per YEAR is not the CZK/month market's unit.
+        yearly = assess_winnability([_cand("c", ["python"])], job, band_currency="CZK", band_period="year")["salary"]
+        self.assertEqual(yearly["bandAbsence"], "band_other_currency")
+        self.assertIsNone(yearly["belowMarket"])
+
+    def test_a_band_in_the_market_unit_is_byte_identical_to_an_unstamped_one(self) -> None:
+        job = _job(role_family="software_engineering", seniority="senior", salary_band=[10000, 20000])
+        bare = assess_winnability([_cand("c", ["python"])], job)
+        stamped = assess_winnability([_cand("c", ["python"])], job, band_currency="czk", band_period="month")
+        self.assertEqual(stamped, bare)
+        self.assertNotIn("bandAbsence", bare["salary"])
+
     def test_empty_pool_is_zeroed_not_crashed(self) -> None:
         out = assess_winnability([], _job(requirements=[JobRequirement(skill="python")]))
         # Pin each zeroed field explicitly; the prior `assertEqual(out, {**out, ...})`
@@ -383,6 +405,18 @@ class WinnabilityCliSkippedTest(unittest.TestCase):
             files={"in.json": payload, "job.json": job},
         )
         return run.code, run.payload
+
+    def test_the_cli_reads_the_band_unit_off_the_input(self) -> None:
+        job = {
+            "id": "job-1", "title": "Backend Engineer", "company": "Acme", "location": "Prague",
+            "roleFamily": "software_engineering", "seniority": "senior", "salaryBand": [10000, 20000],
+        }
+        cand = {"label": "Good", "candidate": {"label": "Good", "skills": ["python"], "role_family": "software_engineering"}}
+        rc, out = self._run({"jobId": "job-1", "candidates": [cand], "bandCurrency": "GBP", "bandPeriod": "year"}, job)
+        self.assertEqual(rc, 0)
+        self.assertEqual(out["salary"]["bandAbsence"], "band_other_currency")
+        rc, same = self._run({"jobId": "job-1", "candidates": [cand], "bandCurrency": "CZK", "bandPeriod": "month"}, job)
+        self.assertNotIn("bandAbsence", same["salary"])
 
     def test_malformed_candidate_is_recorded_not_silently_dropped(self) -> None:
         job = {"id": "job-1", "title": "Backend Engineer", "company": "Acme", "location": "Prague"}

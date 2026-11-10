@@ -79,7 +79,10 @@ def main(argv: list[str] | None = None) -> int:
                 cand.label = entry["label"]
             candidates.append(cand)
 
-        result = assess_winnability(candidates, job)
+        # The stored band's own unit (jobs.band_currency/band_period), when the caller sent it.
+        band_currency = raw.get("bandCurrency") if isinstance(raw.get("bandCurrency"), str) else None
+        band_period = raw.get("bandPeriod") if isinstance(raw.get("bandPeriod"), str) else None
+        result = assess_winnability(candidates, job, band_currency=band_currency, band_period=band_period)
         # Surface the dropped entries alongside the assessment so the pool the coach
         # scored is auditable (bug-ui-scan-2026-07-09 #4).
         result["skipped"] = skipped

@@ -261,6 +261,25 @@ test("salary: inside is a pro, outside a con with its exact penalty; partial ins
   assert.equal(far.criteria.band.status, "misses");
 });
 
+test("a role band in another unit than the market's is left out: the cohort decides, and the criterion says why", () => {
+  const s = (mid: number) => analysis({ salary: { currency: "CZK", period: "month", minimum: mid, maximum: mid, midpoint: mid, confidence: "m", rationale: [] } });
+  const other: RoleContext = { ...ROLE, band: { currency: "EUR", period: "month", min: 4000, max: 5000, otherUnit: true } };
+  const v = view([{ analysis: s(110000) }, { memberId: "b", analysis: s(120000) }, { memberId: "c", analysis: s(115000) }], other);
+  for (const m of v.members) {
+    assert.notEqual(m.cells.salary.label.key, "cells.salaryBand", "no member is rated against the EUR band");
+    assert.notEqual(m.cells.salary.absentReason, "currencyMismatch", "the members are not punished for the band's unit");
+  }
+  assert.deepEqual(v.criteria.salary, [
+    {
+      id: "band",
+      phrase: { key: "criteria.salaryCohortBandOtherUnit", params: { currency: "CZK", period: "month", tolerance: 15, bandCurrency: "EUR", bandPeriod: "month" } },
+      kind: "target",
+    },
+  ]);
+  const alone = view([{ analysis: analysis({ salary: undefined as never }) }], other);
+  assert.deepEqual(alone.criteria.salary, [{ id: "band", phrase: { key: "criteria.salaryBandOtherUnit", params: { bandCurrency: "EUR", bandPeriod: "month" } }, kind: "target" }]);
+});
+
 test("salary with no role band: the cohort window explains it, the criterion says so, another currency is null", () => {
   const s = (mid: number, currency = "CZK") => analysis({ salary: { currency, period: "month", minimum: mid, maximum: mid, midpoint: mid, confidence: "m", rationale: [] } });
   const v = view([{ analysis: s(110000) }, { memberId: "b", analysis: s(120000) }, { memberId: "c", analysis: s(200000) }, { memberId: "d", analysis: s(5000, "EUR") }], { ...ROLE, band: null });

@@ -6105,6 +6105,7 @@
       "colSeniority": "Seniority",
       "colFamily": "Family",
       "colSalary": "Salary ({currency}/{period, select, year {yr} hour {hr} other {mo}})",
+      "bandOtherUnit": "{currency}/{period, select, year {yr} hour {hr} other {mo}} · set in another market, not converted",
       "colEntry": "Entry",
       "colStatus": "Status"
     },
@@ -7754,7 +7755,7 @@
       },
       "changes": "Every pay figure this workspace shows, reads from job ads and CVs, or drafts into an offer uses this market’s currency and pay period, and an ad that names no city is placed in its main city.",
       "noBenchmark": "kp holds no salary benchmark for this market. Its own pay estimates, the salary-fit rating and the market comparison show “no benchmark for this market” instead of a number, and offers wait for a person to set the amount. Bands that a job ad or a candidate states are still shown, in the currency they were stated in.",
-      "noRewrite": "Changing the market converts nothing already saved: figures keep their numbers. A role’s band saved without a currency of its own is then read in the new market’s currency, so choose the market before you add roles.",
+      "noRewrite": "Changing the market converts and relabels nothing already saved: a role’s band keeps the currency and pay period it was set in. A band in another currency than this market’s is shown in that currency and left out of comparisons.",
       "readOnly": "Only someone who can manage teams can change the market.",
       "saved": "Market saved.",
       "failed": "Couldn’t save the market.",
@@ -18007,7 +18008,9 @@
         "salaryBandFrom": "Role band from {min, number} {currency}/{period, select, month {mo} year {yr} hour {hr} day {day} other {{period}}}",
         "salaryBandUpTo": "Role band up to {max, number} {currency}/{period, select, month {mo} year {yr} hour {hr} day {day} other {{period}}}",
         "salaryCohort": "Within {tolerance}% of the cohort's {currency} median",
-        "salaryNone": "No band to compare against"
+        "salaryNone": "No band to compare against",
+        "salaryBandOtherUnit": "The role band is in {bandCurrency}/{bandPeriod, select, month {mo} year {yr} hour {hr} day {day} other {{bandPeriod}}}, another market's unit: not compared",
+        "salaryCohortBandOtherUnit": "Within {tolerance}% of the cohort's {currency} median; the role band is in {bandCurrency}/{bandPeriod, select, month {mo} year {yr} hour {hr} day {day} other {{bandPeriod}}} and is not compared"
       }
     },
     "layerAnatomy": {

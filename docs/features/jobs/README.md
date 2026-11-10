@@ -1892,8 +1892,15 @@ would need `GET /api/jobs/[id]/candidates`, which spawns a second CLI per open.
 
 ## Markets: the band's unit, the hub and the market salary
 
-A job's `salaryBand` is a bare pair in the workspace's market units
-(`docs/architecture/markets.md`). Ad ingest and JD normalize spawn with `KP_MARKET`
+A job's `salaryBand` carries its own unit: `jobs.band_currency` / `band_period`,
+stamped at write with the workspace's market (every `insertJob` caller wraps the
+record in `withBandUnit`; a JD re-sync keeps the grounded band's own unit) and
+decorated onto the record by `getJob` / `listJobsPage` / `getJobsByIds`
+(`docs/architecture/markets.md` § "A role band carries its own unit"). Changing the
+market relabels nothing: a band set in another unit keeps it, the Roles table says so
+under the band ("set in another market, not converted"), the posting prints it in its
+own unit, and winnability refuses to compare it (`bandAbsence: "band_other_currency"`).
+Ad ingest and JD normalize spawn with `KP_MARKET`
 (`job-ingest.ts` takes an `env` argument; `/api/jobs/ingest`, `/api/jds/[slug]`,
 its `ingest-job` and `revisions`, and `jd-ingest.ts` pass `marketSpawnEnv(ws)`), so
 an ad with no city is placed in the market's hub and a market without a benchmark

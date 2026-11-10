@@ -2226,6 +2226,9 @@ export function ensureDb(): Database.Database {
     // (job, lang), so a role whose LLM translation never ran still records which
     // languages were asked for and can be retried.
     "ALTER TABLE jobs ADD COLUMN posting_langs TEXT",
+    // The band's own unit (docs/architecture/markets.md), stamped at write.
+    "ALTER TABLE jobs ADD COLUMN band_currency TEXT",
+    "ALTER TABLE jobs ADD COLUMN band_period TEXT",
     // Human disposition + reason on a saved analysis (RES5) — see the table CREATE.
     "ALTER TABLE analyses ADD COLUMN disposition TEXT",
     "ALTER TABLE analyses ADD COLUMN decision_note TEXT",
@@ -3092,6 +3095,8 @@ function backfillTenantScope(db: Database.Database): void {
   // Jobs: authored openings (a status was set) belong to the default team; seeded
   // corpus jobs (NULL status) stay workspace_id NULL = the shared reference corpus.
   db.prepare(`UPDATE jobs SET workspace_id = 'workspace' WHERE workspace_id IS NULL AND status IS NOT NULL`).run();
+  // Unit-less bands predate markets or are the Czech seed: CZK/month (markets.md).
+  db.prepare(`UPDATE jobs SET band_currency = 'CZK', band_period = 'month' WHERE band_currency IS NULL AND salary_min IS NOT NULL`).run();
   // Pipeline audit trails: backfill each row's workspace from its linked entry (an
   // entry-less event, e.g. ko_declined, falls back to the default workspace).
   db.prepare(
@@ -3380,6 +3385,9 @@ export type JobRecord = {
   // pipeline's own terminal-stage count, decorated by the route that has the axis
   // (listJobPipelineStats). Absent when the caller did not ask for it.
   hired?: number;
+  // The band's unit (band_currency/band_period columns).
+  bandCurrency?: string | null;
+  bandPeriod?: string | null;
 };
 
 /** Does a job's lifecycle live in the team's job_workspace_state overlay? Corpus rows

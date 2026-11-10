@@ -77,6 +77,25 @@ test("with no band and no figure the draft is unpriced rather than invented", as
   assert.equal(detailOf(id).recommended, null);
 });
 
+test("a band set in another market's unit prices nothing: the draft is unpriced and says why", async () => {
+  const id = entryAt("Offer");
+  const jobId = getPipelineEntry(id)?.jobId as string;
+  // The same role, its band now stamped EUR/month (set while the team ran in de); the
+  // default team runs in cz, so the band is another unit — never converted, never a midpoint.
+  insertJob(
+    { id: jobId, title: "Manual Offer Role", seniority: "medior", requirements: [], languages: [], salaryBand: [4_000, 5_000], bandCurrency: "EUR", bandPeriod: "month" } as never,
+    undefined,
+    "published",
+    DEFAULT_WORKSPACE_ID
+  );
+  assert.equal((await draft(id, { salary: "" })).status, 200);
+  const d = detailOf(id);
+  assert.equal(d.recommended, null, "no figure is invented from a EUR band for a CZK offer");
+  assert.equal(d.salaryMin, null);
+  assert.equal(d.currency, "CZK", "the offer is in the market's currency");
+  assert.equal(d.bandAbsence, "band_other_currency", "the reason is stated, coded");
+});
+
 test("offer-policy refuses a figure nobody can be offered, and nothing is parked", async () => {
   const id = entryAt("Offer");
   const res = await draft(id, { salary: -5 });

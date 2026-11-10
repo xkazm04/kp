@@ -14,6 +14,7 @@
 import { analysisSchema, type Analysis } from "./schemas";
 import { DEFAULT_MARKET_ID, MARKETS, type MarketSpec } from "./markets";
 import { getWorkspaceMarket } from "./workspace-market";
+import { bandInOtherUnit, bandUnitOf } from "./salary-band";
 import type { JobRecord } from "./db/core";
 import { loadAnalysis, parseStoredGithubAnalysis, type AnalysisRow } from "./db/analyses";
 import type { AnalysisCohortRecord } from "./db/analysis-cohorts";
@@ -55,11 +56,12 @@ export function blindMemberLabel(neutralIndex: number): string {
   return neutralIndex >= 0 && neutralIndex < 26 ? `Candidate ${String.fromCharCode(65 + neutralIndex)}` : `Candidate ${neutralIndex + 1}`;
 }
 
-/** The role's salary band as the engine reads it. jobs.salaryBand is always denominated
- *  in the app currency per month (salary-band.ts; pipeline/jobfit/jobs.py) — the stated
- *  salaryCurrency/salaryPeriod are the ad's RAW statement, not the band's unit. A band
- *  the ingest stamped from the market anchor (defaultedFields "salary_band") is not the
- *  role's, so it is no band at all. */
+/** The role's salary band as the engine reads it, in the band's OWN unit (jobs.band_currency /
+ *  band_period, salary-band.ts bandUnitOf) — the stated salaryCurrency/salaryPeriod are the
+ *  ad's RAW statement, not the band's unit. A band set in another unit than the workspace
+ *  market's is marked `otherUnit`: stated, never rated against. A band the ingest stamped
+ *  from the market anchor (defaultedFields "salary_band") is not the role's, so it is no
+ *  band at all. */
 export function cohortRoleBand(job: JobRecord | null, market: MarketSpec = MARKETS[DEFAULT_MARKET_ID]): RoleBand | null {
   if (!job || !Array.isArray(job.salaryBand) || job.salaryBand.length < 2) return null;
   if ((job.defaultedFields ?? []).includes("salary_band")) return null;
@@ -67,8 +69,9 @@ export function cohortRoleBand(job: JobRecord | null, market: MarketSpec = MARKE
   const min = Number.isFinite(lo) && lo > 0 ? lo : null;
   const max = Number.isFinite(hi) && hi > 0 ? hi : null;
   if (min === null && max === null) return null;
-  // A bare band is in the workspace's market units (markets.ts).
-  return { currency: market.currency, period: market.period, min, max };
+  const unit = bandUnitOf(job);
+  const band: RoleBand = { currency: unit.currency, period: unit.period, min, max };
+  return bandInOtherUnit(job, market) ? { ...band, otherUnit: true } : band;
 }
 
 /** What the role asks for, as the why-engine reads it. A seniority the ingest DEFAULTED

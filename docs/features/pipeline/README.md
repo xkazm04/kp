@@ -1902,7 +1902,9 @@ strength and waiting dots below the map; detailed score-kind copy remains in
 
 `GET /api/decisions/peer-context?jobs=<id,…>` (operator-gated, tenant-scoped)
 serves the AI-review cards' cross-candidate comparison facts per job: the
-role's `salaryBand`, and per active entry the candidate's saved salary
+role's `salaryBand` with its own currency (`salaryBandCurrency`, from
+`jobs.band_currency`; the card's band rail is drawn only when the expectation shares
+it), and per active entry the candidate's saved salary
 expectation plus verified per-JD skill coverage (`jobFit.matchingSkills` /
 `missingSkills` counts) — all read from the freshest stored CV analysis (the
 same freshest-per-(label, jd-slug) map the canonical score uses), never a
@@ -2223,7 +2225,10 @@ written by `PUT /api/workspace/market`. Automation tasks (the AI offer draft and
 letters) spawn with the workspace's `KP_MARKET`, so a market with no benchmark drafts
 an unpriced offer that waits at `offer_review`; a recruiter's manual draft
 (`offer-manual-draft.ts`) is denominated in the market's currency, and the manual
-offer panel and the decision card's band rail label figures with it. Full contract:
+offer panel labels figures with it. A role band set in another unit than the market's
+(the market changed since) neither prices nor bounds that draft: no midpoint, no
+`salaryMin/Max`, and the draft carries `bandAbsence: "band_other_currency"`. The
+decision card's band rail reads the band's own currency. Full contract:
 `docs/architecture/markets.md`.
 
 ## Known gaps

@@ -6105,6 +6105,7 @@
       "colSeniority": "Séniorité",
       "colFamily": "Famille",
       "colSalary": "Salaire ({currency}/{period, select, year {an} hour {h} other {mois}})",
+      "bandOtherUnit": "{currency}/{period, select, year {an} hour {h} other {mois}} · fixée dans un autre marché, non convertie",
       "colEntry": "Débutant",
       "colStatus": "Statut"
     },
@@ -7754,7 +7755,7 @@
       },
       "changes": "Tous les montants de rémunération que cet espace de travail affiche, lit dans les annonces et les CV ou reprend dans une offre utilisent la devise et la période de paie de ce marché. Une annonce sans ville est rattachée à sa ville principale.",
       "noBenchmark": "kp ne dispose d’aucune référence salariale pour ce marché. Ses propres estimations, l’évaluation de l’adéquation salariale et la comparaison au marché affichent « aucune référence pour ce marché » au lieu d’un chiffre, et les offres attendent qu’une personne fixe le montant. Les fourchettes indiquées par une annonce ou un candidat restent affichées, dans la devise où elles ont été indiquées.",
-      "noRewrite": "Changer de marché ne convertit rien de ce qui est déjà enregistré : les montants restent les mêmes. La fourchette d’un poste enregistrée sans devise propre est ensuite lue dans la devise du nouveau marché ; choisissez donc le marché avant d’ajouter des postes.",
+      "noRewrite": "Changer de marché ne convertit ni ne réétiquette rien de ce qui est déjà enregistré : la fourchette d’un poste garde la devise et la période de paie dans lesquelles elle a été fixée. Une fourchette dans une autre devise que celle de ce marché est affichée dans cette devise et exclue des comparaisons.",
       "readOnly": "Seule une personne autorisée à gérer les équipes peut changer le marché.",
       "saved": "Marché enregistré.",
       "failed": "Impossible d’enregistrer le marché.",
@@ -18007,7 +18008,9 @@
         "salaryBandFrom": "Fourchette du poste à partir de {min, number} {currency}/{period, select, month {mois} year {an} hour {h} day {jour} other {{period}}}",
         "salaryBandUpTo": "Fourchette du poste jusqu’à {max, number} {currency}/{period, select, month {mois} year {an} hour {h} day {jour} other {{period}}}",
         "salaryCohort": "À {tolerance} % près de la médiane {currency} du groupe",
-        "salaryNone": "Aucune fourchette de comparaison"
+        "salaryNone": "Aucune fourchette de comparaison",
+        "salaryBandOtherUnit": "La fourchette du poste est en {bandCurrency}/{bandPeriod, select, month {mois} year {an} hour {h} day {jour} other {{bandPeriod}}}, l’unité d’un autre marché : pas de comparaison",
+        "salaryCohortBandOtherUnit": "À {tolerance} % près de la médiane {currency} du groupe ; la fourchette du poste est en {bandCurrency}/{bandPeriod, select, month {mois} year {an} hour {h} day {jour} other {{bandPeriod}}} et n’est pas comparée"
       }
     },
     "layerAnatomy": {

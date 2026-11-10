@@ -9,10 +9,17 @@
 // Runner: Node's built-in test runner with type stripping (no extra deps).
 //   npm run test:unit
 import { test } from "node:test";
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { APP_CURRENCY } from "./format.ts";
 import {
+  BAND_OTHER_CURRENCY,
+  bandInOtherUnit,
+  bandUnitOf,
   groundedJdBand,
+  groundedJdUnit,
+  isSameBandUnit,
+  withBandUnit,
   isSameCurrency,
   normalizeCurrency,
   normalizeMarketSalary,
@@ -208,4 +215,40 @@ test("normalizeMarketSalary is still idempotent with provenance attached", () =>
     benchmark: { sourceId: "cz-ispv-2025", asOf: "2026-07-05T14:31:03.797Z", sampleK: 117 },
   });
   assert.deepEqual(normalizeMarketSalary(once), once);
+});
+
+// ---- a stored band's own unit (docs/architecture/markets.md) -------------------------
+
+test("withBandUnit stamps a normalized currency and the period on the record it is given", () => {
+  const job = withBandUnit({ id: "r", salaryBand: [1, 2] }, { currency: " eur ", period: "month" });
+  assert.deepEqual(job, { id: "r", salaryBand: [1, 2], bandCurrency: "EUR", bandPeriod: "month" });
+});
+
+test("bandUnitOf reads the stamp; an unstamped band is CZK per month, the backfill's rule", () => {
+  assert.deepEqual(bandUnitOf({ bandCurrency: "GBP", bandPeriod: "year" }), { currency: "GBP", period: "year" });
+  assert.deepEqual(bandUnitOf({}), { currency: APP_CURRENCY, period: "month" });
+  assert.deepEqual(bandUnitOf(null), { currency: APP_CURRENCY, period: "month" });
+});
+
+test("one predicate decides comparability: currency AND period, case-insensitive", () => {
+  assert.equal(isSameBandUnit({ currency: "czk", period: "Month" }, { currency: "CZK", period: "month" }), true);
+  assert.equal(isSameBandUnit({ currency: "GBP", period: "month" }, { currency: "GBP", period: "year" }), false, "the period is half the unit");
+  assert.equal(bandInOtherUnit({ bandCurrency: "CZK", bandPeriod: "month" }, { currency: "EUR", period: "month" }), true);
+  assert.equal(bandInOtherUnit({ bandCurrency: "EUR", bandPeriod: "month" }, { currency: "EUR", period: "month" }), false);
+  assert.equal(BAND_OTHER_CURRENCY, "band_other_currency");
+});
+
+test("groundedJdUnit is the build's own unit, so a re-sync never restamps a researched band", () => {
+  const stored = JSON.stringify({ salary: { suggestedMinimum: 80000, suggestedMaximum: 110000, currency: "CZK" } });
+  assert.deepEqual(groundedJdUnit(stored), { currency: "CZK", period: "month" });
+  const yearly = JSON.stringify({ salary: { suggestedMinimum: 50000, suggestedMaximum: 60000, currency: "GBP", period: "year" } });
+  assert.deepEqual(groundedJdUnit(yearly), { currency: "GBP", period: "year" });
+  assert.equal(groundedJdUnit(JSON.stringify({ salary: { suggestedMinimum: 0, suggestedMaximum: 0 } })), null);
+  assert.equal(groundedJdUnit("not json"), null);
+  assert.equal(groundedJdUnit(null), null);
+});
+
+test("the coded absence is declared once per runtime and pinned equal (winnability.py)", () => {
+  const py = readFileSync(new URL("../../pipeline/jobfit/winnability.py", import.meta.url), "utf8");
+  assert.match(py, new RegExp(`^BAND_OTHER_CURRENCY = "${BAND_OTHER_CURRENCY}"$`, "m"));
 });

@@ -5,7 +5,8 @@ import { effectiveOrgName } from "@/app/_lib/org-name-server";
 import { companyOrDefault } from "@/app/_lib/org-settings";
 import { MIN_AD_CHARS } from "@/app/_lib/split-ads";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
-import { marketSpawnEnv } from "@/app/_lib/workspace-market";
+import { getWorkspaceMarket, marketSpawnEnv } from "@/app/_lib/workspace-market";
+import { withBandUnit } from "@/app/_lib/salary-band";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
@@ -70,7 +71,7 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
       job.company,
       (explicitJobId ? getJob(explicitJobId, ws)?.company?.trim() : "") || (await effectiveOrgName())
     );
-    const { id, created } = insertJob({ ...job, company }, jobContentHash(adText), "draft", ws, {
+    const { id, created } = insertJob(withBandUnit({ ...job, company }, getWorkspaceMarket(ws)), jobContentHash(adText), "draft", ws, {
       derivedId: !explicitJobId,
     });
     return NextResponse.json({ jobId: id, created, source, title: job.title });

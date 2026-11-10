@@ -61,6 +61,7 @@ function freeJobId(d: Database.Database, desired: string): string {
  * its update-in-place semantics.
  */
 export function insertJob(
+  // Callers stamp the band's unit first (salary-band.ts withBandUnit; job-band-unit.test.ts).
   job: JobRecord,
   contentHash?: string,
   status: string = "published",
@@ -112,6 +113,7 @@ export function insertJob(
   // so a caller's transaction covers both writes. The posting tab regrows them on
   // demand (its empty state + "generate translation").
   if (targetsExisting) deleteJobTranslations(job.id, workspaceId);
+  const banded = !!job.salaryBand?.length;
   // `status` is set ONLY on first INSERT — the ON CONFLICT UPDATE deliberately
   // omits it so re-upserting an existing row preserves its stored lifecycle
   // value. setJobStatus is the sole writer of transitions; if this UPDATE wrote
@@ -120,14 +122,15 @@ export function insertJob(
   // a prose ad under an explicit jobId would force-flip it to 'published'.
   d.prepare(
     `INSERT INTO jobs (id, title, company, location, work_mode, seniority, role_family, employment_type,
-       min_years, min_education, languages, is_entry_eligible, graduate_friendliness, salary_min, salary_max, payload_json, status, workspace_id, created_at)
+       min_years, min_education, languages, is_entry_eligible, graduate_friendliness, salary_min, salary_max, band_currency, band_period, payload_json, status, workspace_id, created_at)
      VALUES (@id, @title, @company, @location, @work_mode, @seniority, @role_family, @employment_type,
-       @min_years, @min_education, @languages, @is_entry_eligible, @graduate_friendliness, @salary_min, @salary_max, @payload_json, @status, @workspace_id, @created_at)
+       @min_years, @min_education, @languages, @is_entry_eligible, @graduate_friendliness, @salary_min, @salary_max, @band_currency, @band_period, @payload_json, @status, @workspace_id, @created_at)
      ON CONFLICT(id) DO UPDATE SET title=excluded.title, company=excluded.company, location=excluded.location,
        work_mode=excluded.work_mode, seniority=excluded.seniority, role_family=excluded.role_family,
        employment_type=excluded.employment_type, min_years=excluded.min_years, min_education=excluded.min_education,
        languages=excluded.languages, is_entry_eligible=excluded.is_entry_eligible, graduate_friendliness=excluded.graduate_friendliness,
-       salary_min=excluded.salary_min, salary_max=excluded.salary_max, payload_json=excluded.payload_json`
+       salary_min=excluded.salary_min, salary_max=excluded.salary_max, band_currency=excluded.band_currency,
+       band_period=excluded.band_period, payload_json=excluded.payload_json`
   ).run({
     id: job.id,
     title: job.title,
@@ -144,6 +147,8 @@ export function insertJob(
     graduate_friendliness: job.entryProfile?.graduateFriendliness ?? 0,
     salary_min: job.salaryBand?.[0] ?? null,
     salary_max: job.salaryBand?.[1] ?? null,
+    band_currency: banded ? (job.bandCurrency ?? null) : null,
+    band_period: banded ? (job.bandPeriod ?? null) : null,
     payload_json: JSON.stringify(job),
     status,
     workspace_id: workspaceId,

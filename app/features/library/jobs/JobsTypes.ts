@@ -45,9 +45,10 @@ export type Job = {
   description?: string;
   requirements?: JobRequirement[];
   detectedSkills?: string[];
-  // A bare [min, max] gross pay band carrying NO unit of its own: by contract it is
-  // denominated in APP_CURRENCY (format.ts) per the active market's pay PERIOD —
-  // CZK/month for the shipped Czech default. Every producer is held to that contract:
+  // A [min, max] gross pay band. Its unit is `bandCurrency`/`bandPeriod` below (the
+  // workspace's market when it was written); before those columns it was by contract
+  // APP_CURRENCY (format.ts) per the market's pay PERIOD, which is what an unstamped
+  // band still reads as (salary-band.ts bandUnitOf). Every producer is held to that contract:
   // a band the pipeline anchors from the taxonomy comes straight out of the
   // Czech-calibrated benchmarks, and the LLM ingest prompt (jobs.py
   // _build_extraction_prompt) asks the parser for the range "in whatever currency it
@@ -58,6 +59,10 @@ export type Job = {
   // non-market currency), tracked as such. Non-goal everywhere in the app: FX
   // conversion — see isSameCurrency in salary-band.ts.
   salaryBand?: number[];
+  // The band's own unit, decorated from the jobs.band_currency/band_period columns. A
+  // band in another unit than the workspace market's is labelled, never converted.
+  bandCurrency?: string | null;
+  bandPeriod?: string | null;
   entryProfile?: JobEntryProfile | null;
   // Provenance from normalize_job (jobs.py DEFAULT_POLICY): field names that were
   // filled with a locale/market default because the source omitted/mis-stated them.

@@ -6,7 +6,8 @@ import { effectiveOrgName } from "@/app/_lib/org-name-server";
 import { companyOrDefault } from "@/app/_lib/org-settings";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
-import { marketSpawnEnv } from "@/app/_lib/workspace-market";
+import { getWorkspaceMarket, marketSpawnEnv } from "@/app/_lib/workspace-market";
+import { withBandUnit } from "@/app/_lib/salary-band";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
@@ -62,7 +63,7 @@ export const POST = withWorkspace(async (ws: string, request: Request, context: 
     // success. The `getJob` short-circuit above already makes this idempotent.
     // A blank parsed company is the owner's own role (org-name-server.ts).
     const company = companyOrDefault(job.company, await effectiveOrgName());
-    const { id } = insertJob({ ...job, id: jobId, company }, undefined, "draft", ws);
+    const { id } = insertJob(withBandUnit({ ...job, id: jobId, company }, getWorkspaceMarket(ws)), undefined, "draft", ws);
     return NextResponse.json({ ok: true, jobId: id, already: false, source });
   } catch (error) {
     return safeJsonError(error, "api:jds:ingest-job", "JD_SAVE_FAILED");

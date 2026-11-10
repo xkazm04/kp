@@ -3,6 +3,7 @@ import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jdSlugOfJobId } from "@/app/_lib/jd-limits";
 import { getJobsByIds } from "@/app/_lib/db/jobs";
+import { bandUnitOf } from "@/app/_lib/salary-band";
 import { listEntriesForJob } from "@/app/_lib/db/pipeline";
 import { freshestAnalysisSlugByLabel, loadAnalysis } from "@/app/_lib/db/analyses";
 import { buildFreshestFits } from "@/app/_lib/match-score-resolve";
@@ -29,10 +30,12 @@ type SalaryFacts = { minimum: number; maximum: number; midpoint: number; currenc
 type SkillFacts = { matched: number; missing: number; basis: "verified" | "declared" };
 export type PeerEntryFacts = { salary: SalaryFacts | null; skills: SkillFacts | null };
 export type JobPeerContext = {
-  // The role's recommended salary band [min, max] (job.salaryBand, APP_CURRENCY
-  // by contract) — the reference each expectation is plotted against. Null when
-  // the job carries none.
+  // The role's recommended salary band [min, max] (job.salaryBand) — the reference
+  // each expectation is plotted against. Null when the job carries none.
   salaryBand: number[] | null;
+  // The band's OWN currency (jobs.band_currency): a band set before the market
+  // changed keeps it, so the rail never plots it against figures in another one.
+  salaryBandCurrency?: string;
   byEntry: Record<string, PeerEntryFacts>;
 };
 
@@ -116,7 +119,7 @@ export const GET = withWorkspace(async (ws: string, request: Request) => {
           }
         : { salary: null, skills: null };
     }
-    jobs[jobId] = { salaryBand: band, byEntry };
+    jobs[jobId] = band ? { salaryBand: band, salaryBandCurrency: bandUnitOf(job).currency, byEntry } : { salaryBand: null, byEntry };
   }
   return NextResponse.json({ jobs });
 });
