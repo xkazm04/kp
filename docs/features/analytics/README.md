@@ -538,7 +538,9 @@ it: should this score be allowed to decide at all.
   append-only `pipeline_events` trail rather than the rewritten `pipeline_entries` row, so every
   outcome has an author and an event time. Pure maths in `app/_lib/calibration-outcomes.ts`
   (`computeScoreOutcomes`), inputs from `scoreOutcomeInputs(ws)` (`app/_lib/db/pipeline-calibration.ts`,
-  read-only, every query bound to `workspace_id`). Three grids, each with its sentence first:
+  read-only, every query bound to `workspace_id`). The route enters through `withWorkspace` and
+  re-verifies the operator (`requireOperator`), like its sibling read `floor-preview`. Three grids,
+  each with its sentence first:
   - *Score band → stage a person took them to.* Five match-score bands × each stage from
     Screened to the terminal one. A cell counts candidates whose outcome **a person** settled for
     that stage (reached it, or a person rejected them first); an automated advance is never
