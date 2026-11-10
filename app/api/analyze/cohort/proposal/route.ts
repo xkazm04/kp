@@ -8,6 +8,7 @@ import { listEntriesForJob } from "@/app/_lib/db/pipeline";
 import { listAnalysisCohortReuseRows } from "@/app/_lib/db/analysis-cohorts";
 import { buildCandidatePool, resolveCandidatePoolEntry } from "@/app/_lib/candidate-pool";
 import { rankPoolForJob } from "@/app/_lib/recruiter-run";
+import { marketSpawnEnv } from "@/app/_lib/workspace-market";
 import {
   buildCohortProposal,
   cohortJdDeps,
@@ -18,14 +19,14 @@ import {
 
 /** The production wiring. Here, not in the shared module: only this door ranks, so the
  *  pool and the recruiter_cli bridge stay off the POST route and the runner. */
-function cohortProposalDeps(signal: AbortSignal): ProposalDeps {
+function cohortProposalDeps(signal: AbortSignal, ws: string): ProposalDeps {
   return {
     ...cohortSourceReaders(),
     ...cohortJdDeps(),
     listApplicants: (jobId, workspaceId) => listEntriesForJob(jobId, workspaceId),
     poolEntryExists: (candidateId, label, workspaceId) => resolveCandidatePoolEntry(candidateId, label, workspaceId) !== null,
     buildPool: (workspaceId) => buildCandidatePool(workspaceId),
-    rankPool: (jobId, pool, job) => rankPoolForJob<{ candidates?: RankedRow[] }>(jobId, pool, job, { signal }),
+    rankPool: (jobId, pool, job) => rankPoolForJob<{ candidates?: RankedRow[] }>(jobId, pool, job, { signal, env: marketSpawnEnv(ws) }),
     reuseRows: (jdSlug, workspaceId) => listAnalysisCohortReuseRows(jdSlug, workspaceId),
   };
 }
@@ -51,7 +52,7 @@ export const GET = withWorkspace(async (ws: string, request: Request) => {
     if (!rateLimit(`analyze-cohort-proposal:${clientIpFrom(request.headers)}`, { limit: 30, windowMs: 10 * 60_000 })) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
-    const proposal = await buildCohortProposal(jd, ws, cohortProposalDeps(request.signal));
+    const proposal = await buildCohortProposal(jd, ws, cohortProposalDeps(request.signal, ws));
     if (!proposal) return jsonRefusal("JD_NOT_FOUND", 404);
     return jsonOk(proposal);
   } catch (error) {

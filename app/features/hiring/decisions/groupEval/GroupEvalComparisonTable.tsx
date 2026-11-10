@@ -136,6 +136,7 @@ export function ComparisonTable({
   skillRows,
   mustRows,
   roleBand,
+  roleBandCurrency,
   hasLead,
   leadSeparation,
 }: {
@@ -143,6 +144,8 @@ export function ComparisonTable({
   skillRows: { skill: string; mustHave: boolean }[];
   mustRows: string[];
   roleBand: number[];
+  /** The band's OWN currency (evaluation.roleSalaryBandCurrency); absent = the default market's. */
+  roleBandCurrency?: string;
   // Did the server actually crown a lead (topPick)? When false — an all-KO field or
   // a sub-min-cohort sample — NO column gets the "Lead" crown, matching the summary
   // and the sealed record (group-evaluation-fairness #1). The lead, when present, is
@@ -173,7 +176,7 @@ export function ComparisonTable({
   const must = skillRows.filter((r) => r.mustHave);
   const nice = skillRows.filter((r) => !r.mustHave);
 
-  const { bandCurrency, lo, hi, showSalary, sal } = computeSalaryScale(candidates, roleBand);
+  const { bandCurrency, lo, hi, showSalary, sal } = computeSalaryScale(candidates, roleBand, roleBandCurrency);
 
   return (
     <section>

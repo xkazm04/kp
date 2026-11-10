@@ -100,6 +100,7 @@ export const GET = withWorkspace(async (ws: string, request: Request) => {
       // nothing read it, so the pack kept publishing `sample: hired`.
       timeToHireSamples: analytics.timeToHireSamples,
       costPerHireCzk: analytics.costPerHireCzk,
+      costPerHireCurrency: analytics.costPerHireCurrency,
       automationRoi: analytics.automationRoi,
       capacity: { openRoles, recruiters },
       candidateNps: (() => {

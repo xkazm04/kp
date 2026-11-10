@@ -1,6 +1,8 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { currencySymbol } from "@/app/_lib/org-settings";
+import { useWorkspaceMarket } from "@/app/_lib/use-workspace-market";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { apiErrorPayload, LocalizedFailure } from "./analyticsFetchError";
 // Straight to the primitive, not through the AnalyticsTab barrel: the Economics board
@@ -31,6 +33,8 @@ export function SpendInput({
   onSaved: () => void;
 }) {
   const t = useTranslations("analytics.channels");
+  // A figure typed here is entered (and stamped) in the workspace market's currency.
+  const currency = currencySymbol(useWorkspaceMarket().currency, useLocale());
   // The route answers a refused or failed write with a CODE — ANALYTICS_POLICY_FORBIDDEN
   // (403, the seat may not run recruiter operations) or ANALYTICS_SPEND_SAVE_FAILED
   // (500, the write fell over). This editor threw a bare `new Error()` for both, so the
@@ -43,7 +47,7 @@ export function SpendInput({
       value={value}
       width="w-24"
       inputClassName="text-sm"
-      ariaLabel={t("spendAria", { channel: channelLabel })}
+      ariaLabel={t("spendAria", { channel: channelLabel, currency })}
       failedTitle={t("spendSaveFailed")}
       announceFailure
       onSave={async (amount) => {

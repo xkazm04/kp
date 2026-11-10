@@ -38,7 +38,9 @@ export async function rankPoolForJob<T>(
   jobId: string,
   pool: CandidatePoolEntry[],
   job: JobRecord | null,
-  opts: { signal?: AbortSignal; weightsLlm?: boolean; embeddings?: boolean; timeoutMs?: number } = {},
+  // `env` is the caller's marketSpawnEnv(ws): the ranked team's market (its salary flags'
+  // units). Passed in rather than read here, so this envelope stays off the DB.
+  opts: { signal?: AbortSignal; weightsLlm?: boolean; embeddings?: boolean; timeoutMs?: number; env?: Record<string, string> } = {},
 ): Promise<T> {
   // Sync ranking (candidates list, rediscovery) is not always a task. Open a
   // scope only when nothing else named the run so Activity can join the spend
@@ -62,7 +64,7 @@ export async function rankPoolForJob<T>(
       const { result } = spawnPython(args, {
         signal: opts.signal,
         timeoutMs: opts.timeoutMs ?? RECRUITER_RANK_TIMEOUT_MS,
-        env: buildLlmConfigEnv(),
+        env: { ...buildLlmConfigEnv(), ...opts.env },
       });
       const { stdout, stderr, exitCode } = await result;
       if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));

@@ -10,6 +10,8 @@
 import { useTranslations } from "next-intl";
 import { OFFER_TTL_DAYS_MIN, OFFER_TTL_DAYS_MAX } from "@/app/_lib/offer-policy";
 import { useNumberFormat } from "@/app/_lib/use-number-format";
+import { offerPeriodOf } from "@/app/_lib/markets";
+import { useWorkspaceMarket } from "@/app/_lib/use-workspace-market";
 import type { ParsedApproval } from "./decisionsAiReviewCardLogic";
 import { OfferLetterPreview } from "./DecisionsOfferLetterPreview";
 
@@ -36,6 +38,8 @@ export function AiReviewCardBody({
 }) {
   // Band bounds in the APP's locale — see the note on the card shell's own formatter.
   const n = useNumberFormat();
+  // A draft is in the market's units: its period is the market's while the currency agrees.
+  const period = offerPeriodOf(parsed.currency, useWorkspaceMarket());
   return (
     <div className="mt-2 rounded-md border border-stone-200 bg-paper/50 p-2.5 text-sm text-ink">
       {/* The meter and the band caption are a POSITION-WITHIN-A-BAND readout;
@@ -56,6 +60,7 @@ export function AiReviewCardBody({
               min: n.grouped(Number(parsed.salaryMin ?? 0)),
               max: n.grouped(Number(parsed.salaryMax ?? 0)),
               currency: String(parsed.currency ?? ""),
+              period,
             })}
           </p>
         </>

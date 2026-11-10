@@ -505,8 +505,19 @@ def _salary_flag(candidate: MatchCandidate, job: Job) -> EligibilityFlag:
     # is how a EUR posting reached the reader as "no pay" while the detail panel, which
     # does read the posting's own units, called the same posting "not comparable".
     stated_cur = _norm_currency(job.salary_currency) if job.salary_currency else ""
-    job_cur = stated_cur or _norm_currency(ACTIVE_MARKET.currency)
-    units_note = "" if stated_cur else f" ({ACTIVE_MARKET.market_id} market units — the posting stated no currency)"
+    # The band's OWN unit when the record carries it (jobs.band_currency/band_period): a
+    # band set before the workspace changed market is read in what it was set in, never
+    # relabelled into the market's units. Absent = the market's, as before.
+    band_cur = _norm_currency(job.band_currency) if job.band_currency else _norm_currency(ACTIVE_MARKET.currency)
+    band_period = (job.band_period or ACTIVE_MARKET.period).strip().lower()
+    own_unit = band_cur != _norm_currency(ACTIVE_MARKET.currency) or band_period != ACTIVE_MARKET.period
+    job_cur = stated_cur or band_cur
+    if stated_cur:
+        units_note = ""
+    elif own_unit:
+        units_note = " (the band's own units, set in another market — the posting stated no currency)"
+    else:
+        units_note = f" ({ACTIVE_MARKET.market_id} market units — the posting stated no currency)"
     cand_cur = _norm_currency(exp.currency)
     if cand_cur != job_cur:
         return EligibilityFlag(
@@ -520,7 +531,7 @@ def _salary_flag(candidate: MatchCandidate, job: Job) -> EligibilityFlag:
         return EligibilityFlag(
             key="salary",
             state="unknown",
-            detail=f"hourly pay stated ({job_cur}/hour): no comparable {ACTIVE_MARKET.period} band",
+            detail=f"hourly pay stated ({job_cur}/hour): no comparable {band_period} band",
         )
     # A band normalize_job stamped from the market anchor is a PHANTOM the ad never
     # asserted (recorded in defaulted_fields) — the same rule the KO filter applies
@@ -530,7 +541,7 @@ def _salary_flag(candidate: MatchCandidate, job: Job) -> EligibilityFlag:
     # The band is ALWAYS denominated in the market's period (posting_structure restates
     # a yearly figure x12 for the band alone), so that — not job.salary_period — is the
     # unit the expectation is converted into; the detail states it when the two differ.
-    job_period = ACTIVE_MARKET.period
+    job_period = band_period
     if job.salary_period and job.salary_period != job_period:
         units_note += f" (posting states {job.salary_period}; band restated as {job_period} x12)"
     job_max = float(max(job.salary_band))

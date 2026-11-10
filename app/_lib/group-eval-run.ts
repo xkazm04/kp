@@ -166,16 +166,16 @@ function poolEntryOf(candidateId: string, label: string, r: ResolvedCandidate | 
 // Best-effort salary expectation from a candidate's saved CV analysis. Returns
 // null for profile-only candidates or analyses with no salary section, so the
 // salary comparison degrades to "role band only" rather than breaking.
-function salaryExpectationFrom(loaded: ReturnType<typeof loadAnalysis>): SalaryExpectation | null {
+function salaryExpectationFrom(loaded: ReturnType<typeof loadAnalysis>, marketCurrency: string): SalaryExpectation | null {
   const s = (loaded?.payload as { salary?: Partial<SalaryExpectation> } | null)?.salary;
   if (!s || !((s.minimum ?? 0) > 0 || (s.maximum ?? 0) > 0)) return null;
   return {
     minimum: s.minimum ?? 0,
     maximum: s.maximum ?? 0,
     midpoint: s.midpoint ?? Math.round(((s.minimum ?? 0) + (s.maximum ?? 0)) / 2),
-    // An absent currency is assumed to be the app currency (the band's denomination),
-    // so a currency-less expectation still compares against the role band.
-    currency: s.currency ?? APP_CURRENCY,
+    // An absent currency is the workspace market's (the analysis ran in it), never a
+    // fixed default that would label a EUR market's figure CZK.
+    currency: s.currency ?? marketCurrency,
     confidence: s.confidence ?? "medium",
   };
 }
@@ -258,6 +258,7 @@ type DegradedStage = { stage: "ranking" | "comparison" | "reasoning"; reason: "t
 async function rankCandidates(
   job: JobRecord,
   pool: CandidatePoolEntry[],
+  workspaceId: string,
   signal?: AbortSignal
 ): Promise<{ rows: Map<string, RecruiterRow>; fairness: Fairness | null }> {
   if (pool.length === 0) return { rows: new Map(), fairness: null };
@@ -271,7 +272,7 @@ async function rankCandidates(
     job.id,
     pool,
     job,
-    { signal, weightsLlm: true, embeddings: true },
+    { signal, weightsLlm: true, embeddings: true, env: marketSpawnEnv(workspaceId) },
   );
   const map = new Map<string, RecruiterRow>();
   for (const row of parsed.candidates ?? []) map.set(row.candidateId, row);
@@ -540,7 +541,7 @@ export async function runGroupEval(
       const pool = input
         .map((c) => (c.candidateId ? poolEntryOf(c.candidateId, c.label, resolved.get(c.candidateId)) : null))
         .filter((e): e is CandidatePoolEntry => e !== null);
-      const ranked = await rankCandidates(job, pool, rankStage.signal);
+      const ranked = await rankCandidates(job, pool, workspaceId, rankStage.signal);
       rows = ranked.rows;
       fairness = ranked.fairness;
     } catch (error) {
@@ -669,7 +670,7 @@ export async function runGroupEval(
       domainDistance: row?.domainDistance ?? null,
       koPassed: row?.koPassed,
       assumptions: row?.assumptions ?? [],
-      salaryExpectation: c.candidateId ? salaryExpectationFrom(resolved.get(c.candidateId)?.analysis ?? null) : null,
+      salaryExpectation: c.candidateId ? salaryExpectationFrom(resolved.get(c.candidateId)?.analysis ?? null, getWorkspaceMarket(workspaceId).currency) : null,
     });
   }
 
@@ -1000,12 +1001,14 @@ export async function runGroupEval(
     // Canonical role requirements for the skills matrix (may be empty for a
     // job-less role).
     requirements,
-    // The role's recommended salary band [min, max] (job.salaryBand), denominated
-    // in APP_CURRENCY by contract — the reference each candidate's expectation is
+    // The role's recommended salary band [min, max] (job.salaryBand) — the reference each candidate's expectation is
     // compared against, but ONLY when the expectation shares that currency (the
     // modal gates the over/under verdict on a match; the app does no FX). Empty for
     // a job-less role, in which case the salary section just shows expectations.
     roleSalaryBand: job?.salaryBand ?? [],
+    // …in its OWN unit (jobs.band_currency/band_period): the modal labels the band with
+    // it and compares only same-currency expectations. Absent on evals saved before.
+    ...(job?.salaryBand?.length ? { roleSalaryBandCurrency: bandUnitOf(job).currency, roleSalaryBandPeriod: bandUnitOf(job).period } : {}),
     // Cross-scheme fairness matrix: each candidate re-scored under every
     // candidate's bounded dynamic weighting, so a pool weighted differently per
     // candidate ranks honestly. Null for a job-less role or if the ranker failed.

@@ -24,6 +24,7 @@ import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { ArrowRight, PauseCircle } from "lucide-react";
 import { useNumberFormat } from "@/app/_lib/use-number-format";
+import { APP_CURRENCY } from "@/app/_lib/format";
 import { labelOr } from "@/app/_lib/use-enum-label";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { META_LABEL, PANEL } from "@/app/_components/ui/recipes";
@@ -259,6 +260,10 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
                       {r.costPerHireCzk != null ? (
                         <>
                           <span className="font-semibold text-ink">{money(r.costPerHireCzk)}</span>
+                          {/* Entered under another market: its own currency, never converted. */}
+                          {r.spendCurrency && data.moneyCurrency && r.spendCurrency !== data.moneyCurrency ? (
+                            <span className="block text-micro font-normal text-steel">{t("spendOtherCurrency", { currency: r.spendCurrency })}</span>
+                          ) : null}
                           {/* The figure is this one stored row divided by a hire count,
                               so it is exactly as current as the row. Without the date a
                               fossil reads as this period's cost — which is the whole
@@ -355,6 +360,9 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
           impact={data.automation}
           roi={data.automationRoi}
           costPerHireCzk={data.costPerHireCzk}
+          costPerHireCurrency={data.costPerHireCurrency}
+          costPerHireAbsence={data.costPerHireAbsence}
+          moneyCurrency={data.moneyCurrency}
           timeToHireDays={data.medianTimeToHireDays}
           onSaved={reload}
           decisionsHref={buildUrl({ ...clearedTabScopedParams(), tab: "decisions" }, tabScopedSearch)}
@@ -368,6 +376,7 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
           // UAT KAT-ANA-2 — the blended manual figure carries the date of the OLDEST
           // spend entry behind it; a blend is only as current as its stalest input.
           costPerHireAsOf={data.costPerHireAsOf ?? null}
+          costPerHireCurrency={data.costPerHireCurrency ?? data.moneyCurrency ?? APP_CURRENCY}
           windowed={data.windowDays != null}
         />
       </Defer>

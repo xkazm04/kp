@@ -16,6 +16,7 @@ import type { JudgeIndependence } from "./devcase-judge-independence";
 import { promoteAuditReasons, promoteVerdict, promoteVerdictInputOf, type PromoteReason } from "./devcase-promote-verdict";
 import { cleanupWorkdir, createWorkdir, flagArg, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
 import { buildLlmConfigEnv } from "./llm-config";
+import { marketSpawnEnv } from "./workspace-market";
 import { buildRepoSnapshot, fetchRepoSignals, RepoUnreadableError, type RepoSignals, type RepoSnapshot } from "./repo-snapshot";
 import {
   caseJobIdentity,
@@ -37,6 +38,8 @@ import {
 async function runDevcaseCli<T>(
   build: (workdir: string) => string[] | Promise<string[]>,
   signal?: AbortSignal,
+  // The caller's marketSpawnEnv(ws) where the verb scores candidates (`source`).
+  env?: Record<string, string>,
 ): Promise<T> {
   const workdir = await createWorkdir();
   try {
@@ -45,7 +48,7 @@ async function runDevcaseCli<T>(
     // workspace Models config so model/max-tokens/timeout are configurable — same
     // wiring automation-run/reasoning-run use. `{}` when nothing is configured
     // (Python then defaults to the Claude CLI, unchanged).
-    const { result } = spawnPython(["-m", "pipeline.jobfit.devcase.devcase_cli", ...args], { signal, env: buildLlmConfigEnv() });
+    const { result } = spawnPython(["-m", "pipeline.jobfit.devcase.devcase_cli", ...args], { signal, env: { ...buildLlmConfigEnv(), ...env } });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
     return parsePythonJson<T>(stdout, stderr);
@@ -857,6 +860,7 @@ export async function runSourceForRole(
       ];
     },
     signal,
+    workspaceId ? marketSpawnEnv(workspaceId) : undefined,
   );
   const r = payload.result;
   return { candidates: r?.candidates ?? [], skipped: r?.skipped ?? 0, skippedReasons: r?.skippedReasons ?? [] };

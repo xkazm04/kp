@@ -6,7 +6,7 @@ import { withScopedPosition } from "./matrix-positions";
 import { countMatrixProfiles, listMatrixProfiles, listOpenPositions, MATRIX_POOL_CAP, pipelinePlacements } from "@/app/_lib/db/profiles";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { cleanupWorkdir, createWorkdir, engineRefusal, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
-import { marketSpawnEnv } from "@/app/_lib/workspace-market";
+import { getWorkspaceMarketId, marketSpawnEnv } from "@/app/_lib/workspace-market";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { matrixEngineAnswer, MATRIX_GRID_SURFACE } from "./matrix-error-code";
 import { createBoundedCache, matrixCacheKey } from "@/app/_lib/matrix-cache";
@@ -130,7 +130,7 @@ export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
     // The archetype registry is the scorer's other input (its weights score every
     // cell) and is editable at runtime, so its content digest is a key axis too.
     const registryDigest = archetypeRegistryDigest();
-    const key = matrixCacheKey({ workspaceId: ws, profilesJson, jobIds, jobsJson, registryDigest });
+    const key = matrixCacheKey({ workspaceId: ws, profilesJson, jobIds, jobsJson, registryDigest, marketId: getWorkspaceMarketId(ws) });
     const hit = matrixCache.get(key);
     if (hit) return respond(hit, true);
 

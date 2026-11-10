@@ -777,6 +777,14 @@ preferences)` / `apply_preferences`) maps the TS `JobseekerPreferences` shape
   detected a salary. The salary flag reads those, and falls back to
   `market_config.ACTIVE_MARKET`'s currency only for a `Job` that carries none —
   saying so in the detail (`… (cz market units — the posting stated no currency)`).
+  A band from the DB corpus carries its **own unit**: `listCorpusJobs` (and the
+  matrix's `getJobsByIds`) add `bandCurrency` / `bandPeriod`, which validate into
+  the input-only `Job.band_currency` / `band_period` (excluded from every dump and
+  the generated schema). A band set in another market than the active one is read
+  in that currency and period, never relabelled, and the detail says
+  `(the band's own units, set in another market …)`; a band stamped in the market's
+  own unit reads exactly as an unstamped one. `/api/match` labels each result's
+  band with it (`salaryBandCurrency`, used by `formatBandCompact`).
 - **Same currency only, no FX.** A seeker floor in a currency other than the
   posting's is `unknown` with `not comparable: <cur> vs <cur>` — including a
   posting whose own currency the market cannot hold, which used to reach the

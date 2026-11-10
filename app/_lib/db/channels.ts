@@ -3,6 +3,7 @@ import { decryptAtsSecret, encryptAtsSecret, isEncryptedAtsSecret } from "../ats
 import { assertPublicHttpsEndpoint } from "../safe-url";
 import { ensureDb } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
+import { APP_CURRENCY } from "../format";
 
 // ---- Inbound channel webhooks (Erika gap E3) --------------------------------
 
@@ -395,20 +396,30 @@ export type ChannelSpendEntry = {
   /** When a person last entered this figure (ISO). The derived cost-per-applicant /
    *  cost-per-hire columns are exactly this current and no more. */
   updatedAt: string;
+  /** The currency the figure was entered in (channel_spend.currency): the workspace's
+   *  market at entry. `amountCzk` is the legacy column name, not a claim about the unit.
+   *  A market change converts and relabels nothing (docs/architecture/markets.md). */
+  currency: string;
 };
 
-/** Recruiter-entered spend per source channel (CZK) — the denominator for
- *  cost-per-applicant / cost-per-hire. amountCzk null/≤0 clears the figure. */
-export function setChannelSpend(channel: string, amountCzk: number | null, workspaceId: string = DEFAULT_WORKSPACE_ID): void {
+/** Recruiter-entered spend per source channel, in `currency` (the workspace market's at
+ *  entry) — the denominator for cost-per-applicant / cost-per-hire. amountCzk null/≤0
+ *  clears the figure. */
+export function setChannelSpend(
+  channel: string,
+  amountCzk: number | null,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  currency: string = APP_CURRENCY
+): void {
   const db = ensureDb();
   if (amountCzk == null || !(amountCzk > 0)) {
     db.prepare(`DELETE FROM channel_spend WHERE channel = ? AND workspace_id = ?`).run(channel, workspaceId);
     return;
   }
   db.prepare(
-    `INSERT INTO channel_spend (channel, amount_czk, updated_at, workspace_id) VALUES (?, ?, ?, ?)
-     ON CONFLICT(channel, workspace_id) DO UPDATE SET amount_czk = excluded.amount_czk, updated_at = excluded.updated_at`
-  ).run(channel, amountCzk, new Date().toISOString(), workspaceId);
+    `INSERT INTO channel_spend (channel, amount_czk, updated_at, workspace_id, currency) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(channel, workspace_id) DO UPDATE SET amount_czk = excluded.amount_czk, updated_at = excluded.updated_at, currency = excluded.currency`
+  ).run(channel, amountCzk, new Date().toISOString(), workspaceId, currency);
 }
 
 /** Spend per channel WITH the date a human entered it — what any surface needs to
@@ -417,9 +428,11 @@ export function setChannelSpend(channel: string, amountCzk: number | null, works
 export function listChannelSpendDetail(workspaceId: string = DEFAULT_WORKSPACE_ID): Map<string, ChannelSpendEntry> {
   const db = ensureDb();
   const rows = db
-    .prepare(`SELECT channel, amount_czk, updated_at FROM channel_spend WHERE workspace_id = ?`)
-    .all(workspaceId) as { channel: string; amount_czk: number; updated_at: string }[];
-  return new Map(rows.map((r) => [r.channel, { channel: r.channel, amountCzk: r.amount_czk, updatedAt: r.updated_at }]));
+    .prepare(`SELECT channel, amount_czk, updated_at, currency FROM channel_spend WHERE workspace_id = ?`)
+    .all(workspaceId) as { channel: string; amount_czk: number; updated_at: string; currency: string | null }[];
+  return new Map(
+    rows.map((r) => [r.channel, { channel: r.channel, amountCzk: r.amount_czk, updatedAt: r.updated_at, currency: r.currency || APP_CURRENCY }])
+  );
 }
 
 export function listChannelSpend(workspaceId: string = DEFAULT_WORKSPACE_ID): Map<string, number> {

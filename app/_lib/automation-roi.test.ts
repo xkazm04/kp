@@ -109,3 +109,17 @@ test("an unset org baseline (undefined) falls back to the stated default", () =>
   assert.equal(roi.manualBaselineHoursPerHire, MANUAL_HOURS_PER_HIRE);
   assert.equal(roi.pctOfManualBaseline, 24); // 10 / 42 = 23.8% → 24
 });
+
+test("a market without a benchmark and no org rate values the hours at nothing, stated", () => {
+  // The 600 CZK default is a Czech labour-cost figure: in de/gb it is never relabelled.
+  const roi = automationRoi({ scored: 30 }, null, 2, undefined, null);
+  assert.equal(roi.hoursSaved, 4);
+  assert.equal(roi.czkSaved, null);
+  assert.equal(roi.czkSavedPerHire, null);
+  assert.equal(roi.hourlyRateCzk, null);
+  assert.equal(roi.rateAbsence, "no_market_benchmark");
+  // The org's own rate still prices the hours in its market's currency.
+  const own = automationRoi({ scored: 30 }, 50, 2, undefined, null);
+  assert.equal(own.czkSaved, 200);
+  assert.equal(own.rateAbsence, undefined);
+});

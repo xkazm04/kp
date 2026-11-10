@@ -2228,7 +2228,11 @@ an unpriced offer that waits at `offer_review`; a recruiter's manual draft
 offer panel labels figures with it. A role band set in another unit than the market's
 (the market changed since) neither prices nor bounds that draft: no midpoint, no
 `salaryMin/Max`, and the draft carries `bandAbsence: "band_other_currency"`. The
-decision card's band rail reads the band's own currency. Full contract:
+decision card's band rail reads the band's own currency. Offers store no pay period:
+the drafted figure and its band are labelled with the market's period while the draft's
+currency is the market's (`offerPeriodOf`, `markets.ts`), and with none after a market
+change; the manual panel's amount label names the period ("Annual salary (GBP)"), and a
+draft refused the band shows why (`manualOfferBandOtherUnit`). Full contract:
 `docs/architecture/markets.md`.
 
 ## Known gaps

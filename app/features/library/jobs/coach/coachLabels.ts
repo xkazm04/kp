@@ -35,8 +35,8 @@ export function usePatternCopy(win: Winnability | null): (pattern: RolePattern) 
     if (pattern.kind === "salary") {
       return {
         title: t(KIND_KEY.salary, {
-          job: fmtBand(jobBand, locale) ?? t("salaryUnset"),
-          market: fmtBand(marketBand, locale) ?? "",
+          job: fmtBand(jobBand, locale, win?.salary?.jobCurrency) ?? t("salaryUnset"),
+          market: fmtBand(marketBand, locale, win?.salary?.marketCurrency) ?? "",
         }),
         // A low band costs the role the candidates who never applied, and the pool
         // cannot see them. A "0 of 34" here would read as "this costs nobody".

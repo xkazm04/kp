@@ -274,6 +274,10 @@ export type GroupEvalPayload = {
   // The role's recommended salary band [min, max] — the reference the salary
   // row plots each candidate's expectation against. Empty for a job-less role.
   roleSalaryBand?: number[];
+  // The band's OWN unit (the job's band_currency/band_period). Absent on evals saved
+  // before markets existed: those bands were all in the default market's unit.
+  roleSalaryBandCurrency?: string;
+  roleSalaryBandPeriod?: string;
   // Cross-scheme fairness matrix. Null for a job-less role or if the ranker failed.
   fairness?: Fairness | null;
   // Robustness-assessment status of the fairness check (bug-ui-scan-2026-07-09): lets

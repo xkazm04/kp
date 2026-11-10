@@ -25,6 +25,11 @@ export type Salary = {
   // "band_other_currency" = the role band was set in another unit than the workspace
   // market's (the market changed since): refused, so belowMarket is null (winnability.py).
   bandAbsence?: "band_other_currency";
+  // "no_market_benchmark" = the workspace market holds no benchmark: nothing compared.
+  marketAbsence?: "no_market_benchmark";
+  // The currency each band is in (winnability.py): the role's, and the benchmark's.
+  jobCurrency?: string;
+  marketCurrency?: string;
 };
 export type Winnability = {
   poolSize: number;

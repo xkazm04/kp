@@ -50,6 +50,15 @@ export function marketSpec(id: unknown): MarketSpec {
   return MARKETS[resolveMarketId(id)];
 }
 
+/** The pay period of a drafted offer figure. An offer stores its currency but no period
+ *  (offers-store.ts): it is drafted in the workspace market's units, so the market's
+ *  period applies while the currencies agree, and is unknown (label nothing) after a
+ *  market change. */
+export function offerPeriodOf(currency: unknown, market: MarketSpec): PayPeriod | "unknown" {
+  const c = typeof currency === "string" ? currency.trim().toUpperCase() : "";
+  return !c || c === market.currency ? market.period : "unknown";
+}
+
 /** The coded absence a benchmark-derived figure carries in a market without a table. */
 export const NO_MARKET_BENCHMARK = "no_market_benchmark";
 

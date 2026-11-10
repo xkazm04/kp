@@ -5,6 +5,8 @@ import { useTranslations } from "next-intl";
 import { RATING_MAX } from "@/app/_lib/format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useNumberFormat } from "@/app/_lib/use-number-format";
+import { offerPeriodOf } from "@/app/_lib/markets";
+import { useWorkspaceMarket } from "@/app/_lib/use-workspace-market";
 import type { ScorecardRating } from "@/app/_lib/interview-scorecard";
 import { APPLIED_LABEL, type Result } from "./PipelineCandidateDrawerTypes";
 import { SalaryBenchmarkHint } from "./PipelineSalaryBenchmarkHint";
@@ -31,6 +33,8 @@ export function ResultView({ result, roleFamily }: { result: Result; roleFamily?
   // benchmark hint already keeps; the candidate's own band now keeps it too.
   const { grouped } = useNumberFormat();
   const d = result.data as Record<string, unknown>;
+  // The draft is in the market's units; its period is the market's while the currency agrees.
+  const offerPeriod = offerPeriodOf(d.currency, useWorkspaceMarket());
   // WHY NO ALTERNATIVE — in the reader's language. A skipped rematch used to paint the
   // server's English sentence ("candidate is hired; rematch skipped") verbatim on a
   // Czech recruiter's screen. automation-run.ts now emits `reasonCode` beside that
@@ -140,7 +144,7 @@ export function ResultView({ result, roleFamily }: { result: Result; roleFamily?
                   currency renders the bare amount and its period. The JSX shape is
                   otherwise untouched, so a priced draft (which always carries a
                   currency) emits character-for-character the markup it did before. */}
-              <span className="text-steel">{String(d.currency ?? "")} {t("perMonth")}</span>
+              <span className="text-steel">{String(d.currency ?? "")} {t("perPeriod", { period: offerPeriod })}</span>
             </div>
           )}
           {/* The meter and the band caption are a POSITION-WITHIN-A-BAND readout; with no
@@ -161,6 +165,7 @@ export function ResultView({ result, roleFamily }: { result: Result; roleFamily?
                   min: grouped(Number(d.salaryMin)),
                   max: grouped(Number(d.salaryMax)),
                   currency: String(d.currency ?? ""),
+                  period: offerPeriod,
                 })}
               </p>
             </>

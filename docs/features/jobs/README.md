@@ -1829,7 +1829,13 @@ nobody is not a row — the ledger is findings, not an inventory of requirements
 the salary row carries `share: null`, rendered as a dash: the candidates a low band
 costs are the ones who never applied, so a `0 of 34` there would read as "this costs
 nobody". A silenced salary verdict (`belowMarket === null`, the cross-currency case
-with no FX) produces no row at all.
+with no FX) produces no row at all — but it is not silent: `salaryNotCompared`
+(`jobsCoachSalary.ts`) names why the salary was not compared (no benchmark for the
+market, a band set in another market's currency, another currency, no stated pay, an
+assumed seniority, no market band, no role band) under the ledger, and the empty state
+then drops its "the salary is in line with the market" clause (`noPatternsBodyNoSalary`).
+The salary row's two bands are labelled in their own currencies (`jobCurrency`,
+`marketCurrency` from `winnability.py`).
 
 ### One layout: the Ledger, fused with the Dial's control
 

@@ -72,7 +72,15 @@ Spawn sites that carry it: CV analysis (`analyze-run.ts`, whose cache key gains 
 salary (`jd-build-run.ts`), JD/ad ingest and normalize (`job-ingest.ts` via its
 callers: `jd-ingest.ts`, `/api/jobs/ingest`, `/api/jds/[slug]`, its `ingest-job` and
 `revisions`), campaign, automation tasks (offer draft, letters), group evaluation,
-winnability, match, matrix.
+winnability, match, matrix (whose grid cache key adds the market for a non-default
+market only, `matrix-cache.ts`), the posting translation (`job-translate-run.ts`), the
+recruiter ranking (`recruiter-run.ts` takes the caller's env: the candidates list,
+rediscovery, the auto-score sweep and publish-time scoring in `entry-scoring.ts`, the
+cohort proposal, group evaluation), the go-live sourcing (`devcase-run.ts`
+`runSourceForRole`) and the background **policy pass** (`automation-pass.ts`): the
+sweep spans teams and `KP_MARKET` is per process, so it spawns once per market among
+the entries' teams — once on a single-market install, as before. `evaluate_entry`
+reads no market today; the split keeps it honest the day it does.
 
 ## What a market without a benchmark does
 
@@ -135,9 +143,25 @@ nothing: a band keeps the currency and period it was set in.
 | Posting preview | the salary line is printed in the band's own unit |
 | Cohort salary dimension | the band is marked `otherUnit` and not rated against; members are rated against the cohort median, and the criterion says the band is not compared (`criteria.salaryCohortBandOtherUnit` / `salaryBandOtherUnit`) |
 | Manual offer draft | no midpoint and no `salaryMin/Max` from the band; the draft carries `bandAbsence: "band_other_currency"` and waits for a typed figure |
-| Winnability | the route passes `bandCurrency` / `bandPeriod`; `winnability.py` refuses: `belowMarket: null`, `currencyComparable: false`, `bandAbsence: "band_other_currency"` (`BAND_OTHER_CURRENCY` on both sides) |
-| Group evaluation | the compare spawn gets no band, and a candidate's expectation is shown to it only in the band's own currency |
+| Winnability | the route passes `bandCurrency` / `bandPeriod`; `winnability.py` refuses: `belowMarket: null`, `currencyComparable: false`, `bandAbsence: "band_other_currency"` (`BAND_OTHER_CURRENCY` on both sides). The coach labels each band in its own currency and states why a salary was not compared (`salaryNotCompared`) instead of calling it "in line with the market" |
+| Matcher salary flag | `listCorpusJobs` / `getJobsByIds` send `bandCurrency` / `bandPeriod`; `matching.py` `_salary_flag` reads the band in that unit (input-only `Job.band_currency` / `band_period`, excluded from dumps and the schema) and says so in the detail |
+| Match surfaces | `/api/match` adds `salaryBandCurrency` / `salaryBandPeriod` per result; the compact label (`formatBandCompact`) uses it |
+| Posting translation | the source document is rendered in the band's own unit, else the market's (`postingBandUnit`), exactly as the modal renders it |
+| Group evaluation | the compare spawn gets no band, and a candidate's expectation is shown to it only in the band's own currency; the result carries `roleSalaryBandCurrency` / `roleSalaryBandPeriod` and the modal's scale and pill use them (an eval saved before reads the default market's); an expectation with no currency is the market's |
 | Decision card salary rail | plotted only when the expectation shares the band's OWN currency (`peer-context` `salaryBandCurrency`) |
+
+## Bare figures the market denominates
+
+Where a figure carries no unit of its own, the market's applies, read where it is shown:
+
+| Figure | Behaviour |
+| --- | --- |
+| Offer draft (`offers` has a currency, no period) | the drafted figure and its band are labelled with the market's period while the draft's currency is the market's (`offerPeriodOf`), with no period after a market change; the manual panel's amount label names the period, and a draft that refused the band says so (`manualOfferBandOtherUnit`) |
+| JD builder's first ingest | stamps the grounded band's own unit (`marketSalaryUnit`, the same rule as the re-sync's `groundedJdUnit`), never the market at the time of the write |
+| Analysis report's deterministic anchor | `report.anchorBand` takes the analysis's own salary currency and period |
+| Channel spend | stamped with the currency it was entered in (`channel_spend.currency`, the market's at entry; legacy rows CZK); shown in that currency; the blended cost per hire is null over spend in two currencies (`costPerHireAbsence: "spend_mixed_currency"`) and its metric-pack unit is the spend's currency (`moneyUnit`) |
+| Automation ROI | the org's hourly rate is in the market's currency; with no rate set, the 600 CZK default applies only where a benchmark exists, else the money is null (`rateAbsence: "no_market_benchmark"`) and the hours stand alone |
+| Analytics labels | every "CZK" in `analytics.*` is `{currency}` (`currencySymbol` keeps Czech "Kč") |
 
 ## The Czech regression bar
 
@@ -150,16 +174,11 @@ runs the switch in a child interpreter, the way the app does.
 
 ## Known gaps
 
-- The band's own unit does not yet reach: the matcher's salary eligibility flag
-  (`matching.py` `_salary_flag`, fed by `listCorpusJobs`; a band in another unit is
-  still read in the market's units there), the group-evaluation modal's band label
-  (`groupEvalSalaryScale.ts`), the compact match band label (`matchTypes.ts`), the
-  coach's band text (`jobsCoachSalary.ts`, which also shows nothing for a refused
-  verdict) and the demo simulation's offer.
-- Not yet market-aware: the guided simulation's demo offer (Czech seed data by
-  construction), the posting
-  translation's source render (`job-translate-run.ts`), the analytics money panels,
-  the background `policy-pass` (market-agnostic today), the jobseeker module (a
-  candidate-side product with its own currency parsing) and gigs (USD/EUR gig
-  budgets, a different concept).
+- Not market-aware by ruling: the guided simulation's demo offer (Czech seed data by
+  construction) and the jobseeker module (a candidate-side product with its own
+  currency parsing). Gigs (USD/EUR gig budgets) are not compensation.
+- Offers have no pay-period column: the period is the market's by construction, and
+  after a market change a drafted figure shows no period rather than a guessed one.
+- The org's recruiter hourly rate (`analytics_targets`) is a bare number read in the
+  current market's currency: a rate set before a market change is relabelled.
 - Market Pulse (`/market`) is Czech public data by nature and stays Czech.

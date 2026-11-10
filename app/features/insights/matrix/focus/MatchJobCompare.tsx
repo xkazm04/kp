@@ -156,7 +156,7 @@ export function MatchJobCompare({ matches, onClose }: { matches: MatchResult[]; 
             <tr className="border-t border-stone-100">
               <th scope="row" className="sticky left-0 bg-white p-2 text-left text-steel">{t("salaryBand")}</th>
               {matches.map((m) => (
-                <td key={m.jobId} className="p-2 nums text-ink">{formatBandCompact(m.salaryBand, locale, tShared("bandUnit"))}</td>
+                <td key={m.jobId} className="p-2 nums text-ink">{formatBandCompact(m.salaryBand, locale, tShared("bandUnit"), m.salaryBandCurrency)}</td>
               ))}
             </tr>
           </tbody>

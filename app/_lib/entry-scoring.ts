@@ -18,6 +18,7 @@ import { isScorableEntry, type ScorableEntry } from "./entry-scoring-policy";
 import { resolveCandidatePoolEntry } from "./candidate-pool";
 import { PipelineError } from "./python-runner";
 import { rankPoolForJob } from "./recruiter-run";
+import { marketSpawnEnv } from "./workspace-market";
 
 type RankPayload = { candidates?: { candidateId?: string; result?: { total?: number } }[] };
 
@@ -26,9 +27,12 @@ export type EntryRanker = (
   jobId: string,
   pool: NonNullable<ReturnType<typeof resolveCandidatePoolEntry>>[],
   job: ReturnType<typeof getJob>,
+  workspaceId?: string,
 ) => Promise<RankPayload>;
 
-const defaultRanker: EntryRanker = (jobId, pool, job) => rankPoolForJob<RankPayload>(jobId, pool, job);
+// The spawn carries the ranked team's market (KP_MARKET): a job's entries are one team's.
+const defaultRanker: EntryRanker = (jobId, pool, job, workspaceId) =>
+  rankPoolForJob<RankPayload>(jobId, pool, job, workspaceId ? { env: marketSpawnEnv(workspaceId) } : {});
 
 export { isScorableEntry, shouldScoreAfterFiling, type ScorableEntry } from "./entry-scoring-policy";
 
@@ -59,7 +63,7 @@ export async function scoreEntriesForJob(
     // same contract as the candidates route.
     const job = getJob(jobId);
     issued = true;
-    const payload = await (opts.rank ?? defaultRanker)(jobId, candidates, job);
+    const payload = await (opts.rank ?? defaultRanker)(jobId, candidates, job, group[0]?.workspaceId);
     const scoreById = new Map<string, number>();
     for (const row of payload.candidates ?? []) {
       const total = row.result?.total;

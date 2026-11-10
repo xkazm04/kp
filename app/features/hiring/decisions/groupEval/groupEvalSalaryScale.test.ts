@@ -64,3 +64,17 @@ test("percentages are clamped — a value under/over the scale never leaves the 
 test("the band's currency is the app currency by contract", () => {
   assert.equal(computeSalaryScale([], [1, 2]).bandCurrency, APP_CURRENCY);
 });
+
+test("a band in its own currency compares the expectations stated in THAT currency", () => {
+  // An EUR band (a role set in the de market): the EUR expectation is on the scale, the
+  // default-market one is not, and the band is labelled EUR — never relabelled.
+  const band = [4_000, 6_000];
+  const s = computeSalaryScale([withSalary("Ada", 4_500, 5_500, "EUR"), withSalary("Bo", 90_000, 110_000)], band, "EUR");
+  assert.equal(s.bandCurrency, "EUR");
+  assert.equal(s.sal.pct(4_000), 0);
+  assert.equal(s.sal.pct(6_000), 100);
+});
+
+test("an eval saved without a band currency reads the default market's (unchanged)", () => {
+  assert.equal(computeSalaryScale([], [80_000, 120_000]).bandCurrency, APP_CURRENCY);
+});

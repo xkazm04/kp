@@ -10,15 +10,18 @@ import { useTranslations } from "next-intl";
 import { BTN_PRIMARY, FIELD, META_LABEL } from "@/app/_components/ui/recipes";
 import { useWorkspaceMarket } from "@/app/_lib/use-workspace-market";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { BAND_OTHER_CURRENCY } from "@/app/_lib/salary-band";
 
 export function ManualOfferPanel({ entryId, onChanged }: { entryId: string; onChanged: () => void }) {
   const t = useTranslations("pipeline.candidate.footer");
   // The draft is denominated in the workspace's market (offer-manual-draft.ts).
-  const marketCurrency = useWorkspaceMarket().currency;
+  const market = useWorkspaceMarket();
   const errMsg = useErrorMessage();
   const [salary, setSalary] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
+  // The draft's stated absence: the role band was set in another unit, so it priced nothing.
+  const [bandOtherUnit, setBandOtherUnit] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const submit = async () => {
@@ -32,6 +35,7 @@ export function ManualOfferPanel({ entryId, onChanged }: { entryId: string; onCh
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(errMsg(body, t("manualOfferFailed")));
+      setBandOtherUnit(body?.draft?.bandAbsence === BAND_OTHER_CURRENCY);
       setDone(true);
       onChanged();
     } catch (e) {
@@ -43,15 +47,16 @@ export function ManualOfferPanel({ entryId, onChanged }: { entryId: string; onCh
 
   if (done) {
     return (
-      <p role="status" className="text-meta font-semibold text-moss">
-        {t("manualOfferDrafted")}
-      </p>
+      <div role="status" className="space-y-1">
+        <p className="text-meta font-semibold text-moss">{t("manualOfferDrafted")}</p>
+        {bandOtherUnit ? <p className="text-meta text-steel">{t("manualOfferBandOtherUnit")}</p> : null}
+      </div>
     );
   }
   return (
     <div className="space-y-2">
       <label htmlFor="manual-offer-salary" className={META_LABEL}>
-        {t("manualOfferAmount", { currency: marketCurrency })}
+        {t("manualOfferAmount", { currency: market.currency, period: market.period })}
       </label>
       <input
         id="manual-offer-salary"

@@ -88,6 +88,10 @@ export function createBoundedCache<V>(capacity: number = MATRIX_CACHE_CAPACITY):
  * on each spawn and an operator can reweight at runtime. Without it, a weight edit
  * kept serving the pre-edit grid (no TTL) until LRU eviction.
  *
+ * `marketId` (workspace-market.ts) is the spawn's KP_MARKET: the same corpus scores
+ * with other salary flags in another market. Only a non-default market adds a part, so
+ * every Czech key is unchanged (the cache-key.ts rule).
+ *
  * Parts are NUL-separated: a bare concatenation would let ("ab", "c") and
  * ("a", "bc") collide.
  */
@@ -97,8 +101,9 @@ export function matrixCacheKey(input: {
   jobIds: string;
   jobsJson: string;
   registryDigest: string;
+  marketId?: string;
 }): string {
-  return createHash("sha1")
+  const h = createHash("sha1")
     .update(input.workspaceId)
     .update("\u0000")
     .update(input.profilesJson)
@@ -107,6 +112,7 @@ export function matrixCacheKey(input: {
     .update("\u0000")
     .update(input.jobsJson)
     .update("\u0000")
-    .update(input.registryDigest)
-    .digest("hex");
+    .update(input.registryDigest);
+  if (input.marketId && input.marketId !== "cz") h.update("\u0000market\u0000").update(input.marketId);
+  return h.digest("hex");
 }

@@ -2948,6 +2948,9 @@ export function ensureDb(): Database.Database {
        ALTER TABLE channel_spend_new RENAME TO channel_spend;`
     );
   }
+  // Spend's own currency (markets.md), after the rebuild that would drop it. Unstamped = CZK.
+  if (!spendCols.some((c) => c.name === "currency")) db.exec(`ALTER TABLE channel_spend ADD COLUMN currency TEXT`);
+  db.prepare(`UPDATE channel_spend SET currency = 'CZK' WHERE currency IS NULL`).run();
   // analytics_targets: same additive migration as channel_spend — widen the single-column
   // PK to (metric, workspace_id) so each team keeps its own hiring goals (funnel conversion
   // targets, the time-to-hire goal, and the recruiter_hourly_czk rate that drives the

@@ -1,5 +1,5 @@
 import { insertJob, jobContentHash, normalizeJob } from "@/app/_lib/job-ingest";
-import { normalizeSalaryBand, withBandUnit, withGroundedBand } from "@/app/_lib/salary-band";
+import { marketSalaryUnit, normalizeSalaryBand, withBandUnit, withGroundedBand } from "@/app/_lib/salary-band";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import { getWorkspaceMarket, marketSpawnEnv } from "@/app/_lib/workspace-market";
@@ -13,7 +13,7 @@ export async function ingestStructuredJob(input: {
   title: string;
   markdown: string;
   role: Record<string, unknown>;
-  salary?: { suggestedMinimum?: number; suggestedMaximum?: number };
+  salary?: { suggestedMinimum?: number; suggestedMaximum?: number; currency?: string; period?: string };
   company?: string;
 }, workspaceId: string = DEFAULT_WORKSPACE_ID): Promise<boolean> {
   // Trust-boundary parse (client-sent on POST /api/jds/save): a malformed role
@@ -50,7 +50,10 @@ export async function ingestStructuredJob(input: {
 
   // Authored JDs start as a DRAFT — "Source into Pipeline" takes them live and
   // sources them into the pipeline.
-  // The band's unit: the workspace's market now (the build ran in it moments ago).
-  insertJob(withBandUnit(job, getWorkspaceMarket(workspaceId)), jobContentHash(`${input.title}\n${input.markdown}`), "draft", workspaceId);
+  // The band's unit: the grounded band's OWN (the build's market_salary_cli currency and
+  // period), not the market now — a market changed mid-build must not relabel it. Only a
+  // band with no unit of its own (a client-sent bare pair) reads the workspace's market.
+  const unit = (band && input.salary?.currency ? marketSalaryUnit(input.salary) : null) ?? getWorkspaceMarket(workspaceId);
+  insertJob(withBandUnit(job, unit), jobContentHash(`${input.title}\n${input.markdown}`), "draft", workspaceId);
   return true;
 }

@@ -7,6 +7,8 @@ import { buildLlmConfigEnv } from "./llm-config";
 import { isOffline } from "./offline";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
+import { bandUnitOf, type BandUnit } from "./band-unit";
+import { getWorkspaceMarket, marketSpawnEnv } from "./workspace-market";
 import { buildJobMarkdownStrings, jobToMarkdown } from "@/app/features/library/jobs/jobsMarkdown";
 import type { Job } from "@/app/features/library/jobs/JobsTypes";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
@@ -56,9 +58,15 @@ export function postingSourceLang(postingLangs: readonly string[] | undefined | 
  *  document handed to the model and by anything else that needs the artifact
  *  server-side — one renderer, so a translation can never be a translation of a
  *  document the recruiter never saw. */
-export async function renderPostingMarkdown(job: Job, lang: Locale): Promise<string> {
+export async function renderPostingMarkdown(job: Job, lang: Locale, unit?: BandUnit): Promise<string> {
   const t = await namespaceTranslator(lang);
-  return jobToMarkdown(job, buildJobMarkdownStrings(lang, t));
+  return jobToMarkdown(job, buildJobMarkdownStrings(lang, t, unit));
+}
+
+/** The unit the posting's salary line is printed in — the modal's rule
+ *  (jobsPostingModalLogic.ts): the band's own stamp, else the workspace's market. */
+export function postingBandUnit(job: { bandCurrency?: string | null; bandPeriod?: string | null }, workspaceId: string): BandUnit {
+  return job.bandCurrency ? bandUnitOf(job) : getWorkspaceMarket(workspaceId);
 }
 
 /**
@@ -85,7 +93,7 @@ export async function runPostingTranslation(
   // box the honest answer is the refusal, not a provider error.
   if (isOffline()) return { ok: false, reason: "offline" };
 
-  const body = await renderPostingMarkdown(job, sourceLang);
+  const body = await renderPostingMarkdown(job, sourceLang, postingBandUnit(record, workspaceId));
   if (!body.trim()) return { ok: false, reason: "empty_posting" };
 
   let workdir: string | null = null;
@@ -106,7 +114,7 @@ export async function runPostingTranslation(
         `--source-lang=${sourceLang}`,
         `--target-lang=${targetLang}`,
       ],
-      { signal: options.signal, timeoutMs: TRANSLATE_TIMEOUT_MS, env: buildLlmConfigEnv() }
+      { signal: options.signal, timeoutMs: TRANSLATE_TIMEOUT_MS, env: { ...buildLlmConfigEnv(), ...marketSpawnEnv(workspaceId) } }
     );
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {

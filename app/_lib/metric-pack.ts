@@ -40,13 +40,22 @@ export const MIN_SAMPLE = 8;
  *  it is a quiet quarter. Stated, not hidden. */
 export const MIN_OPEN_ROLES = 3;
 
+/** A money unit is the figure's own currency code, lower-case (markets.ts currencies). */
+export type MoneyUnit = "czk" | "eur" | "gbp";
+
+/** The pack unit for a figure in `currency`; an unknown code reads as the default's. */
+export function moneyUnit(currency: string | null | undefined): MoneyUnit {
+  const c = (currency ?? "").trim().toLowerCase();
+  return c === "eur" || c === "gbp" ? c : "czk";
+}
+
 export type MetricStatus = "measured" | "thin" | "not_measurable";
 
 export type Metric = {
   key: string;
   /** Machine value in `unit`; null iff status is "not_measurable". */
   value: number | null;
-  unit: "days" | "czk" | "usd" | "hours" | "roles_per_recruiter" | "pct";
+  unit: "days" | MoneyUnit | "usd" | "hours" | "roles_per_recruiter" | "pct";
   status: MetricStatus;
   /** How many observations back it — the number a reader needs to judge the value. */
   sample: number;
@@ -103,6 +112,9 @@ export type MetricPackInput = {
    *  falls back to `hired` and the old behaviour. */
   timeToHireSamples?: number | null;
   costPerHireCzk: number | null;
+  /** The currency costPerHireCzk is in (the spend's own; the name is legacy). Absent =
+   *  the default market's. */
+  costPerHireCurrency?: string | null;
   automationRoi: { hoursSaved: number; hoursSavedPerHire: number | null; pctOfManualBaseline: number | null; totalActions: number } | null;
   /** Open roles and the recruiters carrying them — the capacity ratio's two terms. */
   capacity?: { openRoles: number; recruiters: number } | null;
@@ -261,7 +273,7 @@ export function buildMetricPack(input: MetricPackInput, generatedAt: string, s: 
       // sentence further down.
       input.medianTimeToHireDays != null ? s.basisTimeToHireMedian(tthSamples) : s.basisTimeToHireMean(tthSamples)
     ),
-    metric("cost_per_hire", input.costPerHireCzk, "czk", hires, s.basisCostPerHire(hires)),
+    metric("cost_per_hire", input.costPerHireCzk, moneyUnit(input.costPerHireCurrency), hires, s.basisCostPerHire(hires)),
     metric(
       "recruiter_hours_saved",
       roi ? roi.hoursSaved : null,

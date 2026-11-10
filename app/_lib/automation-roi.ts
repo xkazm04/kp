@@ -57,8 +57,13 @@ export type AutomationRoi = {
   totalActions: number;
   minutesSaved: number;
   hoursSaved: number; // 1 decimal
-  hourlyRateCzk: number;
-  czkSaved: number;
+  // The recruiter hourly rate and the money it values the hours at, in the workspace
+  // market's currency (the `Czk` names are legacy). NULL when there is no rate to use:
+  // the org set none and the market has no benchmark the default rate is drawn from
+  // (`rateAbsence`); the hours are still a measurement, the money is not.
+  hourlyRateCzk: number | null;
+  czkSaved: number | null;
+  rateAbsence?: "no_market_benchmark";
   // Baseline-relative framing (UAT M7) — null until there are hires to amortise
   // the saved labor over, so the per-hire figures are never a divide-by-zero lie.
   hires: number;
@@ -85,9 +90,12 @@ export function automationRoi(
   kindCounts: Record<string, number>,
   hourlyRateCzk?: number | null,
   hires?: number | null,
-  manualBaselineHoursPerHire: number = MANUAL_HOURS_PER_HIRE
+  manualBaselineHoursPerHire: number = MANUAL_HOURS_PER_HIRE,
+  // The fallback rate when the org set none: the Czech labour-cost default, or null in a
+  // market without a benchmark (that default is a Czech figure, never relabelled).
+  defaultRate: number | null = DEFAULT_RECRUITER_HOURLY_CZK
 ): AutomationRoi {
-  const rate = hourlyRateCzk != null && hourlyRateCzk > 0 ? hourlyRateCzk : DEFAULT_RECRUITER_HOURLY_CZK;
+  const rate = hourlyRateCzk != null && hourlyRateCzk > 0 ? hourlyRateCzk : defaultRate;
   const actions: RoiAction[] = [];
   let minutesSaved = 0;
   let totalActions = 0;
@@ -101,14 +109,14 @@ export function automationRoi(
   }
   actions.sort((a, b) => b.minutesTotal - a.minutesTotal);
   const hoursSaved = Math.round((minutesSaved / 60) * 10) / 10;
-  const czkSaved = Math.round((minutesSaved / 60) * rate);
+  const czkSaved = rate == null ? null : Math.round((minutesSaved / 60) * rate);
 
   // Per-hire only when there's a hire to divide by; otherwise null (honest gap,
   // mirroring cost-per-hire) instead of inflating a tiny denominator.
   const hireCount = hires != null && hires > 0 ? hires : 0;
   const rawHoursPerHire = hireCount > 0 ? minutesSaved / 60 / hireCount : null;
   const hoursSavedPerHire = rawHoursPerHire != null ? Math.round(rawHoursPerHire * 10) / 10 : null;
-  const czkSavedPerHire = rawHoursPerHire != null ? Math.round(rawHoursPerHire * rate) : null;
+  const czkSavedPerHire = rawHoursPerHire != null && rate != null ? Math.round(rawHoursPerHire * rate) : null;
   // UAT KAT-L1-005 / KAT-ANA-4 — NOT capped. The old Math.min(100, …) was defended as
   // "you can't offset more than the full manual effort", which is true of the CONCEPT
   // and false of the ARITHMETIC: this ratio also exceeds 100 when the denominator is
@@ -127,6 +135,7 @@ export function automationRoi(
     hoursSaved,
     hourlyRateCzk: rate,
     czkSaved,
+    ...(rate == null ? { rateAbsence: "no_market_benchmark" as const } : {}),
     hires: hireCount,
     hoursSavedPerHire,
     czkSavedPerHire,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { setChannelSpend } from "@/app/_lib/db/channels";
+import { getWorkspaceMarket } from "@/app/_lib/workspace-market";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { can } from "@/app/_lib/auth/current-user";
@@ -43,7 +44,9 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
     if (amount !== null && (!Number.isFinite(amount) || amount < 0 || amount > MAX_AMOUNT_CZK)) {
       return NextResponse.json({ error: "Invalid amount." }, { status: 400 });
     }
-    setChannelSpend(channel, amount, ws);
+    // Entered in the workspace market's currency, and stamped with it: a later market
+    // change relabels nothing (docs/architecture/markets.md).
+    setChannelSpend(channel, amount, ws, getWorkspaceMarket(ws).currency);
     // Same reason as /api/analytics/targets: `byChannel[].spendCzk` and every
     // cost-per-hire figure derived from it ride the memoized analytics payload, and
     // the SpendInput reloads it on success — well inside the TTL. Retire this

@@ -458,8 +458,20 @@ sentence stating what was counted, and a renderer must show the status beside th
 `not_measurable` invents no number; `certifiable` is true only when every headline metric is
 `measured`; `recruiter_hours_saved` is sampled in **actions, not hires**; the pack computes
 **no "% improvement vs before"** (kp has no pre-kp baseline for a customer's process); each
-figure keeps its own `unit`, so CZK spend and USD compute cost are never summed. The
+figure keeps its own `unit`, so spend (`czk` / `eur` / `gbp`, the spend's own currency via
+`moneyUnit`) and USD compute cost are never summed. The
 spend-dating fix rides **inside** the existing `basis` string — nothing was added to the shape.
+
+**Money follows the workspace market** (`docs/architecture/markets.md`). Channel spend is
+stamped with the currency it was entered in (`channel_spend.currency`, the market's at entry;
+legacy rows read CZK); a row in another currency than the market's shows it beside the figure
+(`analytics.econ.spendOtherCurrency`), and the blended cost per hire is computed only when
+every spend row shares one currency (`costPerHireCurrency`), else it is null with
+`costPerHireAbsence: "spend_mixed_currency"`. The automation ROI values hours at the org's
+own hourly rate in the market's currency; with no rate set, the 600 CZK default applies only
+in a market with a benchmark — elsewhere the money is null with `rateAbsence:
+"no_market_benchmark"` and the hours stand alone. Every label that said "CZK" takes
+`{currency}` (Czech still reads "Kč").
 
 **Capacity counts owned openings.** The metric pack takes `countOpenRoles(ws).own`:
 live jobs authored by this workspace, excluding the shared reference corpus. The

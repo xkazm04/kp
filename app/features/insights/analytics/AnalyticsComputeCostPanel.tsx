@@ -20,6 +20,7 @@ export function ComputeCostPanel({
   computeCost,
   costPerHireCzk,
   costPerHireAsOf,
+  costPerHireCurrency,
   windowed,
 }: {
   // UAT KAT-ANA-4/KAT-ANA-7 — widened over the client mirror in AnalyticsTypes.ts with
@@ -31,6 +32,8 @@ export function ComputeCostPanel({
   costPerHireCzk: number | null;
   /** Oldest `channel_spend.updated_at` behind the manual leg (UAT KAT-ANA-2). */
   costPerHireAsOf?: string | null;
+  /** The manual leg's own currency (the spend's), named by its code like the USD beside it. */
+  costPerHireCurrency: string;
   windowed: boolean;
 }) {
   const t = useTranslations("analytics.compute");
@@ -125,7 +128,7 @@ export function ComputeCostPanel({
                 ) : null}
               </div>
             </dl>
-            <p className="mt-2 text-sm text-steel">{t("perHireNote")}</p>
+            <p className="mt-2 text-sm text-steel">{t("perHireNote", { currency: costPerHireCurrency })}</p>
           </div>
         </>
       )}

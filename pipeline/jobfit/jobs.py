@@ -152,6 +152,12 @@ class Job(_Base):
     # :data:`SALARY_PERIODS`.
     salary_currency: str | None = None
     salary_period: str | None = None
+    # The stored band's OWN unit (the app's jobs.band_currency/band_period), when the
+    # caller's record carries it (the DB corpus does). Input-only: excluded from every
+    # dump and from the generated schema, so no Job output changes shape. Absent = the
+    # band is in the active market's units, as before.
+    band_currency: str | None = Field(default=None, exclude=True)
+    band_period: str | None = Field(default=None, exclude=True)
     entry_profile: JobEntryProfile | None = None
     # Provenance: names of the fields normalize_job filled with an assumed value —
     # the DEFAULT_POLICY locale defaults, plus "salary_band" when the taxonomy

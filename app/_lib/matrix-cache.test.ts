@@ -120,3 +120,12 @@ test("the archetype-registry digest is an explicit axis: a weight edit misses th
   assert.notEqual(matrixCacheKey({ ...base, registryDigest: "a" }), matrixCacheKey({ ...base, registryDigest: "b" }));
   assert.equal(matrixCacheKey({ ...base, registryDigest: "a" }), matrixCacheKey({ ...base, registryDigest: "a" }));
 });
+
+test("a non-default market is a key axis; the default market leaves every key unchanged", () => {
+  // The spawn carries KP_MARKET, so the same corpus scores with other salary flags in
+  // another market — but a Czech key must equal the pre-market key (cache-key.ts rule).
+  const base = { workspaceId: "ws-a", profilesJson: "[]", jobIds: "j1", jobsJson: "[]", registryDigest: "d0" };
+  assert.equal(matrixCacheKey({ ...base, marketId: "cz" }), matrixCacheKey(base));
+  assert.notEqual(matrixCacheKey({ ...base, marketId: "de" }), matrixCacheKey(base));
+  assert.notEqual(matrixCacheKey({ ...base, marketId: "de" }), matrixCacheKey({ ...base, marketId: "gb" }));
+});

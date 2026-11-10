@@ -37,6 +37,8 @@ export type EconomicsRow = {
   /** When a human last typed `spendCzk`. Rendered beside the derived per-hire figure
    *  so a six-week-old entry reads as six weeks old. */
   spendUpdatedAt: string | null;
+  /** The currency the spend was entered in (null = none recorded / not a channel). */
+  spendCurrency?: string | null;
   costPerHireCzk: number | null;
 };
 
@@ -71,6 +73,7 @@ export function economicsRows(
       hireRatePct: hireRate(r.hired, r.total),
       spendCzk: r.spendCzk,
       spendUpdatedAt: r.spendUpdatedAt,
+      spendCurrency: r.spendCurrency,
       costPerHireCzk: r.costPerHireCzk,
     })),
     ...data.bySource.map((r) => ({

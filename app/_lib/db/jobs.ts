@@ -1112,14 +1112,19 @@ export function listCorpusJobs(workspaceId: string = DEFAULT_WORKSPACE_ID): JobR
   // live roles, never another team's openings.
   const rows = db
     .prepare(
-      `SELECT payload_json FROM jobs
+      `SELECT payload_json, band_currency, band_period FROM jobs
        LEFT JOIN job_workspace_state s ON s.workspace_id = @workspaceId AND s.job_id = jobs.id
        WHERE (COALESCE(s.status, jobs.status) IS NULL OR COALESCE(s.status, jobs.status) = 'published')
          AND (jobs.workspace_id IS NULL OR jobs.workspace_id = @workspaceId) ORDER BY jobs.id`
     )
-    .all({ workspaceId }) as { payload_json: string }[];
+    .all({ workspaceId }) as { payload_json: string; band_currency: string | null; band_period: string | null }[];
+  // The band's own unit rides along (matching.py reads it in _salary_flag, /api/match
+  // labels the band with it). An unstamped row adds no keys, so its payload is unchanged.
   return rows
-    .map((r) => safeRowParse<JobRecord>(r.payload_json, "listCorpusJobs"))
+    .map((r) => {
+      const job = safeRowParse<JobRecord>(r.payload_json, "listCorpusJobs");
+      return job && r.band_currency ? { ...job, bandCurrency: r.band_currency, bandPeriod: r.band_period } : job;
+    })
     .filter((j): j is JobRecord => j !== null);
 }
 

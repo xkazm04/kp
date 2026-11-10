@@ -81,7 +81,7 @@ test("every AI stage in group-eval-run passes a stated deadline", () => {
     /spawnPython\([\s\S]{0,600}?timeoutMs: stageTimeoutMs\(GROUP_EVAL_COMPARE_TIMEOUT_MS\)/,
     "the compare spawn must hand python-runner an explicit timeoutMs (a SIGKILL, not just an abort)",
   );
-  assert.match(src, /rankCandidates\(job, pool, rankStage\.signal\)/, "the ranker must run under the ranking deadline");
+  assert.match(src, /rankCandidates\(job, pool, workspaceId, rankStage\.signal\)/, "the ranker must run under the ranking deadline");
   assert.match(src, /runReasoning\(\{ jobId, profileId: c\.candidateId \}, stage\.signal, workspaceId\)/, "each reasoning run must carry its own deadline");
   assert.doesNotMatch(
     src,

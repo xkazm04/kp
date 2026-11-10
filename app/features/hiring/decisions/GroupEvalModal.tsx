@@ -169,6 +169,7 @@ export function GroupEvalModal({
                 skillRows={skillRows}
                 mustRows={mustRows}
                 roleBand={evaluation.roleSalaryBand ?? []}
+                roleBandCurrency={evaluation.roleSalaryBandCurrency}
                 // The crown reads the SAME predicate as the seal. In committee /
                 // eligibility-list mode the server records the ranking as advisory and
                 // the banner above says "it does not pick or seal a hire"; a moss "Lead"

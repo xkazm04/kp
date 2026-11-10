@@ -1,6 +1,11 @@
 import { APP_CURRENCY, formatSalaryRange } from "./format.ts";
 import { normalizeSalaryBenchmark, type SalaryBenchmark } from "./salary-benchmark.ts";
 import { NO_MARKET_BENCHMARK, type PayPeriod } from "./markets.ts";
+import { bandUnitOf, isSameCurrency, normalizeCurrency, type BandUnit } from "./band-unit.ts";
+
+// The unit primitives live in the leaf band-unit.ts (a route that only labels a band
+// need not load the benchmark normalizer); re-exported so callers keep one import.
+export { bandUnitOf, isSameCurrency, normalizeCurrency, type BandUnit };
 
 // Salary-band validation shared by the JD authoring form (JdTemplates) and the
 // write trust boundary (ingest-job), so the advertised JD band and the
@@ -20,20 +25,6 @@ export type SalaryBand = [number, number];
 // the verdict on `isSameCurrency`, and only feeds same-currency figures to the pure
 // `salaryBandPosition` math.
 
-/** Case/whitespace-insensitive currency code: "czk", " CZK ", and "CZK" all
- *  compare equal; an absent/blank value normalizes to "". */
-export function normalizeCurrency(currency: string | null | undefined): string {
-  return (currency ?? "").trim().toUpperCase();
-}
-
-/** Whether two monetary figures are in the same currency and can therefore be
- *  compared directly (the app does no FX). Used to gate the salary over/under-band
- *  verdict on a match between a candidate's expectation currency and the band's
- *  {@link APP_CURRENCY} denomination. */
-export function isSameCurrency(a: string | null | undefined, b: string | null | undefined): boolean {
-  return normalizeCurrency(a) === normalizeCurrency(b);
-}
-
 // ---- A stored band's own unit (docs/architecture/markets.md) ------------------
 // A role band (jobs.salary_min/max) carries the currency and pay period it was set in
 // (jobs.band_currency / band_period): the workspace's market at write time, or a
@@ -41,19 +32,9 @@ export function isSameCurrency(a: string | null | undefined, b: string | null | 
 // not the workspace market's is SHOWN in its own unit with a label, never converted,
 // and left out of every comparison that assumes one currency.
 
-/** The unit a figure is denominated in: ISO-4217 currency + pay period. */
-export type BandUnit = { currency: string; period: string };
-
 /** Stamp a band's unit onto a job record before `insertJob` writes it. */
 export function withBandUnit<T extends object>(job: T, unit: BandUnit): T & { bandCurrency: string; bandPeriod: string } {
   return { ...job, bandCurrency: normalizeCurrency(unit.currency), bandPeriod: unit.period };
-}
-
-/** The unit a stored band is in. A band with no stamp is legacy or the Czech seed
- *  corpus, which the boot backfill (db/core.ts backfillTenantScope) also reads as
- *  CZK per month — the one rule, so the reader and the backfill cannot disagree. */
-export function bandUnitOf(job: { bandCurrency?: string | null; bandPeriod?: string | null } | null | undefined): BandUnit {
-  return { currency: normalizeCurrency(job?.bandCurrency) || APP_CURRENCY, period: job?.bandPeriod?.trim().toLowerCase() || "month" };
 }
 
 /** The one comparability predicate for two units: same currency AND same period. */
@@ -155,8 +136,15 @@ export function groundedJdBand(analysisJson: string | null | undefined): SalaryB
  *  a band researched in CZK stays CZK after the workspace moves to another market. */
 export function groundedJdUnit(analysisJson: string | null | undefined): BandUnit | null {
   if (!groundedJdBand(analysisJson)) return null;
-  const s = normalizeMarketSalary((JSON.parse(analysisJson as string) as { salary?: unknown }).salary);
-  return { currency: s.currency, period: s.period };
+  return marketSalaryUnit((JSON.parse(analysisJson as string) as { salary?: unknown }).salary);
+}
+
+/** The unit of a `market_salary_cli` band as the build produced it (its own currency and
+ *  period), or null when it holds no usable band. The builder's FIRST ingest stamps this,
+ *  the same rule as the re-sync's {@link groundedJdUnit}. */
+export function marketSalaryUnit(payload: unknown): BandUnit | null {
+  const s = normalizeMarketSalary(payload);
+  return s.available ? { currency: s.currency, period: s.period } : null;
 }
 
 // The grounded market-salary band the JD builder renders and persists, as

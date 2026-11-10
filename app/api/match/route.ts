@@ -4,6 +4,7 @@ import path from "node:path";
 import { listCorpusJobs } from "@/app/_lib/db/jobs";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { marketSpawnEnv } from "@/app/_lib/workspace-market";
+import { bandUnitOf } from "@/app/_lib/salary-band";
 import { writeMatchInput, type MatchInputBody } from "@/app/_lib/match-input";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
@@ -97,6 +98,15 @@ export const POST = withWorkspace(async (workspaceId: string, request: NextReque
     // ResourceWarnings) — a successful match must not be reported as a 500
     // because the interpreter logged a teardown notice.
     const answer = parsePythonJson<Record<string, unknown>>(stdout, stderr);
+    // Each band in its OWN unit (jobs.band_currency/band_period): a job from the static
+    // seed corpus is not in the DB list and reads the default market's (bandUnitOf).
+    if (Array.isArray(answer.matches)) {
+      const byId = new Map(corpusJobs.map((j) => [j.id, j]));
+      answer.matches = (answer.matches as MatchResult[]).map((m) => {
+        const unit = bandUnitOf(byId.get(m.jobId));
+        return m.salaryBand ? { ...m, salaryBandCurrency: unit.currency, salaryBandPeriod: unit.period } : m;
+      });
+    }
     // The server HOLDS what it returned (ADR 0018 amendment): each result's verdict facts
     // are recorded under a run id the response carries, and POST /api/pipeline checks a
     // Match add against them. Only a run for a saved profile / analysis can be filed (the

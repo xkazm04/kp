@@ -5,6 +5,7 @@ import { Check, Copy } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { Analysis } from "@/app/_lib/schemas";
 import { dedupe } from "@/app/_lib/dedupe";
+import { APP_CURRENCY } from "@/app/_lib/format";
 import { copyText } from "@/app/_lib/export-utils";
 import { META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { useCopyFeedback } from "@/app/_components/ui/useCopyFeedback";
@@ -341,7 +342,7 @@ export function EnginePanel({ analysis }: { analysis: Analysis }) {
           </div>
         ) : null}
         {isAnchorBand(anchorBand) ? (
-          <p className="text-sm text-steel">{t("anchorBand", { lo: anchorBand[0], hi: anchorBand[1] })}</p>
+          <p className="text-sm text-steel">{t("anchorBand", { lo: anchorBand[0], hi: anchorBand[1], currency: analysis.salary?.currency || APP_CURRENCY, period: analysis.salary?.period || "month" })}</p>
         ) : null}
         {groundingSources.length > 0 ? (
           <div>

@@ -9,6 +9,7 @@ import { FAIRNESS_GATE_BLOCKED_REJECT, type DecisionOutcome } from "./decision-a
 import { isAgingAlertKind } from "./aging-policy";
 import { planCommit, type CommitSelection, type CommitVerdict } from "./automation-commit-plan";
 import { getPipelineAxis } from "./pipeline-axis-server";
+import { getWorkspaceMarketId } from "./workspace-market";
 import { roleOf, stageHasRole, type StageDef, type StageRole } from "./pipeline-stages";
 import { nextStageOnAxis } from "./db/pipeline-core";
 import { parseKnockoutHold } from "./knockout-hold";
@@ -619,20 +620,30 @@ async function executeAutomationPass(dryRun: boolean, selection?: CommitSelectio
   let workdir: string | null = null;
   try {
     workdir = await createWorkdir();
-    const inputPath = path.join(workdir, "entries.json");
     // Python decides by stage ROLE on each entry's own board and names the axis's own
     // next column — the stamped facts, not the raw stage id.
     const snapshot = withPolicyStageFacts(entries, (ws) => getPipelineAxis(ws).stages);
-    await writeFile(inputPath, JSON.stringify(snapshot), "utf-8");
-
-    const { result } = spawnPython(["-m", "pipeline.jobfit.automation_cli", "policy-pass", "--entries-json", inputPath]);
-    const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) {
-      const err = parseStderrError(stderr, exitCode);
-      throw new AutomationPassError(err.message, err.status);
+    // The sweep spans teams, and KP_MARKET is per process: one spawn per market among
+    // the entries' teams (one spawn on a single-market install, as before).
+    const byMarket = new Map<string, typeof snapshot>();
+    for (const e of snapshot) {
+      const m = getWorkspaceMarketId(e.workspaceId);
+      byMarket.set(m, [...(byMarket.get(m) ?? []), e]);
     }
-
-    const { decisions } = parsePythonJson<{ decisions: AutomationDecision[] }>(stdout, stderr);
+    const decisions: AutomationDecision[] = [];
+    for (const [market, group] of byMarket) {
+      const inputPath = path.join(workdir, `entries-${market}.json`);
+      await writeFile(inputPath, JSON.stringify(group), "utf-8");
+      const { result } = spawnPython(["-m", "pipeline.jobfit.automation_cli", "policy-pass", "--entries-json", inputPath], {
+        env: { KP_MARKET: market },
+      });
+      const { stdout, stderr, exitCode } = await result;
+      if (exitCode !== 0) {
+        const err = parseStderrError(stderr, exitCode);
+        throw new AutomationPassError(err.message, err.status);
+      }
+      decisions.push(...parsePythonJson<{ decisions: AutomationDecision[] }>(stdout, stderr).decisions);
+    }
     // Keep the entry snapshots keyed by id so the apply boundary can re-check the
     // fairness invariant against the SAME archetype/score the policy pass saw.
     const byId = new Map(entries.map((e) => [e.id, e]));

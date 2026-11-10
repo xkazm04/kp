@@ -4,6 +4,7 @@ import { entryIdsWithEvent, listEntriesForJob } from "@/app/_lib/db/pipeline";
 import { buildCandidatePool } from "@/app/_lib/candidate-pool";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { rankPoolForJob } from "@/app/_lib/recruiter-run";
+import { marketSpawnEnv } from "@/app/_lib/workspace-market";
 import { PipelineError, SpawnFailure } from "@/app/_lib/python-runner";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -61,7 +62,7 @@ export const GET = withWorkspace(async (workspaceId: string, request: Request, c
       id,
       entries,
       job,
-      { signal: request.signal },
+      { signal: request.signal, env: marketSpawnEnv(workspaceId) },
     );
 
     // W8-5 (JOB2) — persist the sourcing state on the ranking. "Reach out" and

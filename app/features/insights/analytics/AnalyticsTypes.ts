@@ -42,6 +42,12 @@ export type Analytics = {
    *  among the rows summed into it (a blend is only as current as its stalest input).
    *  Null whenever `costPerHireCzk` is. */
   costPerHireAsOf: string | null;
+  /** The currency of `costPerHireCzk` (the spend's own; `Czk` is a legacy name), and why
+   *  it is null when spend was entered in more than one currency (never summed). */
+  costPerHireCurrency?: string | null;
+  costPerHireAbsence?: "spend_mixed_currency";
+  /** The workspace market's currency: the ROI money and a new spend entry. */
+  moneyCurrency?: string;
   /** UAT KAT-ANA-4 — hires on the EVENT-TIME basis: entries whose TERMINAL TRANSITION
    *  landed inside the window, as distinct from the creation cohort `hired`. Every
    *  per-hire figure with an event-time or ledger-time numerator divides by THIS, so

@@ -8,6 +8,7 @@ import { jdSlugOfJobId } from "@/app/_lib/jd-limits";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
 import { EmptyState } from "./JobsShared";
 import { buildCoachEditParam, COACH_EDIT_PARAM, type CoachEditKind } from "./jobsCoachApply";
+import { salaryNotCompared } from "./jobsCoachSalary";
 import { CoachLedger } from "./coach/CoachLedger";
 import { useRolePatterns } from "./coach/useRolePatterns";
 import type { RolePattern } from "./coach/rolePatterns";
@@ -69,6 +70,8 @@ export function CoachPanel({ jobId, jobTitle }: { jobId: string; jobTitle: strin
   }
 
   const skippedCount = win.skipped?.length ?? 0;
+  // A refused salary comparison is a third state, stated — never "in line with the market".
+  const salaryWhy = salaryNotCompared(win.salary);
   return (
     <div className="space-y-4">
       <p className="text-base text-ink">{t("intro", { jobTitle })}</p>
@@ -91,10 +94,12 @@ export function CoachPanel({ jobId, jobTitle }: { jobId: string; jobTitle: strin
       ) : null}
 
       {patterns.length === 0 ? (
-        <EmptyState icon={ListChecks} title={t("noPatternsTitle")} body={t("noPatternsBody")} />
+        <EmptyState icon={ListChecks} title={t("noPatternsTitle")} body={salaryWhy ? t("noPatternsBodyNoSalary") : t("noPatternsBody")} />
       ) : (
         <CoachLedger patterns={patterns} priorities={priorities} win={win} onPriority={setPriority} onEdit={jdSlug ? stageEdit : null} />
       )}
+
+      {salaryWhy ? <p className="text-meta text-steel">{t("salaryNotCompared", { reason: salaryWhy })}</p> : null}
 
       <p className="text-meta text-steel">{t("footnote")}</p>
     </div>

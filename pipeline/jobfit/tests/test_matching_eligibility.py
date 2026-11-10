@@ -128,6 +128,36 @@ class SalaryFlagTest(unittest.TestCase):
         self.assertEqual(f.state, "flag")
         self.assertIn("x12", f.detail)
 
+    def test_band_in_another_unit_is_read_in_its_own_unit(self) -> None:
+        # A band stored with its own unit (the DB corpus's bandCurrency/bandPeriod) set in
+        # another market than the active one: compared in THAT currency, never relabelled
+        # into the market's, and the detail says whose units it read.
+        other = "EUR" if CUR != "EUR" else "GBP"
+        job = mkjob(salary_min=50_000, salary_max=70_000).model_copy(update={"band_currency": other, "band_period": "month"})
+        f = _flag(_cand(salary_expectation=SalaryExpectation(amount=65_000, currency=CUR, period="month")), job, "salary")
+        self.assertEqual(f.state, "unknown")
+        self.assertIn(f"not comparable: {CUR} vs {other}", f.detail)
+        self.assertIn("band's own units", f.detail)
+        f = _flag(_cand(salary_expectation=SalaryExpectation(amount=65_000, currency=other, period="month")), job, "salary")
+        self.assertEqual(f.state, "ok")
+        self.assertIn(f"{other}/month", f.detail)
+
+    def test_band_stamped_in_the_market_unit_reads_as_before(self) -> None:
+        # The common case (every corpus row is stamped CZK/month on a Czech workspace) is
+        # byte-identical to an unstamped band.
+        plain = mkjob(salary_min=50_000, salary_max=70_000)
+        stamped = plain.model_copy(update={"band_currency": CUR, "band_period": PERIOD})
+        cand = _cand(salary_expectation=SalaryExpectation(amount=80_000, currency=CUR, period=PERIOD))
+        self.assertEqual(_flag(cand, plain, "salary"), _flag(cand, stamped, "salary"))
+
+    def test_band_unit_is_input_only(self) -> None:
+        from pipeline.jobfit.jobs import Job
+
+        job = Job.model_validate({"id": "j", "title": "t", "company": "c", "location": "l", "bandCurrency": "EUR", "bandPeriod": "month"})
+        self.assertEqual((job.band_currency, job.band_period), ("EUR", "month"))
+        self.assertNotIn("bandCurrency", job.model_dump(by_alias=True))
+        self.assertNotIn("bandCurrency", json.dumps(Job.model_json_schema(by_alias=True, mode="serialization")))
+
 
 class LocationFlagTest(unittest.TestCase):
     def test_no_preference_is_unknown(self) -> None:

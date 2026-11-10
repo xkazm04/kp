@@ -59,6 +59,10 @@ export type MatchResult = {
   seniority?: string;
   roleFamily?: string;
   salaryBand?: number[];
+  // The band's own unit (jobs.band_currency/band_period), added by /api/match from the
+  // corpus it handed the matcher. Absent = the default market's (the static seed corpus).
+  salaryBandCurrency?: string;
+  salaryBandPeriod?: string;
   total: number;
   // A closed vocabulary (FIT_TIERS in app/_lib/match-verdict.ts): a sealed Match
   // verdict stores it as a code, so the list lives beside the validator.
@@ -249,7 +253,9 @@ export function provLabel(p: string): { key: ProvenanceKey; tone: string } {
  *  compact scale marker defaults to `"k"` so tests/logs stay stable; callers with
  *  a catalog pass `match.shared.bandUnit`. The rounding and the en-dash are
  *  unchanged. */
-export function formatBandCompact(band?: number[], locale?: string, unit = "k"): string {
+export function formatBandCompact(band?: number[], locale?: string, unit = "k", currency?: string | null): string {
   if (!band || band.length !== 2) return "—";
-  return `${formatGrouped(Math.round(band[0] / 1000), locale)}–${formatGrouped(Math.round(band[1] / 1000), locale)}${unit} ${APP_CURRENCY}`;
+  // `currency` is the band's OWN (MatchResult.salaryBandCurrency, the job's stamp);
+  // absent = the default market's, which every band was before markets existed.
+  return `${formatGrouped(Math.round(band[0] / 1000), locale)}–${formatGrouped(Math.round(band[1] / 1000), locale)}${unit} ${currency || APP_CURRENCY}`;
 }

@@ -10,6 +10,7 @@ import { ensureDb, notAgentSql } from "./core";
 import { JD_ACTIVE_SQL } from "./jobs";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { listChannelSpendDetail } from "./channels";
+import { getWorkspaceMarket } from "../workspace-market";
 import { stageDwellNow, type StageDwellNowRow } from "./analytics-stage-dwell";
 import { DAY_MS, foldCohort, foldSources, windowStart } from "../analytics-cohort";
 
@@ -105,6 +106,12 @@ export type PipelineAnalytics = {
   // current as its stalest input, and this number's whole failure mode is looking
   // current. Null whenever costPerHireCzk is null.
   costPerHireAsOf: string | null;
+  // The currency of costPerHireCzk (the spend rows' own; the `Czk` name is legacy), and
+  // why it is null when spend was entered in more than one currency: never summed.
+  costPerHireCurrency: string | null;
+  costPerHireAbsence?: "spend_mixed_currency";
+  // The workspace market's currency: what the ROI money and a new spend entry are in.
+  moneyCurrency: string;
   // UAT KAT-ANA-4 — the hire count on the EVENT-TIME basis: entries whose TERMINAL
   // TRANSITION landed inside the window. `hired` above is a different population — the
   // creation COHORT (entries CREATED in the window that now stand on a terminal stage)
@@ -287,6 +294,9 @@ export type ChannelEconomics = {
   // this row are derived from that ONE stored number, so they carry its date: a
   // six-week-old entry must read as six weeks old, not as this period's cost.
   spendUpdatedAt: string | null;
+  // The currency `spendCzk` was entered in (the `Czk` names are legacy), which the two
+  // cost columns are in too. Null when no spend is recorded.
+  spendCurrency: string | null;
   costPerApplicantCzk: number | null;
   costPerHireCzk: number | null;
 };
@@ -710,6 +720,7 @@ export function pipelineAnalytics(
         // The date rides with the amount, always — the two cost columns below are
         // nothing but this one row divided by a count (UAT KAT-ANA-2).
         spendUpdatedAt: spend?.updatedAt ?? null,
+        spendCurrency: spend?.currency ?? null,
         // Cost figures only where the division is HONEST: spend entered, a non-zero
         // denominator (0 hires ⇒ no cost-per-hire, not infinity), AND an all-time
         // cohort. spend is a single LIFETIME figure per channel (listChannelSpend has
@@ -759,8 +770,12 @@ export function pipelineAnalytics(
   // recruiter-entered channel spend ÷ hires. Same honesty as the per-channel
   // figure — all-time only (spend is lifetime, not windowed) and only when there's
   // spend AND a hire to divide by; otherwise null ("—").
-  const totalSpendCzk = [...spendByChannel.values()].reduce((sum, v) => sum + (v.amountCzk ?? 0), 0);
+  // Summed only within ONE currency: spend entered under two markets is never added up.
+  const spendCurrencies = new Set([...spendByChannel.values()].map((v) => v.currency));
+  const mixedSpend = spendCurrencies.size > 1;
+  const totalSpendCzk = mixedSpend ? 0 : [...spendByChannel.values()].reduce((sum, v) => sum + (v.amountCzk ?? 0), 0);
   const costPerHireCzk = !cutoffIso && totalSpendCzk > 0 && hired > 0 ? Math.round(totalSpendCzk / hired) : null;
+  const market = getWorkspaceMarket(workspaceId);
   // UAT KAT-ANA-2 — and how old the oldest of those entries is. A blend is only as
   // current as its stalest input, so the OLDEST wins: quoting the newest would let one
   // fresh row launder a set of fossils.
@@ -902,6 +917,9 @@ export function pipelineAnalytics(
     bucketTz: BUCKET_TZ,
     costPerHireCzk,
     costPerHireAsOf,
+    costPerHireCurrency: costPerHireCzk != null ? [...spendCurrencies][0] ?? market.currency : null,
+    ...(mixedSpend && !cutoffIso ? { costPerHireAbsence: "spend_mixed_currency" as const } : {}),
+    moneyCurrency: market.currency,
     hiresClosedInWindow,
     computeCost,
     // b39992b1 — value of the automation over this window, at the stored (or default)
@@ -916,7 +934,9 @@ export function pipelineAnalytics(
       kindCounts,
       targetValues.get(RECRUITER_HOURLY_TARGET_KEY),
       hiresClosedInWindow,
-      targetValues.get(MANUAL_HOURS_TARGET_KEY)
+      targetValues.get(MANUAL_HOURS_TARGET_KEY),
+      // The default rate is a Czech labour-cost figure: none in a market without a benchmark.
+      market.hasBenchmark ? undefined : null
     ),
   };
 }

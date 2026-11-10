@@ -4,6 +4,7 @@ import { FIT_PROMISING_FLOOR } from "./fit-thresholds";
 import { buildCandidatePool } from "./candidate-pool";
 import { listJobStatuses } from "./job-ingest";
 import { rankPoolForJob } from "./recruiter-run";
+import { marketSpawnEnv } from "./workspace-market";
 import { listRediscoveryAlerts, reconcileRediscoveryAlerts, type RediscoveryAlert } from "./rediscovery-alert-store";
 import { withheldCandidateIds } from "./rediscovery-eligibility";
 import { priorDepthBoost, byPriorAwareRank } from "./rediscovery-rank";
@@ -175,7 +176,7 @@ export async function rediscoverForJob(
       result?: { total?: number };
     }[];
     skipped?: { id: string; label: string; reason: string }[];
-  }>(job.id, eligible, job, { signal: opts.signal });
+  }>(job.id, eligible, job, { signal: opts.signal, ...(opts.workspaceId ? { env: marketSpawnEnv(opts.workspaceId) } : {}) });
   // Prior-outcome labels (pickPrior) MUST read the SAME tenant the pool was built
   // for — an unscoped read defaults to the single workspace, so in any other team
   // the "silver medalist" priors would be mislabeled from (or missing against)

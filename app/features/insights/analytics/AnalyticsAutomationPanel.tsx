@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { APP_CURRENCY } from "@/app/_lib/format";
+import { currencySymbol } from "@/app/_lib/org-settings";
 import { useNumberFormat } from "@/app/_lib/use-number-format";
 import { Download } from "lucide-react";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
@@ -20,6 +22,9 @@ export function AutomationPanel({
   impact,
   roi,
   costPerHireCzk,
+  costPerHireCurrency,
+  costPerHireAbsence,
+  moneyCurrency,
   timeToHireDays,
   onSaved,
   decisionsHref,
@@ -27,6 +32,10 @@ export function AutomationPanel({
   impact: AutomationImpact;
   roi: AutomationRoi;
   costPerHireCzk: number | null;
+  /** The blend's own currency (the spend's) and the workspace market's (the ROI's). */
+  costPerHireCurrency?: string | null;
+  costPerHireAbsence?: "spend_mixed_currency";
+  moneyCurrency?: string;
   timeToHireDays: number | null;
   onSaved: () => void;
   decisionsHref: string;
@@ -67,7 +76,15 @@ export function AutomationPanel({
             <ImpactRow label={t(relayConfigured === false ? "commsQueued" : "comms")} value={impact.commsDelivered} />
           </ul>
           {/* b39992b1 — what that automation was WORTH, in recruiter-hours + CZK. */}
-          <RoiLedger roi={roi} costPerHireCzk={costPerHireCzk} timeToHireDays={timeToHireDays} onSaved={onSaved} />
+          <RoiLedger
+            roi={roi}
+            costPerHireCzk={costPerHireCzk}
+            costPerHireCurrency={costPerHireCurrency ?? moneyCurrency ?? APP_CURRENCY}
+            moneyCurrency={moneyCurrency ?? APP_CURRENCY}
+            mixedSpend={costPerHireAbsence === "spend_mixed_currency"}
+            timeToHireDays={timeToHireDays}
+            onSaved={onSaved}
+          />
         </>
       )}
     </div>
@@ -80,15 +97,26 @@ export function AutomationPanel({
 function RoiLedger({
   roi,
   costPerHireCzk,
+  costPerHireCurrency,
+  moneyCurrency,
+  mixedSpend,
   timeToHireDays,
   onSaved,
 }: {
   roi: AutomationRoi;
   costPerHireCzk: number | null;
+  costPerHireCurrency: string;
+  moneyCurrency: string;
+  mixedSpend: boolean;
   timeToHireDays: number | null;
   onSaved: () => void;
 }) {
   const t = useTranslations("analytics.roi");
+  // Each figure in its OWN currency, as the reader writes it ("Kč" in Czech): the ROI in
+  // the workspace market's, the blended cost per hire in the spend's.
+  const locale = useLocale();
+  const currency = currencySymbol(moneyCurrency, locale);
+  const costCurrency = currencySymbol(costPerHireCurrency, locale);
   const tLog = useTranslations("analytics.log");
   // These CZK figures sit inside localized sentences, so they group in the
   // READER's locale rather than a hardcoded cs-CZ (format.ts number-locale contract).
@@ -108,7 +136,7 @@ function RoiLedger({
         [t("rdCostPerHire"), costPerHireCzk ?? "—"],
         [t("rdTimeToHire"), timeToHireDays ?? "—"],
         [t("csvHoursTotal"), roi.hoursSaved],
-        [t("csvCzkTotal"), roi.czkSaved],
+        [t("csvCzkTotal", { currency }), roi.czkSaved ?? "—"],
         [],
         [t("csvKind"), t("csvCount"), t("csvMinsEach"), t("csvMinsTotal")],
         ...roi.actions.map((a) => [kindLabel(tLog, a.kind, { relayConfigured }), a.count, a.minutesEach, a.minutesTotal]),
@@ -124,7 +152,9 @@ function RoiLedger({
       ) : (
         <>
           <p className="mt-1 font-serif text-h2 leading-tight text-moss">
-            {t("headline", { hours: roi.hoursSaved, czk: grouped(roi.czkSaved) })}
+            {roi.czkSaved != null
+              ? t("headline", { hours: roi.hoursSaved, czk: grouped(roi.czkSaved), currency })
+              : t("headlineNoRate", { hours: roi.hoursSaved })}
           </p>
           {/* Measured against the manual baseline (UAT M7): a reduction a leader can
               size, not a bare hour count. Honest "pending" until there's a hire. */}
@@ -135,7 +165,11 @@ function RoiLedger({
           ) : (
             <p className="mt-0.5 text-sm text-steel">{t("perHirePending")}</p>
           )}
-          <p className="mt-0.5 text-sm text-steel">{t("basis", { actions: roi.totalActions, rate: roi.hourlyRateCzk })}</p>
+          <p className="mt-0.5 text-sm text-steel">
+            {roi.hourlyRateCzk != null
+              ? t("basis", { actions: roi.totalActions, rate: roi.hourlyRateCzk, currency })
+              : t("basisNoRate", { actions: roi.totalActions })}
+          </p>
 
           {/* Leadership readout (UAT M7): savings-vs-baseline + cost-per-hire +
               time-to-hire — the three scattered numbers, in one defensible place. */}
@@ -147,8 +181,8 @@ function RoiLedger({
             </div>
             <div>
               <dt className="text-meta uppercase tracking-wide text-steel">{t("rdCostPerHire")}</dt>
-              <dd className="mt-0.5 font-serif text-h3 text-ink">{costPerHireCzk != null ? t("czkValue", { n: grouped(costPerHireCzk) }) : "—"}</dd>
-              <dd className="text-micro text-steel">{t("rdAllTime")}</dd>
+              <dd className="mt-0.5 font-serif text-h3 text-ink">{costPerHireCzk != null ? t("czkValue", { n: grouped(costPerHireCzk), currency: costCurrency }) : "—"}</dd>
+              <dd className="text-micro text-steel">{mixedSpend ? t("rdCostMixed") : t("rdAllTime")}</dd>
             </div>
             <div>
               <dt className="text-meta uppercase tracking-wide text-steel">{t("rdTimeToHire")}</dt>
@@ -172,7 +206,7 @@ function RoiLedger({
               metric={RECRUITER_HOURLY_KEY}
               label={t("rateLabel")}
               value={roi.hourlyRateCzk}
-              suffix={t("rateSuffix")}
+              suffix={t("rateSuffix", { currency })}
               onSaved={onSaved}
             />
             <TargetInput
