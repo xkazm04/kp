@@ -1,0 +1,91 @@
+{
+  "schema": "conform-run/1",
+  "worker": "94612352-a64e-4648-90fe-0b40af18562e",
+  "subject": "comparative-shortlist-evaluation",
+  "evaluatedAt": "2026-11-10T00:44:47.849320+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "tests-matching-taxonomy",
+      "subject": "comparative-shortlist-evaluation",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evidence": "pipeline/jobfit/tests/test_group_compare.py:369 The group-compare tests treat as correct a narrator prompt that receives the named candidates and is asked who leads. They also accept a model-written lead headline. The prompt gets no deterministic separation or robustness status, and no order-swap check exists, so an order-driven lead claim would pass.",
+      "techniques": [
+        {
+          "technique": "counterbalanced-candidate-order",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_group_compare.py:369 The model is asked to rank or name a leader, which fails procedure step 1. KeyPointGroundingTest only checks names and numbers. It does not check the lead or order claims, and no reversed-order rerun is tested."
+        },
+        {
+          "technique": "minimum-cohort-before-a-comparative-claim",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_group_compare.py:273 Locks the GROUP_EVAL_MIN_COHORT floor: at n=1 there is no 'leads', no 'Advance' and no comparative key point, and the state says 'nothing to compare'. Unscored rivals are not counted toward a lead (line 175)."
+        },
+        {
+          "technique": "confidence-band-lead-separation",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_matching.py:398 Covers the band half: a thin record gets a wide band, and each widening has a named driver plus a parallel code. Separation states are not tested in this context; they live in app/_lib/group-eval-separation.ts."
+        },
+        {
+          "technique": "cross-scheme-weight-robustness",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_weight_proposal.py:101 Per-candidate schemes are clamped into bounds with a floor above zero, re-projected to sum to 1, and their direction is preserved. The robustness matrix and the no-op check are not tested in this context."
+        },
+        {
+          "technique": "refuse-a-cross-currency-comparison",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_winnability.py:118 A comparison against a reference (the job band vs a CZK market band) is withheld on a currency mismatch while each figure stays reported. A matching same-currency test (line 135) proves the guard is not blanket."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "comparative-shortlist-evaluation",
+      "context": "match-score-shared-types",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "comparative-shortlist-evaluation",
+      "context": "candidate-profile",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor CandidateMatrix.tsx:21 is a prototype-history comment, so it does not show that no comparative surface exists. The context also sorts each lane 'strongest first' by score (candidateMatrixView.ts:69,89), which is a ranking, so 'makes no comparative claim' is contradicted."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-10T00:44:47.849320+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "comparative-shortlist-evaluation"
+      ],
+      "techniques": [
+        "counterbalanced-candidate-order",
+        "minimum-cohort-before-a-comparative-claim"
+      ],
+      "deviations": 0,
+      "context": "candidate-profile",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-10T00:44:47.849320+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "comparative-shortlist-evaluation"
+      ],
+      "techniques": [
+        "confidence-band-lead-separation",
+        "counterbalanced-candidate-order",
+        "cross-scheme-weight-robustness",
+        "minimum-cohort-before-a-comparative-claim",
+        "refuse-a-cross-currency-comparison"
+      ],
+      "deviations": 1,
+      "context": "tests-matching-taxonomy",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

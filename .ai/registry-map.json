@@ -34742,7 +34742,11 @@
           "revision": 2,
           "changedAt": "2026-09-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_group_compare.py:369 The group-compare tests treat as correct a narrator prompt that receives the named candidates and is asked who leads. They also accept a model-written lead headline. The prompt gets no deterministic separation or robustness status, and no order-swap check exists, so an order-driven lead claim would pass.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:b430bb5e1d99181c",
+          "evaluatedRevision": 2
         },
         {
           "subject": "regulated-credential-gating",

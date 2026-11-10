@@ -30280,6 +30280,68 @@
         "at": "2026-11-10T00:26:03.102824+00:00",
         "reason": "reviewer (sonnet): The claim that a past-TTL entry makes the pane show a loading miss is contradicted by usePalettePreview.ts: the mount's `results` state (lines 42, 65, 78) keeps the old preview under that key and previewStateFor (line 105) renders it as ready while the refetch runs (stale-while-revalidate within a m"
       }
+    },
+    "09520f54-a3ff-4d23-add2-af0340c1e505/comparative-shortlist-evaluation": {
+      "context": "candidate-profile",
+      "subject": "comparative-shortlist-evaluation",
+      "bundle": "recruiting",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T00:44:47.849Z",
+      "techniques": [
+        {
+          "technique": "minimum-cohort-before-a-comparative-claim",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/candidateMatrixView.ts:69 Sorts each lane for scanning but never emits leader or 'strongest of N' wording, so no cohort gate is needed."
+        },
+        {
+          "technique": "counterbalanced-candidate-order",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/candidateMatrixView.ts:89 A ranking read by people, with no model step. The technique says not to rotate such a surface. The name tie-break only orders rows; nothing is styled as first."
+        }
+      ],
+      "withdrawn": {
+        "worker": "94612352-a64e-4648-90fe-0b40af18562e",
+        "state": "not-applicable",
+        "at": "2026-11-10T00:45:12.270643+00:00",
+        "reason": "reviewer (sonnet): The anchor CandidateMatrix.tsx:21 is a prototype-history comment, so it does not show that no comparative surface exists. The context also sorts each lane 'strongest first' by score (candidateMatrixView.ts:69,89), which is a ranking, so 'makes no comparative claim' is contradicted."
+      }
+    },
+    "4c01cda6-93db-4db4-a5fa-d5153653d9c6/comparative-shortlist-evaluation": {
+      "context": "tests-matching-taxonomy",
+      "subject": "comparative-shortlist-evaluation",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T00:44:47.849Z",
+      "worker": "94612352-a64e-4648-90fe-0b40af18562e",
+      "techniques": [
+        {
+          "technique": "counterbalanced-candidate-order",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_group_compare.py:369 The model is asked to rank or name a leader, which fails procedure step 1. KeyPointGroundingTest only checks names and numbers. It does not check the lead or order claims, and no reversed-order rerun is tested."
+        },
+        {
+          "technique": "minimum-cohort-before-a-comparative-claim",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_group_compare.py:273 Locks the GROUP_EVAL_MIN_COHORT floor: at n=1 there is no 'leads', no 'Advance' and no comparative key point, and the state says 'nothing to compare'. Unscored rivals are not counted toward a lead (line 175)."
+        },
+        {
+          "technique": "confidence-band-lead-separation",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_matching.py:398 Covers the band half: a thin record gets a wide band, and each widening has a named driver plus a parallel code. Separation states are not tested in this context; they live in app/_lib/group-eval-separation.ts."
+        },
+        {
+          "technique": "cross-scheme-weight-robustness",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_weight_proposal.py:101 Per-candidate schemes are clamped into bounds with a floor above zero, re-projected to sum to 1, and their direction is preserved. The robustness matrix and the no-op check are not tested in this context."
+        },
+        {
+          "technique": "refuse-a-cross-currency-comparison",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_winnability.py:118 A comparison against a reference (the job band vs a CZK market band) is withheld on a currency mismatch while each figure stays reported. A matching same-currency test (line 135) proves the guard is not blanket."
+        }
+      ]
     }
   }
 }
