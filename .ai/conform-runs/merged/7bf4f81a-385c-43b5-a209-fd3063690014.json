@@ -1,0 +1,143 @@
+{
+ "schema": "conform-run/1",
+ "worker": "7bf4f81a-385c-43b5-a209-fd3063690014",
+ "subject": "job-coordination",
+ "evaluatedAt": "2026-11-10T01:01:56.017107+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "jobs-api",
+   "subject": "job-coordination",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/jobs/[id]/publish/route.ts:171 The go-live receipt (job_golive_receipts) is a real durable job record, opened in the same transaction as the publish flip. But the only way an interrupted 'sourcing' row gets reclaimed is this call, and it runs only when someone POSTs publish again. Reclaim is decided by a fixed 10-minute grace on started_at with no renewed lease, and that grace equals the sourcing child's 10-minute timeout, so a dead executor goes unnoticed until a person clicks again and a slow live run can be taken over.",
+   "techniques": [
+    {
+     "technique": "job-state-machines",
+     "verdict": "deviation",
+     "evidence": "app/_lib/golive-receipt-store.ts:166 The vocabulary is a closed union, but the stored state is cast rather than parsed strictly. finishReceipt writes any state fenced only on attempt, with no transition table at one door."
+    },
+    {
+     "technique": "lease-renewal",
+     "verdict": "deviation",
+     "evidence": "app/_lib/golive-receipt-store.ts:89 The TTL is sized to job duration (it equals python-runner's 10-min DEFAULT_TIMEOUT_MS backstop), not to detection latency. There is no holder and no renewal loop. Fencing via the attempt CAS on finishReceipt (store:258) is the part that is present."
+    },
+    {
+     "technique": "liveness-proof-reclaim",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/golive-receipt-store.ts:294 The holder is a Node request handler that could renew, so the 'no defensible timeout' precondition does not hold. Reclaim is timer-based, and that timer is covered under lease-renewal."
+    },
+    {
+     "technique": "step-position-and-resumability",
+     "verdict": "deviation",
+     "evidence": "app/_lib/golive-run.ts:105 raise_failed records that step 1 (sourcing) completed, but resume always re-runs sourcing first: mode only changes response flags. Re-run safety comes from createPipelineEntry dedupe at the target and is never declared per step."
+    },
+    {
+     "technique": "in-flight-is-a-position",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/pipeline.ts:1637 Both go-live steps converge at the destination (an existing entry is re-landed, and alerts are a projection), so no non-idempotent step sits at the frontier."
+    },
+    {
+     "technique": "no-unrestorable-state-at-a-suspension-point",
+     "verdict": "conformant",
+     "evidence": "app/api/jobs/[id]/publish/route.ts:128 The status flip, open config, meter debit and openReceipt are collapsed into one synchronous transaction, and the receipt is durable before the first await on runGoLive."
+    },
+    {
+     "technique": "no-wall-clock-in-the-advance-contract",
+     "verdict": "conformant",
+     "evidence": "app/api/jobs/[id]/publish/route.ts:22 RunGoLiveParams carries a signal, mode and attempt but no deadline. The time bounds sit on the spawned children (the effects)."
+    },
+    {
+     "technique": "terminal-state-recovery",
+     "verdict": "deviation",
+     "evidence": "app/_lib/golive-receipt-store.ts:290 claimResume classifies per state, but 'done' is the only terminal state, so failure states can be resumed forever with no final failed verdict. A 'sourcing' orphan has no mover-of-last-resort (no reaper, no boot sweep) other than a human re-publish."
+    },
+    {
+     "technique": "job-observability",
+     "verdict": "deviation",
+     "evidence": "app/api/jobs/[id]/publish/route.ts:79 Serves the raw state plus startedAt, with no holder, no stale classification and no next action, so an orphaned 'sourcing' row reads the same as a live one."
+    }
+   ]
+  },
+  {
+   "context": "jobs-table-core",
+   "subject": "job-coordination",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/library/jobs/JobsDraftsPanel.tsx:97 This context only POSTs to the publish route and renders the synchronous response. It creates, owns, executes and recovers no durable work record; the go-live receipt lives in app/_lib and is judged under jobs-api. A search of app/features/library/jobs for heartbeat, claimResume, reaper, checkpoint and finishReceipt found no hits.",
+   "techniques": [],
+   "absenceTerms": [
+    "heartbeat",
+    "claimResume",
+    "reaper",
+    "checkpoint",
+    "finishReceipt"
+   ]
+  },
+  {
+   "context": "jobs-rediscovery",
+   "subject": "job-coordination",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/library/jobs/jobsRediscoveryFeedLogic.ts:119 The 'sweep' here is one synchronous request guarded by an in-memory React `sweeping` flag. No job record, executor, lease or position exists in this context's code, and a search of app/features/library/jobs for heartbeat, claimResume, reaper, checkpoint and finishReceipt found no hits.",
+   "techniques": [],
+   "absenceTerms": [
+    "heartbeat",
+    "claimResume",
+    "reaper",
+    "checkpoint",
+    "finishReceipt"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-10T01:01:56.017107+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "job-coordination"
+   ],
+   "techniques": [
+    "in-flight-is-a-position",
+    "job-observability",
+    "job-state-machines",
+    "lease-renewal",
+    "liveness-proof-reclaim",
+    "no-unrestorable-state-at-a-suspension-point",
+    "no-wall-clock-in-the-advance-contract",
+    "step-position-and-resumability",
+    "terminal-state-recovery"
+   ],
+   "deviations": 1,
+   "context": "jobs-api",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-10T01:01:56.017107+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "job-coordination"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "jobs-table-core",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-11-10T01:01:56.017107+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "job-coordination"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "jobs-rediscovery",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}

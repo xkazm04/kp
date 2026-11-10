@@ -30351,6 +30351,26 @@
           "evidence": "pipeline/jobfit/tests/test_winnability.py:118 A comparison against a reference (the job band vs a CZK market band) is withheld on a currency mismatch while each figure stays reported. A matching same-currency test (line 135) proves the guard is not blanket."
         }
       ]
+    },
+    "a7075610-e714-4a96-82ec-6999c4f8945e/job-coordination": {
+      "context": "jobs-table-core",
+      "subject": "job-coordination",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T01:01:56.017Z",
+      "worker": "7bf4f81a-385c-43b5-a209-fd3063690014",
+      "techniques": []
+    },
+    "82d9357b-d510-47ef-9578-f63aeeea4d3e/job-coordination": {
+      "context": "jobs-rediscovery",
+      "subject": "job-coordination",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T01:01:56.017Z",
+      "worker": "7bf4f81a-385c-43b5-a209-fd3063690014",
+      "techniques": []
     }
   }
 }

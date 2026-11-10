@@ -21338,7 +21338,11 @@
           "revision": 17,
           "changedAt": "2026-10-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsRediscoveryFeedLogic.ts:119 The 'sweep' here is one synchronous request guarded by an in-memory React `sweeping` flag. No job record, executor, lease or position exists in this context's code, and a search of app/features/library/jobs for heartbeat, claimResume, reaper, checkpoint and finishReceipt found no hits.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:68f09609d1498e88",
+          "evaluatedRevision": 17
         },
         {
           "subject": "module-design",
@@ -21492,7 +21496,11 @@
           "revision": 17,
           "changedAt": "2026-10-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/library/jobs/JobsDraftsPanel.tsx:97 This context only POSTs to the publish route and renders the synchronous response. It creates, owns, executes and recovers no durable work record; the go-live receipt lives in app/_lib and is judged under jobs-api. A search of app/features/library/jobs for heartbeat, claimResume, reaper, checkpoint and finishReceipt found no hits.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:68f09609d1498e88",
+          "evaluatedRevision": 17
         },
         {
           "subject": "multi-provider-gateway-plane",
