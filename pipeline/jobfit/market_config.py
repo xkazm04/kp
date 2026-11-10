@@ -167,9 +167,90 @@ BERLIN_MARKET = MarketConfig(
 )
 
 
-# The single switch point every consumer reads. Flip this to re-home the pipeline;
-# leaving it CZECH_MARKET keeps all outputs identical to before this seam existed.
-ACTIVE_MARKET: MarketConfig = CZECH_MARKET
+# ── The PRODUCT market vocabulary: what a workspace owner can pick ────────────────
+#
+# A closed list, mirrored by ``app/_lib/markets.ts`` (MARKET_IDS) and pinned to it by
+# ``app/_lib/markets.test.ts``, which reads this file. Only ``cz`` holds a benchmark
+# dataset. ``de`` and ``gb`` are REAL markets we can denominate honestly (currency,
+# period, hub, rounding grain, a sanity ceiling) but hold NO salary benchmark for:
+# their ``benchmark_source_id`` is empty and ``seniority_default_bands`` is empty ON
+# PURPOSE — the correct configuration for an uncalibrated market is "emit no number"
+# (taxonomy.role_band answers None, the CV salary estimate is withheld with the coded
+# finding ``salary_no_market_benchmark``, an offer routes unpriced to a human). Do not
+# fill them in from a neighbouring market. ``BERLIN_MARKET`` above stays the TEST sample
+# (its ``de-berlin`` block is labelled "NOT real data") and is not pickable.
+#
+# The ceilings are order-of-magnitude sanity bounds, not pay data: 30 000 EUR/month is
+# BERLIN_MARKET's bound, 600 000 GBP/year the neutral GBP bound in pipeline.py.
+DE_MARKET = MarketConfig(
+    market_id="de",
+    currency="EUR",
+    period="month",
+    plausibility_ceiling=30_000,
+    default_location="Berlin",
+    benchmark_source_id="",
+    company_adjustment_max=1.0,
+    company_adjustment_min=1.0,
+    currency_symbol="€",
+    home_lang="de",
+    market_descriptor="German",
+    salary_step=500,
+    region_label="Germany (Berlin)",
+)
+
+GB_MARKET = MarketConfig(
+    market_id="gb",
+    currency="GBP",
+    period="year",
+    plausibility_ceiling=600_000,
+    default_location="London",
+    benchmark_source_id="",
+    company_adjustment_max=1.0,
+    company_adjustment_min=1.0,
+    currency_symbol="£",
+    home_lang="en",
+    market_descriptor="UK",
+    salary_step=1000,
+    region_label="United Kingdom (London)",
+)
+
+MARKETS: Mapping[str, MarketConfig] = MappingProxyType(
+    {m.market_id: m for m in (CZECH_MARKET, DE_MARKET, GB_MARKET)}
+)
+MARKET_IDS: tuple[str, ...] = tuple(MARKETS)
+DEFAULT_MARKET_ID = CZECH_MARKET.market_id
+
+# The env var a spawned CLI reads its workspace's market from. The TS side sets it per
+# spawn (app/_lib/workspace-market.ts); the pipeline never reads the DB for it.
+MARKET_ENV = "KP_MARKET"
+
+
+def has_benchmark(market: MarketConfig) -> bool:
+    """Whether kp holds a salary benchmark dataset for ``market``. False means every
+    figure derived from ``salary_benchmarks.json`` must be a stated absence."""
+    return bool(market.benchmark_source_id)
+
+
+def market_for_id(market_id: str | None) -> MarketConfig:
+    """The product market for ``market_id``; the default for an empty or unknown id."""
+    return MARKETS.get((market_id or "").strip().lower(), CZECH_MARKET)
+
+
+def _resolve_active_market() -> MarketConfig:
+    import os
+    import sys
+
+    raw = os.environ.get(MARKET_ENV, "").strip().lower()
+    if raw and raw not in MARKETS:
+        # An unknown id is a TS/Python vocabulary drift: say so, and stay on the default.
+        print(f"[market_config] unknown {MARKET_ENV}={raw!r}; using {DEFAULT_MARKET_ID!r}", file=sys.stderr)
+    return market_for_id(raw)
+
+
+# The single switch point every consumer reads, resolved ONCE per process from
+# ``KP_MARKET`` (every CLI is spawned per request, so this is per request). Unset —
+# every fixture, eval and test — keeps CZECH_MARKET and all outputs byte-identical.
+ACTIVE_MARKET: MarketConfig = _resolve_active_market()
 
 
 # Human phrasing for a pay period. The JD-extraction prompt used to hardcode

@@ -12,7 +12,8 @@
 // expired is projected from the scrubbed payload and carries the masked label.
 
 import { analysisSchema, type Analysis } from "./schemas";
-import { APP_CURRENCY } from "./format";
+import { DEFAULT_MARKET_ID, MARKETS, type MarketSpec } from "./markets";
+import { getWorkspaceMarket } from "./workspace-market";
 import type { JobRecord } from "./db/core";
 import { loadAnalysis, parseStoredGithubAnalysis, type AnalysisRow } from "./db/analyses";
 import type { AnalysisCohortRecord } from "./db/analysis-cohorts";
@@ -45,6 +46,8 @@ export type ViewDeps = {
   maskName: (label: string) => string;
   /** The status of the run's task row, or null when there is none / it is gone. */
   taskStatus: (taskId: string, workspaceId: string) => TaskStatus | null;
+  /** The workspace's market — the unit a bare role band is read in. Absent = `cz`. */
+  marketOf?: (workspaceId: string) => MarketSpec;
 };
 
 /** "Candidate A".."Z", then "Candidate 27"… — the blind label for a neutral position. */
@@ -57,27 +60,28 @@ export function blindMemberLabel(neutralIndex: number): string {
  *  salaryCurrency/salaryPeriod are the ad's RAW statement, not the band's unit. A band
  *  the ingest stamped from the market anchor (defaultedFields "salary_band") is not the
  *  role's, so it is no band at all. */
-export function cohortRoleBand(job: JobRecord | null): RoleBand | null {
+export function cohortRoleBand(job: JobRecord | null, market: MarketSpec = MARKETS[DEFAULT_MARKET_ID]): RoleBand | null {
   if (!job || !Array.isArray(job.salaryBand) || job.salaryBand.length < 2) return null;
   if ((job.defaultedFields ?? []).includes("salary_band")) return null;
   const [lo, hi] = job.salaryBand;
   const min = Number.isFinite(lo) && lo > 0 ? lo : null;
   const max = Number.isFinite(hi) && hi > 0 ? hi : null;
   if (min === null && max === null) return null;
-  return { currency: APP_CURRENCY, period: "month", min, max };
+  // A bare band is in the workspace's market units (markets.ts).
+  return { currency: market.currency, period: market.period, min, max };
 }
 
 /** What the role asks for, as the why-engine reads it. A seniority the ingest DEFAULTED
  *  (normalize_job's phantom "medior", defaultedFields "seniority") is not the role's, so
  *  it is null; a minimum of 0 years asks for nothing, so it is null too. */
-export function cohortRoleContext(job: JobRecord | null): RoleContext | null {
+export function cohortRoleContext(job: JobRecord | null, market?: MarketSpec): RoleContext | null {
   if (!job) return null;
   const min = job.minYearsExperience;
   const seniority = (job.defaultedFields ?? []).includes("seniority") ? null : job.seniority?.trim() || null;
   return {
     minYears: typeof min === "number" && Number.isFinite(min) && min > 0 ? min : null,
     seniority,
-    band: cohortRoleBand(job),
+    band: cohortRoleBand(job, market),
     roleFamily: job.roleFamily?.trim() || null,
   };
 }
@@ -117,7 +121,7 @@ export function projectAnalysisCohortMembers(
   deps: ViewDeps
 ): ProjectedMember[] {
   const order = deps.engine.neutralOrder(rec.id, rec.members.map((m) => m.memberId));
-  const role = cohortRoleContext(job);
+  const role = cohortRoleContext(job, deps.marketOf?.(rec.workspaceId));
   const loadedAll = rec.members.map((m) =>
     m.analysisSlug ? loadCohortMemberAnalysis(m.analysisSlug, rec.workspaceId, deps) : { analysis: null, withheld: false }
   );
@@ -174,7 +178,7 @@ export function assembleAnalysisCohortView(
     },
     members,
     comments,
-    cohortRoleContext(ctx.job)
+    cohortRoleContext(ctx.job, deps.marketOf?.(rec.workspaceId))
   );
   // Re-asserted, whatever the engine did: a blind cohort's label is its neutral letter.
   if (rec.blind) view.members = view.members.map((m) => ({ ...m, label: blindMemberLabel(m.neutralIndex) }));
@@ -206,5 +210,6 @@ export function cohortViewDeps(): ViewDeps {
     scrubPii: scrubPiiFromPayload,
     maskName: maskCandidateName,
     taskStatus: (taskId, workspaceId) => getTask(taskId, workspaceId)?.status ?? null,
+    marketOf: getWorkspaceMarket,
   };
 }

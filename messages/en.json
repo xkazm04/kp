@@ -540,7 +540,8 @@
       "benchmarkVintageUndated": "Benchmark {source}",
       "benchmarkThin": "thin sample (n={count})",
       "benchmarkNoSample": "no sample recorded (editorial anchor)",
-      "benchmarkAnchor": "Anchored to benchmark {source}, updated {date}"
+      "benchmarkAnchor": "Anchored to benchmark {source}, updated {date}",
+      "noMarketBenchmark": "No benchmark for this market: kp holds no salary data for it, so it does not estimate this candidate’s pay. Figures the job ad or the candidate state are compared in {currency} ({period})."
     },
     "decisionOpenFlags": "Open flags: tick each one you have checked before advancing",
     "decisionAckNeeded": "Acknowledge every open flag to advance.",
@@ -1512,9 +1513,11 @@
     "ORG_SETTINGS_FORBIDDEN": "Only an organization administrator can change the organization’s settings.",
     "ORG_LANGUAGE_INVALID": "That isn’t one of the app’s languages.",
     "ORG_CURRENCY_INVALID": "That isn’t one of the currencies the app offers.",
+    "WORKSPACE_MARKET_INVALID": "That isn’t one of the markets the app offers.",
     "DECISION_CONFIG_FIELDS_REQUIRED": "That rules update named no phase, or carried no rules to save.",
     "DECISION_CONFIG_INVALID": "Those rules aren't valid for this phase.",
     "DECISION_CONFIG_SAVE_FAILED": "Couldn't save these rules. Please try again.",
+    "WORKSPACE_MARKET_SAVE_FAILED": "Could not save the workspace’s market. Please try again.",
     "SCREEN_WAVE_FAILED": "Could not run the screening wave. Please try again.",
     "SCREEN_WAVE_JOB_REQUIRED": "Name the role this screening wave should run on.",
     "ROLE_VIEW_JOB_REQUIRED": "Choose a role to see its candidates side by side.",
@@ -5414,6 +5417,7 @@
       "provWebGrounded": "web-grounded",
       "provEstimated": "estimated",
       "salaryUnavailable": "Salary unavailable",
+      "salaryNoMarketBenchmark": "No benchmark for this market",
       "repoGrounding": "Repo grounding",
       "repoLoc": "{loc} lines of code",
       "roleTraceTitle": "Role lines · stated vs added",
@@ -6102,7 +6106,7 @@
       "colMode": "Mode",
       "colSeniority": "Seniority",
       "colFamily": "Family",
-      "colSalary": "Salary (CZK/mo)",
+      "colSalary": "Salary ({currency}/{period, select, year {yr} hour {hr} other {mo}})",
       "colEntry": "Entry",
       "colStatus": "Status"
     },
@@ -6217,7 +6221,7 @@
         "level": "{seniority} level",
         "salary": "Salary:",
         "salaryEstimate": "Salary (market estimate):",
-        "salaryUnit": "{currency} / month",
+        "salaryUnit": "{currency} / {period, select, year {year} hour {hour} other {month}}",
         "aboutRole": "About the role",
         "whatBring": "What you'll bring",
         "niceToHave": "Nice to have",
@@ -7743,6 +7747,21 @@
     "reviewContactSave": "Save address",
     "reviewContactSaved": "Review address saved.",
     "reviewContactFailed": "Couldn't save the review address.",
+    "market": {
+      "label": "Market",
+      "options": {
+        "cz": "Czech Republic · CZK per month",
+        "de": "Germany · EUR per month",
+        "gb": "United Kingdom · GBP per year"
+      },
+      "changes": "Every pay figure this workspace shows, reads from job ads and CVs, or drafts into an offer uses this market’s currency and pay period, and an ad that names no city is placed in its main city.",
+      "noBenchmark": "kp holds no salary benchmark for this market. Its own pay estimates, the salary-fit rating and the market comparison show “no benchmark for this market” instead of a number, and offers wait for a person to set the amount. Bands that a job ad or a candidate states are still shown, in the currency they were stated in.",
+      "noRewrite": "Changing the market converts nothing already saved: figures keep their numbers. A role’s band saved without a currency of its own is then read in the new market’s currency, so choose the market before you add roles.",
+      "readOnly": "Only someone who can manage teams can change the market.",
+      "saved": "Market saved.",
+      "failed": "Couldn’t save the market.",
+      "loadFailed": "Couldn’t load this workspace’s market."
+    },
     "addMember": "Add",
     "addExisting": "Someone here",
     "addByEmail": "By email",
@@ -17425,6 +17444,7 @@
       "notTechnical": "Not a technical role",
       "noLink": "No GitHub in CV",
       "currencyMismatch": "Other currency",
+      "noMarketBenchmark": "No benchmark here",
       "noJdFit": "No job fit",
       "failed": "Analysis failed",
       "blind": "Hidden (blind)"
@@ -18375,6 +18395,7 @@
         "notTechnical": "Public work is read only for technical roles.",
         "noLink": "The CV links no GitHub profile to read.",
         "currencyMismatch": "Quoted in another currency: shown, never converted or compared.",
+        "noMarketBenchmark": "No salary benchmark for this workspace’s market: kp did not estimate pay, so salary is left out of the comparison, not rated.",
         "noJdFit": "No job-fit reading exists for this candidate.",
         "failed": "The analysis failed, so there is no rating and no reasons.",
         "blind": "Hidden in a blind cohort."

@@ -676,6 +676,8 @@ export const REFUSAL_ERRORS = {
    *  (400). A bad argument, kept apart from ORG_SETTINGS_FORBIDDEN for the same
    *  reason as the language code above. */
   ORG_CURRENCY_INVALID: "That isn't one of the currencies the app offers.",
+  /** The market submitted for the workspace is not one of markets.ts MARKET_IDS (400). */
+  WORKSPACE_MARKET_INVALID: "That isn't one of the markets the app offers.",
   /** The matrix scorer refused the request itself (4xx) — a corpus/profile the grid
    *  asked for that the engine will not score. Not a fault, so it is not withheld: the
    *  recruiter's move is to reload or narrow the scope, not to report a crash. */

@@ -15,6 +15,7 @@ import { isSameCurrency } from "./salary-band";
 import { FIT_PROMISING_FLOOR } from "./fit-thresholds";
 import { poolEntryFromAnalysis, type CandidatePoolEntry } from "./candidate-pool";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { marketSpawnEnv } from "@/app/_lib/workspace-market";
 import { buildLlmConfigEnv } from "./llm-config";
 import { rankPoolForJob } from "./recruiter-run";
 import { computeDifferentiators } from "./group-eval-differentiators";
@@ -341,7 +342,7 @@ async function runGroupCompare(
       // timeoutMs: this is the ONE spawn of the three this module owns directly, so
       // the deadline is enforced by python-runner itself (a SIGKILL, not just an
       // abort) rather than only through the composed signal.
-      { signal, timeoutMs: stageTimeoutMs(GROUP_EVAL_COMPARE_TIMEOUT_MS), env: buildLlmConfigEnv() }
+      { signal, timeoutMs: stageTimeoutMs(GROUP_EVAL_COMPARE_TIMEOUT_MS), env: { ...buildLlmConfigEnv(), ...marketSpawnEnv(workspaceId) } }
     );
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {

@@ -11,6 +11,7 @@ import { dedupeBy } from "@/app/_lib/dedupe";
 import { safeHttpLinks } from "@/app/_lib/safe-url";
 import { PANEL } from "@/app/_components/ui/recipes";
 import { ACTIVE_BENCHMARK, formatBenchmarkAsOf } from "@/app/_lib/salary-benchmark";
+import { salaryWithheldForMarket } from "@/app/_lib/markets";
 import { BulletList, InlineList } from "../shared";
 import { SalaryGauge } from "./SalaryGauge";
 import { confidenceGrade, growthMarkerPercent, roundGrowthTarget } from "./salaryGauge.logic";
@@ -71,6 +72,9 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
   // the model alone and naming a dataset would be a false attribution.
   const anchored = (analysis.metadata?.deterministicEvidence?.anchorBand ?? []).length === 2;
   const benchmarkAsOf = formatBenchmarkAsOf(ACTIVE_BENCHMARK.asOf, locale);
+  // A market kp holds no benchmark for: the engine withheld the estimate (a coded
+  // finding), so the panel states that instead of drawing a 0–0 band.
+  const withheld = salaryWithheldForMarket(analysis.trustFindings);
 
   return (
     <div className="grid gap-5 xl:grid-cols-[380px_1fr]">
@@ -80,6 +84,10 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
             <CircleDollarSign className="h-5 w-5 text-coral-ink" aria-hidden />
             <h3 className="font-serif text-h3 text-ink">{t("panel.salaryEstimate")}</h3>
           </div>
+          {withheld ? (
+            <p className="mt-4 text-body text-steel">{t("panel.noMarketBenchmark", { currency, period: periodLabel })}</p>
+          ) : (
+          <>
           <div className="mt-5">
             <SalaryGauge
               minimum={analysis.salary.minimum}
@@ -118,6 +126,8 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
                   period: periodLabel,
                 })}
           </div>
+          </>
+          )}
         </div>
 
         {analysis.companyContext ? (

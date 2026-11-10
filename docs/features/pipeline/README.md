@@ -2215,6 +2215,17 @@ analysis modal shows the reviewer which must-have failed. No new status, queue o
 
 Tests: `app/api/apply/[id]/ko-decline-door.test.ts` (every door, confirm, clear, edge cases).
 
+## Markets (offer currency and the decision-config `market` phase)
+
+The decision config gained a fifth phase, `market` (`{ marketId }`, closed list
+`cz | de | gb`, default `cz`), read through `app/_lib/workspace-market.ts` and
+written by `PUT /api/workspace/market`. Automation tasks (the AI offer draft and the
+letters) spawn with the workspace's `KP_MARKET`, so a market with no benchmark drafts
+an unpriced offer that waits at `offer_review`; a recruiter's manual draft
+(`offer-manual-draft.ts`) is denominated in the market's currency, and the manual
+offer panel and the decision card's band rail label figures with it. Full contract:
+`docs/architecture/markets.md`.
+
 ## Known gaps
 
 - **The Docket's level 0 does not scale to 100+ waiting decisions.** The owner reviewed the

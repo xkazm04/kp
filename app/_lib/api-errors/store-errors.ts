@@ -337,6 +337,7 @@ export const STORE_ERRORS = {
   // constraint text and the absolute db path; it was forwarding `error.message`
   // verbatim with no code, so the Hiring composer could only paint English.
   DECISION_CONFIG_SAVE_FAILED: "Could not save these rules. Please try again.",
+  WORKSPACE_MARKET_SAVE_FAILED: "Could not save the workspace's market. Please try again.",
   // POST /api/decisions/screen-wave: the only Decisions door that queues rejection
   // email. Its catch sat over better-sqlite3 + the comms dispatcher, and used to
   // forward error.message (SQLITE_* / db path) as the client string.

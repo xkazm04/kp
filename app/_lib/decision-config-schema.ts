@@ -9,6 +9,7 @@
 // source of truth.
 
 import { DEFAULT_REGIME_ID, REGIME_IDS, type RegimeId } from "./compliance-regimes.ts";
+import { DEFAULT_MARKET_ID, isMarketId, MARKET_IDS, type MarketId } from "./markets.ts";
 import { ROLE_FAMILY_SLUGS } from "./role-families.ts";
 // pipeline-stages.ts is equally dependency-free (no DB, no alias), so importing
 // the shipped axis here keeps this module loadable by `node --test` and the
@@ -97,6 +98,14 @@ export type ComplianceRule = {
 export const COMPLIANCE_DEFAULT: ComplianceRule = {
   jurisdiction: DEFAULT_REGIME_ID,
 };
+
+// The workspace's MARKET (Settings → Workspaces): the currency, pay period, hub and
+// benchmark every compensation figure follows (app/_lib/markets.ts). A sibling of the
+// compliance jurisdiction and stored the same tiered way; a team that never chose
+// inherits the org's, else the code default `cz`. Changing it rewrites no stored figure.
+export type MarketRule = { marketId: MarketId };
+
+export const MARKET_DEFAULT: MarketRule = { marketId: DEFAULT_MARKET_ID };
 
 // The hiring-pipeline plan (Settings → Hiring): which interview rounds run and
 // where a human approves. Persisted per workspace through the same tiered
@@ -373,7 +382,7 @@ const REQUIRED_ROLES: readonly PipelineStageRoleWire[] = ["entry", "terminal"];
 // The phases that have a known, validated config schema today. A write to any
 // other phase is rejected at the boundary rather than persisted into a row that
 // `getAllDecisionConfigs` would never read back anyway.
-export const KNOWN_DECISION_PHASES = ["screening", "compliance", "interviewPlan", "pipelineStages"] as const;
+export const KNOWN_DECISION_PHASES = ["screening", "compliance", "interviewPlan", "pipelineStages", "market"] as const;
 export type DecisionPhase = (typeof KNOWN_DECISION_PHASES)[number];
 
 const SCREENING_KEYS = ["autoRejectEnabled", "rejectBottomPercent", "maxMatchToReject", "familyFloors", "holdoutPercent"] as const;
@@ -401,6 +410,7 @@ export type DecisionConfigResult =
   | { ok: true; phase: "compliance"; config: ComplianceRule }
   | { ok: true; phase: "interviewPlan"; config: InterviewPlanRule }
   | { ok: true; phase: "pipelineStages"; config: PipelineStagesRule }
+  | { ok: true; phase: "market"; config: MarketRule }
   | { ok: false; error: string };
 
 export type ScreeningOverrideResult =
@@ -449,6 +459,7 @@ export function validateDecisionConfig(phase: unknown, rawConfig: unknown): Deci
   if (phase === "compliance") return validateComplianceRule(rawConfig as Record<string, unknown>);
   if (phase === "interviewPlan") return validateInterviewPlan(rawConfig as Record<string, unknown>);
   if (phase === "pipelineStages") return validatePipelineStages(rawConfig as Record<string, unknown>);
+  if (phase === "market") return validateMarketRule(rawConfig as Record<string, unknown>);
   return validateScreeningRule(rawConfig as Record<string, unknown>);
 }
 
@@ -699,6 +710,13 @@ function validateLegacyInterviewPlan(raw: Record<string, unknown>): DecisionConf
     phase: "interviewPlan",
     config: migrateLegacyInterviewPlan({ screeningGate: raw.screeningGate, rounds, offerGate: raw.offerGate }),
   };
+}
+
+function validateMarketRule(raw: Record<string, unknown>): DecisionConfigResult {
+  const stray = Object.keys(raw).filter((k) => k !== "marketId");
+  if (stray.length > 0) return { ok: false, error: `Unknown market field(s): ${stray.join(", ")}.` };
+  if (!isMarketId(raw.marketId)) return { ok: false, error: `marketId must be one of: ${MARKET_IDS.join(", ")}.` };
+  return { ok: true, phase: "market", config: { marketId: raw.marketId } };
 }
 
 function validateComplianceRule(raw: Record<string, unknown>): DecisionConfigResult {

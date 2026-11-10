@@ -165,7 +165,13 @@ TAXONOMY_JSON = REPO_ROOT / "data" / "taxonomy.json"
 # caches miss. The fingerprint below is NOT re-recorded: this fingerprint does not
 # hash pipeline.py, which is why nothing forced the bump.
 EXPECTED_PROMPT_VERSION = "v8-2026-10-07-checked-strengths"
-EXPECTED_ANALYSIS_FINGERPRINT = "ef5b860b26dd38e3a81b572d4860157f4000cbd79472d8a5600608230bb6a3ce"
+# NOTE (markets, 2026-11-10): re-recorded when the prompt's salary rules began
+# rendering from market_config.ACTIVE_MARKET (gemini._anchor_rule / _market_hub). For
+# the default market the RENDERED prompt is byte-identical (compared before/after,
+# grounded and ungrounded); a non-default market already keys its own cache entries
+# (cache-key.ts `marketId`). No cached analysis output changed, so PROMPT_VERSION is
+# intentionally NOT bumped.
+EXPECTED_ANALYSIS_FINGERPRINT = "2ee8edae1f6d9a0f47a9bd8775e4c7dfbf7c6f44ad313aabd65fb4c783163416"
 
 
 def _strip_ts_comments(text: str) -> str:

@@ -94,7 +94,7 @@ export const CELL_TIERS = ["strong", "solid", "thin", "weak", "absent"] as const
 export type CellTier = (typeof CELL_TIERS)[number];
 
 /** Why a cell has no rating. `pending` = the member's analysis has not landed yet. */
-export const ABSENT_REASONS = ["pending", "notRead", "notTechnical", "noLink", "currencyMismatch", "noJdFit", "failed", "blind"] as const;
+export const ABSENT_REASONS = ["pending", "notRead", "notTechnical", "noLink", "currencyMismatch", "noMarketBenchmark", "noJdFit", "failed", "blind"] as const;
 export type AbsentReason = (typeof ABSENT_REASONS)[number];
 
 /**

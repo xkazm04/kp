@@ -541,6 +541,16 @@
       ]
     },
     {
+      "doc": "docs/architecture/markets.md",
+      "sourceGlobs": [
+        "app/_lib/markets.ts",
+        "app/_lib/workspace-market.ts",
+        "app/_lib/use-workspace-market.ts",
+        "app/api/workspace/market/**",
+        "pipeline/jobfit/market_config.py"
+      ]
+    },
+    {
       "doc": "docs/architecture/localization.md",
       "sourceGlobs": [
         "app/_lib/use-error-message.ts",

@@ -6,6 +6,7 @@ import { withScopedPosition } from "./matrix-positions";
 import { countMatrixProfiles, listMatrixProfiles, listOpenPositions, MATRIX_POOL_CAP, pipelinePlacements } from "@/app/_lib/db/profiles";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { cleanupWorkdir, createWorkdir, engineRefusal, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
+import { marketSpawnEnv } from "@/app/_lib/workspace-market";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { matrixEngineAnswer, MATRIX_GRID_SURFACE } from "./matrix-error-code";
 import { createBoundedCache, matrixCacheKey } from "@/app/_lib/matrix-cache";
@@ -152,7 +153,7 @@ export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
       ],
       // Abandoned request SIGKILLs the child + reaches finally→cleanupWorkdir instead
       // of orphaning it to the 600s backstop and leaking the temp dir.
-      { signal: request.signal }
+      { signal: request.signal, env: marketSpawnEnv(ws) }
     );
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {

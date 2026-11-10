@@ -10,6 +10,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { useWorkspaceMarket } from "@/app/_lib/use-workspace-market";
 import { namespaceTranslator } from "@/app/_lib/catalog-translator";
 import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import { buildUrl } from "@/app/features/shell/tabs";
@@ -219,12 +220,14 @@ export function useJobPostingModalLogic(
   // common case (posting language == app language, the default) renders on first
   // paint with nothing to await.
   const tRoot = useTranslations();
+  // A bare band is in the workspace's market units (markets.ts).
+  const market = useWorkspaceMarket();
   const localStrings = useMemo(
     () =>
       buildJobMarkdownStrings(appLocale, Object.assign((key: string, values?: Record<string, string | number>) => tRoot(key as never, values as never), {
         has: (key: string) => tRoot.has(key as never),
-      })),
-    [appLocale, tRoot]
+      }), market),
+    [appLocale, tRoot, market]
   );
   // A DIFFERENT posting language needs that language's catalog, which the page has
   // not loaded — fetch it lazily (a separate chunk per locale, so the modal never
@@ -235,12 +238,12 @@ export function useJobPostingModalLogic(
     if (postingLang === appLocale) return;
     let alive = true;
     void namespaceTranslator(postingLang).then((t) => {
-      if (alive) setForeignStrings({ lang: postingLang, strings: buildJobMarkdownStrings(postingLang, t) });
+      if (alive) setForeignStrings({ lang: postingLang, strings: buildJobMarkdownStrings(postingLang, t, market) });
     });
     return () => {
       alive = false;
     };
-  }, [postingLang, appLocale]);
+  }, [postingLang, appLocale, market]);
   const strings = postingLang === appLocale ? localStrings : foreignStrings?.lang === postingLang ? foreignStrings.strings : localStrings;
   const markdown = useMemo(() => jobToMarkdown(job, strings), [job, strings]);
 

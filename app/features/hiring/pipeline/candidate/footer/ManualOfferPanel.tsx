@@ -8,11 +8,13 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { BTN_PRIMARY, FIELD, META_LABEL } from "@/app/_components/ui/recipes";
-import { APP_CURRENCY } from "@/app/_lib/format";
+import { useWorkspaceMarket } from "@/app/_lib/use-workspace-market";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 export function ManualOfferPanel({ entryId, onChanged }: { entryId: string; onChanged: () => void }) {
   const t = useTranslations("pipeline.candidate.footer");
+  // The draft is denominated in the workspace's market (offer-manual-draft.ts).
+  const marketCurrency = useWorkspaceMarket().currency;
   const errMsg = useErrorMessage();
   const [salary, setSalary] = useState("");
   const [busy, setBusy] = useState(false);
@@ -49,7 +51,7 @@ export function ManualOfferPanel({ entryId, onChanged }: { entryId: string; onCh
   return (
     <div className="space-y-2">
       <label htmlFor="manual-offer-salary" className={META_LABEL}>
-        {t("manualOfferAmount", { currency: APP_CURRENCY })}
+        {t("manualOfferAmount", { currency: marketCurrency })}
       </label>
       <input
         id="manual-offer-salary"

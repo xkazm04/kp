@@ -17,6 +17,8 @@ const REASON_PATHS: Record<AbsentReason, string[]> = {
   noLink: ["M6.5 9.5 5 11a2.1 2.1 0 0 1-3-3l1.5-1.5", "M9.5 6.5 11 5a2.1 2.1 0 0 1 3 3l-1.5 1.5", "M7 4.5 6.5 3", "M9.5 12.5 9 11"],
   // another currency: two coins that do not stack
   currencyMismatch: ["M6 8.5a3.2 3.2 0 1 0 0-.01", "M10 7.5a3.2 3.2 0 1 0 0-.01", "M2.5 13.5 13.5 2.5"],
+  // no benchmark for the market: one coin, struck through
+  noMarketBenchmark: ["M8 8a3.2 3.2 0 1 0 0-.01", "M2.5 13.5 13.5 2.5"],
   // no job fit: a target with nothing on it
   noJdFit: ["M8 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z", "M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"],
   // failed: a cross

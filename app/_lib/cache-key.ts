@@ -71,6 +71,9 @@ export type CacheKeyInput = {
   // previous model's analysis for the whole TTL after a switch. Appended only when
   // set: the default route (no routing row) keeps its pre-axis key.
   llmRoute?: string;
+  // The workspace's market (markets.ts) when it is NOT the default: the salary estimate
+  // and its anchor change with it. Omitted for `cz`, so the default key is unchanged.
+  marketId?: string;
 };
 
 export function computeCacheKey(input: CacheKeyInput): string {
@@ -120,6 +123,10 @@ export function computeCacheKey(input: CacheKeyInput): string {
   if (input.llmRoute) {
     field("llmroute");
     field(input.llmRoute);
+  }
+  if (input.marketId && input.marketId !== "cz") {
+    field("market");
+    field(input.marketId);
   }
   return h.digest("hex");
 }

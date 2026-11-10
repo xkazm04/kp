@@ -1,4 +1,4 @@
-import { APP_CURRENCY } from "@/app/_lib/format";
+import { DEFAULT_MARKET_ID, MARKETS, type MarketSpec } from "@/app/_lib/markets";
 import { LOCALES, type Locale } from "@/i18n/locales";
 import { splitRequirements, type Job } from "./JobsTypes";
 
@@ -93,7 +93,13 @@ export type PostingLookup = {
  *  `t` takes ROOT-level keys because the table spans two namespaces — the
  *  posting's own copy (`jobs.posting.doc.*`) and the shared enum labels
  *  (`enums.*`), which must read the same in a posting as they do in the app. */
-export function buildJobMarkdownStrings(locale: PostingLocale, t: PostingLookup): JobMarkdownStrings {
+/** `market` is the workspace's (markets.ts): a bare band is in its currency per its
+ *  period. The default reproduces the Czech posting exactly. */
+export function buildJobMarkdownStrings(
+  locale: PostingLocale,
+  t: PostingLookup,
+  market: MarketSpec = MARKETS[DEFAULT_MARKET_ID]
+): JobMarkdownStrings {
   const doc = (key: string, values?: Record<string, string | number>) => t(`jobs.posting.doc.${key}`, values);
   const enumLabel: JobMarkdownStrings["enumLabel"] = (group, slug) => {
     const s = slug.trim();
@@ -113,7 +119,7 @@ export function buildJobMarkdownStrings(locale: PostingLocale, t: PostingLookup)
     // form in the market's home language, the same rule the Salary column header
     // already follows (messages/cs.json "Mzda (Kč/měs)") — so its message ignores
     // the placeholder on purpose.
-    salaryUnit: doc("salaryUnit", { currency: APP_CURRENCY }),
+    salaryUnit: doc("salaryUnit", { currency: market.currency, period: market.period }),
     aboutRole: doc("aboutRole"),
     whatBring: doc("whatBring"),
     niceToHave: doc("niceToHave"),

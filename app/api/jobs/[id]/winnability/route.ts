@@ -4,6 +4,7 @@ import path from "node:path";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { buildCandidatePool } from "@/app/_lib/candidate-pool";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
+import { marketSpawnEnv } from "@/app/_lib/workspace-market";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import {
@@ -72,7 +73,7 @@ export const GET = withWorkspace(async (ws: string, request: Request, context: {
     // child instead of letting it run to the backstop and pile up.
     const { result } = spawnPython(
       ["-m", "pipeline.jobfit.winnability_cli", "--input-json", inputPath, "--job-json", jobPath],
-      { signal: request.signal, timeoutMs: WINNABILITY_TIMEOUT_MS },
+      { signal: request.signal, timeoutMs: WINNABILITY_TIMEOUT_MS, env: marketSpawnEnv(ws) },
     );
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {

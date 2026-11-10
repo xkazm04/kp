@@ -18,7 +18,8 @@ import { useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { META_LABEL } from "@/app/_components/ui/recipes";
-import { APP_CURRENCY, RATING_MAX } from "@/app/_lib/format";
+import { RATING_MAX } from "@/app/_lib/format";
+import { useWorkspaceMarket } from "@/app/_lib/use-workspace-market";
 import { isNotAssessedRating } from "@/app/_lib/interview-scorecard";
 import type { Entry } from "@/app/features/shared/decisionsTypes";
 import type { JobPeerContext, PeerScore } from "./decisionsPeerCompare";
@@ -84,6 +85,8 @@ export function AiReviewCardLadder({
   unbounded?: boolean;
 }) {
   const t = useTranslations("decisions.summary");
+  // The role band is bare [min, max] in the workspace's market currency.
+  const bandCurrency = useWorkspaceMarket().currency;
   const own = peerFacts?.byEntry[entry.id] ?? null;
   const salary = own?.salary ?? null;
   const band = peerFacts?.salaryBand ?? null;
@@ -149,7 +152,7 @@ export function AiReviewCardLadder({
       )}
       {salary && band ? (
         <div className="mt-2 border-t border-stone-200 pt-2">
-          <SalaryBandRail band={band} salary={salary} bandCurrency={APP_CURRENCY} />
+          <SalaryBandRail band={band} salary={salary} bandCurrency={bandCurrency} />
         </div>
       ) : null}
       {isScorecard ? (

@@ -1890,6 +1890,20 @@ Known gaps: the weight seam above. The ledger derives only from the winnability
 payload — richer per-candidate patterns (a seniority mismatch, an archetype skew)
 would need `GET /api/jobs/[id]/candidates`, which spawns a second CLI per open.
 
+## Markets: the band's unit, the hub and the market salary
+
+A job's `salaryBand` is a bare pair in the workspace's market units
+(`docs/architecture/markets.md`). Ad ingest and JD normalize spawn with `KP_MARKET`
+(`job-ingest.ts` takes an `env` argument; `/api/jobs/ingest`, `/api/jds/[slug]`,
+its `ingest-job` and `revisions`, and `jd-ingest.ts` pass `marketSpawnEnv(ws)`), so
+an ad with no city is placed in the market's hub and a market without a benchmark
+stamps no defaulted band. The JD builder's market salary returns
+`absence: "no_market_benchmark"` there (ledger card: "No benchmark for this market")
+and a `period` for a year-denominated market. The Roles table header and the posting
+unit read the market's currency and period (`jobs.table.colSalary`,
+`jobs.posting.doc.salaryUnit`). Winnability reports `marketAbsence` instead of a
+"not below market" verdict when no benchmark exists.
+
 ## The role lifecycle: open, filled, closed
 
 The Roles tab is the desk of **open and historical** roles. Its eighth column used to

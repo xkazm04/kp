@@ -34,6 +34,7 @@ from typing import Any
 from .devcase.provenance import generate_with_fallback, str_list as _str_list
 from .i18n import language_directive
 from .jobs import Job
+from .market_config import ACTIVE_MARKET
 
 AGENT_FIT_PROMPT_VERSION = "agent-fit-v1"
 
@@ -150,6 +151,10 @@ def build_budget(job: Job) -> dict[str, Any]:
     None`` with an honest ref rather than a fabricated figure.
     """
     band = job.salary_band or []
+    if ACTIVE_MARKET.currency != "CZK":
+        # The only anchor we hold is CZK->USD and the app does no FX: a band in another
+        # market's currency gets no suggestion rather than a CZK-rate conversion of EUR.
+        return {"suggestedMonthlyUsd": None, "rule": BUDGET_RULE, "salaryBandRef": f"no fixed USD anchor for {ACTIVE_MARKET.currency}"}
     if len(band) >= 2 and band[0] > 0 and band[1] > 0:
         midpoint = (band[0] + band[1]) / 2.0
         usd = round(midpoint * 0.02 / CZK_PER_USD, 2)

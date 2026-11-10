@@ -175,6 +175,16 @@ Other drift from the draft: `profile_extract` is no longer a seat (not in
 CV prompt is v8 not v6; `screening-v3` → `v4`, `role-design-v4` → `v5`; the
 draft's "voice transport has two answers" gap still holds.
 
+## The market rides every pay-reasoning spawn
+
+`KP_MARKET` (`app/_lib/workspace-market.ts` `marketSpawnEnv`) joins
+`buildLlmConfigEnv()` on the spawns that price, parse or reason about pay
+(`{ ...buildLlmConfigEnv(), ...marketSpawnEnv(ws) }`; `llm-spawn-contract.test.ts`
+accepts that shape). `market_config.ACTIVE_MARKET` resolves from it at import. The CV
+analysis prompt's salary rules are rendered from the active market and are
+byte-identical for `cz`; a market with no benchmark tells the model there is no
+anchor. See `docs/architecture/markets.md`.
+
 ## Known gaps
 
 - **JD ingest has no degrade path and no prompt version.** A keyless install can

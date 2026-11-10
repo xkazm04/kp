@@ -438,6 +438,8 @@ export async function runAnalyzeCohortTask(ctx: ExternalTaskCtx): Promise<Cohort
     import("./task-external-runners"),
   ]);
   const ws = ctx.workspaceId;
+  // The team's market rides the comparative pass (the salary dimension reasons in it).
+  const marketEnv = (await import("./workspace-market")).marketSpawnEnv(ws);
   const cohortId = typeof ctx.params.cohortId === "string" ? ctx.params.cohortId : "";
   const githubBudgetKey = typeof ctx.params.githubBudgetKey === "string" ? ctx.params.githubBudgetKey : null;
   const rec0 = cohortId ? store.getAnalysisCohort(cohortId, ws) : null;
@@ -549,7 +551,7 @@ export async function runAnalyzeCohortTask(ctx: ExternalTaskCtx): Promise<Cohort
         const { result } = runner.spawnPython(["-m", "pipeline.jobfit.cohort_compare_cli", "--input-json", inputPath, "--lang", input.lang], {
           signal: ctx.signal,
           timeoutMs: COHORT_COMPARE_TIMEOUT_MS,
-          env: buildLlmConfigEnv(),
+          env: { ...buildLlmConfigEnv(), ...marketEnv },
         });
         const { stdout, stderr, exitCode } = await result;
         if (exitCode !== 0) throw new runner.PipelineError(runner.parseStderrError(stderr, exitCode));

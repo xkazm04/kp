@@ -1784,6 +1784,17 @@ in the report language (en/cs/de/fr) — with `engine: "keyless"`.
 - The analysis-vs-cohort `reportLang`/blind settings are chosen on the run sheet; a CV-only
   run (no JD), a multi-CV same-person compare and a GitHub-only run have no studio path.
 
+## Markets: a withheld salary estimate
+
+CV analysis spawns with the workspace's `KP_MARKET` (and the analysis cache key gains
+a `market` field for a non-default market only). In a market kp holds no benchmark
+for, the engine withholds its salary estimate (`pipeline.withhold_uncalibrated_salary`:
+an empty band in the market's units plus the finding `salary_no_market_benchmark`),
+the report's Salary tab states the absence instead of a 0–0 gauge, and the Cohort
+Studio's salary cell is absent with reason `noMarketBenchmark` — out of the
+comparison, never rated as a zero. A role band in the cohort is read in the market's
+currency and period. See `docs/architecture/markets.md`.
+
 ## Known gaps
 
 - Salary anchoring still uses the job's band rather than a candidate-seniority

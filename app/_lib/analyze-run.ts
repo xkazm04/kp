@@ -11,6 +11,8 @@ import { saveAnalysis } from "@/app/_lib/db/analyses";
 import { recordMeterUsage } from "@/app/_lib/billing";
 import { logAnalyze, type AnalyzeLog } from "@/app/_lib/logger";
 import { assertConfinedToWorkdir, cleanupWorkdir, flagArg, isSpawnTimeout, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
+import { marketSpawnEnv } from "@/app/_lib/workspace-market";
+import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import { buildLlmConfigEnv, llmRouteFingerprint } from "@/app/_lib/llm-config";
 import { ANALYZE_PHASE } from "@/app/_lib/analyze-phases";
 import { externalRunner } from "@/app/_lib/task-external-runners";
@@ -370,6 +372,8 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
       p.variants.map(async ({ label, cvPath }): Promise<VariantResult> => {
         try {
           const cvBytes = await readFile(cvPath);
+          // The workspace's market, read once: it keys the cache AND rides the spawn.
+          const spawnMarket = marketSpawnEnv(p.workspace ?? DEFAULT_WORKSPACE_ID);
           const cacheKey = computeCacheKey({
             cvBytes,
             jobDescriptionText: p.jobDescriptionText ?? "",
@@ -382,6 +386,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
             jobStructureJson: jobStructureJson ?? undefined,
             archetypeRegistryDigest: registryDigest,
             llmRoute,
+            marketId: spawnMarket.KP_MARKET,
           });
 
           const cached = lookupCachedAnalysis(cacheKey);
@@ -412,7 +417,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
           const { result } = spawnPython(cliArgs(cvPath, p, jobStructurePath), {
             signal,
             timeoutMs: ANALYZE_TIMEOUT_MS,
-            env: buildLlmConfigEnv(),
+            env: { ...buildLlmConfigEnv(), ...spawnMarket },
           });
           const { stdout, stderr, exitCode } = await result;
           if (exitCode !== 0) {

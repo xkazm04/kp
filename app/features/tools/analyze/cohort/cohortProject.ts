@@ -51,6 +51,7 @@ import {
   trustRaw,
 } from "./cohortFormula.ts";
 import { cohortCriteria, emptyWhy, memberWhy, salaryWhy, settleWhy } from "./cohortWhy.ts";
+import { salaryWithheldForMarket } from "../../../../_lib/markets.ts";
 
 export {
   clampRating,
@@ -275,6 +276,9 @@ function salaryLabel(key: "cells.salaryBand" | "cells.salaryCohort", s: Analysis
 function salaryCell(analysis: Analysis, band: RoleBand | null): CohortCell {
   const s = analysis.salary;
   if (!s || !Number.isFinite(s.midpoint) || !s.currency || !s.period) return absentCell("salary", "notRead");
+  // The engine withheld the estimate (no benchmark in this market): stated, never rated
+  // as a 0 midpoint, so it drops out of the salary comparison visibly.
+  if (salaryWithheldForMarket(analysis.trustFindings)) return absentCell("salary", "noMarketBenchmark");
   if (usableBand(band)) {
     const label = salaryLabel("cells.salaryBand", s);
     // A figure in another currency or pay basis is shown on its own record, never rated.

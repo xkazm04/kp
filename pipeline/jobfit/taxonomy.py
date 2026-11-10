@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .education import CLASSIFY_PRIORITY
-from .market_config import ACTIVE_MARKET, MarketConfig
+from .market_config import ACTIVE_MARKET, DEFAULT_MARKET_ID, MarketConfig, has_benchmark
 
 _LOG = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ _raw_markets = _ALL_BENCHMARKS.get("markets")
 if isinstance(_raw_markets, dict) and _raw_markets:
     _MARKET_BLOCKS: dict[str, Any] = _raw_markets
 elif isinstance(_ALL_BENCHMARKS.get("roles"), list):
-    _MARKET_BLOCKS = {ACTIVE_MARKET.market_id: _ALL_BENCHMARKS}
+    _MARKET_BLOCKS = {DEFAULT_MARKET_ID: _ALL_BENCHMARKS}
 else:
     raise RuntimeError(
         f"{_BENCHMARKS_PATH} must contain either a non-empty 'markets' object keyed by "
@@ -94,16 +94,20 @@ _ROLES_BY_MARKET: dict[str, list[dict[str, Any]]] = {
     _mid: _validate_roles(_block, _mid) for _mid, _block in _MARKET_BLOCKS.items()
 }
 
-if ACTIVE_MARKET.market_id not in _MARKET_BLOCKS:
+if ACTIVE_MARKET.market_id not in _MARKET_BLOCKS and has_benchmark(ACTIVE_MARKET):
     raise RuntimeError(
         f"{_BENCHMARKS_PATH}: the active market {ACTIVE_MARKET.market_id!r} has no benchmark "
         f"block. Known markets: {sorted(_MARKET_BLOCKS)}."
     )
 
-# The active market's block drives every market-derived global below (ROLE_FAMILIES,
-# DEFAULT_FAMILY, the role-family vocabulary). For the Czech default this is the same
-# data the flat file exposed, so those globals are byte-identical.
-_BENCHMARKS: dict[str, Any] = _MARKET_BLOCKS[ACTIVE_MARKET.market_id]
+# The block that defines the role-family VOCABULARY (ROLE_FAMILIES, DEFAULT_FAMILY).
+# The active market's own block when it has one — for the Czech default the same data
+# the flat file exposed, so those globals are byte-identical. A market with NO
+# benchmark (market_config.has_benchmark False) still classifies roles, so it borrows
+# the default market's family list — the names only; role_band never reads another
+# market's numbers (see _market_roles).
+_VOCAB_MARKET_ID = ACTIVE_MARKET.market_id if ACTIVE_MARKET.market_id in _MARKET_BLOCKS else DEFAULT_MARKET_ID
+_BENCHMARKS: dict[str, Any] = _MARKET_BLOCKS[_VOCAB_MARKET_ID]
 
 # Validate the taxonomy shape up front: every consumer assumes each term has an
 # 'id' and a 'match' list, so a missing 'terms' array or a malformed entry is a
@@ -124,7 +128,13 @@ for _i, _entry in enumerate(_raw_terms):
     _TERMS.append(_entry)
 
 # The active market's validated roles (ROLE_FAMILIES[0] is the fallback default).
-_ROLES: list[dict[str, Any]] = _ROLES_BY_MARKET[ACTIVE_MARKET.market_id]
+_ROLES: list[dict[str, Any]] = _ROLES_BY_MARKET[_VOCAB_MARKET_ID]
+
+
+def _market_roles(market: MarketConfig) -> list[dict[str, Any]]:
+    """``market``'s OWN benchmark roles, or [] when it holds no block: an uncalibrated
+    market answers "no band", never the default market's figures in its currency."""
+    return _ROLES_BY_MARKET.get(market.market_id, [])
 
 ROLE_FAMILIES: tuple[str, ...] = tuple(role["family"] for role in _ROLES)
 ROLE_FAMILY_SET: frozenset[str] = frozenset(ROLE_FAMILIES)
@@ -808,7 +818,7 @@ def role_band(
     raising). Used by the deterministic-evidence pre-pass to anchor Gemini's
     salary range.
     """
-    roles = _ROLES_BY_MARKET.get(market.market_id, _ROLES)
+    roles = _market_roles(market)
     for role in roles:
         if role.get("family") != family:
             continue
@@ -860,7 +870,7 @@ def role_benchmark(
     band = role_band(family, seniority, market=market)
     if band is None:
         return None
-    roles = _ROLES_BY_MARKET.get(market.market_id, _ROLES)
+    roles = _market_roles(market)
     role = next((r for r in roles if r.get("family") == family), None)
     raw_sample = role.get("sample_k") if isinstance(role, dict) else None
     sample_k: int | None

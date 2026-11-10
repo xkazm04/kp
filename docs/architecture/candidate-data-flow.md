@@ -189,6 +189,13 @@ call already made (and billed), and a capability link already in an inbox. That
 list is in [`releases.md`](./releases.md#what-a-rollback-cannot-undo) too, and it
 is the same list for the same reason.
 
+### The market a candidate's figures are read in
+
+The workspace's market (`docs/architecture/markets.md`) travels to the CV-analysis
+spawn as `KP_MARKET`; it carries no candidate data and is stored as workspace
+configuration (`decision_config`, phase `market`), so it adds nothing to export or
+erasure.
+
 ## 7. Known gaps
 
 - **No off-box label at the point of choosing.** Settings → Models does not mark

@@ -5,6 +5,7 @@ import {
   type ComplianceRule,
   DecisionConfigError,
   INTERVIEW_PLAN_DEFAULT,
+  MARKET_DEFAULT,
   PIPELINE_STAGES_DEFAULT,
   SCREENING_DEFAULT,
   validateDecisionConfig,
@@ -34,6 +35,8 @@ const DEFAULTS: Record<string, unknown> = {
   // Settings → Hiring renders exactly what it always did, and the composer can
   // never offer a station the board does not draw.
   pipelineStages: PIPELINE_STAGES_DEFAULT,
+  // The workspace's market (markets.ts); the default reproduces the Czech product.
+  market: MARKET_DEFAULT,
 };
 
 // ── Corrupt-row accounting ────────────────────────────────────────────────────

@@ -105,7 +105,7 @@ export function SalaryCard({ salary, sources, source }: { salary: unknown; sourc
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-micro font-semibold text-steel">
-            <AlertTriangle size={12} className="text-dial-amber" aria-hidden /> {t("salaryUnavailable")}
+            <AlertTriangle size={12} className="text-dial-amber" aria-hidden /> {s.absence ? t("salaryNoMarketBenchmark") : t("salaryUnavailable")}
           </span>
         )}
       </div>

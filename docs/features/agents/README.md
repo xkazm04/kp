@@ -598,6 +598,13 @@ re-dispatch implies none, because a dead hire has no exits. Pinned by
   `requestId` and reporting the hire as accepted. One deadline (`BRIDGE_TIMEOUT_MS`,
   5s) is exported from `bridge-client.ts` and imported by `pairing.ts`.
 
+## Agent-fit budget and markets
+
+The 2%-of-band budget suggestion converts at a fixed CZK→USD anchor, so in a
+workspace whose market is not CZK it suggests nothing
+(`salaryBandRef: "no fixed USD anchor for <currency>"`) rather than converting a EUR
+band at the koruna rate. The automation spawn carries the workspace's `KP_MARKET`.
+
 ## Known gaps
 
 - **Edge terminal-write reporting**: an execution report that dies mid-request can be

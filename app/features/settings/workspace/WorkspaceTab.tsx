@@ -334,6 +334,7 @@ export function WorkspaceTab() {
               invites={invites}
               defaultWorkspaceId={defaultWorkspace ?? selected.id}
               isCurrent={selected.id === current}
+              canEditMarket={canManageTeams}
               // Entering a team requires a seat in it (switch-workspace enforces
               // the same rule server-side), and the deployment lock has to be off.
               canSwitch={multiWorkspace && selected.role !== null}

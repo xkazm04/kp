@@ -7,6 +7,7 @@ import { getProfileRecord } from "./db/profiles";
 import { latestInterviewByEntry } from "./db/interviews";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { marketSpawnEnv } from "@/app/_lib/workspace-market";
 import { meterAllows } from "./billing";
 import { buildLlmConfigEnv } from "./llm-config";
 import { listLlmConfig } from "./db/llm";
@@ -545,7 +546,7 @@ export async function runAutomationTask(
         devCase,
       });
 
-      const { result } = spawnPython(args, { signal, env: buildLlmConfigEnv() });
+      const { result } = spawnPython(args, { signal, env: { ...buildLlmConfigEnv(), ...marketSpawnEnv(entry.workspaceId) } });
       const { stdout, stderr, exitCode } = await result;
       if (exitCode !== 0) {
         const err = parseStderrError(stderr, exitCode);

@@ -1446,6 +1446,13 @@ also carry a `band_error` documented as a mirror of a `salaryBandError` that
 `app/_lib/salary-band.ts` does not export, with no non-test caller on the Python
 side either; it was removed, and a test asserts it does not come back.
 
+## Markets
+
+`/api/match` and `/api/matrix` spawn with the workspace's `KP_MARKET`, so the
+"posting stated no currency" fallback above reads the workspace's market rather than
+Czech; `taxonomy.role_band` answers `None` for a market with no benchmark block
+instead of borrowing the default market's roles. See `docs/architecture/markets.md`.
+
 ## Known gaps
 
 - The candidate-focus **picker itself** is still silently capped: `/api/analyses`

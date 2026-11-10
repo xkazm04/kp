@@ -37,7 +37,8 @@ test("the winnability_cli spawn is bounded by an explicit 60s-class timeout, not
 test("the AbortSignal is kept beside the bound, not replaced by it", () => {
   // The two do different jobs: the signal kills the child when the recruiter closes the
   // panel, the deadline kills it when nobody does. Losing either is a regression.
-  assert.match(src, /\{ signal: request\.signal, timeoutMs: WINNABILITY_TIMEOUT_MS \}/);
+  // (The workspace's market env rides beside them: workspace-market.ts.)
+  assert.match(src, /\{ signal: request\.signal, timeoutMs: WINNABILITY_TIMEOUT_MS(, env: marketSpawnEnv\(ws\))? \}/);
 });
 
 test("an overrun is answered by name, and a real fault still is not", () => {

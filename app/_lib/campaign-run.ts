@@ -4,6 +4,7 @@ import { getJob } from "./db/jobs";
 import { saveCampaignPack } from "./db/campaign";
 import { publicBaseUrl } from "./public-base-url";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { marketSpawnEnv } from "@/app/_lib/workspace-market";
 import { buildLlmConfigEnv } from "./llm-config";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
@@ -63,7 +64,7 @@ export async function runCampaign(
     // UI model re-route — without it the configured provider is silently dead.
     const { result } = spawnPython(
       ["-m", "pipeline.jobfit.campaign_cli", "--job-json", jobPath, "--lang", lang, "--apply-url", applyUrl],
-      { signal, env: buildLlmConfigEnv() }
+      { signal, env: { ...buildLlmConfigEnv(), ...marketSpawnEnv(workspaceId) } }
     );
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {

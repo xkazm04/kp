@@ -540,7 +540,8 @@
       "benchmarkVintageUndated": "Référentiel {source}",
       "benchmarkThin": "échantillon réduit (n={count})",
       "benchmarkNoSample": "aucun échantillon enregistré (repère éditorial)",
-      "benchmarkAnchor": "Ancré sur le référentiel {source}, mis à jour le {date}"
+      "benchmarkAnchor": "Ancré sur le référentiel {source}, mis à jour le {date}",
+      "noMarketBenchmark": "Aucune référence pour ce marché : kp n’y dispose d’aucune donnée salariale et n’estime donc pas la rémunération de ce candidat. Les montants indiqués par l’annonce ou le candidat sont comparés en {currency} ({period})."
     },
     "decisionOpenFlags": "Alertes ouvertes : cochez chacune de celles que vous avez vérifiées avant de faire avancer",
     "decisionAckNeeded": "Validez chaque alerte ouverte pour faire avancer le candidat.",
@@ -1512,9 +1513,11 @@
     "ORG_SETTINGS_FORBIDDEN": "Seul un administrateur de l’organisation peut modifier ses paramètres.",
     "ORG_LANGUAGE_INVALID": "Ce n’est pas l’une des langues de l’application.",
     "ORG_CURRENCY_INVALID": "Cette devise n’est pas proposée par l’application.",
+    "WORKSPACE_MARKET_INVALID": "Ce marché n’est pas proposé par l’application.",
     "DECISION_CONFIG_FIELDS_REQUIRED": "Cette mise à jour des règles n'indiquait aucune phase ou ne contenait aucune règle à enregistrer.",
     "DECISION_CONFIG_INVALID": "Ces règles ne sont pas valides pour cette phase.",
     "DECISION_CONFIG_SAVE_FAILED": "Impossible d'enregistrer ces règles. Veuillez réessayer.",
+    "WORKSPACE_MARKET_SAVE_FAILED": "Impossible d’enregistrer le marché de l’espace de travail. Veuillez réessayer.",
     "SCREEN_WAVE_FAILED": "Impossible d'exécuter la vague de tri. Veuillez réessayer.",
     "SCREEN_WAVE_JOB_REQUIRED": "Indiquez le poste sur lequel cette vague de tri doit s'exécuter.",
     "ROLE_VIEW_JOB_REQUIRED": "Choisissez un poste pour voir ses candidats côte à côte.",
@@ -5414,6 +5417,7 @@
       "provWebGrounded": "ancré sur le web",
       "provEstimated": "estimé",
       "salaryUnavailable": "Salaire indisponible",
+      "salaryNoMarketBenchmark": "Aucune référence pour ce marché",
       "repoGrounding": "Ancrage dans le dépôt",
       "repoLoc": "{loc} lignes de code",
       "roleTraceTitle": "Lignes du rôle · indiquées vs ajoutées",
@@ -6102,7 +6106,7 @@
       "colMode": "Mode",
       "colSeniority": "Séniorité",
       "colFamily": "Famille",
-      "colSalary": "Salaire (CZK/mois)",
+      "colSalary": "Salaire ({currency}/{period, select, year {an} hour {h} other {mois}})",
       "colEntry": "Débutant",
       "colStatus": "Statut"
     },
@@ -6217,7 +6221,7 @@
         "level": "niveau {seniority}",
         "salary": "Salaire :",
         "salaryEstimate": "Salaire (estimation du marché) :",
-        "salaryUnit": "{currency} / mois",
+        "salaryUnit": "{currency} / {period, select, year {an} hour {heure} other {mois}}",
         "aboutRole": "À propos du poste",
         "whatBring": "Ce que vous apportez",
         "niceToHave": "Un plus",
@@ -7743,6 +7747,21 @@
     "reviewContactSave": "Enregistrer l’adresse",
     "reviewContactSaved": "Adresse de réexamen enregistrée.",
     "reviewContactFailed": "Impossible d’enregistrer l’adresse de réexamen.",
+    "market": {
+      "label": "Marché",
+      "options": {
+        "cz": "République tchèque · CZK par mois",
+        "de": "Allemagne · EUR par mois",
+        "gb": "Royaume-Uni · GBP par an"
+      },
+      "changes": "Tous les montants de rémunération que cet espace de travail affiche, lit dans les annonces et les CV ou reprend dans une offre utilisent la devise et la période de paie de ce marché. Une annonce sans ville est rattachée à sa ville principale.",
+      "noBenchmark": "kp ne dispose d’aucune référence salariale pour ce marché. Ses propres estimations, l’évaluation de l’adéquation salariale et la comparaison au marché affichent « aucune référence pour ce marché » au lieu d’un chiffre, et les offres attendent qu’une personne fixe le montant. Les fourchettes indiquées par une annonce ou un candidat restent affichées, dans la devise où elles ont été indiquées.",
+      "noRewrite": "Changer de marché ne convertit rien de ce qui est déjà enregistré : les montants restent les mêmes. La fourchette d’un poste enregistrée sans devise propre est ensuite lue dans la devise du nouveau marché ; choisissez donc le marché avant d’ajouter des postes.",
+      "readOnly": "Seule une personne autorisée à gérer les équipes peut changer le marché.",
+      "saved": "Marché enregistré.",
+      "failed": "Impossible d’enregistrer le marché.",
+      "loadFailed": "Impossible de charger le marché de cet espace de travail."
+    },
     "addMember": "Ajouter",
     "addExisting": "Quelqu’un d’ici",
     "addByEmail": "Par e-mail",
@@ -17425,6 +17444,7 @@
       "notTechnical": "Poste non technique",
       "noLink": "Pas de GitHub dans le CV",
       "currencyMismatch": "Autre devise",
+      "noMarketBenchmark": "Sans référence",
       "noJdFit": "Pas d’adéquation au poste",
       "failed": "Échec de l’analyse",
       "blind": "Masqué (anonyme)"
@@ -18375,6 +18395,7 @@
         "notTechnical": "Les travaux publics ne sont lus que pour les postes techniques.",
         "noLink": "Le CV ne renvoie à aucun profil GitHub.",
         "currencyMismatch": "Indiqué dans une autre devise : affiché, jamais converti ni comparé.",
+        "noMarketBenchmark": "Aucune référence salariale pour le marché de cet espace de travail : kp n’a pas estimé la rémunération, le salaire est donc exclu de la comparaison, pas évalué.",
         "noJdFit": "Aucune lecture d’adéquation au poste n’existe pour ce candidat.",
         "failed": "L’analyse a échoué : il n’y a donc ni note ni raisons.",
         "blind": "Masqué dans une cohorte anonyme."

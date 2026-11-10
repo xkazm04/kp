@@ -540,7 +540,8 @@
       "benchmarkVintageUndated": "Benchmark {source}",
       "benchmarkThin": "malý vzorek (n={count})",
       "benchmarkNoSample": "bez zaznamenaného vzorku (redakční odhad)",
-      "benchmarkAnchor": "Ukotveno na benchmark {source}, aktualizováno {date}"
+      "benchmarkAnchor": "Ukotveno na benchmark {source}, aktualizováno {date}",
+      "noMarketBenchmark": "Pro tento trh chybí benchmark: kp pro něj nemá mzdová data, a proto mzdu tohoto kandidáta neodhaduje. Částky uvedené v inzerátu nebo kandidátem se porovnávají v {currency} ({period})."
     },
     "decisionOpenFlags": "Otevřená upozornění: před postoupením zaškrtněte každé, které jste ověřili",
     "decisionAckNeeded": "Pro postoupení potvrďte všechna otevřená upozornění.",
@@ -1512,9 +1513,11 @@
     "ORG_SETTINGS_FORBIDDEN": "Nastavení organizace může měnit jen správce organizace.",
     "ORG_LANGUAGE_INVALID": "Tento jazyk aplikace nepodporuje.",
     "ORG_CURRENCY_INVALID": "Tuto měnu aplikace nenabízí.",
+    "WORKSPACE_MARKET_INVALID": "Tento trh aplikace nenabízí.",
     "DECISION_CONFIG_FIELDS_REQUIRED": "Změna pravidel neuvedla fázi nebo neobsahovala žádná pravidla k uložení.",
     "DECISION_CONFIG_INVALID": "Tato pravidla nejsou pro tuto fázi platná.",
     "DECISION_CONFIG_SAVE_FAILED": "Pravidla se nepodařilo uložit. Zkuste to prosím znovu.",
+    "WORKSPACE_MARKET_SAVE_FAILED": "Trh pracovního prostoru se nepodařilo uložit. Zkuste to prosím znovu.",
     "SCREEN_WAVE_FAILED": "Screeningovou vlnu se nepodařilo spustit. Zkuste to prosím znovu.",
     "SCREEN_WAVE_JOB_REQUIRED": "Uveďte pozici, na které má screeningová vlna běžet.",
     "ROLE_VIEW_JOB_REQUIRED": "Vyberte pozici, jejíž kandidáty chcete vidět vedle sebe.",
@@ -5414,6 +5417,7 @@
       "provWebGrounded": "podloženo webem",
       "provEstimated": "odhad",
       "salaryUnavailable": "Mzda není k dispozici",
+      "salaryNoMarketBenchmark": "Pro tento trh chybí benchmark",
       "repoGrounding": "Podklad z repozitáře",
       "repoLoc": "{loc} řádků kódu",
       "roleTraceTitle": "Řádky role · uvedené vs. přidané",
@@ -6102,7 +6106,7 @@
       "colMode": "Režim",
       "colSeniority": "Seniorita",
       "colFamily": "Obor",
-      "colSalary": "Mzda (Kč/měs)",
+      "colSalary": "Mzda ({currency, select, CZK {Kč} other {{currency}}}/{period, select, year {rok} hour {hod} other {měs}})",
       "colEntry": "Junior",
       "colStatus": "Stav"
     },
@@ -6217,7 +6221,7 @@
         "level": "úroveň {seniority}",
         "salary": "Mzda:",
         "salaryEstimate": "Mzda (tržní odhad):",
-        "salaryUnit": "{currency, select, CZK {Kč} other {{currency}}} / měsíc",
+        "salaryUnit": "{currency, select, CZK {Kč} other {{currency}}} / {period, select, year {rok} hour {hodina} other {měsíc}}",
         "aboutRole": "O pozici",
         "whatBring": "Co byste měli mít",
         "niceToHave": "Výhodou",
@@ -7743,6 +7747,21 @@
     "reviewContactSave": "Uložit adresu",
     "reviewContactSaved": "Adresa pro přezkoumání je uložena.",
     "reviewContactFailed": "Adresu pro přezkoumání se nepodařilo uložit.",
+    "market": {
+      "label": "Trh",
+      "options": {
+        "cz": "Česká republika · CZK měsíčně",
+        "de": "Německo · EUR měsíčně",
+        "gb": "Spojené království · GBP ročně"
+      },
+      "changes": "Všechny mzdové údaje, které tento pracovní prostor zobrazuje, čte z inzerátů a životopisů nebo vkládá do nabídky, používají měnu a mzdové období tohoto trhu. Inzerát bez uvedeného města se přiřadí k jeho hlavnímu městu.",
+      "noBenchmark": "Pro tento trh kp nemá mzdový benchmark. Vlastní odhady mezd, hodnocení mzdové shody a srovnání s trhem místo čísla uvedou „pro tento trh chybí benchmark“ a nabídky počkají, až částku stanoví člověk. Rozpětí uvedená v inzerátu nebo kandidátem se dál zobrazují, v měně, ve které byla uvedena.",
+      "noRewrite": "Změna trhu nic z již uloženého nepřevádí: částky zůstanou stejné. Rozpětí role uložené bez vlastní měny se pak čte v měně nového trhu, proto trh zvolte dřív, než přidáte role.",
+      "readOnly": "Trh může změnit jen ten, kdo smí spravovat týmy.",
+      "saved": "Trh byl uložen.",
+      "failed": "Trh se nepodařilo uložit.",
+      "loadFailed": "Trh tohoto pracovního prostoru se nepodařilo načíst."
+    },
     "addMember": "Přidat",
     "addExisting": "Někoho odsud",
     "addByEmail": "Podle e-mailu",
@@ -17425,6 +17444,7 @@
       "notTechnical": "Netechnická role",
       "noLink": "V životopisu chybí GitHub",
       "currencyMismatch": "Jiná měna",
+      "noMarketBenchmark": "Bez benchmarku",
       "noJdFit": "Bez shody s pozicí",
       "failed": "Analýza selhala",
       "blind": "Skryto (naslepo)"
@@ -18375,6 +18395,7 @@
         "notTechnical": "Veřejnou práci čteme jen u technických pozic.",
         "noLink": "Životopis neodkazuje na žádný profil na GitHubu.",
         "currencyMismatch": "Uvedeno v jiné měně: zobrazeno, nikdy nepřepočteno ani neporovnáno.",
+        "noMarketBenchmark": "Pro trh tohoto pracovního prostoru chybí mzdový benchmark: kp mzdu neodhadoval, a proto je mzda ze srovnání vynechána, nikoli hodnocena.",
         "noJdFit": "Pro tohoto kandidáta neexistuje posouzení shody s pozicí.",
         "failed": "Analýza selhala, proto zde není hodnocení ani důvody.",
         "blind": "Skryto v kohortě naslepo."

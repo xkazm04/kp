@@ -28,7 +28,7 @@ from __future__ import annotations
 from itertools import combinations
 
 from .jobs import Job
-from .market_config import ACTIVE_MARKET, MarketConfig
+from .market_config import ACTIVE_MARKET, MarketConfig, has_benchmark
 from .matching import FIT_PROMISING_THRESHOLD, MatchCandidate, _norm_currency, ko_filter, score_job
 
 # Must-haves considered for the pair fallback: C(8, 2) = 28 extra passes at most.
@@ -205,12 +205,15 @@ def assess_winnability(
         # never a wrong "not below market" claim across an unconverted FX gap.
         "belowMarket": (
             bool(job_band and market_band and job_band[1] < market_band[0])
-            if comparable and not assumed
+            if comparable and not assumed and has_benchmark(ACTIVE_MARKET)
             else None
         ),
         # Which of the ad's own inputs the verdict was silenced for (empty = none).
         "assumedInputs": assumed,
     }
+    if not has_benchmark(ACTIVE_MARKET):
+        # No benchmark for this market: the verdict is a stated absence, not "not below".
+        salary["marketAbsence"] = "no_market_benchmark"
     if comparable and not assumed and job_band and market_band and market_band[0] > 0:
         # How far the JD's top sits relative to the market floor (negative = below).
         salary["topVsMarketFloorPct"] = round(100 * (job_band[1] - market_band[0]) / market_band[0])

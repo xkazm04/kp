@@ -3,7 +3,7 @@ import { getJob } from "@/app/_lib/db/jobs";
 import { REFUSAL_ERRORS } from "@/app/_lib/api-response";
 import { namespaceTranslator } from "@/app/_lib/catalog-translator";
 import { resolveCommsLocale } from "@/app/_lib/comms-locale";
-import { APP_CURRENCY } from "@/app/_lib/format";
+import { getWorkspaceMarket } from "@/app/_lib/workspace-market";
 import { validateOfferTerms } from "@/app/_lib/offer-policy";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
 import { stageHasRole } from "@/app/_lib/pipeline-stages";
@@ -56,7 +56,7 @@ export async function draftManualOffer(input: { id: string; workspaceId: string;
 
   const stored = (entry.jobId ? getJob(entry.jobId, workspaceId)?.salaryBand : null) ?? [];
   const band = normalizeSalaryBand(stored[0], stored[1]);
-  const terms = validateOfferTerms({ salary: manualOfferFigure(input.salary, band), currency: APP_CURRENCY });
+  const terms = validateOfferTerms({ salary: manualOfferFigure(input.salary, band), currency: getWorkspaceMarket(workspaceId).currency });
   if (!terms.ok) return { status: 400, body: { error: REFUSAL_ERRORS[terms.code], code: terms.code, max: terms.max } };
 
   // The letter dispatchOffer sends, so it is written in the candidate's language. It

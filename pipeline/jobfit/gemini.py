@@ -32,6 +32,32 @@ from .llm.capabilities import DEFAULT_MODELS
 from .i18n import language_name
 from .json_values import candidate_values, scan_json_values, select_best_scoring
 from .taxonomy import ROLE_FAMILIES, role_family_catalog
+from .market_config import ACTIVE_MARKET, has_benchmark
+
+
+def _market_hub() -> str:
+    """The market's hub city as the research prompt names it ("Prague")."""
+    label = ACTIVE_MARKET.region_label
+    return label[label.find("(") + 1 : label.rfind(")")] if "(" in label else label
+
+
+def _anchor_rule() -> str:
+    """The analysis prompt's anchor_band rule in the ACTIVE market's own units. For the
+    Czech default it is the historical literal byte-for-byte; a market with no benchmark
+    has no anchor at all (taxonomy.role_band answers None), so the rule says so."""
+    m = ACTIVE_MARKET
+    if not has_benchmark(m):
+        return (
+            f"- There is NO deterministic anchor_band: kp holds no salary benchmark for the {m.market_descriptor} "
+            "market. Do not borrow another market's figures; estimate only from evidence and say so in salary.rationale.\n"
+        )
+    country = m.region_label.split(" (")[0]
+    return (
+        f"- The deterministic anchor_band is a {m.market_descriptor.upper()}-MARKET {m.currency}/{m.period.upper()} reference. "
+        f"Use it as your primary anchor ONLY if this candidate's market is the {country} (then adjust within roughly ±20% "
+        "for stronger evidence and cite it). For any other market, ignore the anchor and estimate from market knowledge, "
+        "noting the basis in salary.rationale.\n"
+    )
 
 
 def _genai() -> Any:
@@ -729,7 +755,7 @@ def analyze_profile_with_gemini(
     evidence_text = json.dumps(evidence or {}, ensure_ascii=False, indent=2)
 
     grounding_line = (
-        "- Use grounded web results to fill market_evidence with current Prague/Czech tech salary signals.\n"
+        f"- Use grounded web results to fill market_evidence with current {_market_hub()}/{ACTIVE_MARKET.market_descriptor} tech salary signals.\n"
         if use_grounding
         else "- Fill market_evidence from your own market knowledge (no web access). Set confidence to low or medium.\n"
     )
@@ -786,8 +812,9 @@ def analyze_profile_with_gemini(
         "- The CV may be in any language (often Czech or English). Preserve the document's original language and its diacritics in profile.raw_text and reconstruct letter-spaced PDF words. Skill names, technology names, and proper nouns stay verbatim everywhere.\n"
         f"- Every other freeform field (strengths, gaps, recommendations, explanation, summary, salary.rationale, all job_fit text fields, market_evidence.summary/notes) MUST be written in {output_language} regardless of the CV's language. Translate the source content into clean, natural {output_language} in those fields.\n"
         "- Keep every enumerated/code value exactly as the schema specifies and DO NOT translate it: current_seniority (junior|medior|senior|lead), role_family, education_level, salary.confidence, skill_claims.level/provenance, experiences.kind. These are matched downstream by exact value.\n"
-        "- Salary: estimate in the candidate's/role's OWN market and currency. Infer the market from the JD location, the candidate's location, and the company; use that market's natural currency (ISO code) and period (hour|month|year). Do NOT convert to CZK. State currency and period explicitly and name the market in salary.rationale. If the market is genuinely undeterminable, fall back to the Czech market (CZK/month) and say so.\n"
-        "- The deterministic anchor_band is a CZECH-MARKET CZK/MONTH reference. Use it as your primary anchor ONLY if this candidate's market is the Czech Republic (then adjust within roughly ±20% for stronger evidence and cite it). For any other market, ignore the anchor and estimate from market knowledge, noting the basis in salary.rationale.\n"
+        "- Salary: estimate in the candidate's/role's OWN market and currency. Infer the market from the JD location, the candidate's location, and the company; use that market's natural currency (ISO code) and period (hour|month|year). Do NOT convert to "
+        f"{ACTIVE_MARKET.currency}. State currency and period explicitly and name the market in salary.rationale. If the market is genuinely undeterminable, fall back to the {ACTIVE_MARKET.market_descriptor} market ({ACTIVE_MARKET.currency}/{ACTIVE_MARKET.period}) and say so.\n"
+        f"{_anchor_rule()}"
         "- Capture total comp, not just base: if the role/candidate involves equity/options, bonus, commission, tips, or allowances, record it in salary.structure_note (and reflect it in the rationale) rather than reducing the package to a base figure.\n"
         "- Your role_family must be exactly one of the role-family ids listed above, matching the candidate's real occupation. Prefer detected_role_family unless the CV's recent roles point clearly elsewhere; explain disagreement in evidence.\n"
         "- Treat detected_signals as inputs you should weigh, not facts you must echo. They reflect the deterministic taxonomy match — refine or correct based on the CV.\n"

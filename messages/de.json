@@ -540,7 +540,8 @@
       "benchmarkVintageUndated": "Benchmark {source}",
       "benchmarkThin": "kleine Stichprobe (n={count})",
       "benchmarkNoSample": "keine Stichprobe erfasst (redaktioneller Richtwert)",
-      "benchmarkAnchor": "Verankert am Benchmark {source}, aktualisiert {date}"
+      "benchmarkAnchor": "Verankert am Benchmark {source}, aktualisiert {date}",
+      "noMarketBenchmark": "Kein Benchmark für diesen Markt: kp hat dafür keine Gehaltsdaten und schätzt das Gehalt dieses Kandidaten daher nicht. Beträge aus der Anzeige oder vom Kandidaten werden in {currency} ({period}) verglichen."
     },
     "decisionOpenFlags": "Offene Hinweise: Haken Sie vor dem Weiterleiten jeden geprüften Hinweis ab",
     "decisionAckNeeded": "Bestätigen Sie alle offenen Hinweise, um weiterzuleiten.",
@@ -1512,9 +1513,11 @@
     "ORG_SETTINGS_FORBIDDEN": "Nur eine Administratorin oder ein Administrator der Organisation kann deren Einstellungen ändern.",
     "ORG_LANGUAGE_INVALID": "Das ist keine der Sprachen dieser App.",
     "ORG_CURRENCY_INVALID": "Diese Währung bietet die App nicht an.",
+    "WORKSPACE_MARKET_INVALID": "Diesen Markt bietet die App nicht an.",
     "DECISION_CONFIG_FIELDS_REQUIRED": "Diese Regeländerung nannte keine Phase oder enthielt keine Regeln zum Speichern.",
     "DECISION_CONFIG_INVALID": "Diese Regeln sind für diese Phase nicht gültig.",
     "DECISION_CONFIG_SAVE_FAILED": "Die Regeln konnten nicht gespeichert werden. Bitte erneut versuchen.",
+    "WORKSPACE_MARKET_SAVE_FAILED": "Der Markt des Arbeitsbereichs konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
     "SCREEN_WAVE_FAILED": "Die Screening-Welle konnte nicht ausgeführt werden. Bitte erneut versuchen.",
     "SCREEN_WAVE_JOB_REQUIRED": "Nennen Sie die Stelle, für die diese Screening-Welle laufen soll.",
     "ROLE_VIEW_JOB_REQUIRED": "Wählen Sie eine Stelle, um ihre Kandidaten nebeneinander zu sehen.",
@@ -5414,6 +5417,7 @@
       "provWebGrounded": "webgestützt",
       "provEstimated": "geschätzt",
       "salaryUnavailable": "Gehalt nicht verfügbar",
+      "salaryNoMarketBenchmark": "Kein Benchmark für diesen Markt",
       "repoGrounding": "Repository-Grundlage",
       "repoLoc": "{loc} Codezeilen",
       "roleTraceTitle": "Rollenzeilen · genannt vs. ergänzt",
@@ -6102,7 +6106,7 @@
       "colMode": "Arbeitsmodell",
       "colSeniority": "Seniorität",
       "colFamily": "Familie",
-      "colSalary": "Gehalt (CZK/Mon.)",
+      "colSalary": "Gehalt ({currency}/{period, select, year {Jahr} hour {Std.} other {Mon.}})",
       "colEntry": "Einstieg",
       "colStatus": "Status"
     },
@@ -6217,7 +6221,7 @@
         "level": "{seniority}-Level",
         "salary": "Gehalt:",
         "salaryEstimate": "Gehalt (Marktschätzung):",
-        "salaryUnit": "{currency} / Monat",
+        "salaryUnit": "{currency} / {period, select, year {Jahr} hour {Stunde} other {Monat}}",
         "aboutRole": "Über die Position",
         "whatBring": "Was Sie mitbringen",
         "niceToHave": "Von Vorteil",
@@ -7743,6 +7747,21 @@
     "reviewContactSave": "Adresse speichern",
     "reviewContactSaved": "Adresse für Überprüfungen gespeichert.",
     "reviewContactFailed": "Adresse für Überprüfungen konnte nicht gespeichert werden.",
+    "market": {
+      "label": "Markt",
+      "options": {
+        "cz": "Tschechien · CZK pro Monat",
+        "de": "Deutschland · EUR pro Monat",
+        "gb": "Vereinigtes Königreich · GBP pro Jahr"
+      },
+      "changes": "Alle Gehaltsangaben, die dieser Arbeitsbereich anzeigt, aus Stellenanzeigen und Lebensläufen liest oder in ein Angebot übernimmt, verwenden die Währung und den Gehaltszeitraum dieses Marktes. Eine Anzeige ohne Ortsangabe wird seiner Hauptstadt zugeordnet.",
+      "noBenchmark": "Für diesen Markt hat kp keinen Gehalts-Benchmark. Eigene Gehaltsschätzungen, die Gehaltspassung und der Marktvergleich zeigen statt einer Zahl „kein Benchmark für diesen Markt“, und Angebote warten, bis ein Mensch den Betrag festlegt. Spannen, die eine Anzeige oder ein Kandidat nennt, werden weiterhin angezeigt, in der Währung, in der sie genannt wurden.",
+      "noRewrite": "Ein Marktwechsel rechnet nichts bereits Gespeichertes um: Die Beträge bleiben gleich. Eine ohne eigene Währung gespeicherte Spanne einer Stelle wird danach in der Währung des neuen Marktes gelesen. Wählen Sie den Markt daher, bevor Sie Stellen anlegen.",
+      "readOnly": "Nur wer Teams verwalten darf, kann den Markt ändern.",
+      "saved": "Markt gespeichert.",
+      "failed": "Der Markt konnte nicht gespeichert werden.",
+      "loadFailed": "Der Markt dieses Arbeitsbereichs konnte nicht geladen werden."
+    },
     "addMember": "Hinzufügen",
     "addExisting": "Jemand von hier",
     "addByEmail": "Per E-Mail",
@@ -17425,6 +17444,7 @@
       "notTechnical": "Keine technische Rolle",
       "noLink": "Kein GitHub im Lebenslauf",
       "currencyMismatch": "Andere Währung",
+      "noMarketBenchmark": "Kein Benchmark",
       "noJdFit": "Keine Stellenpassung",
       "failed": "Analyse fehlgeschlagen",
       "blind": "Verborgen (anonym)"
@@ -18375,6 +18395,7 @@
         "notTechnical": "Öffentliche Arbeit wird nur bei technischen Stellen gelesen.",
         "noLink": "Der Lebenslauf verlinkt kein GitHub-Profil.",
         "currencyMismatch": "In einer anderen Währung angegeben: angezeigt, nie umgerechnet oder verglichen.",
+        "noMarketBenchmark": "Kein Gehalts-Benchmark für den Markt dieses Arbeitsbereichs: kp hat kein Gehalt geschätzt, daher bleibt das Gehalt im Vergleich außen vor und wird nicht bewertet.",
         "noJdFit": "Für diesen Kandidaten liegt keine Stellenpassung vor.",
         "failed": "Die Analyse ist fehlgeschlagen, daher gibt es weder Bewertung noch Gründe.",
         "blind": "In einer anonymen Kohorte verborgen."

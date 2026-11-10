@@ -2,6 +2,7 @@ import { insertJob, jobContentHash, normalizeJob } from "@/app/_lib/job-ingest";
 import { normalizeSalaryBand, withGroundedBand } from "@/app/_lib/salary-band";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
+import { marketSpawnEnv } from "@/app/_lib/workspace-market";
 import { parseRoleSpec } from "@/app/_lib/rolespec";
 
 // Turn a generated JD's role into a structured, matchable Job: build a record
@@ -32,7 +33,7 @@ export async function ingestStructuredJob(input: {
     source: "authored_jd",
   };
 
-  const { job: parsed } = await normalizeJob(record, jdJobId(input.slug));
+  const { job: parsed } = await normalizeJob(record, jdJobId(input.slug), marketSpawnEnv(workspaceId));
   // The matchable band is FIXED to the AI/market analysis's salary, on purpose:
   // it carries that analysis's provenance, confidence, and cited sources, so a
   // hand-typed override (e.g. a number edited into the JD markdown) is NOT honored

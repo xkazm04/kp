@@ -2,6 +2,8 @@ import path from "node:path";
 import { writeFile } from "node:fs/promises";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { buildLlmConfigEnv } from "./llm-config";
+import { marketSpawnEnv } from "./workspace-market";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { runDesignArtifacts, runNeedAnalysis, type DevNeed } from "./devcase-run";
 import { validateJdBuildInput } from "./jd-limits";
 import { marketSalaryLabel, normalizeMarketSalary, type MarketSalary } from "./salary-band";
@@ -163,7 +165,7 @@ export async function runMarketSalary(input: {
   company?: string;
   stack?: string[];
   lang?: string;
-}, signal?: AbortSignal): Promise<{ result: MarketSalary; sources: string[]; source: string }> {
+}, signal?: AbortSignal, workspaceId: string = DEFAULT_WORKSPACE_ID): Promise<{ result: MarketSalary; sources: string[]; source: string }> {
   const workdir = await createWorkdir();
   try {
     const p = path.join(workdir, "salary.json");
@@ -172,7 +174,7 @@ export async function runMarketSalary(input: {
     // JD language (the CLI already supports --lang; only the summary text localizes).
     const { result } = spawnPython(
       ["-m", "pipeline.jobfit.market_salary_cli", "--input-json", p, "--lang", input.lang || "en"],
-      { signal, env: buildLlmConfigEnv() }
+      { signal, env: { ...buildLlmConfigEnv(), ...marketSpawnEnv(workspaceId) } }
     );
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new Error(parseStderrError(stderr, exitCode).message);
@@ -384,7 +386,7 @@ export async function runJdBuild(
           company: input.company,
           stack: need.responsibilities ?? [],
           lang,
-        }, signal)
+        }, signal, workspaceId)
       : Promise.resolve(null);
 
     const [design, salary] = await Promise.all([designP, salaryP]);

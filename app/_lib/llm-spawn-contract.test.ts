@@ -83,7 +83,9 @@ for (const [rel, useCase] of Object.entries(LLM_SPAWN_MODULES)) {
     const stripped = withoutComments(readFileSync(path.join(APP_ROOT, rel), "utf-8"));
     const spawns = stripped.match(/\b(?:spawnPython|spawnChild|runJobfitCli)\s*(?:<[^>(]*>)?\s*\(/g) ?? [];
     assert.ok(spawns.length >= 1, `${rel} has no spawnPython/spawnChild/runJobfitCli call — re-pin this contract`);
-    const envs = stripped.match(/env:\s*buildLlmConfigEnv\(\)/g) ?? [];
+    // `env: { ...buildLlmConfigEnv(), ...marketSpawnEnv(ws) }` is the same pin: a spawn
+    // that also carries its workspace's market (workspace-market.ts) still carries the LLM env.
+    const envs = stripped.match(/env:\s*(?:\{\s*\.\.\.)?buildLlmConfigEnv\(\)/g) ?? [];
     assert.equal(
       envs.length,
       spawns.length,

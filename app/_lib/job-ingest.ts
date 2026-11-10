@@ -20,9 +20,8 @@ import { buildLlmConfigEnv } from "./llm-config";
 // meter debit in one `ensureDb().transaction(...)` so a refused publish never
 // charges and a successful one never escapes the meter — but with the flip on a
 // second connection the sequence was A reads billing_state (snapshot), B commits
-// the status UPDATE, A writes the debit → SQLITE_BUSY_SNAPSHOT (a WAL reader whose
-// snapshot another connection has committed past cannot become a writer;
-// busy_timeout does not retry it). The transaction rolled the debit back, the route
+// the status UPDATE, A writes the debit → SQLITE_BUSY_SNAPSHOT (busy_timeout does
+// not retry it). The transaction rolled the debit back, the route
 // answered 500, and the role was already live under the error. Writing through the
 // main handle is what makes "one transaction" true. Pinned by
 // app/api/jobs/publish-atomicity.test.ts.
@@ -293,30 +292,31 @@ export function listDraftJobs(workspaceId: string = DEFAULT_WORKSPACE_ID): { id:
 type JobCliOut = { job: JobRecord; source: string };
 
 /** Deterministically structure a role record (e.g. a JD-builder RoleSpec) into a Job. */
-export async function normalizeJob(record: Record<string, unknown>, jobId?: string): Promise<JobCliOut> {
-  return runJobsCli(["normalize", ...(jobId ? ["--job-id", jobId] : [])], "record.json", record);
+export async function normalizeJob(record: Record<string, unknown>, jobId?: string, env?: SpawnEnv): Promise<JobCliOut> {
+  return runJobsCli(["normalize", ...(jobId ? ["--job-id", jobId] : [])], "record.json", record, undefined, env);
 }
 
 /** Parse a prose job ad into a structured Job via the Claude CLI. `signal` aborts
  *  the LLM ad-parse child when the request is abandoned, so it stops burning
  *  subscription calls instead of running to the backstop. */
-export async function ingestJobAd(adText: string, jobId?: string, signal?: AbortSignal): Promise<JobCliOut> {
-  return runJobsCli(["ingest", ...(jobId ? ["--job-id", jobId] : [])], "ad.txt", adText, signal);
+export async function ingestJobAd(adText: string, jobId?: string, signal?: AbortSignal, env?: SpawnEnv): Promise<JobCliOut> {
+  return runJobsCli(["ingest", ...(jobId ? ["--job-id", jobId] : [])], "ad.txt", adText, signal, env);
 }
 
-async function runJobsCli(cliArgs: string[], fileName: string, payload: unknown, signal?: AbortSignal): Promise<JobCliOut> {
+type SpawnEnv = Record<string, string>;
+
+// `env` carries the workspace's market (workspace-market.ts marketSpawnEnv).
+async function runJobsCli(cliArgs: string[], fileName: string, payload: unknown, signal?: AbortSignal, env?: SpawnEnv): Promise<JobCliOut> {
   const workdir = await createWorkdir();
   try {
     const p = path.join(workdir, fileName);
     const isText = fileName.endsWith(".txt");
     await writeFile(p, isText ? String(payload) : JSON.stringify(payload), "utf-8");
     const flag = isText ? "--ad-file" : "--record-json";
-    // buildLlmConfigEnv: the ingest command resolves the jd_ingest use case —
-    // without this env the configured BYOM provider/key re-route is silently dead
-    // (tiger 2026-08-05 coverage sweep; normalize is deterministic and unaffected).
+    // buildLlmConfigEnv: ingest resolves the jd_ingest use case (BYOM routing).
     const { result } = spawnPython(["-m", "pipeline.jobfit.jobs_cli", ...cliArgs, flag, p], {
       signal,
-      env: buildLlmConfigEnv(),
+      env: { ...buildLlmConfigEnv(), ...env },
     });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new Error(parseStderrError(stderr, exitCode).message);

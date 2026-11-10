@@ -1,5 +1,6 @@
 import { APP_CURRENCY, formatSalaryRange } from "./format.ts";
 import { normalizeSalaryBenchmark, type SalaryBenchmark } from "./salary-benchmark.ts";
+import { NO_MARKET_BENCHMARK, type PayPeriod } from "./markets.ts";
 
 // Salary-band validation shared by the JD authoring form (JdTemplates) and the
 // write trust boundary (ingest-job), so the advertised JD band and the
@@ -136,6 +137,11 @@ export type MarketSalary = {
    * decision: say nothing about provenance.
    */
   benchmark: SalaryBenchmark | null;
+  /** The pay period the band is per. The CLI omits it for the legacy `month`. */
+  period: PayPeriod;
+  /** `no_market_benchmark` when the workspace's market has no benchmark table: the
+   *  0–0 band is then a stated refusal, not a taxonomy miss. */
+  absence: typeof NO_MARKET_BENCHMARK | null;
 };
 
 /**
@@ -154,7 +160,7 @@ export type MarketSalary = {
  */
 export function marketSalaryLabel(s: MarketSalary, locale?: string): string {
   return s.available
-    ? formatSalaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency, period: "month", locale })
+    ? formatSalaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency, period: s.period, locale })
     : "";
 }
 
@@ -194,5 +200,7 @@ export function normalizeMarketSalary(payload: unknown): MarketSalary {
     // unusable or absent `benchmark` normalizes to null so the renderer stays
     // silent rather than naming a dataset it is guessing at.
     benchmark: normalizeSalaryBenchmark(p.benchmark),
+    period: p.period === "year" || p.period === "hour" ? p.period : "month",
+    absence: p.absence === NO_MARKET_BENCHMARK ? NO_MARKET_BENCHMARK : null,
   };
 }

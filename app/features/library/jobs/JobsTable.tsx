@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { ColumnFilter, type Option } from "@/app/_components/table/ColumnFilter";
 import { ColumnHead } from "@/app/_components/table/ColumnHead";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { useWorkspaceMarket } from "@/app/_lib/use-workspace-market";
 import { FAMILIES, MODES, SENIORITIES } from "./JobsTypes";
 import { ROLE_STATUS_FILTER_ORDER } from "./jobsRoleStatus";
 import type { JobSortCol } from "./jobsTableView";
@@ -36,6 +37,8 @@ export function JobsTableFrame({
   onSort: (col: JobSortCol) => void;
 }) {
   const t = useTranslations("jobs.table");
+  // The header carries the band's unit once: the workspace's market (markets.ts).
+  const market = useWorkspaceMarket();
   // The four derived role statuses share ONE label set with the badge in the row
   // (JobsShared.RoleStatusCell) — a menu entry that read differently from the chip
   // it filters for would be two vocabularies for one fact.
@@ -79,7 +82,7 @@ export function JobsTableFrame({
                 options={opts("family", FAMILIES)}
               />
             </ColumnHead>
-            <ColumnHead title={t("colSalary")} sortCol="salary" sort={sort} onSort={onSort} className="px-4 py-2" />
+            <ColumnHead title={t("colSalary", { currency: market.currency, period: market.period })} sortCol="salary" sort={sort} onSort={onSort} className="px-4 py-2" />
             {/* THE ROLE'S OWN LIFECYCLE, which is what this desk is now for: the
                 register of open and historical roles. It replaced the Entry column
                 — entry-eligibility is a fairness fact about the requirements, still

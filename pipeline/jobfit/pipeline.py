@@ -45,7 +45,7 @@ from .models import (
     SalaryEstimate,
     ScoreBreakdown,
 )
-from .market_config import ACTIVE_MARKET, MarketConfig
+from .market_config import ACTIVE_MARKET, MarketConfig, has_benchmark
 from .profiling import build_profile
 from .salary_band import round_salary
 from .taxonomy import (
@@ -297,6 +297,8 @@ def analyze_cv(
             company_context = build_company_context(company_text)
             salary = _salary_from_payload(payload.get("salary"), repairs)
             apply_company_salary_context(salary, company_context)
+            if not has_benchmark(ACTIVE_MARKET):
+                salary = withhold_uncalibrated_salary(salary, repairs)
         _emit(progress, "salary", "done")
 
         _emit(progress, "insights", "active")
@@ -1185,6 +1187,36 @@ def _salary_from_payload(raw: Any, repairs: list[str] | None = None) -> SalaryEs
         confidence=str(raw.get("confidence") or "medium"),
         rationale=_string_list(raw.get("rationale")),
         structure_note=str(raw.get("structure_note") or ""),
+    )
+
+
+def withhold_uncalibrated_salary(
+    salary: SalaryEstimate, repairs: list[str], *, market: MarketConfig = ACTIVE_MARKET
+) -> SalaryEstimate:
+    """Withhold kp's salary ESTIMATE in a market we hold no benchmark for.
+
+    With no calibrated table there is nothing to anchor the figure on, so a number
+    here would be a model's guess wearing the product's authority. The estimate is
+    replaced by the empty band in the market's own units and the coded finding
+    ``salary_no_market_benchmark`` says why (the UI renders it as a stated absence)."""
+    repairs.append(
+        Finding(
+            f"No salary benchmark for the {market.market_id} market — estimate withheld",
+            code="salary_no_market_benchmark",
+            severity="ok",
+            scope="salary",
+            value=market.market_id,
+        )
+    )
+    return SalaryEstimate(
+        currency=market.currency,
+        period=market.period,
+        minimum=0,
+        maximum=0,
+        midpoint=0,
+        confidence="low",
+        rationale=[],
+        structure_note="",
     )
 
 

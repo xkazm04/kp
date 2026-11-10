@@ -7,6 +7,7 @@ import { companyOrDefault } from "@/app/_lib/org-settings";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
+import { marketSpawnEnv } from "@/app/_lib/workspace-market";
 
 // A revert re-ingests the linked job — one LLM parse, best-effort.
 export const maxDuration = 60;
@@ -61,7 +62,7 @@ export const POST = withWorkspace(async (ws: string, request: Request, context: 
     const linkedJob = getJob(jobId, ws);
     if (linkedJob) {
       try {
-        const { job, source } = await ingestJobAd(restored.body, jobId);
+        const { job, source } = await ingestJobAd(restored.body, jobId, undefined, marketSpawnEnv(ws));
         // A keyless install parses deterministically (no requirements). Overwriting a
         // matchable job with that would erase the requirements it already has, so a
         // re-sync only proceeds on an LLM parse; otherwise the job keeps its fields

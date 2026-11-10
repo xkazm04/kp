@@ -888,6 +888,16 @@ status filter still returns the expired row (audit). Pinned in
 cannot enter a client bundle. It is used only to bucket legacy invites, whose
 `workspace_id` is nullable.
 
+## Workspace market
+
+Settings → Workspaces shows the CURRENT workspace's market (`WorkspaceMarket.tsx`):
+a picker over `cz` / `de` / `gb`, a plain statement of what changes, what kp cannot
+estimate in a market without a benchmark, and that nothing stored is converted. It
+writes `PUT /api/workspace/market` (operator + `team:manage`, editable while the
+multi-workspace lock is on) into the team's own row of the `market` decision-config
+phase; `GET` serves any session. The org currency cookie above is unchanged and still
+labels the board's money map. Contract: `docs/architecture/markets.md`.
+
 ## Data model
 
 `organizations`, `users`, `memberships` (user × team/workspace × role),

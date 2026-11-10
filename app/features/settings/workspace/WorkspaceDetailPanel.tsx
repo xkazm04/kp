@@ -10,6 +10,7 @@ import { BTN_GHOST, BTN_PRIMARY, META_LABEL, PANEL, TOGGLE_GROUP, toggleBtn } fr
 import { ASSIGNABLE_ROLES, roleDescription, roleLabel } from "@/app/features/shared/memberUi";
 import { type MemberRole } from "@/app/_lib/auth/roles";
 import { WorkspaceReviewContact } from "./WorkspaceReviewContact";
+import { WorkspaceMarket } from "./WorkspaceMarket";
 import { WorkspaceMembersTable } from "./WorkspaceMembersTable";
 import { invitesForWorkspace, memberName, membersNotInWorkspace, membersOfWorkspace } from "./workspaceAdminHelpers";
 import type { InviteDto, MemberTeam, OrgMemberDto, WorkspaceDto } from "./useWorkspaceAdmin";
@@ -28,6 +29,7 @@ export function WorkspaceDetailPanel({
   invites,
   defaultWorkspaceId,
   isCurrent,
+  canEditMarket,
   canSwitch,
   canManageMembers,
   canManageTeams,
@@ -51,6 +53,9 @@ export function WorkspaceDetailPanel({
   invites: InviteDto[];
   defaultWorkspaceId: string;
   isCurrent: boolean;
+  /** `team:manage` on the session workspace, independent of the multi-workspace lock:
+   *  a single-team install still picks its market. */
+  canEditMarket: boolean;
   canSwitch: boolean;
   canManageMembers: boolean;
   canManageTeams: boolean;
@@ -163,6 +168,9 @@ export function WorkspaceDetailPanel({
           </button>
         ) : null}
       </div>
+
+      {/* The market this (the session's) workspace runs in: currency, period, benchmark. */}
+      {isCurrent ? <WorkspaceMarket canEdit={canEditMarket} /> : null}
 
       {/* Where a candidate is told to write for a human review (owner ruling Q7). */}
       {canManageTeams ? (

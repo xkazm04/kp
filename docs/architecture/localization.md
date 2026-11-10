@@ -258,8 +258,13 @@ Two rules that are easy to get wrong:
   the app's) is a bug. The exception is `Intl` used as a *parsing pivot* rather
   than for display — `app/_lib/schedule-slots.ts` and `app/_lib/timezone.ts` do
   this correctly and are meant to stay `"en-US"`.
-- **The currency does not.** `APP_CURRENCY = "CZK"` and the single-currency
-  Czech-market assumption are deliberate and documented in `format.ts` itself.
+- **The currency does not follow the reader either — it follows the workspace's
+  MARKET.** `APP_CURRENCY = "CZK"` is the default market's currency; a workspace
+  in another market (`de` EUR/month, `gb` GBP/year) passes its own currency and
+  period to the formatters as arguments (`docs/architecture/markets.md`). Message
+  units that name a currency take it as an ICU argument with a `period` select
+  (`jobs.table.colSalary`, `jobs.posting.doc.salaryUnit`); Czech keeps its own
+  glyph through `{currency, select, CZK {Kč} other {{currency}}}`.
 
 ### How the locale is threaded
 

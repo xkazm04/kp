@@ -3,6 +3,7 @@ import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { listCorpusJobs } from "@/app/_lib/db/jobs";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
+import { marketSpawnEnv } from "@/app/_lib/workspace-market";
 import { writeMatchInput, type MatchInputBody } from "@/app/_lib/match-input";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
@@ -79,7 +80,7 @@ export const POST = withWorkspace(async (workspaceId: string, request: NextReque
     // Forward the request's abort signal so an abandoned request SIGKILLs the child
     // (and reaches the finally → cleanupWorkdir) instead of orphaning it to the 600s
     // backstop and leaking the temp dir — the leak extract-text already guards against.
-    const { result } = spawnPython(args, { signal: request.signal });
+    const { result } = spawnPython(args, { signal: request.signal, env: marketSpawnEnv(workspaceId) });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);

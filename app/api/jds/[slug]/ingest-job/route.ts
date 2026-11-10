@@ -6,6 +6,7 @@ import { effectiveOrgName } from "@/app/_lib/org-name-server";
 import { companyOrDefault } from "@/app/_lib/org-settings";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
+import { marketSpawnEnv } from "@/app/_lib/workspace-market";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
@@ -46,7 +47,7 @@ export const POST = withWorkspace(async (ws: string, request: Request, context: 
     if (!rateLimit(`jd-ingest-job:${clientIpFrom(request.headers)}`, INGEST_JOB_RATE_LIMIT)) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
-    const { job, source } = await ingestJobAd(jd.body, jobId);
+    const { job, source } = await ingestJobAd(jd.body, jobId, undefined, marketSpawnEnv(ws));
     // ingestJobAd only PARSES (it spawns jobs_cli and hands back the structured
     // record); `insertJob` is the sole writer of the `jobs` table. Without this the
     // route burned a Claude ad-parse and answered `{ ok: true, already: false }`

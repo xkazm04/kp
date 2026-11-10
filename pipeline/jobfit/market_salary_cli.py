@@ -18,7 +18,7 @@ from pathlib import Path
 
 from ._cli import configure_stdio, emit_error
 from .gemini import GroundedAnswer, grounded_answer, load_local_env
-from .market_config import ACTIVE_MARKET, MarketConfig
+from .market_config import ACTIVE_MARKET, MarketConfig, has_benchmark
 from .taxonomy import role_benchmark
 
 # Region phrase and currency default to the ACTIVE market instead of hardcoded
@@ -66,7 +66,9 @@ def _fallback(
         "suggestedMaximum": int(band[1]),
         "currency": market.currency,
         "confidence": "low",
-        "summary": _FALLBACK_SUMMARY.get(normalize_lang(lang), _FALLBACK_SUMMARY["en"]),
+        # No table, no "estimated from the table" sentence: the summary lands in the
+        # candidate-facing JD, and the absence is carried by the coded ``absence`` key.
+        "summary": _FALLBACK_SUMMARY.get(normalize_lang(lang), _FALLBACK_SUMMARY["en"]) if has_benchmark(market) else "",
         # SCOR6b — the provenance of the table this figure came from, so the surface
         # rendering it can say WHICH dataset and HOW OLD instead of presenting a 2025
         # vintage as a timeless fact. ``None`` on a taxonomy miss (the 0-0 band is not
@@ -77,7 +79,21 @@ def _fallback(
             if benchmark
             else None
         ),
+        **_market_units(market),
     }
+
+
+def _market_units(market: MarketConfig) -> dict:
+    """The keys a non-default market adds to the result: ``period`` when it is not the
+    legacy ``month`` (an absent key means month, so the Czech payload is unchanged), and
+    ``absence: "no_market_benchmark"`` when kp holds no benchmark for the market, so the
+    0-0 band reads as a stated refusal rather than a taxonomy miss."""
+    extra: dict = {}
+    if market.period != "month":
+        extra["period"] = market.period
+    if not has_benchmark(market):
+        extra["absence"] = "no_market_benchmark"
+    return extra
 
 
 def _coerce(
@@ -114,6 +130,7 @@ def _coerce(
         # on the wire and the TS normalizer never has to distinguish "absent" from
         # "not applicable".
         "benchmark": None,
+        **({"period": market.period} if market.period != "month" else {}),
     }, True
 
 
@@ -153,16 +170,18 @@ def main(argv: list[str] | None = None) -> int:
         # byte-identical to before; for any OTHER region the model prices in that
         # region's own natural currency and is told NOT to convert to CZK.
         cur = ACTIVE_MARKET.currency
+        per = ACTIVE_MARKET.period
+        adverb = {"hour": "HOURLY", "month": "MONTHLY", "year": "ANNUAL"}.get(per, per.upper())
         active_region = region.strip().lower() == REGION_DEFAULT.strip().lower()
         if active_region:
             prompt = (
-                "You are a compensation analyst. Using current web search results, estimate the typical MONTHLY GROSS "
+                f"You are a compensation analyst. Using current web search results, estimate the typical {adverb} GROSS "
                 f"salary range for this role in {region}.\n"
                 f"- Title: {title}\n- Seniority: {seniority}\n- Field: {role_family}\n"
                 f"- Company profile: similar to {company}\n- Key stack: {stack}\n\n"
                 f"Write the summary in {language_name(args.lang)}; keep the currency code and numbers as specified.\n"
                 "Respond with ONLY a JSON object (no prose, no fences):\n"
-                f'{{"suggestedMinimum": <int {cur}/month>, "suggestedMaximum": <int {cur}/month>, '
+                f'{{"suggestedMinimum": <int {cur}/{per}>, "suggestedMaximum": <int {cur}/{per}>, '
                 f'"currency": "{cur}", "confidence": "low|medium|high", '
                 '"summary": "<1-2 sentences of market context grounded in what you found>"}'
             )
