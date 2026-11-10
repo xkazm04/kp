@@ -1,0 +1,94 @@
+{
+  "schema": "conform-run/1",
+  "worker": "6b1f0fbb-3ef2-408f-b8ee-85290c64591b",
+  "subject": "optional-dependency-degradation",
+  "evaluatedAt": "2026-11-10T01:18:06.796337+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [
+    {
+      "context": "candidate-apply-api",
+      "subject": "optional-dependency-degradation",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evidence": "app/api/intake/[id]/voice-connect/route.ts:89 An unconfigured voice relay gets a closed-union refusal code that is distinct from the INTAKE_VOICE_CONNECT_FAILED store fault, and keyless LLM turns degrade with their cause on the wire. Every dependency-backed intake surface therefore either works or refuses honestly.",
+      "techniques": [
+        {
+          "technique": "capability-honest-refusal",
+          "verdict": "conformant",
+          "evidence": "app/api/intake/[id]/voice-connect/route.ts:89 The configuration check runs before the mint, and the permanent gap (503 NOT_CONFIGURED) is told apart from the transient failure (safeJsonError CONNECT_FAILED). The env names in `need` fall under the standard's carve-out for operator-only self-hosted audiences, since the route sits behind requireOperator. The code is pinned by intake-refusal-guard.test.ts."
+        },
+        {
+          "technique": "misconfiguration-never-reaches-a-fallback",
+          "verdict": "conformant",
+          "evidence": "app/api/intake/[id]/message/route.ts:234 The degraded answer carries its cause, so a keyless install and a provider outage stop reading the same. intake-degradation-contract.test.ts pins this for both turn routes."
+        },
+        {
+          "technique": "absent-degrades-malformed-fails-fast",
+          "verdict": "conformant",
+          "evidence": "app/api/intake/[id]/voice-complete/route.ts:96 Keyless extraction declines honestly (extracted:false), keeping the transcript and leaving the brief untouched. The malformed-config half is not read by this context and was judged in llm-config-provider."
+        },
+        {
+          "technique": "refusal-is-not-failure",
+          "verdict": "not-applicable",
+          "evidence": "app/api/intake/[id]/message/route.ts:77 The late-bound intake_round runner is a classifier/writer whose purpose is known, not a validator that can object. The route asks for best-effort explicitly, scoped to this call, and logs."
+        },
+        {
+          "technique": "fallback-retirement-condition",
+          "verdict": "not-applicable",
+          "evidence": "app/api/intake/route.ts:14 The keyless deterministic path is a permanent product posture, not a stand-in for a platform gap expected to close, so no retirement condition is owed."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "optional-dependency-degradation",
+      "context": "jobseeker-profile",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "optional-dependency-degradation",
+      "context": "llm-config-provider",
+      "reason": "withdrawn after review: reviewer (sonnet): The deviation anchors on app/_lib/offline.ts:15 (the KP_OFFLINE parse), which is not one of this context's files and is not imported by any of them (I grepped llm-config, llm-lighttrack, llm-secret, llm-quality and llm-model-defaults); the 'falls back to the Claude CLI' half of the llm-config.ts:367"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-10T01:18:06.796337+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "optional-dependency-degradation"
+      ],
+      "techniques": [
+        "absent-degrades-malformed-fails-fast",
+        "guarded-singleton-accessor",
+        "misconfiguration-never-reaches-a-fallback",
+        "per-variable-blast-radius",
+        "probe-the-grant-not-the-config"
+      ],
+      "deviations": 1,
+      "context": "llm-config-provider",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    },
+    {
+      "ts": "2026-11-10T01:18:06.796337+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "optional-dependency-degradation"
+      ],
+      "techniques": [
+        "absent-degrades-malformed-fails-fast",
+        "capability-honest-refusal",
+        "fallback-retirement-condition",
+        "misconfiguration-never-reaches-a-fallback",
+        "refusal-is-not-failure"
+      ],
+      "deviations": 0,
+      "context": "candidate-apply-api",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

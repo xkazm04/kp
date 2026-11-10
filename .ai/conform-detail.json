@@ -8474,40 +8474,46 @@
       "subject": "optional-dependency-degradation",
       "bundle": "software-engineering",
       "state": "unknown",
-      "evaluatedAt": "2026-11-08",
-      "evaluatedTs": "2026-11-08T03:49:53.685Z",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T01:18:06.796Z",
       "techniques": [
         {
           "technique": "misconfiguration-never-reaches-a-fallback",
           "verdict": "deviation",
-          "evidence": "app/_lib/offline.ts:15 An unrecognised token in a present value is treated as absent and lands on the least-safe default (egress open); the standard says it is malformed and must be refused, naming the variable."
+          "evidence": "app/_lib/offline.ts:15 The membership test turns any unknown token in a present value into 'off' instead of refusing with the variable name and the accepted set. offline.test.ts:9 only tests the known falsey words and never a near-miss typo."
         },
         {
           "technique": "absent-degrades-malformed-fails-fast",
           "verdict": "deviation",
-          "evidence": "app/_lib/offline.ts:57 A malformed OPENAI_BASE_URL/AZURE_OPENAI_ENDPOINT/LIGHTTRACK_URL is handled exactly like an unset one (hostOf returns null). Nothing validates it at boot; it surfaces later as a blocked fetch. This branches on parse success, not on presence. (The decrypt path does fail loud instead of falling through: llm-config.ts:360.)"
+          "evidence": "app/_lib/llm-lighttrack.ts:164 LIGHTTRACK_URL is checked for presence only (line 112), and a malformed value such as a host with no scheme is never validated at boot. Every emit then fails into this swallow, so a configured collector silently receives nothing. The absent half is right: llm-config.ts:367 returns {} and falls back to the Claude CLI."
         },
         {
           "technique": "guarded-singleton-accessor",
           "verdict": "conformant",
-          "evidence": "app/_lib/llm-secret.ts:45 The master key is read at first use, not at module scope, and throws an error naming the variable rather than returning a stub or storing plaintext."
+          "evidence": "app/_lib/llm-secret.ts:45 masterKey() is a lazy accessor read on each call, with nothing memoised at module scope. It throws naming the variable instead of returning a stub, so an unset secret refuses only the key-storage feature."
         },
         {
           "technique": "probe-the-grant-not-the-config",
           "verdict": "conformant",
-          "evidence": "app/_lib/llm-config.ts:403 The keys-panel Test probes exactly the (provider, scope) row and its base URL rather than the precedence-resolved config, so a green result is about the credential that will actually be called."
+          "evidence": "app/_lib/llm-config.ts:403 The keys-panel Test probes exactly the stored (provider, scope) row and its baseUrl, not the precedence-resolved config. A green result is therefore about the credential that will actually be called."
+        },
+        {
+          "technique": "per-variable-blast-radius",
+          "verdict": "deviation",
+          "evidence": "app/_lib/llm-config.ts:182 KP_LLM_ENDPOINT_ALLOWLIST is read here but has no entry in .env.example. The only mention is a harness note under docs/harness/, so its unset consequence (Azure endpoints outside *.openai.azure.com are refused) is undocumented. KP_OFFLINE, LIGHTTRACK_* and KP_SECRET(_PREVIOUS) do have template entries."
         },
         {
           "technique": "fallback-retirement-condition",
           "verdict": "conformant",
-          "evidence": "app/_lib/llm-secret.ts:98 The rotation fallback (KP_SECRET_PREVIOUS) runs only when the current key fails to decrypt. It never encrypts, and the header names when to retire it (unset once secrets:rotate reports zero rows)."
+          "evidence": "app/_lib/llm-secret.ts:98 The rotation fallback (KP_SECRET_PREVIOUS) runs only when the current key fails to decrypt. It never encrypts, and the header names when to retire it (unset once secrets:rotate reports zero rows).",
+          "carriedFrom": "2026-11-08"
         }
       ],
       "withdrawn": {
-        "worker": "9e219a0f-8dd9-4b35-97f1-5c74167bfeb8",
+        "worker": "6b1f0fbb-3ef2-408f-b8ee-85290c64591b",
         "state": "deviation",
-        "at": "2026-11-08T03:52:27.901324+00:00",
-        "reason": "reviewer (sonnet): The deviation anchors on app/_lib/offline.ts (the KP_OFFLINE parser), which is not among this context's 12 files, and none of the files that are (llm-config.ts, llm-lighttrack.ts, llm-quality.ts, llm-model-defaults.ts) reference offline; the two anchors that are in context (llm-secret.ts:45 and llm-"
+        "at": "2026-11-10T01:19:41.579066+00:00",
+        "reason": "reviewer (sonnet): The deviation anchors on app/_lib/offline.ts:15 (the KP_OFFLINE parse), which is not one of this context's files and is not imported by any of them (I grepped llm-config, llm-lighttrack, llm-secret, llm-quality and llm-model-defaults); the 'falls back to the Claude CLI' half of the llm-config.ts:367"
       }
     },
     "3a7c3a7b-a8f1-4566-aabc-3e5e2b4c471b/plan-entitlements": {
