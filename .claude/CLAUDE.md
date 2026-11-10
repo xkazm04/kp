@@ -122,6 +122,13 @@ e2e/                          # Playwright. The subset below is DECLARED as
                               # + token-doors-axe (axe on the public offer, erasure
                               #   and invite token doors; the /status timeline and
                               #   /skill sweeps skip when no seeded data mints them)
+                              # + one-interface (the One tab: counts, a profile
+                              #   sheet, a held letter approved by a NAMED person and
+                              #   released `queued`, and both refusal sentences — the
+                              #   server needs KP_OPERATOR_NAME)
+                              # + analyze-cohort (the production Analyze studio: the
+                              #   ?jd= deep link, legacy ?variant= links, and the
+                              #   fixture walkthrough through Line-up and a layer)
                               #
                               # The managed webServer runs on a THROWAWAY
                               # KP_DB_PATH (data/kp-e2e.sqlite, see

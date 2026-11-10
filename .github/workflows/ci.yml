@@ -598,7 +598,8 @@ jobs:
         run: |
           # 0.0.0.0, not 127.0.0.1: e2e/landing.spec.ts reaches this server on the
           # runner's LAN address to exercise the non-loopback Host state.
-          (PORT=3101 HOSTNAME=0.0.0.0 KP_ALLOW_OPEN=1 KP_VOICE_INTERVIEW=1 KP_SEED_DEMO=1 NEXT_TELEMETRY_DISABLED=1 KEEP_ALIVE_TIMEOUT=130000 node .next/standalone/server.js > server.log 2>&1 &)
+          # KP_OPERATOR_NAME: one-interface approves a letter, and only a named person may.
+          (PORT=3101 HOSTNAME=0.0.0.0 KP_ALLOW_OPEN=1 KP_VOICE_INTERVIEW=1 KP_SEED_DEMO=1 KP_OPERATOR_NAME="E2E Operator" NEXT_TELEMETRY_DISABLED=1 KEEP_ALIVE_TIMEOUT=130000 node .next/standalone/server.js > server.log 2>&1 &)
           for i in $(seq 1 45); do
             curl -sf http://localhost:3101/ > /dev/null && exit 0
             sleep 2
@@ -647,6 +648,8 @@ jobs:
           journey-job-to-accept
           same-origin-write-door
           token-doors-axe
+          one-interface
+          analyze-cohort
           --project=chromium
         env:
           KP_E2E_BASE_URL: http://localhost:3101

@@ -286,11 +286,13 @@ export function Workspace({
       {/* While the mobile drawer is open, the rest of the page is inert so focus can't
           leak behind the scrim (the actual focus trap). Never inert at md+. */}
       <main ref={mainRef} id="main" tabIndex={-1} inert={isMainInert(isMobile, mobileNavOpen)} className="min-w-0 flex-1 bg-paper focus:outline-none">
-        {/* pb-24 keeps content clear of the fixed simulation bar. The boundary
+        {/* The bottom padding keeps content clear of the fixed simulation dock: at
+            least pb-24, and the dock's live height (--sim-bar-h) when it is raised
+            taller, so a short page can still scroll its last row above it. The boundary
             contains a single tab's render crash to this panel (sidebar + sim bar
             survive) and clears itself when resetKey/navActive changes on a tab
             switch. The inner key replays the fade-in entrance on each switch. */}
-        <div className="mx-auto max-w-[108rem] px-4 py-8 pb-24 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[108rem] px-4 py-8 pb-[max(6rem,calc(var(--sim-bar-h,0px)_+_1rem))] sm:px-6 lg:px-8">
           <WorkspaceTabPanel navActive={navActive} active={active} capabilities={capabilities} onCloseOverlay={closeOverlayTab} />
         </div>
       </main>

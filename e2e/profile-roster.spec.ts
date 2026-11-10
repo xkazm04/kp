@@ -149,7 +149,17 @@ test.describe("Profile roster — the saved-profile ledger", () => {
   test("a filter that matches nothing offers a way back, not the first-run brief", async ({ page }) => {
     await createProfile(page, tag("Present"));
     await openRoster(page);
-    await (await nameFilterBox(page)).fill("no-such-candidate-anywhere");
+    // Found and filled in one retried unit, like filterByName: the box can close
+    // under a roster re-render between the two steps. The proof is the empty state
+    // itself, not the box's value: a filter that matches nothing replaces the table,
+    // header and box included.
+    const none = page.getByText("No profile matches these filters.");
+    await expect(async () => {
+      if (await none.isVisible()) return;
+      const box = await nameFilterBox(page);
+      await box.fill("no-such-candidate-anywhere", { timeout: 2_000 });
+      await expect(none).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 45_000 });
 
     await expect(page.getByText("No profile matches these filters.")).toBeVisible();
     // NOT the illustrated empty state — that would lie about the roster being empty.

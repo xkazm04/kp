@@ -103,7 +103,14 @@ export const KEYLESS_SPECS = [
   // axe on the public offer, erasure and invite token doors (the /status timeline
   // and /skill sweeps skip themselves when no seeded data mints their token).
   // Measured green on a production standalone build.
-  "token-doors-axe"
+  "token-doors-axe",
+  // The One tab end to end: a held letter approved by a NAMED person and released
+  // through the two existing doors, plus both refusal sentences. Needs
+  // KP_OPERATOR_NAME on the server (the webServer below and ci.yml both set it).
+  "one-interface",
+  // The production Analyze studio: the ?jd= deep link, legacy ?variant= links and
+  // the fixture walkthrough. A live cohort run is not keyless, so it is not here.
+  "analyze-cohort"
 ] as const;
 
 export default defineConfig({
@@ -176,6 +183,9 @@ export default defineConfig({
             // otherwise boot empty and stop on the first-run data choice. Every spec
             // here, KEYLESS_SPECS included, is written against the seeded corpus.
             KP_SEED_DEMO: "1",
+            // Outreach letters are approved only by a NAMED person
+            // (app/_lib/outreach-approval.ts); one-interface.spec.ts approves one.
+            KP_OPERATOR_NAME: process.env.KP_OPERATOR_NAME || "E2E Operator",
             ...(process.env.KP_OFFLINE ? { KP_OFFLINE: process.env.KP_OFFLINE } : {}),
             ...(process.env.KP_APP_MASTER_REPO_ROOTS
               ? { KP_APP_MASTER_REPO_ROOTS: process.env.KP_APP_MASTER_REPO_ROOTS }
