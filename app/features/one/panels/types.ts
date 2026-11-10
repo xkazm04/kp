@@ -11,8 +11,8 @@ import type { ActKind, PanelInstance, PanelKind, Selected } from "../types";
  *              is given (its spread stretches);
  *  - `list`    a dense single column for a narrow side (≤ 320px): a line + a meta line;
  *  - `pane`    round 4: a TOOL that fills its container (the profile's CV | score, the
- *              letter reader, the calendar's week) — two columns from 900px of its own
- *              width, stacked below. A kind without a pane body draws its table. */
+ *              letter reader, the calendar's week) — two columns from 26rem (profile,
+ *              interview) or 36rem (letter, calendar) of its own width, stacked below. A kind without a pane body draws its table. */
 export type PanelLook = "table" | "insight" | "list" | "pane";
 
 /** Role grouping of a pipeline list (table / list looks): `role` (default) groups rows by

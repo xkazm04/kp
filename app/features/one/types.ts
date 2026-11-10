@@ -25,7 +25,7 @@ export const PANEL_KINDS = [
   "outbox",
   "decisionsQueue",
   "roleCard",
-  // Round 4 — the tools the simplified UI acts through (reads only; acts are previews).
+  // Round 4 — the tools the simplified UI acts through (reads; their acts arm consent cards).
   "letters",
   "calendar",
   "profile",
@@ -41,8 +41,8 @@ export const ACT_KINDS = [
   "entryReject",
   "wave",
   "companion",
-  // Round 4 — PREVIEW acts (consent/acts.ts `PREVIEW_ACTS`): the card arms and states the
-  // consequence from real data, its confirm is disabled ("Wired after the pick").
+  // Round 4 tool acts, wired in round 6: approve / send a held outreach letter, book a slot,
+  // send a self-scheduling link (consent/ToolConsent.tsx).
   "letterApprove",
   "letterSend",
   "interviewBook",

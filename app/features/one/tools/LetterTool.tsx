@@ -1,12 +1,13 @@
 "use client";
 
 // The email tool (round 4) — ONE candidate's held outreach letter and their thread, what the
-// `letter` panel draws in its `pane` look. Two columns from 900px of its own width: the
+// `letter` panel draws in its `pane` look. Two columns from 36rem of its own width: the
 // letter as a release would SEND it (subject, recipient, body with the legal footers, the
 // delivery forecast, state + revision) and its one next act (Approve a draft / Send an
 // approved one) | what was already sent to them, with the one delivery verdict per message.
 //
-// The acts arm PREVIEW consent cards (consent/acts.ts PREVIEW_ACTS) — nothing is written.
+// The acts arm consent cards; only a card's press reaches the approve / release doors. The
+// act here is secondary: the card's confirm is the one coral button on the screen.
 // Only the first-contact outreach letter is held for approval today; rejection and interview
 // letters are not drafts a person approves, so this tool never shows one as held.
 import { useTranslations } from "next-intl";
@@ -37,9 +38,9 @@ export function LetterAct({ letter, label, onPropose, size = "sm" }: { letter: H
   const next = letterNextAct(letter);
   if (!next) return null;
   return next === "approve" ? (
-    <Button label={t("approve")} variant="primary" size={size} icon="check" onClick={() => onPropose("letterApprove", letterActParams(letter, label))} data-act="letter-approve" />
+    <Button label={t("approve")} variant="secondary" size={size} icon="check" onClick={() => onPropose("letterApprove", letterActParams(letter, label))} data-act="letter-approve" />
   ) : (
-    <Button label={t("send")} variant="primary" size={size} onClick={() => onPropose("letterSend", letterActParams(letter, label))} data-act="letter-send" />
+    <Button label={t("send")} variant="secondary" size={size} onClick={() => onPropose("letterSend", letterActParams(letter, label))} data-act="letter-send" />
   );
 }
 
@@ -89,12 +90,11 @@ export function LetterPane({
   onPropose: PanelProps["onPropose"];
 }) {
   const t = useTranslations("one.core.panels.letter");
-  const ts = useTranslations("one.core.sample");
   const fmt = useDateFormat();
   const forecast = preview?.forecast ? t(`forecast.${preview.forecast}`) : t("forecast.unknown");
   return (
     <div className="@container min-h-0 flex-1 overflow-y-auto" data-role="one-letter">
-      <div className="grid gap-[var(--one-gap)] p-[var(--one-pad)] @min-[900px]:h-full @min-[900px]:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className="grid gap-[var(--one-gap)] p-[var(--one-pad)] @min-[36rem]:h-full @min-[36rem]:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="flex min-h-0 min-w-0 flex-col gap-3" data-role="one-letter-reader">
           {letter ? (
             <>
@@ -106,7 +106,6 @@ export function LetterPane({
                   <LetterAct letter={letter} label={label} onPropose={onPropose} />
                 </span>
               </div>
-              {letter.sample ? <Note tone="caution">{ts("note")}</Note> : null}
               <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-micro">
                 <dt className={META_LABEL}>{t("to")}</dt>
                 <dd className="min-w-0 break-words text-ink">{preview?.recipient ?? t("noRecipient")}</dd>
@@ -120,7 +119,7 @@ export function LetterPane({
               {letter.body === null ? (
                 <Note tone="caution">{t("erased")}</Note>
               ) : (
-                <div className="flex min-h-0 flex-1 flex-col gap-1">
+                <div className="flex min-h-40 flex-1 flex-col gap-1">
                   <p className={META_LABEL}>{t("sends")}</p>
                   <div className="min-h-0 flex-1 overflow-y-auto rounded-md border border-stone-200 bg-stone-50 p-3 dark:rounded-lg" tabIndex={0} aria-label={t("sends")}>
                     <p className="whitespace-pre-wrap break-words text-micro leading-6 text-ink">{preview?.body || letter.body}</p>
@@ -137,7 +136,7 @@ export function LetterPane({
             </>
           )}
         </div>
-        <div className="min-h-0 min-w-0 @min-[900px]:overflow-y-auto">
+        <div className="min-h-0 min-w-0 @min-[36rem]:overflow-y-auto">
           <Thread messages={thread} />
         </div>
       </div>

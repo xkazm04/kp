@@ -3,7 +3,7 @@
 // letters — the outreach letters WAITING FOR APPROVAL (round 4), read from the one new door
 // GET /api/outreach-letters?state=drafted (oldest first, no body). Rows are candidates
 // (selectable — the email tool opens the letter), grouped by role. A row's quiet act (or its
-// `a` key) arms a PREVIEW "approve this revision" consent card; nothing is written.
+// `a` key) arms an "approve this revision" consent card; only its press writes.
 // Only first-contact outreach is held today, so this view never fakes another letter kind.
 import { useTranslations } from "next-intl";
 import { Button } from "@/app/_components/kit";
@@ -19,7 +19,6 @@ const actParams = (l: LetterItem) => ({ entryId: l.entryId, letterId: l.id, revi
 export function LettersPanel(props: PanelProps) {
   const t = useTranslations("one.core.panels");
   const tl = useTranslations("one.core.panels.letters");
-  const ts = useTranslations("one.core.sample");
   const fmt = useDateFormat();
   const read = useLettersWaiting(props.epoch);
   const data = read.state === "ready" ? read.data : null;
@@ -60,11 +59,13 @@ export function LettersPanel(props: PanelProps) {
         console: { tab: "pipeline" },
         read,
         cols: [
-          { key: "name", label: t("cols.candidate"), track: "minmax(12rem,1fr)" },
-          { key: "rev", label: t("cols.revision"), track: "6rem", end: true },
-          { key: "at", label: t("cols.drafted"), track: "8rem", end: true },
+          { key: "name", label: t("cols.candidate"), track: "minmax(9rem,1fr)" },
+          { key: "rev", label: t("cols.revision"), track: "5rem", end: true },
+          { key: "at", label: t("cols.drafted"), track: "7rem", end: true },
         ],
-        actsTrack: "5rem",
+        // The ✓ AND the Console door share this track: 9rem holds both without spilling
+        // over the drafted date.
+        actsTrack: "9rem",
         keyHint: tl("keys"),
         rows: all.slice(0, limit).map((l) => {
           const approve = () => props.onPropose("letterApprove", actParams(l));
@@ -88,7 +89,7 @@ export function LettersPanel(props: PanelProps) {
         }),
         insight,
         empty: tl("empty"),
-        foot: [all.some((l) => l.sample) ? ts("note") : null, all.length > limit ? t("firstOf", { shown: limit, total: all.length }) : null, data?.truncated ? tl("truncated") : null].filter(Boolean).join(" ") || undefined,
+        foot: [all.length > limit ? t("firstOf", { shown: limit, total: all.length }) : null, data?.truncated ? tl("truncated") : null].filter(Boolean).join(" ") || undefined,
       }}
     />
   );

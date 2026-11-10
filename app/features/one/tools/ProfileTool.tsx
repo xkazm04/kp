@@ -1,10 +1,11 @@
 "use client";
 
 // The candidate profile tool (round 4) — what the `profile` panel draws in its `pane` look
-// and, compacted, in its `insight` look. Two columns from 900px of the tool's OWN width
+// and, compacted, in its `insight` look. Two columns from 26rem of the tool's OWN width
 // (a container query, so a half-screen pane and a full sheet both read right): the CV as
 // the analysis read it | the score — verdict, the five parts against their maxima, job fit
-// (matching / missing / unproven), strengths, gaps, soft signals. Stacked below 900px.
+// (matching / missing / unproven), strengths, gaps, soft signals. Stacked below 26rem: the
+// owner's ask is CV | score side by side, and a half-screen sheet in the tab at 1280 is ~445px.
 //
 // Everything is the analysis' own record (GET /api/analyses/[slug] via tools/reads.ts); a
 // missing score is "Unscored", never a 0, and an analysis matched by name only says so.
@@ -121,12 +122,12 @@ function Provenance({ p }: { p: Ready }) {
   );
 }
 
-/** The `pane` look: CV | score, two columns from 900px of its own width. */
+/** The `pane` look: CV | score, two columns from 26rem of its own width. */
 export function ProfilePane({ profile }: { profile: Ready }) {
   const t = useTranslations("one.core.panels.profile");
   return (
     <div className="@container min-h-0 flex-1 overflow-y-auto" data-role="one-profile">
-      <div className="grid gap-[var(--one-gap)] p-[var(--one-pad)] @min-[900px]:h-full @min-[900px]:grid-cols-2">
+      <div className="grid gap-[var(--one-gap)] p-[var(--one-pad)] @min-[26rem]:h-full @min-[26rem]:grid-cols-2 @min-[26rem]:grid-rows-[minmax(0,1fr)]">
         <div className="flex min-h-0 min-w-0 flex-col gap-2" data-role="one-profile-cv">
           <div className="flex items-baseline justify-between gap-3">
             <p className={META_LABEL}>{t("cv")}</p>
@@ -142,7 +143,7 @@ export function ProfilePane({ profile }: { profile: Ready }) {
           )}
           <p className="text-micro text-steel">{t("cvNote")}</p>
         </div>
-        <div className="min-h-0 min-w-0 @min-[900px]:overflow-y-auto">
+        <div className="min-h-0 min-w-0 @min-[26rem]:overflow-y-auto">
           <ScoreSide p={profile} />
         </div>
       </div>

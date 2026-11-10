@@ -71,6 +71,42 @@ export async function confirmWave(text: string, confirmIds: string[] | null): Pr
   return { ok: true, count: n(b.count), failed: n(b.failed), commsFailed: n(b.commsFailed), heldAtOffer: n(b.heldAtOffer), droppedOut: n(b.droppedOut) };
 }
 
+/** The truthful delivery claim the send doors answer (comms-truth deliveryClaim). */
+export type Delivery = "sent" | "queued" | "failed";
+const delivery = (v: unknown): Delivery => (v === "sent" || v === "queued" ? v : "failed");
+
+/** POST /api/outreach-letters/[id]/approve {revision} — a NAMED person approves the revision
+ *  they read; nothing is sent. 403 OUTREACH_APPROVER_UNNAMED, 409 OUTREACH_LETTER_CONFLICT. */
+export async function approveLetter(letterId: string, revision: number): Promise<{ ok: true; revision: number; approvedBy: string | null } | DoorFail> {
+  const r = await post(`/api/outreach-letters/${encodeURIComponent(letterId)}/approve`, { revision });
+  if (!r.ok) return fail(r.status, r.body);
+  const l = ((r.body ?? {}) as { letter?: { revision?: unknown; approvedBy?: unknown } }).letter ?? {};
+  return { ok: true, revision: n(l.revision) || revision, approvedBy: typeof l.approvedBy === "string" ? l.approvedBy : null };
+}
+
+/** POST /api/outreach-letters/[id]/release — the ONE door that sends an approved letter.
+ *  409 OUTREACH_APPROVAL_STALE (changed after approval: nothing sent, back to draft). */
+export async function releaseLetter(letterId: string): Promise<{ ok: true; delivery: Delivery } | DoorFail> {
+  const r = await post(`/api/outreach-letters/${encodeURIComponent(letterId)}/release`, {});
+  if (!r.ok) return fail(r.status, r.body);
+  return { ok: true, delivery: delivery((r.body as { delivery?: unknown } | null)?.delivery) };
+}
+
+/** POST /api/schedule {action:"book", entryId, dateSlot} — the week grid's book door. */
+export async function bookInterview(entryId: string, dateSlot: string): Promise<{ ok: true; slot: string | null } | DoorFail> {
+  const r = await post("/api/schedule", { action: "book", entryId, dateSlot });
+  if (!r.ok) return fail(r.status, r.body);
+  const slot = (r.body as { slot?: unknown } | null)?.slot;
+  return { ok: true, slot: typeof slot === "string" ? slot : null };
+}
+
+/** POST /api/schedule/invite {entryId} — mint a self-scheduling link and mail it. */
+export async function sendScheduleLink(entryId: string): Promise<{ ok: true; delivery: Delivery } | DoorFail> {
+  const r = await post("/api/schedule/invite", { entryId });
+  if (!r.ok) return fail(r.status, r.body);
+  return { ok: true, delivery: delivery((r.body as { delivery?: unknown } | null)?.delivery) };
+}
+
 /** POST /api/pipeline/command/reverse {ids, text} — undo a reject wave. */
 export async function reverseWave(ids: string[], text: string): Promise<{ ok: true; restored: number; notified: number; skipped: number } | DoorFail> {
   const r = await post("/api/pipeline/command/reverse", { ids, text });

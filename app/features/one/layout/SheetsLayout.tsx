@@ -51,9 +51,7 @@ import {
   COLS_WIDE,
   COMPACT,
   FACE_DISPLAY,
-  FORCE_TWO,
   KEYCAP,
-  LETTERS_TRACKS,
   NO_CHROME,
   NO_HEAD,
   SPINE,
@@ -306,15 +304,15 @@ export function SheetsLayout({
     const fill = "min-h-0 flex-1";
     switch (k) {
       case "letters":
-        return <div className={`flex min-h-0 flex-1 flex-col ${LETTERS_TRACKS}`} {...pickFrom(setSource, "letters")}>{renderPanel(LETTERS_VIEW, { look: "table", className: `${fill} ${NO_CHROME}` })}</div>;
+        return <div className="flex min-h-0 flex-1 flex-col" {...pickFrom(setSource, "letters")}>{renderPanel(LETTERS_VIEW, { look: "table", className: `${fill} ${NO_CHROME}` })}</div>;
       case "calendar":
         return <div className={`flex min-h-0 flex-1 flex-col ${CAL_BESIDE}`} {...pickFrom(setSource, "calendar")}>{renderPanel(CALENDAR_VIEW, { look: "table", className: `${fill} ${NO_CHROME}` })}</div>;
       case "profile":
-        return person ? personBody(k, FORCE_TWO, renderTool("profile", person, { className: fill })) : null;
+        return person ? personBody(k, "", renderTool("profile", person, { className: fill })) : null;
       case "letter":
         return person ? personBody(k, "", renderTool("letter", person, { className: fill })) : null;
       case "schedule":
-        return person ? personBody(k, FORCE_TWO, renderTool("interview", person, { className: fill })) : null;
+        return person ? personBody(k, "", renderTool("interview", person, { className: fill })) : null;
     }
   };
 
@@ -384,7 +382,7 @@ export function SheetsLayout({
               ) : null}
               {isTop ? calendarLine : null}
               {bodyOf(k)}
-              {isTop && asking ? <div className="max-h-[45%] shrink-0 overflow-y-auto">{consentStack}</div> : null}
+              {isTop && asking ? <div className="max-h-[55%] shrink-0 overflow-y-auto">{consentStack}</div> : null}
             </motion.div>
           );
         })}

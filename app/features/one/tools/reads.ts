@@ -6,9 +6,8 @@
 // error, two views on the same URL share ONE request, `epoch` re-reads after a data act.
 //
 // Nothing here writes. The acts these tools offer (approve, send, book, send a link) arm a
-// PREVIEW consent card this round (consent/acts.ts `PREVIEW_ACTS`).
+// consent card; only its press reaches a write door (consent/doors.ts).
 import { useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
 import { parsePipeline, type OneEntry } from "../panels/pipelineRead";
 import { useRead, type Read } from "../panels/read";
 import {
@@ -27,7 +26,6 @@ import {
   weekDays,
   type CalendarDay,
   type Invite,
-  type LetterItem,
   type LetterRead,
   type LettersRead,
   type ProfileSummary,
@@ -82,51 +80,7 @@ export function useProfile(entryId: string | null, candidateId: string | null, e
 
 /** The outreach letters waiting for approval (GET /api/outreach-letters?state=drafted). */
 export function useLettersWaiting(epoch: number): Read<LettersRead> & Retry {
-  const read = useRead(LETTERS_URL, parseLettersList, epoch);
-  const pipeline = usePipeline(epoch);
-  const on = useSampleLetters();
-  return useMemo(() => {
-    if (!on || read.state !== "ready" || read.data.letters.length > 0 || pipeline.state !== "ready") return read;
-    return { ...read, data: { letters: sampleLetters(pipeline.data.entries), truncated: false } };
-  }, [on, read, pipeline]);
-}
-
-/* ── dev-only sample letters (`?sample=letters`) ────────────────────────── */
-// A prototype aid, NOT data: when the database holds no drafted letter, a development build
-// opened with `?sample=letters` shows three made-up drafts addressed to REAL candidates (the
-// highest-scored screened ones), each flagged `sample` so every view says so. Nothing is
-// written; the acts stay preview-only. Never on in a production build.
-
-/** True only in a development build whose URL carries `?sample=letters` (read after mount). */
-function useSampleLetters(): boolean {
-  const [on] = useState(
-    () => process.env.NODE_ENV !== "production" && typeof window !== "undefined" && new URLSearchParams(window.location.search).get("sample") === "letters"
-  );
-  return on;
-}
-
-const SAMPLE_PREFIX = "sample-letter-";
-const SAMPLE_COUNT = 3;
-
-function sampleLetters(entries: readonly OneEntry[]): LetterItem[] {
-  const now = Date.now();
-  // First-contact outreach goes to people who just arrived (the axis's `entry` role) — never
-  // to someone already hired or on an offer.
-  return [...entries]
-    .filter((e) => e.jobTitle && e.score !== null && e.isNew)
-    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-    .slice(0, SAMPLE_COUNT)
-    .map((e, i) => ({
-      id: `${SAMPLE_PREFIX}${e.id}`,
-      entryId: e.id,
-      candidateLabel: e.label,
-      jobTitle: e.jobTitle,
-      subject: e.jobTitle,
-      state: "drafted" as const,
-      revision: 1,
-      createdAt: new Date(now - (i + 1) * 5_400_000).toISOString(),
-      sample: true,
-    }));
+  return useRead(LETTERS_URL, parseLettersList, epoch);
 }
 
 export type LetterToolRead = {
@@ -136,41 +90,18 @@ export type LetterToolRead = {
   thread: Read<{ messages: ThreadMessage[]; relayConfigured: boolean | null }> & Retry;
 };
 
+/** One candidate's held outreach letter (the same URL the letter tool and a letter's consent
+ *  card read, so they share one request). */
+export function useHeldLetter(entryId: string | null, epoch: number): Read<LetterRead> & Retry {
+  return useRead(entryId ? `/api/outreach-letters/by-entry/${encodeURIComponent(entryId)}` : null, parseLetter, epoch);
+}
+
 /** One candidate's held outreach letter + their message thread. Only the outreach letter is
  *  held today; rejection and interview letters are not drafts a person approves. */
 export function useLetter(entryId: string | null, epoch: number): LetterToolRead {
-  const id = entryId ? encodeURIComponent(entryId) : null;
-  const letter = useRead(id ? `/api/outreach-letters/by-entry/${id}` : null, parseLetter, epoch);
-  const thread = useRead(id ? `/api/comms?entry=${id}&limit=20` : null, parseThread, epoch);
-  const waiting = useLettersWaiting(epoch);
-  const ts = useTranslations("one.core.sample");
-  const sampleRow = waiting.state === "ready" ? waiting.data.letters.find((l) => l.sample && l.entryId === entryId) : undefined;
-  const sampled = useMemo((): (Read<LetterRead> & Retry) | null => {
-    if (!sampleRow || letter.state !== "ready" || letter.data.letter !== null) return null;
-    const first = sampleRow.candidateLabel.split(" ")[0] ?? sampleRow.candidateLabel;
-    const body = ts("body", { name: first, role: sampleRow.jobTitle ?? "" });
-    return {
-      ...letter,
-      data: {
-        letter: {
-          id: sampleRow.id,
-          entryId: sampleRow.entryId,
-          state: "drafted",
-          revision: 1,
-          subject: ts("subject", { role: sampleRow.jobTitle ?? "" }),
-          body,
-          lang: "en",
-          approvedAt: null,
-          releasedAt: null,
-          createdAt: sampleRow.createdAt,
-          updatedAt: sampleRow.createdAt,
-          sample: true,
-        },
-        preview: { subject: ts("subject", { role: sampleRow.jobTitle ?? "" }), body, recipient: null, forecast: "local", forecastReason: null },
-      },
-    };
-  }, [sampleRow, letter, ts]);
-  return { letter: sampled ?? letter, thread };
+  const letter = useHeldLetter(entryId, epoch);
+  const thread = useRead(entryId ? `/api/comms?entry=${encodeURIComponent(entryId)}&limit=20` : null, parseThread, epoch);
+  return { letter, thread };
 }
 
 /* ── calendar ────────────────────────────────────────────────────────────── */

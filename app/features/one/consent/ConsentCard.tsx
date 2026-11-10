@@ -12,77 +12,46 @@
 import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Button, Note } from "@/app/_components/kit";
-import { CHIP_QUIET, PANEL_ACCENT } from "@/app/_components/ui/recipes";
-import { useErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { ConsoleAnchor, consoleHref } from "../panels/PanelShell";
+import type { PanelProps } from "../panels/types";
 import type { ProposalInstance } from "../types";
 import { resolveAct, WAVE_UNDO_CAP, type ResolvedAct } from "./acts";
+import { ConsentFrame, isSettled, ResultLines, type Phase } from "./ConsentFrame";
 import { confirmWave, entryAct, previewWave, reverseWave, type WavePreview, type WaveResult } from "./doors";
-
-type Phase =
-  | { at: "idle" }
-  | { at: "busy" }
-  | { at: "previewed"; preview: WavePreview }
-  | { at: "done"; lines: string[]; undo: (() => Promise<void>) | null }
-  | { at: "undone"; lines: string[] }
-  | { at: "stale" }
-  | { at: "failed"; payload: ApiErrorPayload | null };
+import { InterviewConsent, LetterConsent } from "./ToolConsent";
 
 export type ConsentCardProps = {
   proposal: ProposalInstance;
+  /** The read epoch (a letter card reads the letter it agrees to). */
+  epoch: number;
   /** A data act landed: re-read every view. */
   onDataChanged: () => void;
   onDismiss: () => void;
+  /** Arms a follow-up act (an approved letter's "Review the send"). */
+  onPropose?: PanelProps["onPropose"];
   className?: string;
 };
 
-export function ConsentCard({ proposal, onDataChanged, onDismiss, className }: ConsentCardProps) {
+export function ConsentCard(props: ConsentCardProps) {
+  const act = resolveAct(props.proposal.act, props.proposal.params);
+  // The tool acts own their reads and phases (ToolConsent.tsx); hooks stay unconditional.
+  if (act.armed && (act.act === "letterApprove" || act.act === "letterSend")) return <LetterConsent {...props} act={act} />;
+  if (act.armed && (act.act === "interviewBook" || act.act === "interviewLink")) return <InterviewConsent {...props} act={act} />;
+  return <PipelineConsent {...props} act={act} />;
+}
+
+function PipelineConsent({ proposal, onDataChanged, onDismiss, className, act }: ConsentCardProps & { act: ResolvedAct }) {
   const t = useTranslations("one.core.consent");
   const errMsg = useErrorMessage();
   const [phase, setPhase] = useState<Phase>({ at: "idle" });
-  const act = resolveAct(proposal.act, proposal.params);
   const busy = phase.at === "busy";
 
   // Round 3: title (act + who), ONE consequence line, a quiet tag that says whether it can
   // be undone here, the buttons — and everything else (what reaches the inbox, the offer
   // step, the cost) behind a "Details" disclosure, so the card reads in one glance.
-  const frame = (title: string, line: ReactNode, footer: ReactNode, opts?: { tag?: "final" | "undo"; details?: ReactNode; extra?: ReactNode }) => (
-    <section
-      className={`${PANEL_ACCENT} flex min-w-0 flex-col gap-2 p-[var(--one-pad)] ${className ?? ""}`}
-      data-one-consent={proposal.act}
-      data-proposal-id={proposal.id}
-      data-phase={phase.at}
-      data-one-surface
-      aria-label={t("heading")}
-    >
-      <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h3 className="min-w-0 font-[family-name:var(--one-title-font)] text-h3 font-semibold text-ink">{title}</h3>
-        {opts?.tag ? (
-          <span className={`${CHIP_QUIET} shrink-0`} data-role="one-consent-tag">
-            {opts.tag === "final" ? t("finalTag") : t("undoTag")}
-          </span>
-        ) : null}
-      </div>
-      <div className="flex flex-col gap-1.5 text-micro text-ink">
-        {line}
-        {opts?.extra}
-      </div>
-      <div className="flex flex-wrap items-center gap-2 [&_.k-btn]:h-8 [&_.k-btn]:px-3">
-        {footer}
-        {opts?.details ? (
-          // Everything past the one line lives here; open, it takes the row under the buttons.
-          <details className="group ml-auto text-micro text-steel open:ml-0 open:basis-full" data-role="one-consent-details">
-            <summary className="focus-ring ml-auto w-fit cursor-pointer list-none rounded-sm font-semibold text-steel group-open:ml-0 hover:text-ink [&::-webkit-details-marker]:hidden">
-              <span className="inline-block transition-transform group-open:rotate-90" aria-hidden>
-                ›
-              </span>{" "}
-              {t("details")}
-            </summary>
-            <div className="mt-1 flex flex-col gap-1 pl-3">{opts.details}</div>
-          </details>
-        ) : null}
-      </div>
-    </section>
+  const frame = (title: string, line: ReactNode, footer: ReactNode, opts?: { tag?: "final" | "undo"; details?: ReactNode }) => (
+    <ConsentFrame act={proposal.act} proposalId={proposal.id} phase={phase.at} className={className} title={title} line={line} footer={footer} tag={opts?.tag} details={opts?.details} />
   );
 
   if (!act.armed) {
@@ -96,15 +65,7 @@ export function ConsentCard({ proposal, onDataChanged, onDismiss, className }: C
   const outcome = (): ReactNode => {
     if (phase.at === "stale") return <Note tone="caution">{t("stale")}</Note>;
     if (phase.at === "failed") return <Note tone="critical">{errMsg(phase.payload, t("failed"))}</Note>;
-    if (phase.at === "done" || phase.at === "undone") {
-      return (
-        <div className="flex flex-col gap-1" role="status" data-role="one-consent-result">
-          {phase.lines.map((l) => (
-            <p key={l}>{l}</p>
-          ))}
-        </div>
-      );
-    }
+    if (phase.at === "done" || phase.at === "undone") return <ResultLines lines={phase.lines} />;
     return null;
   };
 
@@ -121,7 +82,7 @@ export function ConsentCard({ proposal, onDataChanged, onDismiss, className }: C
     }
     return <Button label={t("notNow")} variant="ghost" onClick={onDismiss} />;
   };
-  const settled = phase.at === "done" || phase.at === "undone" || phase.at === "stale" || phase.at === "failed";
+  const settled = isSettled(phase);
 
   switch (act.act) {
     case "entryAdvance":
@@ -220,50 +181,9 @@ export function ConsentCard({ proposal, onDataChanged, onDismiss, className }: C
     case "letterApprove":
     case "letterSend":
     case "interviewBook":
-    case "interviewLink": {
-      // Round 4 PREVIEW: the card is armed and its one line comes from the real data the
-      // tool read (who, which revision, which slot), but the confirm is disabled — no write
-      // reaches any door this round (acts.ts PREVIEW_ACTS).
-      const who = act.label ?? t("previewActs.someone");
-      const title =
-        act.act === "letterApprove"
-          ? t("previewActs.letterApprove.title", { label: who })
-          : act.act === "letterSend"
-            ? t("previewActs.letterSend.title", { label: who })
-            : act.act === "interviewBook"
-              ? t("previewActs.interviewBook.title", { label: who })
-              : t("previewActs.interviewLink.title", { label: who });
-      const line =
-        act.act === "letterApprove"
-          ? t("previewActs.letterApprove.line", { label: who, revision: act.revision })
-          : act.act === "letterSend"
-            ? t("previewActs.letterSend.line", { label: who })
-            : act.act === "interviewBook"
-              ? act.zone
-                ? t("previewActs.interviewBook.lineZone", { label: who, when: act.when ?? act.dateSlot, zone: act.zone })
-                : t("previewActs.interviewBook.line", { label: who, when: act.when ?? act.dateSlot })
-              : t("previewActs.interviewLink.line", { label: who });
-      const press =
-        act.act === "letterApprove"
-          ? t("previewActs.letterApprove.press")
-          : act.act === "letterSend"
-            ? t("previewActs.letterSend.press")
-            : act.act === "interviewBook"
-              ? t("previewActs.interviewBook.press")
-              : t("previewActs.interviewLink.press");
-      return frame(
-        title,
-        <p>{line}</p>,
-        <>
-          <Button label={press} variant="primary" disabled data-role="one-consent-preview-confirm" />
-          <Button label={t("notNow")} variant="ghost" onClick={onDismiss} />
-          <span className="text-micro text-steel" data-role="one-consent-preview">
-            {t("preview")}
-          </span>
-        </>,
-        { details: <p>{t(`previewActs.${act.act}.details`)}</p> }
-      );
-    }
+    case "interviewLink":
+      // Drawn by ToolConsent (ConsentCard routes them there before this component).
+      return null;
     case "companion":
       return frame(
         t(`companion.title.${act.action}`),

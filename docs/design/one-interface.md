@@ -14,7 +14,9 @@ three ways (the owner picked **Split**); round 3 judged three finishes of it and
 outreach email, the interview calendar — as shared tools (real reads, preview acts) and judged
 three LAYOUTS of them; the owner kept **Sheets** and round 5 consolidated on it: one layout, no
 variants, no `?v=`, and the tab. See "Round 4 verdict" and "Round 5 — one layout, two frames,
-the tab".
+the tab". Round 6 wired the tool acts end to end (approve and send a held letter, book a time,
+send a scheduling link) through the doors the rest of the app uses; see "Round 6 — the acts,
+wired".
 
 Governing standard: registry subject `model-composed-workspace` (golden path +
 `composition-region`, `reversible-screen-ops`). Shape reference (not code):
@@ -29,6 +31,7 @@ Governing standard: registry subject `model-composed-workspace` (golden path +
 | `app/features/one/OneShell.tsx` | Owns the core and, per frame, the fixed chrome (page: brand + Console link + Ctrl/⌘ K; tab: none); hands the layout `LayoutProps`. Its root is the FINISH root (`data-one-root`, `data-finish`, `data-one-frame`, the Figtree + Caveat font variables): it imports `finish.css`, provides the motion flavor (`motion.ts`) and the frame (`OneFrameContext`, `panels/PanelShell.tsx`). Wrapped in `KitSurface` (calm density). |
 | `app/features/one/layout/` | THE layout: `SheetsLayout.tsx`, the sheet-stack rules (`stack.ts`, tested), the view-placement rule (`side.ts`, tested) and its paint (`styles.ts`, the dense compaction folded in). |
 | `app/features/one/tools/` | Round 4: the tools' reads (`reads.ts` hooks, `parse.ts` pure parsers) and views (`ProfileTool`, `LetterTool`); the interview tool is `panels/CalendarPanel.tsx` scoped to one entry. |
+| `app/features/one/consent/` | The consent cards: `ConsentFrame.tsx` (the one card shape), `ConsentCard.tsx` (routes an act; draws the pipeline acts), `ToolConsent.tsx` (round 6: the letter and interview acts), `doors.ts` (every write door One calls), `acts.ts` + `actParams.ts` (pure resolution). |
 | `app/features/one/finish.css` · `motion.ts` · `Seg.tsx` | The finish hooks (+ the narrow-table fold), the motion presets, the one segmented control (+ `CountTick`). See "Round 3 core" and "Motion orchestration". |
 | `app/features/one/panels/readCache.ts` · `read.ts` · `seen.ts` · `layout/Swap.tsx` | Round 5: the stale-while-revalidate read cache (tested), its hook, the seen-record (tested) and the in-place crossfade region. See "Motion orchestration". |
 
@@ -314,7 +317,8 @@ own width a table folds instead of scrolling sideways: the lead column takes the
 middle columns (the stage chip) drop under it, the trailing figure keeps the edge without its
 bar (`data-score-bar`), and the row's acts lie over the figure on the row's own ground — shown
 on hover, focus and the selected / picked row only. The panel head wraps its doors under the
-title. The layout's tightened tracks (`ENTRY_TRACKS`, `LETTERS_TRACKS`) apply only from 32rem.
+title. The layout's tightened tracks (`ENTRY_TRACKS`) apply only from 32rem; since round 6 the
+letters view carries its own 9rem acts track and `LETTERS_TRACKS` is gone.
 At 1280x800 in the tab with the letters sheet open the side table measured 312–314 px with
 `scrollWidth == clientWidth` in both themes.
 
@@ -354,6 +358,16 @@ exists. One primary (coral) button per card; "Not now" dismisses. Rendering runs
 | entryAdvance / entryReject | `POST /api/pipeline/[id]` `{action: "accept"/"reject", expectedStage}` | reject: the rejection letter; advance: may send the next step's invitation | result line; final (no undo from here). `PIPELINE_STAGE_CHANGED` / `PIPELINE_MOVE_CONFLICT` / not-found → "this moved — refresh" |
 | wave | `POST /api/pipeline/command` `{text}` preview (rows + total), then `{text, confirm: true, confirmIds}` | reject: each a letter; advance: may invite | counts from the response; reject wave → Undo via `POST /api/pipeline/command/reverse` `{ids, text}` (≤ 200 ids, else "reverse from the Console"); advance is final |
 | companion | **downgraded** to a Console hand-off (`run_analysis` → analyze, `draft_jd` → intake, `draft_outreach` / `generate_digest` → pipeline, where the candidate drawer and Candi's dock live) | — | the card states the model-call cost and why it cannot start here |
+| letterApprove (round 6) | `POST /api/outreach-letters/[id]/approve` `{revision}`: the revision the card SHOWS (it reads `GET /api/outreach-letters/by-entry/[entryId]`, the letter tool's own URL) | none: approving sends nothing | "Revision N is approved. Nothing has been sent." plus **Review the send**, which arms the letterSend card. Final (there is no un-approve door). 403 `OUTREACH_APPROVER_UNNAMED`, 409 `OUTREACH_LETTER_CONFLICT` → their own sentences |
+| letterSend (round 6) | `POST /api/outreach-letters/[id]/release`, the only door that sends it | the letter itself | the truthful claim from `delivery`: sent / queued (no relay: the local outbox) / failed (Send retries the same message). Final. 409 `OUTREACH_APPROVAL_STALE` ("changed after it was approved, nothing was sent"), `COMMS_SUPPRESSED`, `OUTREACH_RESEND_NOT_APPROVED`, 429 → their own sentences |
+| interviewBook (round 6) | `POST /api/schedule` `{action:"book", entryId, dateSlot}`, the week grid's door (collision-checked; advances the entry server-side) | none from kp; with a calendar connected the event names them as a guest | "Ana is booked for Wed 11 Nov · 10:00." Final (the cancel action is not a reverse: it mails a cancellation and does not move the stage back). `SCHEDULE_SLOT_TAKEN` / `SCHEDULE_CALENDAR_BUSY` / `SCHEDULE_CANDIDATE_INACTIVE` → their sentences; `PIPELINE_ENTRY_NOT_FOUND` → "this moved — refresh" |
+| interviewLink (round 6) | `POST /api/schedule/invite` `{entryId}` | the self-scheduling link (expires after 7 days) | the claim from `delivery`: sent / queued / failed ("the Schedule tab holds the link"). Final |
+
+Every press that lands re-reads every view (`epoch`). The letter cards agree to what they show:
+a letter whose id, revision or state no longer matches the act (`letterMatches` in
+`tools/parse.ts`, tested) disables the confirm and says the letter changed, and a read still
+refreshing disables it too. The confirm is the screen's one coral button: the letter tool's own
+Approve / Send are secondary.
 
 The wave's text is built so the existing parser (`app/_lib/pipeline-command.ts`) reads it
 back to the same intent (pinned by `consent/acts.test.ts`).
@@ -429,7 +443,8 @@ undo leave it (pinned by `engine/session.test.ts`).
 `TOOL_KINDS` = `profile` · `letter` · `interview`. A tool is a panel bound to one candidate,
 drawn by the host outside the session's region (no pin / close chrome — the layout closes it
 with `select(null)`). Default look `pane` (fills its container — give it a height; **two columns
-from 900px of its own width**, a container query, stacked below); `insight` = a compact card.
+from 26rem of its own width for the profile and the interview tool, 36rem for the letter and the
+calendar** (round 6; it was 900px), a container query, stacked below); `insight` = a compact card.
 
 | Tool | Panel kind (params `entryId`, `label`) | Reads | Pane |
 | --- | --- | --- | --- |
@@ -441,7 +456,7 @@ from 900px of its own width**, a container query, stacked below); `insight` = a 
 | Kind | Reads | Looks |
 | --- | --- | --- |
 | `letters` | `GET /api/outreach-letters?state=drafted&limit=200` (the new door) | table / list: candidate (subject under), revision, drafted; rows selectable, grouped by role; the quiet ✓ or `a` arms a preview Approve. insight: letters per role, the one waiting longest, and one suggestion that is a READ (open the oldest in the email tool) |
-| `calendar` | `GET /api/schedule?limit=200` (filtered client-side by week), `GET /api/schedule?slots=1`, `GET /api/pipeline` | table / pane: the week grid (Mon–Fri; booked = ok mark, awaiting the candidate = wait mark; free times; a pager from the first week with a day still ahead to the end of the 21-day offer horizon) beside the waiting list grouped by role (from 760px of its own width, under it below); with a waiting candidate selected the free times become Book buttons. list: the week as an agenda grouped by day. insight: this week's shape, who waits longest, ONE suggested booking (longest waiter × first free time → preview consent). `truncated`, a failed slots read and an unavailable calendar are notes; "no calendar connected" is said beside the zone |
+| `calendar` | `GET /api/schedule?limit=200` (filtered client-side by week), `GET /api/schedule?slots=1`, `GET /api/pipeline` | table / pane: the week grid (Mon–Fri; booked = ok mark, awaiting the candidate = wait mark; free times; a pager from the first week with a day still ahead to the end of the 21-day offer horizon) beside the waiting list grouped by role (from 36rem of its own width, a 12rem list, 16rem from 60rem; under it below); with a waiting candidate selected the free times become Book buttons. list: the week as an agenda grouped by day. insight: this week's shape, who waits longest, ONE suggested booking (longest waiter × first free time → preview consent). `truncated`, a failed slots read and an unavailable calendar are notes; "no calendar connected" is said beside the zone |
 | `profile`, `letter` | above | `pane`, `insight` |
 
 `PanelLook` gains `pane`. Waiting for an interview = an active entry with
@@ -458,11 +473,11 @@ role subline is hidden (it would say the role twice; the age stays). Group heads
 stops — ↑ ↓ cross groups. `renderPanel(panel, { group: "none" })` keeps a view flat; views whose
 rows carry no role (outbox, schedule) are never grouped.
 
-### Preview acts (`ACT_KINDS`)
+### Tool acts (`ACT_KINDS`): previews in round 4, wired in round 6
 `letterApprove` (entryId, letterId, revision, label) · `letterSend` (entryId, letterId,
 revision?, label) · `interviewBook` (entryId, dateSlot `YYYY-MM-DD HH:MM` in the interview zone,
-label, when = the slot's server label, zone) · `interviewLink` (entryId, label). `consent/acts.ts`
-`PREVIEW_ACTS` marks them: the card renders title + ONE consequence line from the real data
+label, when = the slot's server label, zone) · `interviewLink` (entryId, label). In round 4
+`consent/acts.ts` `PREVIEW_ACTS` marked them (deleted in round 6, see "Acts and their doors"): the card renders title + ONE consequence line from the real data
 ("Approves the letter to Ana (revision 2). Nothing is sent yet." / "Books Ana on Mon 9 Nov · 10:00
 (Europe/Prague)." / "Emails Ana a link to pick a time."), a disabled confirm and the line
 `one.core.consent.preview` "Wired after the pick". A malformed revision or a non-slot (`Tue 14:00`)
@@ -490,14 +505,12 @@ jobTitle, subject, state, revision, createdAt, updatedAt }], state, limit, trunc
 for `truncated`; no body on the list. `withWorkspace` + `requireOperator` like the by-entry read.
 Documented in `docs/features/comms/README.md` §8a.
 
-### Sample letters (`?sample=letters`, development builds only)
-The dev DB holds no drafted letter, so the email moments could not be judged. In a development
-build opened with `?sample=letters`, `useLettersWaiting` (tools/reads.ts) answers an EMPTY real
-list with three made-up drafts addressed to real candidates (the highest-scored new arrivals —
-the axis's `entry` role, never someone hired or on an offer), each flagged `sample`; `useLetter` serves the matching draft
-(`one.core.sample.subject|body`). The letters view's foot and the letter tool both say
-`one.core.sample.note`. Nothing is stored, the acts stay preview-only, and a production build
-never turns it on. Remove it when the hold mechanism is wired end to end.
+### Sample letters: removed in round 6
+Round 4 served three made-up drafts under `?sample=letters` in development builds, because the
+dev DB held none. With the acts wired, a made-up letter would have reached a real door (and a
+404), so the aid is gone, `one.core.sample` with it (pinned by `vocabulary.test.ts`). A real
+draft is one press of the sourcing "Reach out" door (`POST /api/jobs/[id]/candidates/outreach`),
+which drafts deterministically with no provider; `e2e/one-interface.spec.ts` does exactly that.
 
 Round-4 data seen (dev DB, 2026-11-07):
 29 decisions in 8 role groups; 6 entries waiting for an interview (4 roles; 3 with no recorded
@@ -559,19 +572,43 @@ Measured (dev data, 2026-11-07, the dock lowered and raised, both themes): scrol
 the viewport (900 / 800) in every capture of the tab and of `/one` — first beat, decisions,
 profile sheet, letters sheet (`&sample=letters`), calendar sheet.
 
-### Core debts the round-4 builders found (still owed)
-- The tools go two-column only from 900px of their own width; the layout forces it locally
-  (half a screen is 610–760px). Lower it to about 600px or give tools a `columns` option.
-- The letters table's 5rem acts column overlaps the drafted date with "Open in Console" (Dense too).
-- The calendar puts the waiting list beside the week only from 760px; the free-time buttons
-  overflow ~85px day columns at 1280.
-- A tool's own head repeats the name the host already shows; a headless `pane` would remove
-  three local overrides.
-- With a letter consent open, the tool's Approve and the card's disabled confirm are both coral.
-- The letter body box collapses at 1280 while a consent card is open.
+### Core debts the round-4 builders found
+Paid in round 6 (shots at 1728x1000 and 1280x800, both themes, before and after):
+- The tools' 900px two-column query is now 26rem for the profile and the interview tool (CV |
+  score side by side in the ~445px half sheet of the tab at 1280) and 36rem for the letter and
+  the calendar; the layout's `FORCE_TWO` adapter is gone.
+- The letters table's acts track is 9rem, so the ✓ and the Console door no longer spill over
+  the drafted date.
+- The calendar's waiting list sits beside the week from 36rem (it was 760px). The layout's
+  `CAL_BESIDE` forced a 12rem list into a ~445px sheet, which squeezed the week to ~230px and
+  overlapped its free times at 1280; it now only tightens the buttons. A free time is a button
+  labelled with the time alone (named "Book <time>"), which fits a ~85px day column.
+- Double coral: the letter tool's Approve / Send are secondary; the card's confirm is the one coral.
+- The letter body: the consent card carries the body itself (a short scrolling box), the sheet's
+  reader keeps a 10rem floor, and the consents' share of the sheet rose from 45% to 55%, so the
+  card and its confirm fit one sight at 1280x800.
+
+Still owed:
+- A tool's own head repeats the name the host already shows (the calendar sheet still says
+  "Interview calendar" twice); a headless `pane` would remove the remaining local overrides.
 - Fixed by the Director: "waiting longest" sorted people with no recorded date FIRST (a `"~"`
   sentinel under locale collation); `byKnownTimeFirst` in `panels/pipelineRead.ts` now puts them last, in the
   calendar and the stalled slice.
+
+## Round 6 — the acts, wired
+
+The four tool acts reach their doors (the table in "Acts and their doors"), with consent before
+every write and the result stated truthfully. The letter is two deliberate acts, as the comms
+contract wants (`docs/features/comms/README.md` §8a). **Approve**: a NAMED person approves the
+revision the card shows (recipient, subject, language and the body a release would send; the
+delivery forecast is under Details). One never approves on the operator's behalf: an install
+that names nobody is refused with `OUTREACH_APPROVER_UNNAMED`, and the card says so. **Review
+the send** then arms the **Send** card, whose press is the release; One sends mail by no other
+path. Booking and the scheduling link go through the week grid's and the invite's own doors; no
+direct-booking path was added. A refusal is answered from its code in the reader's language
+(`useErrorMessage`).
+
+The `one.*` catalogs are translated (cs / de / fr: the 442 strings plus the round-6 consent words).
 
 ## History
 
@@ -590,14 +627,17 @@ Dense's finish and the Sheets layout.
 - **Single-entry acts have no undo here.** `reinstate` reverses only an auto-rejection;
   a hand reject is reopened through the Console's re-add door.
 - **The conductor is keyword-matched**, English-only on the input side; the replies are
-  catalogued. `cs` / `de` / `fr` carry the English `one.core` / `one.sheets` strings until
-  promotion (`nav.tabs.one` is "One" in every locale — a name).
-- **One's modules count against the `app/page.tsx` perf budget** (the budget walks the lazy tab
-  loaders too): about +45 modules / +314 KB.
+  catalogued and, since round 6, translated in `cs` / `de` / `fr` (`nav.tabs.one` is "One" in
+  every locale — a name).
+- **One's modules no longer count against the `app/page.tsx` perf budget**: the walker stopped
+  counting dynamic imports, so the lazy tab chunk is outside it (219 modules / 1771 KB before and
+  after round 6, against a ceiling of 252 / 2035 KB).
 - **The greeting is the first beat only**; it is not recomposed after a data act (panels re-read; the header's counts follow any view's re-read of `/api/attention` through the shared read cache).
 - **A tool for a person the surface has not read yet still waits on a LoadingGap** (the profile's timeline + analysis, the letter's thread): stale-while-revalidate has nothing to show for a URL that never answered, and nothing prefetches on hover.
 - **Undo of a reply is per step** (the last screen change), not "undo the whole reply".
-- **Round-4 acts are previews.** Approve / Send / Book / Send link arm a card whose confirm is
-  disabled; the doors exist and are wired after the layout pick.
+- **The tool acts have no undo.** None of their doors has a reverse (no un-approve, no unsend; a
+  booking's cancel mails a cancellation and keeps the stage), so every card says it is final.
+- **The e2e spec is not in CI yet.** `e2e/one-interface.spec.ts` (keyless; the server needs
+  `KP_OPERATOR_NAME`) is not listed in `KEYLESS_SPECS`, so the release job does not run it.
 - **No CV file is stored**; the profile's CV is the analysis text, and a corpus entry's analysis
   may be matched by name only (said on the tool).

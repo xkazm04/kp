@@ -8,6 +8,7 @@ import {
   letterNextAct,
   parseInvites,
   parseLetter,
+  letterMatches,
   parseLettersList,
   parseProfile,
   parseSlots,
@@ -157,4 +158,20 @@ test("waiting longest puts a known date first and an unknown one last (locale co
   const mk = (id: string, at: string | null) => ({ id, stageChangedAt: at, waitingInterview: true }) as unknown as Parameters<typeof waitingForInterview>[0][number];
   const order = waitingForInterview([mk("none", null), mk("new", "2026-11-01T00:00:00Z"), mk("old", "2026-05-01T00:00:00Z")]).map((e) => e.id);
   assert.deepEqual(order, ["old", "new", "none"]);
+});
+
+test("a letter consent card matches only the letter, revision and state it was armed for", () => {
+  const l = { id: "ol-1", entryId: "pe-1", state: "drafted" as const, revision: 2, subject: "s", body: "b", lang: "cs", approvedAt: null, releasedAt: null, createdAt: "", updatedAt: "" };
+  const approve = { act: "letterApprove" as const, letterId: "ol-1", revision: 2 };
+  assert.equal(letterMatches(approve, l), true);
+  assert.equal(letterMatches({ ...approve, revision: 1 }, l), false, "redrafted since the card was armed");
+  assert.equal(letterMatches({ ...approve, letterId: "ol-2" }, l), false);
+  assert.equal(letterMatches(approve, { ...l, state: "approved" }), false, "already approved");
+  assert.equal(letterMatches(approve, { ...l, body: null }), false, "erased text");
+  assert.equal(letterMatches(approve, null), false);
+  const send = { act: "letterSend" as const, letterId: "ol-1", revision: null };
+  assert.equal(letterMatches(send, l), false, "a draft is not sendable");
+  assert.equal(letterMatches(send, { ...l, state: "approved" }), true);
+  assert.equal(letterMatches(send, { ...l, state: "delivery_failed" }), true);
+  assert.equal(letterMatches(send, { ...l, state: "released" }), false);
 });

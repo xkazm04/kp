@@ -37,8 +37,6 @@ export type LetterItem = {
   state: LetterState;
   revision: number;
   createdAt: string;
-  /** Dev-only `?sample=letters`: a SAMPLE row the client made up (nothing is stored). */
-  sample?: boolean;
 };
 export type LettersRead = { letters: LetterItem[]; truncated: boolean };
 
@@ -76,14 +74,14 @@ export type HeldLetter = {
   releasedAt: string | null;
   createdAt: string;
   updatedAt: string;
-  /** Dev-only `?sample=letters`: a SAMPLE letter the client made up (nothing is stored). */
-  sample?: boolean;
 };
 export type LetterPreview = {
   subject: string;
   /** The exact letter a release would send: the draft plus the legal footers. */
   body: string;
   recipient: string | null;
+  /** The language the letter is sent in (the comms locale it resolves to). */
+  locale: string | null;
   forecast: LetterForecast | null;
   forecastReason: string | null;
 };
@@ -116,7 +114,7 @@ export function parseLetter(body: unknown): LetterRead | null {
   const p = obj(b.preview);
   const forecast = p && (LETTER_FORECASTS as readonly unknown[]).includes(p.forecast) ? (p.forecast as LetterForecast) : null;
   const preview: LetterPreview | null = p
-    ? { subject: str(p.subject) ?? "", body: str(p.body) ?? "", recipient: str(p.recipient), forecast, forecastReason: str(p.forecastReason) }
+    ? { subject: str(p.subject) ?? "", body: str(p.body) ?? "", recipient: str(p.recipient), locale: str(p.locale), forecast, forecastReason: str(p.forecastReason) }
     : null;
   return { letter, preview };
 }
@@ -128,6 +126,15 @@ export function letterNextAct(l: HeldLetter | null): "approve" | "send" | null {
   if (l.state === "drafted") return "approve";
   if (l.state === "approved" || l.state === "delivery_failed" || l.state === "suppressed") return "send";
   return null;
+}
+
+/** Does the letter on screen still match the act a consent card was armed with? An approve
+ *  needs the SAME letter at the SAME revision, still a draft; a send needs it approved (or a
+ *  release that did not land). The card agrees to what it shows, so a mismatch disables it. */
+export function letterMatches(act: { act: "letterApprove" | "letterSend"; letterId: string; revision: number | null }, l: HeldLetter | null): boolean {
+  if (!l || l.id !== act.letterId || l.body === null) return false;
+  if (act.revision !== null && l.revision !== act.revision) return false;
+  return act.act === "letterApprove" ? l.state === "drafted" : letterNextAct(l) === "send";
 }
 
 /** One message the candidate was sent (GET /api/comms?entry=), with the ONE delivery verdict. */

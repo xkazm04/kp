@@ -11,7 +11,7 @@ export const ACT_PARAMS: Record<ActKind, { required: readonly string[]; allowed:
   wave: { required: ["mode"], allowed: ["mode", "threshold", "count", "role"] },
   // A companion catalog action (app/_lib/companion-actions.ts COMPANION_ACTIONS ids).
   companion: { required: ["action"], allowed: ["action", "candidate", "role"] },
-  // Round 4 PREVIEW acts (consent/acts.ts PREVIEW_ACTS) — bound to one candidate.
+  // Round 4 tool acts (wired in round 6, consent/ToolConsent.tsx) — bound to one candidate.
   // A held outreach letter: approve ONE revision (the door's CAS), or send the approved one.
   letterApprove: { required: ["entryId", "letterId", "revision"], allowed: ["entryId", "letterId", "revision", "label"] },
   letterSend: { required: ["entryId", "letterId"], allowed: ["entryId", "letterId", "revision", "label"] },

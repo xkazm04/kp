@@ -11,10 +11,10 @@
 //                 grouped by role; a waiting row is a candidate (selectable).
 //   list          the week as an agenda, one group per day.
 //   insight       this week's shape, who waits longest, and ONE suggested booking (the
-//                 longest waiter on the first free time — a PREVIEW consent card).
+//                 longest waiter on the first free time — a consent card).
 //
 // Params: none — or `entryId` + `label`: the INTERVIEW TOOL for that one candidate (their
-// invitations, the free times as Book buttons, Send a link). Every act is a preview.
+// invitations, the free times as Book buttons, Send a link). Every act arms a consent card.
 import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { useFormatter, useTranslations } from "next-intl";
 import { Button, Mark, Note, Tag } from "@/app/_components/kit";
@@ -111,7 +111,8 @@ function WeekGrid({
                 ) : (
                   <li key={it.slot.value} className="flex min-w-0 items-center gap-1.5 px-1" data-item="free">
                     {waitingPicked && !d.date.past ? (
-                      <Button label={t("agendaFree", { time: it.time })} variant="secondary" size="sm" className="w-full justify-start" onClick={() => onBook(it.slot, it.dateSlot)} data-act="interview-book" />
+                      // The time alone fits a ~85px day column at 1280; the name says what it does.
+                      <Button label={it.time} aria-label={tc("interview.bookAt", { when: it.time })} variant="secondary" size="sm" className="k-nums w-full justify-start" onClick={() => onBook(it.slot, it.dateSlot)} data-act="interview-book" />
                     ) : (
                       <span className="text-micro text-steel">
                         <span className="k-nums">{it.time}</span> · {t("free")}
@@ -183,7 +184,7 @@ function InterviewBody({ entryId, label, props }: { entryId: string; label: stri
   const when = (i: Invite) => (i.slotAt ? fmt.dayTime(i.slotAt, { timeZone: zone }) : null);
   return (
     <div className="@container min-h-0 flex-1 overflow-y-auto" data-role="one-interview">
-      <div className="grid gap-[var(--one-gap)] p-[var(--one-pad)] @min-[900px]:grid-cols-2">
+      <div className="grid gap-[var(--one-gap)] p-[var(--one-pad)] @min-[26rem]:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-3">
           <p className="flex items-center gap-1.5 text-micro text-ink" data-role="one-interview-status">
             {entry ? <Mark kind={waiting ? "needs" : "ok"} /> : <Mark kind="unknown" />}
@@ -314,11 +315,11 @@ export function CalendarPanel(props: PanelProps) {
     <div className="@container flex min-h-0 flex-1 flex-col" data-role="one-calendar">
       {pager}
       {ready.truncated || ready.slots === null || ready.calendarStatus === "unavailable" ? <div className="flex shrink-0 flex-col gap-1 px-[var(--one-pad)] pt-2">{notes}</div> : null}
-      {/* The week takes the width; the waiting list sits beside it from 760px of the panel's
+      {/* The week takes the width; the waiting list sits beside it from 36rem of the panel's
           own width (a half-screen side), under it below that. */}
-      <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] @min-[760px]:grid-cols-[minmax(0,1fr)_16rem] @min-[760px]:grid-rows-1">
+      <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] @min-[36rem]:grid-cols-[minmax(0,1fr)_12rem] @min-[36rem]:grid-rows-1 @min-[60rem]:grid-cols-[minmax(0,1fr)_16rem]">
         <WeekGrid days={ready.days} zone={ready.zone} waitingPicked={picked ? { id: picked.id, label: picked.label } : null} onBook={onBook} />
-        <div className="min-h-0 border-t border-stone-200 @min-[760px]:border-t-0 @min-[760px]:border-l dark:border-dashed">
+        <div className="min-h-0 border-t border-stone-200 @min-[36rem]:border-t-0 @min-[36rem]:border-l dark:border-dashed">
           <WaitingList groups={ready.waitingByRole} selectedEntryId={props.selectedEntryId ?? null} onSelect={select} />
         </div>
       </div>

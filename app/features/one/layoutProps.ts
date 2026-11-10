@@ -43,9 +43,9 @@ export type LayoutProps = {
   select: (entry: Selected | null) => void;
   /** Round 4: render one per-candidate TOOL for an entry — `profile` (CV | score),
    *  `letter` (the held outreach letter + their thread), `interview` (their invitations, the
-   *  free times, Book / Send a link). Each fills its container (`pane`, two columns from 900px
+   *  free times, Book / Send a link). Each fills its container (`pane`, two columns from 26–36rem
    *  of its own width; give it a height) or, with `look: "insight"`, a compact card. Every act
-   *  it offers arms a PREVIEW consent card (renderConsent) — nothing is written this round. */
+   *  it offers arms a consent card (renderConsent); only the card's press writes. */
   renderTool: (tool: ToolKind, entry: Selected, opts?: { look?: "pane" | "insight"; className?: string }) => ReactNode;
 };
 

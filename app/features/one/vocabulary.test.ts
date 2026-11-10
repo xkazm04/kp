@@ -8,13 +8,13 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { CHANGE_KEYS, CHIP_IDS, PANEL_KINDS, SAY_KEYS } from "./types.ts";
 import { SHEET_KINDS } from "./layout/stack.ts";
-import { COMPANION_ACTION_IDS, PREVIEW_ACTS } from "./consent/acts.ts";
+import { COMPANION_ACTION_IDS } from "./consent/acts.ts";
 import { parsePipeline, sliceEntries } from "./panels/pipelineRead.ts";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const core = (locale: string) => JSON.parse(readFileSync(path.join(ROOT, "messages", `${locale}.json`), "utf8")).one.core;
 const one = (locale: string) => JSON.parse(readFileSync(path.join(ROOT, "messages", `${locale}.json`), "utf8")).one;
-const PREVIEW = [...PREVIEW_ACTS];
+const TOOL_ACTS = ["letterApprove", "letterSend", "interviewBook", "interviewLink"] as const;
 
 test("every say key, chip, change key and panel has words in all four locales", () => {
   for (const locale of ["en", "cs", "de", "fr"]) {
@@ -45,12 +45,18 @@ test("one layout: only the sheets and core subtrees remain, no switcher words", 
   assert.doesNotMatch(types, /VARIANT_IDS|variantOf/);
 });
 
-test("every round-4 preview act and sheet has its words in all four locales", () => {
+test("every tool act and sheet has its words in all four locales; no preview words are left", () => {
   for (const locale of ["en", "cs", "de", "fr"]) {
     const c = core(locale);
-    assert.equal(typeof c.consent.preview, "string", `${locale} consent.preview`);
-    for (const k of PREVIEW) {
-      for (const f of ["title", "line", "press", "details"]) assert.equal(typeof c.consent.previewActs[k][f], "string", `${locale} previewActs.${k}.${f}`);
+    assert.equal(c.consent.preview, undefined, `${locale} consent.preview`);
+    assert.equal(c.consent.previewActs, undefined, `${locale} consent.previewActs`);
+    assert.equal(c.sample, undefined, `${locale} sample (dev-only sample letters are gone)`);
+    for (const k of TOOL_ACTS) {
+      for (const f of ["title", "press", "details"]) assert.equal(typeof c.consent.acts[k][f], "string", `${locale} acts.${k}.${f}`);
+    }
+    for (const d of ["sent", "queued", "failed"]) {
+      assert.equal(typeof c.consent.acts.letterSend[d], "string", `${locale} letterSend.${d}`);
+      assert.equal(typeof c.consent.acts.interviewLink[d], "string", `${locale} interviewLink.${d}`);
     }
     for (const k of SHEET_KINDS) assert.equal(typeof one(locale).sheets.sheet[k], "string", `${locale} sheets.sheet.${k}`);
     assert.equal(typeof c.header.stats.letters.label, "string");

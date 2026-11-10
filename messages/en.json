@@ -19218,40 +19218,46 @@
           "body": "Candi runs this from the Console. One cannot start it from here yet, because the only way to create Candi's proposal is inside her own conversation.",
           "press": "Open in Console"
         },
-        "preview": "Wired after the pick",
-        "previewActs": {
+        "acts": {
           "someone": "this candidate",
+          "language": "Language",
+          "changed": "This letter changed since you opened it (it is now revision {revision}). Read it again in the letter sheet before you decide.",
+          "gone": "No letter for {label} matches this card any more. Refresh the view.",
           "letterApprove": {
             "title": "Approve the letter to {label}",
             "line": "Approves the letter to {label} (revision {revision}). Nothing is sent yet.",
             "press": "Approve",
-            "details": "Approval binds this exact revision; an edit after it needs a new approval. The letter leaves only on Send."
+            "details": "Approval binds this exact revision and records you, by name, as the approver; an edit after it needs a new approval. The letter leaves only when you send it.",
+            "done": "Revision {revision} is approved. Nothing has been sent.",
+            "next": "Review the send"
           },
           "letterSend": {
             "title": "Send the letter to {label}",
             "line": "Sends the approved letter to {label}.",
             "press": "Send",
-            "details": "The release re-checks consent and the halt rules first; with no relay configured it waits in the local outbox."
+            "details": "The release re-checks consent and the halt rules first; with no relay configured it waits in the local outbox.",
+            "sent": "Sent: the relay accepted the letter to {label}.",
+            "queued": "Queued: no relay is configured, so the letter to {label} waits in the local outbox and has not left this machine.",
+            "failed": "Not delivered: the relay refused the letter to {label}. It is marked as failed; Send retries the same message."
           },
           "interviewBook": {
             "title": "Book {label}",
             "line": "Books {label} on {when}.",
             "lineZone": "Books {label} on {when} ({zone}).",
             "press": "Book",
-            "details": "The booking emails the candidate a confirmation with the time."
+            "details": "Moves them to the interview step and holds the time in the shared slot pool. One sends them no email from here; with a calendar connected, the interview is also written there with them as a guest.",
+            "done": "{label} is booked for {when}."
           },
           "interviewLink": {
             "title": "Send {label} a scheduling link",
             "line": "Emails {label} a link to pick a time.",
             "press": "Send link",
-            "details": "The link offers the free times and expires after seven days."
+            "details": "The link offers the free times and expires after seven days.",
+            "sent": "The link was emailed to {label}.",
+            "queued": "The link was created; the email waits in the local outbox (no relay is configured).",
+            "failed": "The link was created, but the email did not go out. The Schedule tab holds the link to share by hand."
           }
         }
-      },
-      "sample": {
-        "note": "Sample letter: this database holds no drafted letters, so this one was made up for the prototype (?sample=letters). Nothing is stored or sent.",
-        "subject": "Your profile and our {role} role",
-        "body": "Hi {name},\n\nI came across your profile while looking for someone for our {role} role, and your experience stood out. The team is small and the work is hands-on, and I think it could be a good fit.\n\nWould you have 20 minutes this week or next for a short call? If the timing is wrong, just say so and I will not follow up.\n\nBest regards"
       }
     }
   }

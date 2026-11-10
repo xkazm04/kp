@@ -162,11 +162,13 @@ export function OneShell({ frame }: { frame: OneFrame }) {
         key={proposal.id}
         proposal={proposal}
         className={opts?.className}
+        epoch={epoch}
         onDataChanged={bumpEpoch}
         onDismiss={() => dismissProposal(proposal.id)}
+        onPropose={propose}
       />
     ),
-    [bumpEpoch, dismissProposal]
+    [epoch, bumpEpoch, dismissProposal, propose]
   );
 
   const props: LayoutProps = {

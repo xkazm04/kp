@@ -4,7 +4,7 @@
 // tools/reads.ts `useLetter` (GET /api/outreach-letters/by-entry/[entryId] and
 // GET /api/comms?entry=). Params: entryId, label. Looks: `pane` = the reader with the
 // forecast line and the act (tools/LetterTool.tsx); `insight` = a card with the subject and
-// the first lines. Approve / Send arm PREVIEW consent cards; nothing is written.
+// the first lines. Approve / Send arm consent cards; only a card's press writes.
 import { useTranslations } from "next-intl";
 import { Tag } from "@/app/_components/kit";
 import { META_LABEL } from "@/app/_components/ui/recipes";
