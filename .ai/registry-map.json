@@ -17720,7 +17720,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/interview-rubric.ts:24 Every scorecard this context computes for an experienced candidate is scored on five competencies (Technical depth, Problem-solving, Communication, Experience & fit, Motivation) with no per-level behavioural anchors, only the degree labels 'Well below bar'…'Exceptional'. That is the structure-theatre case the golden path names, so two raters (or the model) have no paragraph to settle a level on.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:0fb73cd4c34a33e5",
+          "evaluatedRevision": 2
         },
         {
           "subject": "agent-runtime-assembly",

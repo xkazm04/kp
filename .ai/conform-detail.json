@@ -30422,6 +30422,37 @@
           "evidence": "app/login/LoginClient.tsx:46 Same-origin request to its own server; nothing about a peer's capabilities is established"
         }
       ]
+    },
+    "efd0489d-4270-4455-97ca-28fce88d5c8a/structured-interview-scorecards": {
+      "context": "interview-execution-scoring",
+      "subject": "structured-interview-scorecards",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T01:26:02.237Z",
+      "worker": "9b7ee2e4-fd2e-4e14-b58e-0daa2e1d2fa9",
+      "techniques": [
+        {
+          "technique": "behaviourally-anchored-level-writing",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-rubric.ts:24 Checked pipeline/jobfit/interview-rubrics.json: the experienced competencies have 0 anchors each, and the early_career ones have 5 each. The experienced model's only scale is ratingAnchors {1:'Well below bar' … 3:'Meets the bar' … 5:'Exceptional'}. The bar is named, but those are degree words, and they fail the strike-the-adjectives test. The construct lives in the rubric module this context scores against."
+        },
+        {
+          "technique": "rubric-versioning-at-write-time",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-scorecard.ts:212 A content hash plus rubricKeys is stamped at write time and is identical across TS and Python. Off-rubric ratings are kept and flagged (offRubric, line 42), never dropped. Legacy rows fall back to the current rubric."
+        },
+        {
+          "technique": "role-family-axis-extension",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-run.ts:850 Role-family coverage is stamped on the AI scorecard. interview-rubric.ts enumerates no_family / family_no_axes / family_unrecognized and discloses only no_family and family_unrecognized, so family_no_axes is silent by design. industryAxes exist for 6 families as an extension, not a fork."
+        },
+        {
+          "technique": "separate-rubric-per-population",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-run.ts:441 Early-career entries get their own methodology, and rubricForArchetype selects a separate early_career model with rate competencies (Learning agility, Coachability…), each with its own anchors. The model is recorded only indirectly, through rubricVersion/rubricKeys; no named scoringModel field is stamped on the scorecard."
+        }
+      ]
     }
   }
 }

@@ -1,0 +1,70 @@
+{
+ "schema": "conform-run/1",
+ "worker": "9b7ee2e4-fd2e-4e14-b58e-0daa2e1d2fa9",
+ "subject": "structured-interview-scorecards",
+ "evaluatedAt": "2026-11-10T01:26:02.237952+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "interview-execution-scoring",
+   "subject": "structured-interview-scorecards",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/interview-rubric.ts:24 Every scorecard this context computes for an experienced candidate is scored on five competencies (Technical depth, Problem-solving, Communication, Experience & fit, Motivation) with no per-level behavioural anchors, only the degree labels 'Well below bar'\u2026'Exceptional'. That is the structure-theatre case the golden path names, so two raters (or the model) have no paragraph to settle a level on.",
+   "techniques": [
+    {
+     "technique": "behaviourally-anchored-level-writing",
+     "verdict": "deviation",
+     "evidence": "app/_lib/interview-rubric.ts:24 Checked pipeline/jobfit/interview-rubrics.json: the experienced competencies have 0 anchors each, and the early_career ones have 5 each. The experienced model's only scale is ratingAnchors {1:'Well below bar' \u2026 3:'Meets the bar' \u2026 5:'Exceptional'}. The bar is named, but those are degree words, and they fail the strike-the-adjectives test. The construct lives in the rubric module this context scores against."
+    },
+    {
+     "technique": "rubric-versioning-at-write-time",
+     "verdict": "conformant",
+     "evidence": "app/_lib/interview-scorecard.ts:212 A content hash plus rubricKeys is stamped at write time and is identical across TS and Python. Off-rubric ratings are kept and flagged (offRubric, line 42), never dropped. Legacy rows fall back to the current rubric."
+    },
+    {
+     "technique": "role-family-axis-extension",
+     "verdict": "conformant",
+     "evidence": "app/_lib/interview-run.ts:850 Role-family coverage is stamped on the AI scorecard. interview-rubric.ts enumerates no_family / family_no_axes / family_unrecognized and discloses only no_family and family_unrecognized, so family_no_axes is silent by design. industryAxes exist for 6 families as an extension, not a fork."
+    },
+    {
+     "technique": "separate-rubric-per-population",
+     "verdict": "conformant",
+     "evidence": "app/_lib/interview-run.ts:441 Early-career entries get their own methodology, and rubricForArchetype selects a separate early_career model with rate competencies (Learning agility, Coachability\u2026), each with its own anchors. The model is recorded only indirectly, through rubricVersion/rubricKeys; no named scoringModel field is stamped on the scorecard."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "structured-interview-scorecards",
+   "context": "tests-scoring-fairness",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "structured-interview-scorecards",
+   "context": "jobs-intake",
+   "reason": "None of this context's files holds a scorecard. Despite the context description, pipeline/jobfit/interview.py is a candidate-facing mock-interview question kit (STAR scaffolds tied to CV gaps), not a rubric or scorecard, and grep over the other 15 files finds no scorecard, rubric or competency construct. A not-applicable verdict would not survive the directory-wide re-search, though: the same directory, pipeline/jobfit/, holds automation.py and interview-rubrics.json, which own the scorecard but belong to other contexts. So the honest call is to decline rather than claim absence."
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-11-10T01:26:02.237952+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "structured-interview-scorecards"
+   ],
+   "techniques": [
+    "behaviourally-anchored-level-writing",
+    "role-family-axis-extension",
+    "rubric-versioning-at-write-time",
+    "separate-rubric-per-population"
+   ],
+   "deviations": 1,
+   "context": "interview-execution-scoring",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
