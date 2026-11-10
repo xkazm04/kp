@@ -21,6 +21,7 @@ import { dateSlotToIso, gridSlotToIso, INTERVIEW_TZ, offeredSlotFor, proposedSlo
 import { proposeFreeSlots, slotStillFree } from "@/app/_lib/calendar/available-slots";
 import { removeInterviewEvent, syncInterviewEvent } from "@/app/_lib/calendar/event-sync";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
+import { bookingConfirmationForecast, confirmBookingToCandidate } from "@/app/_lib/schedule-booking-confirmation";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireCapability } from "@/app/_lib/auth/current-user";
@@ -62,6 +63,14 @@ export const GET = withWorkspace(async (ws: string, request: Request) => {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const params = new URL(request.url).searchParams;
+    // `?confirmTo=<entryId>` — who a grid booking's confirmation would be mailed to, and
+    // whether it would leave (One's consent card states it before the press). A read.
+    const confirmTo = params.get("confirmTo");
+    if (confirmTo) {
+      const entry = getPipelineEntry(confirmTo, ws);
+      if (!entry) return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
+      return jsonOk({ confirmation: bookingConfirmationForecast(entry) });
+    }
     if (params.has("slots")) {
       // The REAL length of the interview being moved, not a blanket 45. proposeFreeSlots
       // has always accepted `minutes` and this call site never fed it, so a 90-minute
@@ -285,8 +294,18 @@ export const POST = withWorkspace(async (ws: string, request: Request) => {
         reasonCode: outcome.reasonCode,
         inputs: { slot: resolved.label, slotAt: resolved.value, advanced },
       });
+      // Tell the candidate. The self-booking token route always mailed a confirmation;
+      // this door mailed nothing, so a recruiter-booked candidate heard of the interview
+      // only through a connected calendar. Truthful claim: sent / queued / failed, or
+      // withheld when the send gate (or a missing address) refuses it.
+      const confirmation = await confirmBookingToCandidate(entry, bookedInvite, publicBaseUrl(new URL(request.url).origin));
       await writeCalendarEvent(bookedInvite, entry.id);
-      return jsonOk({ invite: getScheduleInviteByToken(bookedInvite.token) ?? bookedInvite, slot: resolved.label, slotAt: resolved.value });
+      return jsonOk({
+        invite: getScheduleInviteByToken(bookedInvite.token) ?? bookedInvite,
+        slot: resolved.label,
+        slotAt: resolved.value,
+        confirmation,
+      });
     }
 
     if (!body.token) {

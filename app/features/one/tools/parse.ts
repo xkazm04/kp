@@ -336,6 +336,41 @@ export function parseSlots(body: unknown): SlotsRead | null {
   return { slots, calendarStatus: cs === "checked" || cs === "not_connected" || cs === "unavailable" ? cs : null };
 }
 
+/* ── a booking's confirmation (schedule-booking-confirmation.ts) ────────── */
+
+export const WITHHELD_REASONS = ["suppressed", "agent", "unaddressable"] as const;
+export type WithheldReason = (typeof WITHHELD_REASONS)[number];
+const withheld = (v: unknown): WithheldReason | null => (WITHHELD_REASONS as readonly unknown[]).includes(v) ? (v as WithheldReason) : null;
+
+/** Where a booking's confirmation would go, read before the press. */
+export type BookingForecast =
+  | { forecast: "relay" | "local"; recipient: string | null; reason: null }
+  | { forecast: "withheld"; recipient: string | null; reason: WithheldReason };
+
+/** GET /api/schedule?confirmTo=<entryId>. */
+export function parseBookingForecast(body: unknown): BookingForecast | null {
+  const c = obj(obj(body)?.confirmation);
+  if (!c) return null;
+  const recipient = str(c.recipient);
+  if (c.forecast === "relay" || c.forecast === "local") return { forecast: c.forecast, recipient, reason: null };
+  const reason = withheld(c.reason);
+  return c.forecast === "withheld" && reason ? { forecast: "withheld", recipient, reason } : null;
+}
+
+/** What the confirmation did: the delivery claim, or withheld with its reason. */
+export type BookingConfirmation =
+  | { delivery: "sent" | "queued" | "failed"; reason: null }
+  | { delivery: "withheld"; reason: WithheldReason };
+
+/** The `confirmation` field of POST /api/schedule {action:"book"}; null when absent. */
+export function parseBookingConfirmation(v: unknown): BookingConfirmation | null {
+  const c = obj(v);
+  if (!c) return null;
+  if (c.delivery === "sent" || c.delivery === "queued" || c.delivery === "failed") return { delivery: c.delivery, reason: null };
+  const reason = withheld(c.reason);
+  return c.delivery === "withheld" && reason ? { delivery: "withheld", reason } : null;
+}
+
 /** One thing on a calendar day: a booked (or proposed) interview, or a free offerable time. */
 export type DayItem =
   | { kind: "interview"; time: string; invite: Invite }

@@ -19111,8 +19111,28 @@
             "line": "Books {label} on {when}.",
             "lineZone": "Books {label} on {when} ({zone}).",
             "press": "Book",
-            "details": "Moves them to the interview step and holds the time in the shared slot pool. One sends them no email from here; with a calendar connected, the interview is also written there with them as a guest.",
-            "done": "{label} is booked for {when}."
+            "details": "Moves them to the interview step, holds the time in the shared slot pool and emails them a confirmation with a link to move the time. With a calendar connected, the interview is also written there with them as a guest.",
+            "done": "{label} is booked for {when}.",
+            "confirm": {
+              "relay": "Emails them a confirmation at {to}.",
+              "local": "Writes a confirmation to {to} into the local outbox; no relay is configured, so nothing leaves.",
+              "unread": "Who the confirmation goes to could not be read.",
+              "withheld": {
+                "suppressed": "Sends no confirmation: this candidate may no longer be contacted.",
+                "agent": "Sends no confirmation: an AI agent has no mailbox.",
+                "unaddressable": "Sends no confirmation: there is no email address on record."
+              }
+            },
+            "result": {
+              "sent": "A confirmation was emailed to {to}.",
+              "queued": "The confirmation to {to} waits in the local outbox (no relay is configured).",
+              "failed": "The confirmation email did not go out. The Schedule tab flags the booking to reconcile.",
+              "withheld": {
+                "suppressed": "No confirmation was sent: this candidate may no longer be contacted.",
+                "agent": "No confirmation was sent: an AI agent has no mailbox.",
+                "unaddressable": "No confirmation was sent: there is no email address on record."
+              }
+            }
           },
           "interviewLink": {
             "title": "Send {label} a scheduling link",

@@ -19111,8 +19111,28 @@
             "line": "Bucht {label} für {when}.",
             "lineZone": "Bucht {label} für {when} ({zone}).",
             "press": "Buchen",
-            "details": "Verschiebt die Person in die Interviewphase und reserviert den Termin im gemeinsamen Terminangebot. One sendet ihr von hier keine E-Mail; mit verbundenem Kalender wird das Interview auch dort eingetragen, mit ihr als Gast.",
-            "done": "{label} ist für {when} gebucht."
+            "details": "Verschiebt die Person in die Interviewphase, reserviert den Termin im gemeinsamen Terminangebot und sendet ihr per E-Mail eine Bestätigung mit einem Link zum Verschieben. Mit verbundenem Kalender wird das Interview auch dort eingetragen, mit ihr als Gast.",
+            "done": "{label} ist für {when} gebucht.",
+            "confirm": {
+              "relay": "Sendet ihr eine Bestätigung an {to}.",
+              "local": "Legt eine Bestätigung an {to} im lokalen Postausgang ab; es ist kein Relay eingerichtet, also verlässt nichts das System.",
+              "unread": "Es ließ sich nicht lesen, an wen die Bestätigung geht.",
+              "withheld": {
+                "suppressed": "Keine Bestätigung: Diese Person darf nicht mehr kontaktiert werden.",
+                "agent": "Keine Bestätigung: Ein KI-Agent hat kein Postfach.",
+                "unaddressable": "Keine Bestätigung: Es ist keine E-Mail-Adresse hinterlegt."
+              }
+            },
+            "result": {
+              "sent": "Eine Bestätigung wurde an {to} gesendet.",
+              "queued": "Die Bestätigung an {to} liegt im lokalen Postausgang (kein Relay eingerichtet).",
+              "failed": "Die Bestätigungs-E-Mail ist nicht rausgegangen. Der Tab Planung markiert die Buchung zum Abgleich.",
+              "withheld": {
+                "suppressed": "Es wurde keine Bestätigung gesendet: Diese Person darf nicht mehr kontaktiert werden.",
+                "agent": "Es wurde keine Bestätigung gesendet: Ein KI-Agent hat kein Postfach.",
+                "unaddressable": "Es wurde keine Bestätigung gesendet: Es ist keine E-Mail-Adresse hinterlegt."
+              }
+            }
           },
           "interviewLink": {
             "title": "{label} einen Planungslink senden",

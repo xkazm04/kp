@@ -4,6 +4,7 @@
 // keeps the failure's body (`{ code }`) so the card resolves the code in the reader's
 // language; the server's English `error` is never carried forward.
 import type { ApiErrorPayload } from "@/app/_lib/use-error-message";
+import { parseBookingConfirmation, type BookingConfirmation } from "../tools/parse";
 
 export type DoorFail = { ok: false; status: number; payload: ApiErrorPayload | null; stale: boolean };
 
@@ -92,12 +93,16 @@ export async function releaseLetter(letterId: string): Promise<{ ok: true; deliv
   return { ok: true, delivery: delivery((r.body as { delivery?: unknown } | null)?.delivery) };
 }
 
-/** POST /api/schedule {action:"book", entryId, dateSlot} — the week grid's book door. */
-export async function bookInterview(entryId: string, dateSlot: string): Promise<{ ok: true; slot: string | null } | DoorFail> {
+/** POST /api/schedule {action:"book", entryId, dateSlot} — the week grid's book door. It also
+ *  mails the candidate their confirmation; `confirmation` is what that did (null = not said). */
+export async function bookInterview(
+  entryId: string,
+  dateSlot: string
+): Promise<{ ok: true; slot: string | null; confirmation: BookingConfirmation | null } | DoorFail> {
   const r = await post("/api/schedule", { action: "book", entryId, dateSlot });
   if (!r.ok) return fail(r.status, r.body);
-  const slot = (r.body as { slot?: unknown } | null)?.slot;
-  return { ok: true, slot: typeof slot === "string" ? slot : null };
+  const b = (r.body ?? {}) as { slot?: unknown; confirmation?: unknown };
+  return { ok: true, slot: typeof b.slot === "string" ? b.slot : null, confirmation: parseBookingConfirmation(b.confirmation) };
 }
 
 /** POST /api/schedule/invite {entryId} — mint a self-scheduling link and mail it. */

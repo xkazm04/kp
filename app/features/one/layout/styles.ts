@@ -84,3 +84,8 @@ export const SPINE =
 /** A person sheet's breadcrumb already names the tool and the person, so the tool panel's own
  *  head (the same words again) is dropped. */
 export const NO_HEAD = "[&>[data-one-surface]>div:first-child]:hidden";
+
+/** The letters and calendar sheets: the sheet's bar already names the view, so the panel's
+ *  own title (and the count that reads as its suffix) is kept for assistive tech only; the
+ *  head's state and Console door stay. */
+export const NO_TITLE = "[&_[data-role=one-panel-title]]:sr-only [&_[data-role=one-panel-count]]:sr-only";

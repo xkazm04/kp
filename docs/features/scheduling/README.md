@@ -106,6 +106,23 @@ the repo's unit runner has no component renderer; same idiom as
    their recruiter-side entry lists are client snapshots, so a stale tab could
    otherwise book a candidate rejected in another tab.
    `GET /api/schedule?slots=1` serves the reschedule picker's offered times.
+   **The week-grid `book` confirms to the candidate** (2026-11-10). It used to mail
+   nothing: only the candidate's own self-booking sent `interview_confirmation`, so
+   a candidate booked from the Schedule tab or from One heard of it only through a
+   connected calendar. `confirmBookingToCandidate`
+   (`app/_lib/schedule-booking-confirmation.ts`) now sends the same letter
+   (`dispatchInterviewConfirmation`: the candidate's language and zone, the
+   duration, the short-notice wording, the locale-pinned `/schedule/<token>` link
+   back) and the response carries `confirmation: {delivery, reason}`:
+   `sent` / `queued` / `failed` (the `deliveryClaim` rule; a throw also flags the
+   invite `needs_reconcile`), or `withheld` with `suppressed` (the send gate:
+   consent lapsed or erased), `agent` or `unaddressable` — nothing reaches the
+   channel and no failed row is recorded. The outreach opt-out halts `outreach`
+   only, so it does not withhold this transactional letter.
+   `GET /api/schedule?confirmTo=<entryId>` is the read-only forecast of the same
+   decision (`{recipient, forecast: relay|local|withheld, reason}`) that One's
+   booking card shows before the press. `accept_proposal` and the recruiter
+   `reschedule` still mail nothing (Known gaps).
 5. **Escalate.** A fully-booked horizon or an exhausted reschedule cap lets the
    candidate propose their own times (`validateProposedSlots`), which the
    recruiter accepts or declines. The POST's "are you actually stuck?" guard
@@ -839,7 +856,8 @@ wiring as a source guard, like `schedule-picker-recovery.test.ts`).
 | Surface | File | Notes |
 | --- | --- | --- |
 | Candidate read/book | `app/api/schedule/[token]/route.ts` | Public token route; `publicInviteView` is the leak boundary |
-| Recruiter lifecycle + actions | `app/api/schedule/route.ts` | Workspace-authenticated; `?slots=1` serves reschedule times; the plain GET also returns `interviewTz` |
+| Recruiter lifecycle + actions | `app/api/schedule/route.ts` | Workspace-authenticated; `?slots=1` serves reschedule times; the plain GET also returns `interviewTz`; `?confirmTo=<entryId>` forecasts a booking's confirmation; `book` answers `confirmation` |
+| Recruiter booking confirmation | `app/_lib/schedule-booking-confirmation.ts` | `confirmBookingToCandidate` (sends, never throws), `bookingConfirmationForecast` (side-effect free) |
 | Invite minting | `app/api/schedule/invite/route.ts` | Operator-gated + workspace-scoped |
 | Bulk invite minting | `app/api/schedule/invite/bulk/route.ts` | Same gate; per-entry isolation, `BULK_INVITE_CAP` = 100 (overflow reported, not dropped), per-entry `delivery` |
 | Slot maths (pure) | `app/_lib/schedule-slots.ts` | `proposeSlots`, `offeredSlotFor`, `validateProposedSlots`, `bookingCollides`, TTL |
@@ -991,6 +1009,12 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
 
 ## Known gaps
 
+- **A recruiter's `accept_proposal` and `reschedule` still mail the candidate
+  nothing.** Only the week-grid `book` confirms (`confirmBookingToCandidate`); a
+  candidate whose proposed time the recruiter accepts, or whose booking the
+  recruiter moves, learns of it only through a connected calendar. Same helper,
+  two more call sites; the Schedule tab's grid also does not yet show the
+  `confirmation` claim the `book` response now carries (One does).
 - **The prep checklist is keyed positionally.** `RunOfShow` / `SignalsToConfirm`
   mint `c-<i>` / `k-<i>` and `useScheduleInterviewPrep` counts the same keys, so a
   Regenerate — which rebuilds the chronology and carries `userProgress` forward —

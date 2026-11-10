@@ -6,6 +6,8 @@ import assert from "node:assert/strict";
 import {
   groupByRole,
   letterNextAct,
+  parseBookingConfirmation,
+  parseBookingForecast,
   parseInvites,
   parseLetter,
   letterMatches,
@@ -174,4 +176,27 @@ test("a letter consent card matches only the letter, revision and state it was a
   assert.equal(letterMatches(send, { ...l, state: "approved" }), true);
   assert.equal(letterMatches(send, { ...l, state: "delivery_failed" }), true);
   assert.equal(letterMatches(send, { ...l, state: "released" }), false);
+});
+
+test("a booking's confirmation: the forecast and the claim keep the closed vocabulary", () => {
+  assert.deepEqual(parseBookingForecast({ confirmation: { recipient: "ana@example.com", forecast: "local", reason: null } }), {
+    forecast: "local",
+    recipient: "ana@example.com",
+    reason: null,
+  });
+  assert.deepEqual(parseBookingForecast({ confirmation: { recipient: null, forecast: "withheld", reason: "suppressed" } }), {
+    forecast: "withheld",
+    recipient: null,
+    reason: "suppressed",
+  });
+  // A withheld forecast with no known reason, or an unknown forecast, is not a reading.
+  assert.equal(parseBookingForecast({ confirmation: { forecast: "withheld", reason: "maybe" } }), null);
+  assert.equal(parseBookingForecast({ confirmation: { forecast: "delivered" } }), null);
+  assert.equal(parseBookingForecast({}), null);
+
+  assert.deepEqual(parseBookingConfirmation({ delivery: "queued", reason: null }), { delivery: "queued", reason: null });
+  assert.deepEqual(parseBookingConfirmation({ delivery: "withheld", reason: "unaddressable" }), { delivery: "withheld", reason: "unaddressable" });
+  // An older server says nothing: no line, never a guessed "sent".
+  assert.equal(parseBookingConfirmation(undefined), null);
+  assert.equal(parseBookingConfirmation({ delivery: "delivered" }), null);
 });

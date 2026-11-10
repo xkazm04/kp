@@ -54,6 +54,7 @@ import {
   KEYCAP,
   NO_CHROME,
   NO_HEAD,
+  NO_TITLE,
   SPINE,
   STICKER_COMPOSER,
 } from "./styles";
@@ -304,9 +305,9 @@ export function SheetsLayout({
     const fill = "min-h-0 flex-1";
     switch (k) {
       case "letters":
-        return <div className="flex min-h-0 flex-1 flex-col" {...pickFrom(setSource, "letters")}>{renderPanel(LETTERS_VIEW, { look: "table", className: `${fill} ${NO_CHROME}` })}</div>;
+        return <div className="flex min-h-0 flex-1 flex-col" {...pickFrom(setSource, "letters")}>{renderPanel(LETTERS_VIEW, { look: "table", className: `${fill} ${NO_CHROME} ${NO_TITLE}` })}</div>;
       case "calendar":
-        return <div className={`flex min-h-0 flex-1 flex-col ${CAL_BESIDE}`} {...pickFrom(setSource, "calendar")}>{renderPanel(CALENDAR_VIEW, { look: "table", className: `${fill} ${NO_CHROME}` })}</div>;
+        return <div className={`flex min-h-0 flex-1 flex-col ${CAL_BESIDE}`} {...pickFrom(setSource, "calendar")}>{renderPanel(CALENDAR_VIEW, { look: "table", className: `${fill} ${NO_CHROME} ${NO_TITLE}` })}</div>;
       case "profile":
         return person ? personBody(k, "", renderTool("profile", person, { className: fill })) : null;
       case "letter":

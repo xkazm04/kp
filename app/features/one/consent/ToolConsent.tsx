@@ -10,7 +10,10 @@
 //                   send" arms the letterSend card: approving and sending stay two acts.
 //   letterSend    → POST /api/outreach-letters/[id]/release. The one door that sends it; the
 //                   result is the truthful delivery claim (sent / queued / failed).
-//   interviewBook → POST /api/schedule {action:"book", entryId, dateSlot}: the week grid's door.
+//   interviewBook → POST /api/schedule {action:"book", entryId, dateSlot}: the week grid's door,
+//                   which also mails the candidate a confirmation. The card names the recipient
+//                   first (GET /api/schedule?confirmTo=) and the result states sent / queued /
+//                   failed / withheld.
 //   interviewLink → POST /api/schedule/invite {entryId}: mints a self-scheduling link and mails it.
 //
 // None has a reverse door, so none offers Undo. A refusal is answered in the reader's language
@@ -23,7 +26,7 @@ import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 import { META_LABEL } from "@/app/_components/ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { PanelProps } from "../panels/types";
-import { letterMatches, useHeldLetter, type HeldLetter, type LetterPreview } from "../tools/reads";
+import { letterMatches, useBookingForecast, useHeldLetter, type BookingConfirmation, type BookingForecast, type HeldLetter, type LetterPreview } from "../tools/reads";
 import type { ProposalInstance } from "../types";
 import type { ResolvedAct } from "./acts";
 import { ConsentFrame, isSettled, ResultLines, type Phase } from "./ConsentFrame";
@@ -202,12 +205,14 @@ export function LetterConsent({ act, proposal, epoch, onDataChanged, onDismiss, 
   }
 }
 
-export function InterviewConsent({ act, proposal, onDataChanged, onDismiss, className }: Common & { act: InterviewAct }) {
+export function InterviewConsent({ act, proposal, epoch, onDataChanged, onDismiss, className }: Common & { act: InterviewAct }) {
   const t = useTranslations("one.core.consent");
   const errMsg = useErrorMessage();
   const [phase, setPhase] = useState<Phase>({ at: "idle" });
   const who = act.label ?? t("acts.someone");
   const book = act.act === "interviewBook";
+  // Only the booking mails a confirmation the card must name; the link card's line says it.
+  const forecast = useBookingForecast(book ? act.entryId : null, epoch);
   const settled = isSettled(phase);
   const busy = phase.at === "busy";
   const when = book ? (act.when ?? act.dateSlot) : "";
@@ -216,6 +221,21 @@ export function InterviewConsent({ act, proposal, onDataChanged, onDismiss, clas
       ? t("acts.interviewBook.lineZone", { label: who, when, zone: act.zone })
       : t("acts.interviewBook.line", { label: who, when })
     : t("acts.interviewLink.line", { label: who });
+  const known = forecast.state === "ready" ? forecast.data : null;
+  // The card agrees to what it SHOWS: a booking card presses only once it can say who is mailed.
+  const canPress = !book || (forecast.state === "ready" && !forecast.refreshing);
+
+  // Who the booking's confirmation goes to, stated before the press (GET ?confirmTo=)…
+  const confirmLine = (f: BookingForecast): string => {
+    if (f.forecast === "withheld") return t(`acts.interviewBook.confirm.withheld.${f.reason}`);
+    const to = f.recipient ?? t("acts.someone");
+    return f.forecast === "relay" ? t("acts.interviewBook.confirm.relay", { to }) : t("acts.interviewBook.confirm.local", { to });
+  };
+  // …and what it did, after it.
+  const confirmResult = (c: BookingConfirmation, to: string | null): string =>
+    c.delivery === "withheld"
+      ? t(`acts.interviewBook.result.withheld.${c.reason}`)
+      : t(`acts.interviewBook.result.${c.delivery}`, { to: to ?? t("acts.someone") });
 
   const body =
     phase.at === "stale" ? (
@@ -225,7 +245,19 @@ export function InterviewConsent({ act, proposal, onDataChanged, onDismiss, clas
     ) : phase.at === "done" ? (
       <ResultLines lines={phase.lines} />
     ) : (
-      <p>{line}</p>
+      <>
+        <p>{line}</p>
+        {!book ? null : forecast.state === "loading" ? (
+          <LoadingGap className="h-6" />
+        ) : forecast.state === "error" ? (
+          <Note tone="critical">{errMsg(forecast.payload, t("acts.interviewBook.confirm.unread"))}</Note>
+        ) : known ? (
+          <p className="flex items-start gap-1.5" data-role="one-consent-confirmation" data-forecast={known.forecast}>
+            <Mark kind={known.forecast === "relay" ? "ok" : known.forecast === "local" ? "wait" : "caution"} />
+            <span className="min-w-0 break-words">{confirmLine(known)}</span>
+          </p>
+        ) : null}
+      </>
     );
 
   return (
@@ -247,6 +279,7 @@ export function InterviewConsent({ act, proposal, onDataChanged, onDismiss, clas
             <Button
               label={book ? t("acts.interviewBook.press") : t("acts.interviewLink.press")}
               variant="primary"
+              disabled={!canPress}
               loading={busy}
               loadingLabel={t("working")}
               onClick={() => void run()}
@@ -266,7 +299,9 @@ export function InterviewConsent({ act, proposal, onDataChanged, onDismiss, clas
     if (act.act === "interviewBook") {
       const r = await bookInterview(act.entryId, act.dateSlot);
       if (!r.ok) return setPhase(r.stale ? { at: "stale" } : { at: "failed", payload: r.payload });
-      setPhase({ at: "done", lines: [t("acts.interviewBook.done", { label: who, when: r.slot ?? when })], undo: null });
+      const lines = [t("acts.interviewBook.done", { label: who, when: r.slot ?? when })];
+      if (r.confirmation) lines.push(confirmResult(r.confirmation, known?.recipient ?? null));
+      setPhase({ at: "done", lines, undo: null });
     } else {
       const r = await sendScheduleLink(act.entryId);
       if (!r.ok) return setPhase(r.stale ? { at: "stale" } : { at: "failed", payload: r.payload });

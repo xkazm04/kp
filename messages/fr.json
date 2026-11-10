@@ -19111,8 +19111,28 @@
             "line": "Réserve {label} le {when}.",
             "lineZone": "Réserve {label} le {when} ({zone}).",
             "press": "Réserver",
-            "details": "Fait passer la personne à l’étape d’entretien et bloque le créneau dans l’offre de créneaux partagée. One ne lui envoie aucun e-mail d’ici. Avec un agenda connecté, l’entretien y est aussi inscrit, avec elle comme invitée.",
-            "done": "{label} est réservé pour le {when}."
+            "details": "Fait passer la personne à l’étape d’entretien, bloque le créneau dans l’offre de créneaux partagée et lui envoie par e-mail une confirmation avec un lien pour déplacer l’horaire. Si un agenda est connecté, l’entretien y est aussi inscrit, avec elle comme invitée.",
+            "done": "{label} est réservé pour le {when}.",
+            "confirm": {
+              "relay": "Lui envoie une confirmation à {to}.",
+              "local": "Dépose une confirmation pour {to} dans la boîte d’envoi locale ; aucun relais n’est configuré, donc rien ne part.",
+              "unread": "Impossible de savoir à qui la confirmation sera envoyée.",
+              "withheld": {
+                "suppressed": "Aucune confirmation : cette personne ne peut plus être contactée.",
+                "agent": "Aucune confirmation : un agent IA n’a pas de boîte mail.",
+                "unaddressable": "Aucune confirmation : aucune adresse e-mail n’est enregistrée."
+              }
+            },
+            "result": {
+              "sent": "Une confirmation a été envoyée à {to}.",
+              "queued": "La confirmation pour {to} attend dans la boîte d’envoi locale (aucun relais n’est configuré).",
+              "failed": "L’e-mail de confirmation n’est pas parti. L’onglet Planification signale la réservation à rapprocher.",
+              "withheld": {
+                "suppressed": "Aucune confirmation n’a été envoyée : cette personne ne peut plus être contactée.",
+                "agent": "Aucune confirmation n’a été envoyée : un agent IA n’a pas de boîte mail.",
+                "unaddressable": "Aucune confirmation n’a été envoyée : aucune adresse e-mail n’est enregistrée."
+              }
+            }
           },
           "interviewLink": {
             "title": "Envoyer à {label} un lien de planification",

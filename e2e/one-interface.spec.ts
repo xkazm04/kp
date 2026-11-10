@@ -4,6 +4,10 @@
 // header's counts render, a candidate's profile sheet opens, and a held outreach letter goes
 // through the SAME two doors the rest of the app uses — approve (a named person, one
 // revision) then release — from One's consent cards, with the truthful delivery claim shown.
+// A booking from the calendar sheet names, before the press, where the candidate's
+// confirmation goes, and its result states what the confirmation did (on the demo corpus,
+// whose people carry no address, that is "not sent: no address"; the queued and suppressed
+// paths are unit-tested in app/api/schedule/schedule-book-confirmation.test.ts).
 // The refusal path is pinned too: a request that names no approver, and a letter that changed
 // after approval, each answer with their own sentence (useErrorMessage), never "failed".
 //
@@ -150,6 +154,57 @@ test.describe("One — the tab, its counts, a profile, and a letter through its 
     await expect(send.locator("[data-role=one-consent-result]")).toHaveText(/queued|sent|not delivered/i);
     await expect.poll(async () => (await heldLetter(request, fx.entryId))?.state).toMatch(/released|delivery_failed/);
 
+    expect(failures.filter((f) => f.startsWith("pageerror"))).toEqual([]);
+  });
+
+  test("a booking from the calendar names who is mailed, then states what the confirmation did", async ({ page }) => {
+    const failures = collectFailures(page);
+    await page.goto("/?tab=one");
+    await expect(page.locator("[data-one-root]")).toBeVisible();
+    // Hydrated once a count is a numeral (Interviews may be 0 on the corpus: it counts the
+    // confirmed interviews AHEAD, not who waits), then Interviews opens the calendar.
+    const decisions = page.locator("[data-stat=decisions]");
+    await expect.poll(async () => (await decisions.innerText()).trim(), { timeout: 15_000 }).toMatch(/^\d+/);
+    await page.locator("[data-stat=schedule]").click();
+    const sheet = page.locator("[data-sheet=calendar]");
+    await expect(sheet).toBeVisible();
+
+    // One title on screen: the sheet's bar names the view; the panel's own title is kept for
+    // assistive tech only, never painted a second time.
+    await expect(sheet.locator("[data-role=sheets-crumbs]")).toContainText(/interview calendar/i);
+    expect(await sheet.locator("[data-role=one-panel-title]").evaluate((el) => el.getBoundingClientRect().width)).toBeLessThanOrEqual(1);
+
+    // Pick a waiting candidate; the free times become Book buttons.
+    const waiting = sheet.locator("[data-role=one-waiting] [role=button]").first();
+    await expect(waiting, "the demo corpus holds a candidate waiting for a slot").toBeVisible({ timeout: 15_000 });
+    await waiting.click();
+    await sheet.locator("[data-act=interview-book]").first().click();
+
+    // The card says, before the press, where the confirmation goes (or why it does not).
+    const card = page.locator("[data-one-consent=interviewBook]");
+    const forecast = card.locator("[data-role=one-consent-confirmation]");
+    await expect(forecast).toBeVisible({ timeout: 15_000 });
+    await expect(forecast).toHaveAttribute("data-forecast", /^(relay|local|withheld)$/);
+
+    const booked = page.waitForResponse((r) => r.url().endsWith("/api/schedule") && r.request().method() === "POST");
+    await card.locator("[data-role=one-consent-confirm]").click();
+    const res = await booked;
+    expect(res.ok(), "the booking door accepted the pick").toBe(true);
+    const confirmation = ((await res.json()) as { confirmation?: { delivery: string } }).confirmation;
+    expect(confirmation?.delivery, "the door answers the confirmation's claim").toMatch(/^(sent|queued|failed|withheld)$/);
+
+    // The result line names that same state: the truthful claim, never a bare "booked".
+    const SAYS: Record<string, RegExp> = {
+      sent: /confirmation was emailed/i,
+      queued: /confirmation .* waits in the local outbox/i,
+      failed: /confirmation email did not go out/i,
+      withheld: /no confirmation was sent/i,
+    };
+    const result = card.locator("[data-role=one-consent-result]");
+    await expect(result).toContainText(/is booked for/i);
+    await expect(result).toContainText(SAYS[confirmation!.delivery]);
+
+    expect(failures.filter((f) => /FORMATTING_ERROR|MISSING_MESSAGE/i.test(f))).toEqual([]);
     expect(failures.filter((f) => f.startsWith("pageerror"))).toEqual([]);
   });
 

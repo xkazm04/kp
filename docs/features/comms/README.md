@@ -297,6 +297,16 @@ atomically (`claimReminderAttempt`) so a down comms provider cannot trigger a
 re-claim/re-fail storm or a duplicate send; `reminder_sent_at` is set only on
 success.
 
+**Who sends the confirmation.** Both booking doors: the candidate's own
+self-booking (`/api/schedule/[token]`) and, since 2026-11-10, the recruiter's
+week-grid `book` (`POST /api/schedule`, which the Schedule tab and One both press),
+through `confirmBookingToCandidate` in `app/_lib/schedule-booking-confirmation.ts`.
+Same letter, same send gate (§7a). The recruiter door answers the §8 claim
+(`sent` / `queued` / `failed`) or `withheld` with a reason (`suppressed`, `agent`,
+`unaddressable`) when nothing was handed to the channel; the outreach opt-out
+(§7b) halts `outreach` only and does not withhold it. `accept_proposal` and the
+recruiter `reschedule` do not yet confirm (scheduling doc, Known gaps).
+
 ## 6. Legacy normalization
 
 Pre-contract rows stored the HTTP code inline (e.g. `failed:500`).

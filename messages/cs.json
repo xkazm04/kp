@@ -19111,8 +19111,28 @@
             "line": "Zarezervuje termín {when} pro {label}.",
             "lineZone": "Zarezervuje termín {when} ({zone}) pro {label}.",
             "press": "Zarezervovat",
-            "details": "Přesune kandidáta do fáze pohovoru a zablokuje termín ve sdílené nabídce termínů. One mu odsud žádný e-mail neposílá; s připojeným kalendářem se pohovor zapíše i tam a kandidát v něm bude jako host.",
-            "done": "Termín je zarezervovaný: {label}, {when}."
+            "details": "Přesune kandidáta do fáze pohovoru, zablokuje termín ve sdílené nabídce termínů a pošle mu e-mailem potvrzení s odkazem na změnu termínu. S připojeným kalendářem se pohovor zapíše i tam a kandidát v něm bude jako host.",
+            "done": "Termín je zarezervovaný: {label}, {when}.",
+            "confirm": {
+              "relay": "Pošle kandidátovi potvrzení na adresu {to}.",
+              "local": "Zapíše potvrzení pro {to} do místní fronty odchozí pošty; relay není nastaven, takže nic neodejde.",
+              "unread": "Nepodařilo se zjistit, komu potvrzení půjde.",
+              "withheld": {
+                "suppressed": "Potvrzení se neposílá: tohoto kandidáta už nesmíme kontaktovat.",
+                "agent": "Potvrzení se neposílá: AI agent nemá schránku.",
+                "unaddressable": "Potvrzení se neposílá: nemáme žádnou e-mailovou adresu."
+              }
+            },
+            "result": {
+              "sent": "Potvrzení bylo odesláno na {to}.",
+              "queued": "Potvrzení pro {to} čeká v místní frontě odchozí pošty (relay není nastaven).",
+              "failed": "E-mail s potvrzením neodešel. Karta Plánování označí rezervaci k dořešení.",
+              "withheld": {
+                "suppressed": "Potvrzení nebylo odesláno: tohoto kandidáta už nesmíme kontaktovat.",
+                "agent": "Potvrzení nebylo odesláno: AI agent nemá schránku.",
+                "unaddressable": "Potvrzení nebylo odesláno: nemáme žádnou e-mailovou adresu."
+              }
+            }
           },
           "interviewLink": {
             "title": "Poslat odkaz k výběru termínu: {label}",

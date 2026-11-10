@@ -17,6 +17,7 @@ import {
   parseLetter,
   parseLettersList,
   parseProfile,
+  parseBookingForecast,
   parseSlots,
   parseThread,
   parseTimelineAnalysis,
@@ -31,6 +32,7 @@ import {
   type ProfileSummary,
   type Slot,
   type SlotsRead,
+  type BookingForecast,
   type ThreadMessage,
 } from "./parse";
 
@@ -102,6 +104,12 @@ export function useLetter(entryId: string | null, epoch: number): LetterToolRead
   const letter = useHeldLetter(entryId, epoch);
   const thread = useRead(entryId ? `/api/comms?entry=${encodeURIComponent(entryId)}&limit=20` : null, parseThread, epoch);
   return { letter, thread };
+}
+
+/** Who a booking's confirmation would be mailed to, and whether it would leave
+ *  (GET /api/schedule?confirmTo=) — the interview booking card states it before the press. */
+export function useBookingForecast(entryId: string | null, epoch: number): Read<BookingForecast> & Retry {
+  return useRead(entryId ? `/api/schedule?confirmTo=${encodeURIComponent(entryId)}` : null, parseBookingForecast, epoch);
 }
 
 /* ── calendar ────────────────────────────────────────────────────────────── */

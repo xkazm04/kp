@@ -360,7 +360,7 @@ exists. One primary (coral) button per card; "Not now" dismisses. Rendering runs
 | companion | **downgraded** to a Console hand-off (`run_analysis` → analyze, `draft_jd` → intake, `draft_outreach` / `generate_digest` → pipeline, where the candidate drawer and Candi's dock live) | — | the card states the model-call cost and why it cannot start here |
 | letterApprove (round 6) | `POST /api/outreach-letters/[id]/approve` `{revision}`: the revision the card SHOWS (it reads `GET /api/outreach-letters/by-entry/[entryId]`, the letter tool's own URL) | none: approving sends nothing | "Revision N is approved. Nothing has been sent." plus **Review the send**, which arms the letterSend card. Final (there is no un-approve door). 403 `OUTREACH_APPROVER_UNNAMED`, 409 `OUTREACH_LETTER_CONFLICT` → their own sentences |
 | letterSend (round 6) | `POST /api/outreach-letters/[id]/release`, the only door that sends it | the letter itself | the truthful claim from `delivery`: sent / queued (no relay: the local outbox) / failed (Send retries the same message). Final. 409 `OUTREACH_APPROVAL_STALE` ("changed after it was approved, nothing was sent"), `COMMS_SUPPRESSED`, `OUTREACH_RESEND_NOT_APPROVED`, 429 → their own sentences |
-| interviewBook (round 6) | `POST /api/schedule` `{action:"book", entryId, dateSlot}`, the week grid's door (collision-checked; advances the entry server-side) | none from kp; with a calendar connected the event names them as a guest | "Ana is booked for Wed 11 Nov · 10:00." Final (the cancel action is not a reverse: it mails a cancellation and does not move the stage back). `SCHEDULE_SLOT_TAKEN` / `SCHEDULE_CALENDAR_BUSY` / `SCHEDULE_CANDIDATE_INACTIVE` → their sentences; `PIPELINE_ENTRY_NOT_FOUND` → "this moved — refresh" |
+| interviewBook (round 6; confirmation since package 12) | `POST /api/schedule` `{action:"book", entryId, dateSlot}`, the week grid's door (collision-checked; advances the entry server-side). The card first reads `GET /api/schedule?confirmTo=<entryId>` and names the recipient ("Emails them a confirmation at ana@…", or the local-outbox line, or why none goes) and presses only once that read is in | the interview confirmation (the same letter a self-booking sends), unless withheld (consent lapsed / erased, an AI agent, no address); with a calendar connected the event also names them as a guest | "Ana is booked for Wed 11 Nov · 10:00." plus the confirmation's claim from `confirmation`: emailed / waits in the local outbox / did not go out / not sent, with the reason. Final (the cancel action is not a reverse: it mails a cancellation and does not move the stage back). `SCHEDULE_SLOT_TAKEN` / `SCHEDULE_CALENDAR_BUSY` / `SCHEDULE_CANDIDATE_INACTIVE` → their sentences; `PIPELINE_ENTRY_NOT_FOUND` → "this moved — refresh" |
 | interviewLink (round 6) | `POST /api/schedule/invite` `{entryId}` | the self-scheduling link (expires after 7 days) | the claim from `delivery`: sent / queued / failed ("the Schedule tab holds the link"). Final |
 
 Every press that lands re-reads every view (`epoch`). The letter cards agree to what they show:
@@ -589,8 +589,11 @@ Paid in round 6 (shots at 1728x1000 and 1280x800, both themes, before and after)
   card and its confirm fit one sight at 1280x800.
 
 Still owed:
-- A tool's own head repeats the name the host already shows (the calendar sheet still says
-  "Interview calendar" twice); a headless `pane` would remove the remaining local overrides.
+- ~~A tool's own head repeats the name the host already shows (the calendar sheet still says
+  "Interview calendar" twice).~~ Fixed in package 12: the letters and calendar sheets pass
+  `NO_TITLE` (`layout/styles.ts`), which keeps the panel's title and its count for assistive
+  tech only; the sheet bar's crumb is the one title painted. A headless `pane` would still
+  remove the remaining local overrides.
 - Fixed by the Director: "waiting longest" sorted people with no recorded date FIRST (a `"~"`
   sentinel under locale collation); `byKnownTimeFirst` in `panels/pipelineRead.ts` now puts them last, in the
   calendar and the stalled slice.
@@ -605,7 +608,10 @@ delivery forecast is under Details). One never approves on the operator's behalf
 that names nobody is refused with `OUTREACH_APPROVER_UNNAMED`, and the card says so. **Review
 the send** then arms the **Send** card, whose press is the release; One sends mail by no other
 path. Booking and the scheduling link go through the week grid's and the invite's own doors; no
-direct-booking path was added. A refusal is answered from its code in the reader's language
+direct-booking path was added. Package 12 (owner ruling 8): the week grid's `book` door now mails
+the candidate their confirmation itself (`app/_lib/schedule-booking-confirmation.ts`), so every
+caller, the Schedule tab included, confirms; One's card names the recipient before the press and
+the claim after it (`docs/features/scheduling/README.md`, Flows 4). A refusal is answered from its code in the reader's language
 (`useErrorMessage`).
 
 The `one.*` catalogs are translated (cs / de / fr: the 442 strings plus the round-6 consent words).
