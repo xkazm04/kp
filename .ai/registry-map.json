@@ -23416,8 +23416,12 @@
           "revision": 9,
           "changedAt": "2026-09-09",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 4
+          "state": "not-applicable",
+          "priorNotApplicable": 4,
+          "evidence": "app/_lib/llm-config.ts:370 This context only resolves configuration for kp's own outbound LLM calls: one provider per use case, serialized into an env var for kp's own Python subprocess. It has no candidate tree, no failover loop, no response normalization and no stream framing, and none of its callers are outside kp's control. A case-insensitive search of app/_lib for event-stream, finish_reason, stop_reason and fallback_chain found nothing.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:f268193750c0a517",
+          "evaluatedRevision": 9
         }
       ],
       "governance": "governed"

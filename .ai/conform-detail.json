@@ -30453,6 +30453,37 @@
           "evidence": "app/_lib/interview-run.ts:441 Early-career entries get their own methodology, and rubricForArchetype selects a separate early_career model with rate competencies (Learning agility, Coachability…), each with its own anchors. The model is recorded only indirectly, through rubricVersion/rubricKeys; no named scoringModel field is stamped on the scorecard."
         }
       ]
+    },
+    "0eeb3d35-3c43-4ac7-bcd9-3ae9ffffddcf/multi-provider-gateway-plane": {
+      "context": "llm-config-provider",
+      "subject": "multi-provider-gateway-plane",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T01:29:08.864Z",
+      "worker": "694e3811-ea2f-4221-aac3-87e03cddd6f7",
+      "techniques": [
+        {
+          "technique": "strategy-tree-with-inherited-policy",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/llm-config.ts:370 Routing is a flat use-case-to-one-provider map, not a tree of strategies with inherited policy."
+        },
+        {
+          "technique": "upstream-identity-before-inventory",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/llm-model-defaults.ts:47 OpenAI-compatible servers are reached by a base URL the operator types in, under a provider the operator also chooses. Nothing is discovered, so the plane never has to work out which implementation it is talking to."
+        },
+        {
+          "technique": "per-provider-stream-framing",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/llm-config.ts:5 The TS layer hands config to a subprocess and never reads a provider stream."
+        },
+        {
+          "technique": "router-versus-candidate-failure",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/llm-model-defaults.ts:61 'gateway' here is an external upstream (LightTrack lt-gateway) that kp calls as a client; the failover loop lives in that gateway, not in this context."
+        }
+      ]
     }
   }
 }
