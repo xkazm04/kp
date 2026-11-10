@@ -9,7 +9,7 @@ import { ConfidenceBadge } from "@/app/_components/Badge";
 import { confidenceGrade } from "@/app/_components/results/salary/salaryGauge.logic";
 import { safeHttpLinks } from "@/app/_lib/safe-url";
 import { dedupeBy } from "@/app/_lib/dedupe";
-import { CHIP, CHIP_QUIET, PANEL } from "@/app/_components/ui/recipes";
+import { CHIP, CHIP_QUIET, NOTICE, PANEL } from "@/app/_components/ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { jdBuildFailureCode } from "./jdsLibrary";
 import { caseTaskLabel, type CaseArtifact, type SnapshotArtifact } from "./jdsLedgerArtifacts";
@@ -21,18 +21,18 @@ export function BuildingPanel({ progress, stalled = false }: { progress?: string
   const t = useTranslations("library.tab");
   return (
     <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-stone-300 bg-paper/50 px-6 py-12 text-center">
-      <Loader2 size={28} className="animate-spin text-blue-700" aria-hidden />
-      <p className="text-sm font-semibold text-ink">{t("buildingTitle")}</p>
+      <Loader2 size={28} className="animate-spin text-steel" aria-hidden />
+      <p className="text-micro font-semibold text-ink">{t("buildingTitle")}</p>
       {/* The jd_build task's own live progress line, read off the polled task list
           via the row's analysis_task_id. It costs nothing extra (the Tasks poll
           already carries progressMsg) and it is the difference between "something
           is happening" and knowing which stage of the chain is running. */}
-      {progress ? <p className="text-sm font-semibold text-blue-700">{progress}</p> : null}
-      <p className="max-w-sm text-sm text-steel">{t("buildingBody")}</p>
+      {progress ? <p className="text-micro font-semibold text-steel">{progress}</p> : null}
+      <p className="max-w-sm text-micro text-steel">{t("buildingBody")}</p>
       {/* The poll gave up (POLL_MAX_DURATION_MS). The row may still say "analyzing"
           forever — a detached handler that died writes neither ready nor failed — so
           say the surface stopped watching rather than spinning a lie. */}
-      {stalled ? <p className="max-w-sm text-sm font-semibold text-amber-800">{t("pollStalledNote")}</p> : null}
+      {stalled ? <p className="max-w-sm text-micro font-semibold text-amber-800">{t("pollStalledNote")}</p> : null}
     </div>
   );
 }
@@ -43,21 +43,21 @@ export function FailedPanel({ error, retrying, retryError, onRetry }: { error: s
   const errMsg = useErrorMessage();
   const code = jdBuildFailureCode(error);
   return (
-    <div className="rounded-lg border border-red-200 bg-red-50/60 p-5">
-      <p className="flex items-center gap-2 text-sm font-semibold text-red-700">
+    <div className={`${NOTICE("critical")} p-5`}>
+      <p className="flex items-center gap-2 text-micro font-semibold">
         <AlertTriangle size={16} aria-hidden /> {t("buildFailedTitle")}
       </p>
-      {error ? <p className="mt-2 break-words text-sm text-red-700/90">{errMsg({ code }, t("buildFailedTitle"))}</p> : null}
+      {error ? <p className="mt-2 break-words text-micro">{errMsg({ code }, t("buildFailedTitle"))}</p> : null}
       <button
         type="button"
         onClick={onRetry}
         disabled={retrying}
-        className="focus-ring mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-white hover:bg-steel disabled:opacity-50"
+        className="focus-ring mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-ink px-4 text-micro font-semibold text-white hover:bg-steel disabled:opacity-50"
       >
         {retrying ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <RefreshCw size={15} aria-hidden />}
         {t("retryBuild")}
       </button>
-      {retryError ? <p className="mt-2 text-sm text-red-700">{retryError}</p> : null}
+      {retryError ? <p className="mt-2 text-micro text-coral-ink">{retryError}</p> : null}
     </div>
   );
 }
@@ -98,20 +98,20 @@ export function SalaryCard({ salary, sources, source }: { salary: unknown; sourc
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-meta uppercase tracking-wide text-steel">{t("marketSalary")} · {provenance}</p>
         {s.available ? (
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-sm font-semibold text-ink">
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-micro font-semibold text-ink">
             <Lock size={12} className="text-steel" aria-hidden />
             {n.salaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency })}
             <ConfidenceBadge value={confidenceGrade(s.confidence)} labels={confidenceLabels} />
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-sm font-semibold text-steel">
-            <AlertTriangle size={12} className="text-amber-500" aria-hidden /> {t("salaryUnavailable")}
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-micro font-semibold text-steel">
+            <AlertTriangle size={12} className="text-dial-amber" aria-hidden /> {t("salaryUnavailable")}
           </span>
         )}
       </div>
-      {s.summary ? <p className="mt-1.5 text-sm text-ink">{s.summary}</p> : null}
+      {s.summary ? <p className="mt-1.5 text-micro text-ink">{s.summary}</p> : null}
       {benchmark ? (
-        <p className="mt-1.5 text-sm text-steel">
+        <p className="mt-1.5 text-micro text-steel">
           {asOf
             ? tr("panel.benchmarkVintage", { source: benchmark.sourceId, date: asOf })
             : tr("panel.benchmarkVintageUndated", { source: benchmark.sourceId })}
@@ -128,7 +128,7 @@ export function SalaryCard({ salary, sources, source }: { salary: unknown; sourc
         </p>
       ) : null}
       {links.length ? (
-        <p className="mt-1 text-sm text-steel">
+        <p className="mt-1 text-micro text-steel">
           {t("sourcesLabel")}{" "}
           {links.map((l, i) => (
             <span key={l.href}>
@@ -190,7 +190,7 @@ export function RepoGroundingCard({ snapshot }: { snapshot: SnapshotArtifact }) 
       ) : null}
       {typeof snapshot.loc === "number" && snapshot.loc > 0 ? (
         // Reader-locale digit grouping (format.ts number-locale contract).
-        <p className="mt-2 text-sm text-steel">{t("repoLoc", { loc: n.grouped(snapshot.loc) })}</p>
+        <p className="mt-2 text-micro text-steel">{t("repoLoc", { loc: n.grouped(snapshot.loc) })}</p>
       ) : null}
     </div>
   );
@@ -203,15 +203,15 @@ export function CaseCard({ kase }: { kase: CaseArtifact }) {
     <div className={`${PANEL} p-4`}>
       <p className="text-meta uppercase tracking-wide text-coral-ink">{t("interviewCase")}</p>
       {kase.title ? <h3 className="mt-1 font-serif text-h3 font-semibold text-ink">{kase.title}</h3> : null}
-      {kase.brief ? <p className="mt-2 whitespace-pre-line text-sm text-steel">{kase.brief}</p> : null}
+      {kase.brief ? <p className="mt-2 whitespace-pre-line text-micro text-steel">{kase.brief}</p> : null}
       {tasks.length ? (
         <ul className="mt-3 space-y-1">
           {tasks.map((task, i) => (
-            <li key={i} className="text-sm text-ink">• {caseTaskLabel(task, t("caseTaskFallback"))}</li>
+            <li key={i} className="text-micro text-ink">• {caseTaskLabel(task, t("caseTaskFallback"))}</li>
           ))}
         </ul>
       ) : null}
-      {typeof kase.timeboxHours === "number" ? <p className="mt-2 text-sm text-steel">{t("timebox", { hours: kase.timeboxHours })}</p> : null}
+      {typeof kase.timeboxHours === "number" ? <p className="mt-2 text-micro text-steel">{t("timebox", { hours: kase.timeboxHours })}</p> : null}
     </div>
   );
 }

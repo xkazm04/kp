@@ -35,7 +35,7 @@ const short = (slug: string) => slug.split("/").pop() ?? slug;
 const WARN = "⚠"; // decorative reliability marker (not translatable copy)
 
 // Composite 0–10 → the app's semantic tones (moss good / amber ok / coral weak).
-const barTone = (s: number) => (s >= 7.5 ? "bg-moss" : s >= 5.5 ? "bg-amber-400" : "bg-coral");
+const barTone = (s: number) => (s >= 7.5 ? "bg-score-strong" : s >= 5.5 ? "bg-score-mid" : "bg-score-weak");
 
 // A weak reliability signal — below this, flag the cell/model as often-failing.
 const LOW_RELIABILITY = 0.9;
@@ -70,7 +70,7 @@ export function QualityOverview() {
     return (
       <div>
         <h3 className="font-serif text-h3 text-ink">{t("title")}</h3>
-        <p className={`${PANEL_SUNKEN} mt-3 p-4 text-base text-steel`}>{t("empty")}</p>
+        <p className={`${PANEL_SUNKEN} mt-3 p-4 text-body text-steel`}>{t("empty")}</p>
       </div>
     );
   }
@@ -90,7 +90,7 @@ export function QualityOverview() {
     <section className="space-y-6">
       <div>
         <h3 className="font-serif text-h3 text-ink">{t("title")}</h3>
-        <p className="mt-1 max-w-3xl text-sm text-steel">{t("intro")}</p>
+        <p className="mt-1 max-w-3xl text-micro text-steel">{t("intro")}</p>
       </div>
 
       {/* Per-model ranking */}
@@ -107,7 +107,7 @@ export function QualityOverview() {
             key={m.model}
             className="grid grid-cols-1 gap-2 border-b border-stone-100 px-4 py-3 last:border-0 sm:grid-cols-[1.5fr_1.8fr_0.8fr_0.9fr_0.7fr] sm:items-center sm:gap-3"
           >
-            <span className="text-sm font-medium text-ink" title={m.model}>
+            <span className="text-micro font-medium text-ink" title={m.model}>
               {short(m.model)}
               {m.reliability !== null && m.reliability < LOW_RELIABILITY ? (
                 <span className="ml-1.5 font-normal text-coral-ink" title={t("relTitle")}>
@@ -116,7 +116,7 @@ export function QualityOverview() {
               ) : null}
             </span>
             <div className="flex items-center gap-2">
-              <span className="w-8 text-sm font-semibold tabular-nums text-ink">
+              <span className="w-8 text-micro font-semibold tabular-nums text-ink">
                 {m.overall === null ? t("na") : m.overall.toFixed(1)}
               </span>
               <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-100" aria-hidden>
@@ -128,13 +128,13 @@ export function QualityOverview() {
                 )}
               </span>
             </div>
-            <span className="text-sm tabular-nums text-steel sm:text-right">
+            <span className="text-micro tabular-nums text-steel sm:text-right">
               {m.wins}/{totalOps}
             </span>
-            <span className="text-sm tabular-nums text-steel sm:text-right">
+            <span className="text-micro tabular-nums text-steel sm:text-right">
               {m.measured}/{m.total} {t("ops")}
             </span>
-            <span className="text-sm tabular-nums text-steel sm:text-right">
+            <span className="text-micro tabular-nums text-steel sm:text-right">
               {m.p50Ms === null ? t("na") : secs(m.p50Ms)}
             </span>
           </div>
@@ -143,7 +143,7 @@ export function QualityOverview() {
 
       {/* Per-case best model */}
       <div>
-        <h4 className="text-sm font-semibold text-ink">{t("opScorecard")}</h4>
+        <h4 className="text-micro font-semibold text-ink">{t("opScorecard")}</h4>
         <div className={`${PANEL} mt-2 overflow-hidden p-0`}>
           <div className="hidden grid-cols-[1.4fr_1.3fr_1.3fr] gap-3 border-b border-stone-200 px-4 py-2.5 text-meta uppercase tracking-wide text-steel sm:grid">
             <span>{t("colCase")}</span>
@@ -159,8 +159,8 @@ export function QualityOverview() {
                 key={op}
                 className="grid grid-cols-1 gap-1 border-b border-stone-100 px-4 py-2.5 last:border-0 sm:grid-cols-[1.4fr_1.3fr_1.3fr] sm:items-center sm:gap-3"
               >
-                <span className="text-sm font-medium text-ink">{opLabel(op)}</span>
-                <span className="text-sm text-ink">
+                <span className="text-micro font-medium text-ink">{opLabel(op)}</span>
+                <span className="text-micro text-ink">
                   {best ? (
                     <>
                       <span className="font-medium">{short(best.model)}</span>
@@ -175,7 +175,7 @@ export function QualityOverview() {
                     t("na")
                   )}
                 </span>
-                <span className="text-sm text-steel">
+                <span className="text-micro text-steel">
                   {runner ? (
                     <>
                       {short(runner.model)}
@@ -195,8 +195,8 @@ export function QualityOverview() {
 
       {UNMEASURED_USE_CASES.length > 0 ? (
         <div>
-          <h4 className="text-sm font-semibold text-ink">{t("unmeasuredTitle")}</h4>
-          <p className="mt-1 max-w-3xl text-sm text-steel">{t("unmeasuredIntro")}</p>
+          <h4 className="text-micro font-semibold text-ink">{t("unmeasuredTitle")}</h4>
+          <p className="mt-1 max-w-3xl text-micro text-steel">{t("unmeasuredIntro")}</p>
           <ul className={`${PANEL} mt-2 divide-y divide-stone-100 p-0`}>
             {UNMEASURED_USE_CASES.map((row) => {
               const key = row.id as Parameters<typeof tUse>[0];
@@ -204,7 +204,7 @@ export function QualityOverview() {
               return (
                 <li
                   key={row.id}
-                  className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-2.5 text-sm"
+                  className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-2.5 text-micro"
                 >
                   <span className="font-medium text-ink">{label}</span>
                   <span className="text-steel">{t("unmeasured")}</span>
@@ -307,15 +307,15 @@ function RecommendedRouting() {
 
   return (
     <div>
-      <h4 className="text-sm font-semibold text-ink">{t("title")}</h4>
-      <p className="mt-1 max-w-3xl text-sm text-steel">
+      <h4 className="text-micro font-semibold text-ink">{t("title")}</h4>
+      <p className="mt-1 max-w-3xl text-micro text-steel">
         {t("intro", {
           narrow: String(NOISE_BAND.narrow),
           wide: String(NOISE_BAND.wide),
           judges: String(NOISE_BAND.atJudges),
         })}
       </p>
-      {loadFailed ? <p className="mt-1 text-sm text-coral-ink">{t("loadFailed")}</p> : null}
+      {loadFailed ? <p className="mt-1 text-micro text-coral-ink">{t("loadFailed")}</p> : null}
       <div className={`${PANEL} mt-2 overflow-hidden p-0`}>
         <div className="hidden grid-cols-[1.1fr_1.3fr_1.8fr_0.9fr] gap-3 border-b border-stone-200 px-4 py-2.5 text-meta uppercase tracking-wide text-steel sm:grid">
           <span>{t("colUseCase")}</span>
@@ -339,8 +339,8 @@ function RecommendedRouting() {
               key={rec.useCase}
               className="grid grid-cols-1 gap-1.5 border-b border-stone-100 px-4 py-3 last:border-0 sm:grid-cols-[1.1fr_1.3fr_1.8fr_0.9fr] sm:items-center sm:gap-3"
             >
-              <span className="text-sm font-medium text-ink">{labelForUseCase(rec.useCase)}</span>
-              <span className="text-sm text-steel">
+              <span className="text-micro font-medium text-ink">{labelForUseCase(rec.useCase)}</span>
+              <span className="text-micro text-steel">
                 {!pins ? (
                   loadFailed ? t("na") : t("pinLoading")
                 ) : current?.model ? (
@@ -356,7 +356,7 @@ function RecommendedRouting() {
                   t("pinDefault")
                 )}
               </span>
-              <span className="text-sm text-ink">
+              <span className="text-micro text-ink">
                 <span className="font-medium">{short(rec.pick.model)}</span>
                 <span className="ml-1.5 tabular-nums text-steel">
                   {rec.pick.composite.toFixed(1)} · {t("perTask", { cost: usd(rec.pick.costPerTaskUsd) })}
@@ -380,11 +380,11 @@ function RecommendedRouting() {
                   ) : null}
                 </span>
               </span>
-              <span className="text-sm sm:text-right">
+              <span className="text-micro sm:text-right">
                 {state === "pin_available" || state === "unmeasured_pin" ? (
                   <button
                     type="button"
-                    className={`${BTN_SECONDARY} h-8 px-3 text-sm`}
+                    className={`${BTN_SECONDARY} h-8 px-3 text-micro`}
                     disabled={busy !== null}
                     onClick={() => void pin(rec)}
                   >

@@ -8,7 +8,7 @@ import { buildSkillLedger, type SkillLedgerRow, type SkillLedgerVerdict } from "
 import { dedupe } from "@/app/_lib/dedupe";
 import { CodeReviewStatusBadge } from "./Badge";
 import { Meter } from "./Meter";
-import { CHIP_QUIET, NOTICE, PANEL } from "./ui/recipes";
+import { BTN_SECONDARY, CHIP_QUIET, META_LABEL, NOTICE, PANEL } from "./ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useGithubErrorMessage } from "@/app/_lib/use-github-error";
 
@@ -112,10 +112,10 @@ export function GithubAnalysisPanel({ status, analysis, error, warning, onRetry 
             <GitBranch className="h-5 w-5 text-coral-ink" aria-hidden />
             <h2 className="font-serif text-h2 text-ink">{t("title")}</h2>
           </div>
-          <p className="mt-2 max-w-3xl text-base leading-6 text-steel">{t("intro")}</p>
+          <p className="mt-2 max-w-3xl text-body text-steel">{t("intro")}</p>
         </div>
         {status === "loading" ? (
-          <div className="inline-flex items-center gap-2 rounded-md bg-paper px-3 py-2 text-base font-medium text-steel">
+          <div className="inline-flex items-center gap-2 rounded-md bg-paper px-3 py-2 text-body font-medium text-steel">
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
             {t("inProcess")}
           </div>
@@ -129,14 +129,14 @@ export function GithubAnalysisPanel({ status, analysis, error, warning, onRetry 
       ) : null}
 
       {status === "error" ? (
-        <div className="mt-4 rounded-md bg-red-50 p-3">
-          <p className="text-base text-red-700">{errorText}</p>
-          {retryHint ? <p className="mt-1 text-sm text-red-700">{retryHint}</p> : null}
+        <div className={`mt-4 ${NOTICE("critical")} p-3`}>
+          <p className="text-body">{errorText}</p>
+          {retryHint ? <p className="mt-1 text-micro">{retryHint}</p> : null}
           {onRetry ? (
             <button
               type="button"
               onClick={onRetry}
-              className="focus-ring mt-2 inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-semibold text-red-700 hover:bg-red-100"
+              className={`${BTN_SECONDARY} mt-2 h-8 bg-white px-3 text-micro`}
             >
               <GitBranch size={13} aria-hidden /> {t("retry")}
             </button>
@@ -145,7 +145,7 @@ export function GithubAnalysisPanel({ status, analysis, error, warning, onRetry 
       ) : null}
 
       {warning ? (
-        <p className={`mt-4 ${NOTICE("amber")} p-3 text-base`} role="status">
+        <p className={`mt-4 ${NOTICE("amber")} p-3 text-body`} role="status">
           {warning}
         </p>
       ) : null}
@@ -179,14 +179,14 @@ function GithubAnalysisBody({ analysis }: { analysis: GithubAnalysis }) {
               it resolves to the current URL, so clicking "@user" reloaded the
               report and lost the open tab. Blank ⇒ render the handle as text. */}
           {analysis.profileUrl ? (
-            <a href={analysis.profileUrl} target="_blank" rel="noreferrer" className="text-base font-semibold text-ink underline">
+            <a href={analysis.profileUrl} target="_blank" rel="noreferrer" className="text-body font-semibold text-ink underline">
               @{analysis.username}
             </a>
           ) : (
-            <p className="text-base font-semibold text-ink">@{analysis.username}</p>
+            <p className="text-body font-semibold text-ink">@{analysis.username}</p>
           )}
-          <p className="mt-3 text-base leading-6 text-ink">{summary}</p>
-          <div className="mt-4 grid grid-cols-2 gap-3 text-base">
+          <p className="mt-3 text-body text-ink">{summary}</p>
+          <div className="mt-4 grid grid-cols-2 gap-3 text-body">
             <Metric label={t("metricRepos")} value={analysis.metrics.ownedReposAnalyzed} />
             <Metric label={t("metricActive")} value={analysis.metrics.activeRepos} />
             <Metric label={t("metricStars")} value={analysis.metrics.totalStars} />
@@ -199,7 +199,7 @@ function GithubAnalysisBody({ analysis }: { analysis: GithubAnalysis }) {
           <div className="mt-3 space-y-3">
             {analysis.languages.length ? analysis.languages.slice(0, 6).map((language) => (
               <div key={language.name}>
-                <div className="flex justify-between gap-3 text-base">
+                <div className="flex justify-between gap-3 text-body">
                   <span className="font-medium text-ink">{language.name}</span>
                   <span className="text-steel">{t("percent", { percent: language.percent })}</span>
                 </div>
@@ -210,7 +210,7 @@ function GithubAnalysisBody({ analysis }: { analysis: GithubAnalysis }) {
                   aria-label={t("languageShare", { name: language.name, percent: language.percent })}
                 />
               </div>
-            )) : <p className="text-base text-steel">{t("noLanguages")}</p>}
+            )) : <p className="text-body text-steel">{t("noLanguages")}</p>}
           </div>
         </div>
 
@@ -222,7 +222,7 @@ function GithubAnalysisBody({ analysis }: { analysis: GithubAnalysis }) {
         <SkillLedgerBlock analysis={analysis} />
         <div className="rounded-lg border border-stone-200 bg-white p-4">
           <h3 className="font-serif text-h3 text-ink">{t("complexityTitle")}</h3>
-          <p className="mt-3 text-base leading-6 text-ink">{findingText(analysis.jobFitSignals.complexityAssessment)}</p>
+          <p className="mt-3 text-body text-ink">{findingText(analysis.jobFitSignals.complexityAssessment)}</p>
         </div>
         {analysis.codeReview ? <CodeReviewBlock review={analysis.codeReview} /> : null}
         <TitledList title={t("limitations")} items={analysis.limitations.map(findingText)} />
@@ -256,7 +256,7 @@ function TopRepositoriesBlock({
                 <p className="truncate font-semibold text-ink" title={repo.name}>
                   {repo.name}
                 </p>
-                <div className="flex shrink-0 gap-2 text-sm text-steel">
+                <div className="flex shrink-0 gap-2 text-micro text-steel">
                   <span className="inline-flex items-center gap-1">
                     <Star className="h-3.5 w-3.5" aria-hidden />
                     {repo.stars}
@@ -268,9 +268,9 @@ function TopRepositoriesBlock({
                 </div>
               </div>
               {repo.description ? (
-                <p className="mt-2 line-clamp-2 text-sm leading-5 text-ink">{repo.description}</p>
+                <p className="mt-2 line-clamp-2 text-micro leading-5 text-ink">{repo.description}</p>
               ) : null}
-              <p className="mt-2 text-sm text-steel">
+              <p className="mt-2 text-micro text-steel">
                 {repo.primaryLanguage ?? t("mixedLanguage")} · {safeDate(repo.updatedAt)}
               </p>
             </>
@@ -316,10 +316,10 @@ function CodeReviewBlock({
           this panel is named for the evidence it actually uses, not "code-aware".
           Spelling out the scope here keeps "Evidenced Skills" below from being
           mistaken for a confirmation that the code itself was inspected. */}
-      <p className="mt-2 text-sm leading-5 text-steel">{t("reviewScope")}</p>
-      {summary ? <p className="mt-3 text-base leading-6 text-ink">{summary}</p> : null}
+      <p className="mt-2 text-micro leading-5 text-steel">{t("reviewScope")}</p>
+      {summary ? <p className="mt-3 text-body text-ink">{summary}</p> : null}
       {review.partial ? (
-        <p className="mt-2 text-sm leading-5 text-amber-800">{tReview("partial")}</p>
+        <p className="mt-2 text-micro leading-5 text-amber-800">{tReview("partial")}</p>
       ) : null}
       {/* `review.error` is a stable DIAGNOSTIC code for the server log (see
           github/code-review.ts REVIEW_DIAGNOSTIC), never prose — this used to render
@@ -327,14 +327,14 @@ function CodeReviewBlock({
           localized line for the same failure is `reason`, rendered as `summary`
           above, so there is nothing left to show here. */}
       {review.reposReviewed.length ? (
-        <p className="mt-2 text-sm text-steel">{t("reposReviewed", { repos: review.reposReviewed.join(", ") })}</p>
+        <p className="mt-2 text-micro text-steel">{t("reposReviewed", { repos: review.reposReviewed.join(", ") })}</p>
       ) : null}
       {review.evidenceBasis.length ? (
         <details className="mt-3 rounded-md bg-paper p-3">
-          <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-steel">
+          <summary className={`${META_LABEL} cursor-pointer`}>
             {t("evidenceBasis")}
           </summary>
-          <ul className="mt-2 space-y-1 text-sm leading-5 text-ink">
+          <ul className="mt-2 space-y-1 text-micro leading-5 text-ink">
             {review.evidenceBasis.map(findingText).filter(Boolean).map((item, i) => (
               <li key={`${item}-${i}`}>• {item}</li>
             ))}
@@ -353,7 +353,7 @@ function CodeReviewBlock({
 function Metric({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-md bg-white p-3">
-      <p className="text-sm font-medium uppercase tracking-wide text-steel">{label}</p>
+      <p className={META_LABEL}>{label}</p>
       <p className="mt-1 text-lg font-semibold text-ink">{value}</p>
     </div>
   );
@@ -362,11 +362,11 @@ function Metric({ label, value }: { label: string; value: number }) {
 // Verdict tones. Never coral: nothing in the ledger is a finding against the
 // candidate. "Not reached" is the quiet neutral chip; "could not determine" is the
 // amber caveat tone the panel already uses for a partial read.
-const VERDICT_CHIP = "inline-block rounded-full px-2 py-0.5 text-sm dark:rotate-1";
+const VERDICT_CHIP = "inline-block rounded-full px-2 py-0.5 text-micro dark:rotate-1";
 const VERDICT_TONE: Record<SkillLedgerVerdict, string> = {
   corroborated: `${VERDICT_CHIP} bg-moss/15 text-ink`,
   notReached: CHIP_QUIET,
-  couldNotDetermine: `${VERDICT_CHIP} bg-amber-50 text-amber-800`,
+  couldNotDetermine: `${VERDICT_CHIP} bg-dial-amber/15 text-ink`,
   unclaimed: `${VERDICT_CHIP} bg-limewash text-ink`,
 };
 // Repo names shown inline per row; the rest collapse to "+N more".
@@ -387,8 +387,8 @@ function SkillLedgerBlock({ analysis }: { analysis: GithubAnalysis }) {
   return (
     <div className={`${PANEL} p-4`}>
       <h3 className="font-serif text-h3 text-ink">{t("title")}</h3>
-      <p className="mt-2 text-sm leading-5 text-steel">{t("intro")}</p>
-      {!jobDescriptionProvided ? <p className="mt-3 text-base leading-6 text-ink">{tGithub("matchesEmptyNoJd")}</p> : null}
+      <p className="mt-2 text-micro leading-5 text-steel">{t("intro")}</p>
+      {!jobDescriptionProvided ? <p className="mt-3 text-body text-ink">{tGithub("matchesEmptyNoJd")}</p> : null}
       {rows.length ? (
         <ul className="mt-3 divide-y divide-stone-100">
           {rows.map((row) => (
@@ -396,19 +396,19 @@ function SkillLedgerBlock({ analysis }: { analysis: GithubAnalysis }) {
               <span className="font-medium text-ink">{row.label}</span>
               <span className={VERDICT_TONE[row.verdict]}>{t(`verdict.${row.verdict}`)}</span>
               <LedgerEvidence row={row} repoUrl={repoUrl} />
-              {row.reviewDisagrees ? <span className="text-sm text-steel">{t("reviewDisagrees")}</span> : null}
+              {row.reviewDisagrees ? <span className="text-micro text-steel">{t("reviewDisagrees")}</span> : null}
             </li>
           ))}
         </ul>
       ) : jobDescriptionProvided ? (
-        <p className="mt-3 text-base leading-6 text-ink">{t("emptyAnalyzed")}</p>
+        <p className="mt-3 text-body text-ink">{t("emptyAnalyzed")}</p>
       ) : null}
       {jobDescriptionProvided && trackedSkillCount ? (
-        <p className="mt-3 text-sm text-steel">{t("tracked", { count: trackedSkillCount })}</p>
+        <p className="mt-3 text-micro text-steel">{t("tracked", { count: trackedSkillCount })}</p>
       ) : null}
       {/* FINDING #2: a partial read names what it could not check instead of
           reading as complete. */}
-      {undetermined ? <p className="mt-2 text-sm leading-5 text-amber-800">{t("incomplete")}</p> : null}
+      {undetermined ? <p className="mt-2 text-micro leading-5 text-amber-800">{t("incomplete")}</p> : null}
     </div>
   );
 }
@@ -421,7 +421,7 @@ function LedgerEvidence({ row, repoUrl }: { row: SkillLedgerRow; repoUrl: Map<st
   const shown = row.repos.slice(0, LEDGER_REPOS_SHOWN);
   const more = row.repos.length - shown.length;
   return (
-    <span className="text-sm text-steel">
+    <span className="text-micro text-steel">
       {byLabels && shown.length ? (
         <>
           {t("inRepos")}{" "}
@@ -464,13 +464,13 @@ function TitledList({ title, items, empty }: { title: string; items: string[]; e
       {rows.length ? (
         <ul className="mt-3 space-y-2">
           {rows.map((item, i) => (
-            <li key={`${item}-${i}`} className="text-base leading-6 text-ink">
+            <li key={`${item}-${i}`} className="text-body text-ink">
               {item}
             </li>
           ))}
         </ul>
       ) : (
-        <p className="mt-3 text-base leading-6 text-ink">{empty ?? t("noItems")}</p>
+        <p className="mt-3 text-body text-ink">{empty ?? t("noItems")}</p>
       )}
     </div>
   );

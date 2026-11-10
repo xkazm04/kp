@@ -64,7 +64,7 @@ function SelectableRow({
 }) {
   const box = tone === "coral" ? "border-coral/30 bg-coral/5" : "border-moss/30 bg-moss/5";
   return (
-    <li className={`rounded-md border px-3 py-1.5 text-sm ${checked ? box : "border-stone-200 bg-paper/50 opacity-70"}`}>
+    <li className={`rounded-md border px-3 py-1.5 text-micro ${checked ? box : "border-stone-200 bg-paper/50 opacity-70"}`}>
       <label className="flex cursor-pointer items-start gap-2">
         <input
           type="checkbox"
@@ -169,14 +169,14 @@ export function PassPreviewModal({
               in the reader's language - a capability refusal also names the
               permission the operator has to ask for. */}
           {commitError ? (
-            <p role="alert" className="mr-auto basis-full text-sm font-semibold text-coral-ink">
+            <p role="alert" className="mr-auto basis-full text-micro font-semibold text-coral-ink">
               {capabilityAwareReason(errMsg, commitError, t("previewCommitFailed"))}
             </p>
           ) : null}
           <button
             type="button"
             onClick={onClose}
-            className="focus-ring inline-flex h-9 items-center rounded-md border border-stone-200 bg-white px-3 text-base font-semibold text-steel hover:text-ink"
+            className="focus-ring inline-flex h-9 items-center rounded-md border border-stone-200 bg-white px-3 text-body font-semibold text-steel hover:text-ink"
           >
             {t("previewCancel")}
           </button>
@@ -188,20 +188,20 @@ export function PassPreviewModal({
                 type="button"
                 onClick={onRepreview}
                 disabled={committing}
-                className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-ink px-3 text-base font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-ink px-3 text-body font-semibold text-white hover:opacity-90 disabled:opacity-50"
               >
                 <RotateCcw size={14} aria-hidden /> {t("previewRepreview")}
               </button>
             ) : null
           ) : othersOnly ? (
             /* Only-other-teams-have-changes: named, never applied from here. */
-            <span className="mr-auto text-sm text-steel">{t("previewOtherTeamsOnly", { count: globalChanges })}</span>
+            <span className="mr-auto text-micro text-steel">{t("previewOtherTeamsOnly", { count: globalChanges })}</span>
           ) : changes > 0 ? (
             <button
               type="button"
               onClick={() => onCommit(approvedFromPreview(preview.decisions, unticked))}
               disabled={committing || selected === 0}
-              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-ink px-3 text-base font-semibold text-white hover:opacity-90 disabled:opacity-50"
+              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-ink px-3 text-body font-semibold text-white hover:opacity-90 disabled:opacity-50"
             >
               {/* No `rejected` param: a commit produces zero rejections, so the
                   button must not imply any (it used to pass the would-be-reject
@@ -213,7 +213,7 @@ export function PassPreviewModal({
                   : t("previewApplySelected", { count: selected, total: changes })}
             </button>
           ) : (
-            <span className="text-sm text-steel">{t("previewNothing")}</span>
+            <span className="text-micro text-steel">{t("previewNothing")}</span>
           )}
         </div>
       }
@@ -223,7 +223,7 @@ export function PassPreviewModal({
           {/* A click that JOINED a pass already in flight: that pass ran without this
               selection, so its result is not presented as this click's. */}
           {report.selectionHonored ? null : (
-            <p role="alert" className={`${NOTICE("amber")} px-3 py-1.5 text-sm`}>
+            <p role="alert" className={`${NOTICE("amber")} px-3 py-1.5 text-micro`}>
               <AlertTriangle size={14} className="mr-1 inline-block align-text-bottom" aria-hidden />
               {t("previewSelectionNotHonored")}
             </p>
@@ -235,7 +235,7 @@ export function PassPreviewModal({
               </p>
               <ul className="mt-1.5 space-y-1">
                 {report.drifted.map((r) => (
-                  <li key={r.entryId} className={`${NOTICE("amber")} px-3 py-1.5 text-sm`}>
+                  <li key={r.entryId} className={`${NOTICE("amber")} px-3 py-1.5 text-micro`}>
                     <span className="font-semibold text-ink">{label(r.entryId)}</span>{" "}
                     <span className="text-steel">
                       —{" "}
@@ -249,19 +249,19 @@ export function PassPreviewModal({
               </ul>
             </section>
           ) : null}
-          {report.selectionHonored ? <p className="text-sm text-steel">{t("previewDriftedNote")}</p> : null}
+          {report.selectionHonored ? <p className="text-micro text-steel">{t("previewDriftedNote")}</p> : null}
         </div>
       ) : (
       <div className="space-y-4">
         {/* The header/subtitle counts are the whole installation's; the rows below are
             this team's. Say the ratio out loud rather than letting the two disagree. */}
         {partial ? (
-          <p className="rounded-md border border-stone-200 bg-paper/50 px-3 py-1.5 text-sm text-steel">
+          <p className="rounded-md border border-stone-200 bg-paper/50 px-3 py-1.5 text-micro text-steel">
             {t("previewScope", { mine, total })}
           </p>
         ) : null}
         {preview.summary.scoringDeferred ? (
-          <p role="status" className={`${NOTICE("amber")} px-3 py-1.5 text-sm`}>
+          <p role="status" className={`${NOTICE("amber")} px-3 py-1.5 text-micro`}>
             <AlertTriangle size={14} className="mr-1 inline-block align-text-bottom" aria-hidden />
             {t("previewScoringDeferred", { count: preview.summary.scoringDeferred })}
           </p>
@@ -313,7 +313,7 @@ export function PassPreviewModal({
             </p>
             <ul className="mt-1.5 space-y-1">
               {fairnessBlocked.map((d) => (
-                <li key={d.entryId} className="rounded-md border border-amber-200 bg-amber-50/60 px-3 py-1.5 text-sm">
+                <li key={d.entryId} className="rounded-md border border-amber-200 bg-amber-50/60 px-3 py-1.5 text-micro">
                   <span className="font-semibold text-ink">{label(d.entryId)}</span>{" "}
                   <span className="text-steel">— {passReason(d)}</span>
                 </li>
@@ -328,7 +328,7 @@ export function PassPreviewModal({
             </summary>
             <ul className="mt-1.5 space-y-1">
               {holds.map((d) => (
-                <li key={d.entryId} className="rounded-md border border-stone-200 bg-paper/50 px-3 py-1.5 text-sm">
+                <li key={d.entryId} className="rounded-md border border-stone-200 bg-paper/50 px-3 py-1.5 text-micro">
                   <span className="font-semibold text-ink">{label(d.entryId)}</span>{" "}
                   <span className="text-steel">— {passReason(d)}</span>
                 </li>
@@ -336,8 +336,8 @@ export function PassPreviewModal({
             </ul>
           </details>
         ) : null}
-        {changes > 0 ? <p className="text-sm text-steel">{t("previewSelectionNote")}</p> : null}
-        <p className="text-sm text-steel">{t("previewNote")}</p>
+        {changes > 0 ? <p className="text-micro text-steel">{t("previewSelectionNote")}</p> : null}
+        <p className="text-micro text-steel">{t("previewNote")}</p>
       </div>
       )}
     </Modal>

@@ -7,7 +7,7 @@ import type { Analysis } from "@/app/_lib/schemas";
 import { hasRenderableComparison, resolveWinnerIndex, type CompareDriver } from "@/app/_lib/comparison";
 import { reconcileScoreTotal, SCORE_COMPONENT_KEYS } from "@/app/_lib/format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { PANEL } from "@/app/_components/ui/recipes";
+import { META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { collidingLabelBadges, driverMessage } from "./compareView.ts";
 import { BulletList } from "../shared";
 
@@ -73,7 +73,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
     return (
       <div className={`${PANEL} p-5`}>
         <h3 className="font-serif text-h3 text-ink">{t("compare.emptyTitle")}</h3>
-        <p className="mt-3 text-base leading-6 text-steel">{t("compare.emptyBody")}</p>
+        <p className="mt-3 text-body text-steel">{t("compare.emptyBody")}</p>
       </div>
     );
   }
@@ -150,32 +150,32 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 className="font-serif text-h3 text-ink">{t("compare.title")}</h3>
-            <p className="mt-1 text-base leading-6 text-steel">
+            <p className="mt-1 text-body text-steel">
               {t("compare.subtitle", { count: comparison.variants.length, baseline: baseline.label })}
             </p>
           </div>
-          <div className="rounded-md bg-limewash px-3 py-2 text-base text-ink">
+          <div className="rounded-md bg-limewash px-3 py-2 text-body text-ink">
             {t("compare.recommended")} <span className="font-semibold">{comparison.bestLabel}</span>
           </div>
         </div>
 
         <div className="relative mt-4">
           <div ref={scrollRef} className="overflow-x-auto">
-            <table className="w-full min-w-[640px] border-separate border-spacing-0 text-base">
+            <table className="w-full min-w-[640px] border-separate border-spacing-0 text-body">
               {/* bug-ui-scan-2026-07-09 (analysis-result-panels #5): sr-only caption
                   names the table (WCAG 1.3.1); scope attrs + <th scope="row"> below
                   associate every cell with its header for screen readers. */}
               <caption className="sr-only">{t("compare.tableCaption")}</caption>
               <thead>
                 <tr>
-                  <th scope="col" className="sticky left-0 z-10 w-44 bg-white px-3 py-2 text-left text-sm font-semibold uppercase tracking-wide text-steel">
+                  <th scope="col" className={`${META_LABEL} sticky left-0 z-10 w-44 bg-white px-3 py-2 text-left`}>
                     {t("compare.componentHeader")}
                   </th>
                   {comparison.variants.map((variant, index) => (
                     <th
                       key={index}
                       scope="col"
-                      className={`px-3 py-2 text-left text-sm font-semibold uppercase tracking-wide ${
+                      className={`px-3 py-2 text-left text-meta uppercase ${
                         index === winnerIndex ? "text-coral-ink" : "text-steel"
                       }`}
                     >
@@ -256,22 +256,22 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
           <h3 className="font-serif text-h3 text-ink">{t("compare.driversTitle")}</h3>
           <BulletList
             items={driverInsights}
-            listClassName="mt-3 space-y-2 text-base leading-6 text-ink"
+            listClassName="mt-3 space-y-2 text-body text-ink"
             itemClassName="rounded-md bg-paper p-3"
-            empty={<p className="mt-3 text-base leading-6 text-steel">{t("compare.driversEmpty")}</p>}
+            empty={<p className="mt-3 text-body text-steel">{t("compare.driversEmpty")}</p>}
           />
         </div>
 
         <div className={`${PANEL} p-5`}>
           <h3 className="font-serif text-h3 text-ink">{t("compare.mergedTitle")}</h3>
-          <p className="mt-3 text-base leading-6 text-ink">{mergedSummary}</p>
-          <ul className="mt-3 space-y-2 text-base leading-6 text-ink">
+          <p className="mt-3 text-body text-ink">{mergedSummary}</p>
+          <ul className="mt-3 space-y-2 text-body text-ink">
             {mr.sectionPicks.map((pick) => (
               <li key={pick.key ?? pick.section} className="rounded-md bg-paper p-3">
                 <span className="font-semibold text-ink">{sectionLabel(pick)}</span>{" "}
                 <span className="text-steel">{t("compare.fromLabel")}</span>{" "}
                 <span className="font-medium text-coral-ink">{pick.sourceLabel}</span>
-                <p className="mt-1 text-sm text-steel">{sectionReason(pick)}</p>
+                <p className="mt-1 text-micro text-steel">{sectionReason(pick)}</p>
               </li>
             ))}
           </ul>
@@ -283,14 +283,14 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
           <h3 className="font-serif text-h3 text-ink">{t("compare.headlineSkillsTitle")}</h3>
           {headlineText ? (
             <div className="mt-3 rounded-md bg-paper p-3">
-              <p className="text-sm font-semibold uppercase tracking-wide text-steel">{t("compare.headlineLabel")}</p>
-              <p className="mt-1 text-base leading-6 text-ink">{headlineText}</p>
+              <p className={META_LABEL}>{t("compare.headlineLabel")}</p>
+              <p className="mt-1 text-body text-ink">{headlineText}</p>
             </div>
           ) : null}
           {mr.skillsLine ? (
             <div className="mt-3 rounded-md bg-paper p-3">
-              <p className="text-sm font-semibold uppercase tracking-wide text-steel">{t("compare.skillsLineLabel")}</p>
-              <p className="mt-1 text-base leading-6 text-ink">{mr.skillsLine}</p>
+              <p className={META_LABEL}>{t("compare.skillsLineLabel")}</p>
+              <p className="mt-1 text-body text-ink">{mr.skillsLine}</p>
             </div>
           ) : null}
         </div>
@@ -299,9 +299,9 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
           <h3 className="font-serif text-h3 text-ink">{t("compare.bulletsTitle")}</h3>
           <BulletList
             items={comparison.mergedRecommendation.bullets}
-            listClassName="mt-3 space-y-2 text-base leading-6 text-ink"
+            listClassName="mt-3 space-y-2 text-body text-ink"
             itemClassName="rounded-md bg-paper p-3"
-            empty={<p className="mt-3 text-base leading-6 text-steel">{t("compare.bulletsEmpty")}</p>}
+            empty={<p className="mt-3 text-body text-steel">{t("compare.bulletsEmpty")}</p>}
           />
         </div>
       </div>
@@ -350,7 +350,7 @@ function DeltaRow({
               <div className="flex items-center gap-2">
                 <span className="font-semibold nums text-ink">{format(value)}</span>
                 {index === 0 ? (
-                  <span className="text-sm text-steel" title={t("compare.baselineTitle")}>{t("compare.baselineTag")}</span>
+                  <span className="text-micro text-steel" title={t("compare.baselineTitle")}>{t("compare.baselineTag")}</span>
                 ) : delta != null ? (
                   <DeltaPill delta={delta} />
                 ) : null}
@@ -366,7 +366,7 @@ function DeltaRow({
 function DeltaPill({ delta }: { delta: number }) {
   if (delta === 0) {
     return (
-      <span className="inline-flex items-center gap-0.5 rounded-full bg-stone-100 px-1.5 py-0.5 text-sm font-medium nums text-steel">
+      <span className="inline-flex items-center gap-0.5 rounded-full bg-stone-100 px-1.5 py-0.5 text-micro font-medium nums text-steel">
         <Minus className="h-3 w-3" aria-hidden />
         0
       </span>
@@ -374,8 +374,8 @@ function DeltaPill({ delta }: { delta: number }) {
   }
   const positive = delta > 0;
   const className = positive
-    ? "inline-flex items-center gap-0.5 rounded-full bg-limewash px-1.5 py-0.5 text-sm font-medium nums text-ink"
-    : "inline-flex items-center gap-0.5 rounded-full bg-red-50 px-1.5 py-0.5 text-sm font-medium nums text-red-700";
+    ? "inline-flex items-center gap-0.5 rounded-full bg-limewash px-1.5 py-0.5 text-micro font-medium nums text-ink"
+    : "inline-flex items-center gap-0.5 rounded-full bg-coral/10 px-1.5 py-0.5 text-micro font-medium nums text-coral-ink";
   const Icon = positive ? ArrowUpRight : ArrowDownRight;
   return (
     <span className={className}>

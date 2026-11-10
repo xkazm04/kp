@@ -1,5 +1,6 @@
 "use client";
 
+import { BTN_CONFIRM_INK, BTN_GHOST, BTN_SECONDARY, NOTICE, PAGE_HEADER, PANEL } from "@/app/_components/ui/recipes";
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -199,8 +200,9 @@ export function ProfileEditor({
   const saveLabel = mode === "edit" ? t("saveChanges") : t("saveProfile");
 
   return (
-    <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-      <header className="border-b border-stone-200 pb-4">
+    <section className={`${PANEL} p-5`}>
+      <header className={PAGE_HEADER}>
+        <div>
         <button
           type="button"
           onClick={() => {
@@ -209,7 +211,7 @@ export function ProfileEditor({
             clearBackup();
             onCancel();
           }}
-          className="focus-ring -ml-1 inline-flex items-center gap-1 rounded text-sm font-semibold text-steel hover:text-coral-ink"
+          className="focus-ring -ml-1 inline-flex items-center gap-1 rounded-md text-micro font-semibold text-steel hover:text-coral-ink"
         >
           <ArrowLeft size={14} /> {t("back")}
         </button>
@@ -217,6 +219,7 @@ export function ProfileEditor({
         <p className="mt-2 max-w-3xl text-body text-steel">
           {t.rich("intro", { b: (chunks) => <strong>{chunks}</strong> })}
         </p>
+        </div>
       </header>
 
       <ProfileEditorAiDraft onApplied={applyDraft} />
@@ -227,14 +230,14 @@ export function ProfileEditor({
           about exactly this since it shipped (ProfileTabRebuildWarnModal); this is the
           same idiom inside the editor, plus a one-click undo. */}
       {draftApplied ? (
-        <div role="status" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
-          <p className="text-sm text-amber-800">{bannerText}</p>
+        <div role="status" className={`${NOTICE("amber")} mt-3 p-3`}>
+          <p className="text-micro">{bannerText}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {draftConflicts.length ? (
               <button
                 type="button"
                 onClick={acceptDraftFully}
-                className="focus-ring h-8 rounded-md border border-stone-200 bg-white px-3 text-sm font-semibold text-ink hover:bg-paper"
+                className={`${BTN_SECONDARY} h-8 bg-white px-3 text-micro font-semibold`}
               >
                 {useAnywayLabel}
               </button>
@@ -242,7 +245,7 @@ export function ProfileEditor({
             <button
               type="button"
               onClick={undoDraft}
-              className="focus-ring h-8 rounded-md border border-stone-200 bg-white px-3 text-sm font-semibold text-ink hover:bg-paper"
+              className={`${BTN_SECONDARY} h-8 bg-white px-3 text-micro font-semibold`}
             >
               {undoLabel}
             </button>
@@ -251,7 +254,7 @@ export function ProfileEditor({
               <button
                 type="button"
                 onClick={dismissDraftNotice}
-                className="focus-ring h-8 rounded-md px-3 text-sm font-semibold text-steel hover:text-ink"
+                className={`${BTN_GHOST} h-8 px-3 text-micro font-semibold`}
               >
                 {t("draftKeep")}
               </button>
@@ -307,7 +310,7 @@ export function ProfileEditor({
           type="button"
           onClick={build}
           disabled={loading || hasFieldErrors}
-          className="focus-ring h-10 rounded-md bg-ink px-4 text-base font-semibold text-white disabled:opacity-40"
+          className={`${BTN_CONFIRM_INK} h-10 px-4 text-body disabled:opacity-40`}
         >
           {loading ? t("working") : saveLabel}
         </button>
@@ -317,7 +320,7 @@ export function ProfileEditor({
           Say so, and offer the only action that resolves it. The form is left exactly
           as typed so nothing is lost before they choose. */}
       {stale ? (
-        <div role="alert" className="mt-3 rounded-md bg-amber-50 p-3 text-base text-amber-800">
+        <div role="alert" className={`${NOTICE("amber")} mt-3 p-3 text-body`}>
           <p>{t("staleSave")}</p>
           {onReload ? (
             <button
@@ -326,14 +329,14 @@ export function ProfileEditor({
                 clearBackup();
                 onReload();
               }}
-              className="focus-ring mt-2 h-8 rounded-md border border-stone-200 bg-white px-3 text-sm font-semibold text-ink hover:bg-paper"
+              className={`${BTN_SECONDARY} mt-2 h-8 bg-white px-3 text-micro font-semibold`}
             >
               {t("staleReload")}
             </button>
           ) : null}
         </div>
       ) : null}
-      {error ? <p className="mt-3 rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p> : null}
+      {error ? <p className={`${NOTICE("critical")} mt-3 p-3 text-body`}>{error}</p> : null}
       {/* Completeness gates nothing - Save stays enabled - and the figure always travels
           with its named checklist (the Add next list), live or saved. */}
       {showSaved && result?.saved?.id ? (

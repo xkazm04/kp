@@ -75,7 +75,7 @@ design). Still open:
 - Enterprise track still open: E-SSO-2/3/5, E-AUD-2/3/4, E-SH-1 (license decision), E-SH-3 (Postgres build), E-SH-6, E5 (SOC 2), E-GDPR-1/3/4/5, E6 (org-level billing/seats). BYOM tier enforcement unbuilt.
 
 **Design & structure**
-- Visual uplift Phase 2 (tab composition, `PANEL_SUNKEN` migration, `FIELD` height standardization, a `TABLE` recipe that does not yet exist), Phase 3 (contrast/a11y), Phase 4 (delight) are open.
+- Visual uplift Phase 2 (tab composition, `PANEL_SUNKEN` migration, `FIELD` height standardization, tables: the composition kit's `DataTable` / `FlowTable` (`app/_components/kit/`) now serve as the table part, so the open work is porting the 38 raw `<table>`s counted by `style-debt.json`, not inventing a `TABLE` recipe), Phase 3 (contrast/a11y), Phase 4 (delight) are open.
 - Five `.tsx` files have crept past the 200-line invariant since the structure refactor landed — listed in `docs/architecture/app-structure.md` under "Drift since landing".
 
 ## Intake — UAT drain 2026-08-07 (see docs/product/uat-insights/2026-08-07-intake.md)

@@ -2,7 +2,7 @@
 
 import { BarChart3, Check, Copy, Link2, Users, Zap } from "lucide-react";
 import { LinkReachNotice } from "@/app/_components/LinkReachNotice";
-import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
+import { BTN_PRIMARY, BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { buildUrl } from "@/app/features/shell/tabs";
 import type { useJobPostingModalLogic } from "./jobsPostingModalLogic";
 import { PublishFlightNote, PublishSentences } from "./JobsPublishNote";
@@ -61,7 +61,7 @@ export function JobsPostingModalFooter({
           onClick={() => setConfirmingPublish(true)}
           disabled={publishing}
           title={t("reopenTitle")}
-          className="focus-ring mr-auto inline-flex h-9 items-center gap-1 rounded-md border border-coral/40 px-3 text-sm font-semibold text-coral-ink hover:bg-coral/5 disabled:opacity-60"
+          className="focus-ring mr-auto inline-flex h-9 items-center gap-1 rounded-md border border-coral/40 px-3 text-micro font-semibold text-coral-ink hover:bg-coral/5 disabled:opacity-60"
         >
           {publishing ? td("sourcing") : t("reopenRole")}
         </button>
@@ -71,26 +71,26 @@ export function JobsPostingModalFooter({
           onClick={() => setConfirmingClose(true)}
           disabled={closing}
           title={t("closeTitle")}
-          className="focus-ring mr-auto inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-steel hover:border-coral/40 hover:text-coral-ink disabled:opacity-60"
+          className="focus-ring mr-auto inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-micro font-semibold text-steel hover:border-coral/40 hover:text-coral-ink disabled:opacity-60"
         >
           {closing ? t("closing") : t("closeRole")}
         </button>
       )}
       {closeError ? (
-        <span role="alert" className="text-sm text-red-700">
+        <span role="alert" className="text-micro text-coral-ink">
           {closeError}
         </span>
       ) : null}
       {closed && withdrawFailed ? (
         // The role IS closed; its in-flight candidates are not. Amber, like publish's
         // sourcingWarning — a partial success the recruiter has to act on.
-        <span aria-live="polite" className="min-w-0 text-sm text-amber-800">
+        <span aria-live="polite" className="min-w-0 text-micro text-amber-800">
           {t("withdrawFailed")}
         </span>
       ) : closed && closedCount !== null ? (
         // withdrawn:0 is a real outcome (nobody was in flight) and used to render
         // NOTHING — indistinguishable from a failed close. Confirm the close itself.
-        <span aria-live="polite" className="text-sm text-steel">
+        <span aria-live="polite" className="text-micro text-steel">
           {closedCount > 0 ? t("withdrewCount", { count: closedCount }) : t("closedNow")}
         </span>
       ) : null}
@@ -113,7 +113,7 @@ export function JobsPostingModalFooter({
       ) : null}
       {publishNote ? (
         publishNote.tone === "quota" ? (
-          <span aria-live="polite" className="inline-flex min-w-0 items-center gap-2 text-sm text-coral-ink">
+          <span aria-live="polite" className="inline-flex min-w-0 items-center gap-2 text-micro text-coral-ink">
             <span className="truncate">{publishNote.text}</span>
             <button
               type="button"
@@ -124,7 +124,7 @@ export function JobsPostingModalFooter({
             </button>
           </span>
         ) : (
-          <span aria-live="polite" className="min-w-0 text-sm text-amber-800">
+          <span aria-live="polite" className="min-w-0 text-micro text-amber-800">
             {publishNote.text}
           </span>
         )
@@ -138,7 +138,7 @@ export function JobsPostingModalFooter({
           onClick={() => setConfirmingPublish(true)}
           disabled={publishing}
           title={td("sourceTitle")}
-          className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral-solid px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+          className={`${BTN_PRIMARY} h-9 px-3 text-micro`}
         >
           <Users size={14} /> {publishing ? td("sourcing") : td("sourceIntoPipeline")}
         </button>
@@ -150,7 +150,7 @@ export function JobsPostingModalFooter({
             onClick={copyApplyLink}
             disabled={isClosed}
             title={isClosed ? t("linksClosedTitle") : undefined}
-            className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-60 disabled:hover:border-stone-200"
+            className={`${BTN_SECONDARY} h-9 px-3 text-micro font-semibold disabled:opacity-60`}
           >
             {applyCopied ? <Check size={14} /> : <Link2 size={14} />} {applyCopied ? t("copied") : t("applyLink")}
           </button>
@@ -159,7 +159,7 @@ export function JobsPostingModalFooter({
             onClick={copyQuickApplyLink}
             disabled={isClosed}
             title={isClosed ? t("linksClosedTitle") : undefined}
-            className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-60 disabled:hover:border-stone-200"
+            className={`${BTN_SECONDARY} h-9 px-3 text-micro font-semibold disabled:opacity-60`}
           >
             {quickCopied ? <Check size={14} /> : <Zap size={14} />} {quickCopied ? t("copied") : t("quickApplyLink")}
           </button>
@@ -170,19 +170,19 @@ export function JobsPostingModalFooter({
       <button
         type="button"
         onClick={() => router.push(buildUrl({ tab: "matrix", job: jobId }, search.toString()))}
-        className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:border-coral/40"
+        className={`${BTN_SECONDARY} h-9 px-3 text-micro font-semibold`}
       >
         <BarChart3 size={14} /> {t("rankInMatrix")}
       </button>
       <button
         type="button"
         onClick={copy}
-        className="focus-ring inline-flex h-9 items-center gap-1 rounded-md bg-ink px-3 text-sm font-semibold text-white hover:bg-steel"
+        className="focus-ring inline-flex h-9 items-center gap-1 rounded-md bg-ink px-3 text-micro font-semibold text-white hover:bg-steel"
       >
         {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? t("copied") : t("copyMarkdown")}
       </button>
       {copyError ? (
-        <p role="alert" className="basis-full text-sm text-coral-ink">
+        <p role="alert" className="basis-full text-micro text-coral-ink">
           {t("copyFailed")}
         </p>
       ) : null}

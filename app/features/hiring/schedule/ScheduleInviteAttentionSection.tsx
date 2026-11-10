@@ -36,7 +36,7 @@ export function AttentionSection({
       </p>
       <ul className="mt-1.5 space-y-1">
         {attention.map((i) => (
-          <li key={i.id} className="rounded-md border border-red-200 bg-red-50/60 px-3 py-1.5 text-sm">
+          <li key={i.id} className="rounded-md border border-red-200 bg-red-50/60 px-3 py-1.5 text-micro">
             <span className="font-semibold text-ink">{i.candidateLabel ?? "—"}</span>
             {i.jobTitle ? <span className="text-steel"> · {i.jobTitle}</span> : null}{" "}
             {hasPendingProposals(i) ? (

@@ -80,7 +80,7 @@ export function IntegrationsCalendarPanel() {
       <h3 className="flex items-center gap-2 font-serif text-h3 text-ink">
         <CalendarCheck size={16} className="text-coral-ink" aria-hidden /> {t("title")}
       </h3>
-      <p className="mt-1 max-w-3xl text-sm text-steel">{t("intro")}</p>
+      <p className="mt-1 max-w-3xl text-micro text-steel">{t("intro")}</p>
 
       {callback ? (
         <div className="mt-3">
@@ -90,8 +90,8 @@ export function IntegrationsCalendarPanel() {
 
       {error ? (
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <p className="text-base text-coral-ink">{error}</p>
-          <button type="button" onClick={reload} className={`${BTN_SECONDARY} h-8 px-3 text-sm`}>
+          <p className="text-body text-coral-ink">{error}</p>
+          <button type="button" onClick={reload} className={`${BTN_SECONDARY} h-8 px-3 text-micro`}>
             {t("retry")}
           </button>
         </div>
@@ -103,10 +103,10 @@ export function IntegrationsCalendarPanel() {
 
       {data && data.configured && !connected ? (
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <a href={START_URL} className={`${BTN_PRIMARY} h-9 px-4 text-sm`}>
+          <a href={START_URL} className={`${BTN_PRIMARY} h-9 px-4 text-micro`}>
             <ExternalLink size={14} aria-hidden /> {t("connect")}
           </a>
-          <p className="text-sm text-steel">{t("connectHint")}</p>
+          <p className="text-micro text-steel">{t("connectHint")}</p>
         </div>
       ) : null}
 
@@ -115,15 +115,15 @@ export function IntegrationsCalendarPanel() {
           <dl className="grid gap-3 sm:grid-cols-3">
             <div>
               <dt className={META_LABEL}>{t("accountLabel")}</dt>
-              <dd className="mt-0.5 break-all text-base text-ink">{connection.accountEmail ?? t("accountUnknown")}</dd>
+              <dd className="mt-0.5 break-all text-body text-ink">{connection.accountEmail ?? t("accountUnknown")}</dd>
             </div>
             <div>
               <dt className={META_LABEL}>{t("calendarLabel")}</dt>
-              <dd className="mt-0.5 break-all font-mono text-sm text-ink">{connection.calendarId}</dd>
+              <dd className="mt-0.5 break-all font-mono text-micro text-ink">{connection.calendarId}</dd>
             </div>
             <div>
               <dt className={META_LABEL}>{t("connectedAtLabel")}</dt>
-              <dd className="mt-0.5 text-base text-ink">
+              <dd className="mt-0.5 text-body text-ink">
                 {connection.connectedAt ? format.dateTime(new Date(connection.connectedAt), { dateStyle: "medium", timeStyle: "short" }) : "—"}
               </dd>
             </div>
@@ -135,10 +135,10 @@ export function IntegrationsCalendarPanel() {
               lookup failed and every new interview missed the calendar. */}
           {connection.health !== "ok" ? (
             <div role="alert" className={`${NOTICE("critical")} mt-4 p-3`}>
-              <p className="text-base font-semibold">
+              <p className="text-body font-semibold">
                 {connection.health === "revoked" ? t("grant.revokedTitle") : t("grant.undecryptableTitle")}
               </p>
-              <p className="mt-0.5 text-sm">
+              <p className="mt-0.5 text-micro">
                 {t(connection.health === "revoked" ? "grant.revokedBody" : "grant.undecryptableBody", {
                   date: connection.healthAt
                     ? format.dateTime(new Date(connection.healthAt), { dateStyle: "medium", timeStyle: "short" })
@@ -146,19 +146,19 @@ export function IntegrationsCalendarPanel() {
                 })}
               </p>
               {(data.unsyncedUpcoming ?? 0) > 0 ? (
-                <p className="mt-1 text-sm font-semibold">{t("grant.unsynced", { count: data.unsyncedUpcoming ?? 0 })}</p>
+                <p className="mt-1 text-micro font-semibold">{t("grant.unsynced", { count: data.unsyncedUpcoming ?? 0 })}</p>
               ) : null}
-              <a href={START_URL} className={`${BTN_PRIMARY} mt-3 h-8 px-3 text-sm`}>
+              <a href={START_URL} className={`${BTN_PRIMARY} mt-3 h-8 px-3 text-micro`}>
                 <ExternalLink size={14} aria-hidden /> {t("grant.reconnectAction")}
               </a>
             </div>
           ) : null}
 
           {missing.length > 0 ? (
-            <div role="alert" className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-900">
-              <p className="text-base font-semibold">{t("partialTitle")}</p>
-              <p className="mt-0.5 text-sm">{t("partialBody")}</p>
-              <ul className="mt-2 space-y-1 text-sm">
+            <div role="alert" className={`${NOTICE("amber")} mt-4 p-3`}>
+              <p className="text-body font-semibold">{t("partialTitle")}</p>
+              <p className="mt-0.5 text-micro">{t("partialBody")}</p>
+              <ul className="mt-2 space-y-1 text-micro">
                 {missing.map((scope) => (
                   <li key={scope}>
                     <span className="font-semibold">{t(`scopes.${calendarScopeSlug(scope)}` as Parameters<typeof t>[0])}</span>
@@ -166,8 +166,8 @@ export function IntegrationsCalendarPanel() {
                   </li>
                 ))}
               </ul>
-              <p className="mt-2 text-sm">{t("partialFix")}</p>
-              <a href={START_URL} className={`${BTN_SECONDARY} mt-3 h-8 px-3 text-sm`}>
+              <p className="mt-2 text-micro">{t("partialFix")}</p>
+              <a href={START_URL} className={`${BTN_SECONDARY} mt-3 h-8 px-3 text-micro`}>
                 {t("reconnect")}
               </a>
             </div>
@@ -175,13 +175,13 @@ export function IntegrationsCalendarPanel() {
 
           {confirming ? (
             <div className="mt-4 border-t border-stone-200 pt-4">
-              <p className="text-sm text-steel">{t("disconnectConfirm")}</p>
+              <p className="text-micro text-steel">{t("disconnectConfirm")}</p>
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <button
                   type="button"
                   onClick={() => void disconnect()}
                   disabled={busy}
-                  className={`${BTN_SECONDARY} h-9 px-4 text-sm text-coral-ink`}
+                  className={`${BTN_SECONDARY} h-9 px-4 text-micro text-coral-ink`}
                 >
                   {busy ? t("disconnecting") : t("disconnectConfirmAction")}
                 </button>
@@ -189,7 +189,7 @@ export function IntegrationsCalendarPanel() {
                   type="button"
                   onClick={() => setConfirming(false)}
                   disabled={busy}
-                  className={`${BTN_SECONDARY} h-9 px-4 text-sm`}
+                  className={`${BTN_SECONDARY} h-9 px-4 text-micro`}
                 >
                   {t("disconnectCancel")}
                 </button>
@@ -197,10 +197,10 @@ export function IntegrationsCalendarPanel() {
             </div>
           ) : (
             <div className="mt-4 flex flex-wrap items-center gap-3">
-              <button type="button" onClick={() => setConfirming(true)} disabled={busy} className={`${BTN_SECONDARY} h-9 px-4 text-sm`}>
+              <button type="button" onClick={() => setConfirming(true)} disabled={busy} className={`${BTN_SECONDARY} h-9 px-4 text-micro`}>
                 {t("disconnect")}
               </button>
-              <p className="text-sm text-steel">{t("disconnectHint")}</p>
+              <p className="text-micro text-steel">{t("disconnectHint")}</p>
             </div>
           )}
         </div>
@@ -210,7 +210,7 @@ export function IntegrationsCalendarPanel() {
         // A failed disconnect, and the revoke-failed case ("the grant is still
         // live at Google, go withdraw it yourself"), are both things the operator
         // must act on — assertive, per this tab's convention.
-        <p role={note.ok ? "status" : "alert"} className={`mt-3 text-sm font-medium ${note.ok ? "text-moss" : "text-coral-ink"}`}>
+        <p role={note.ok ? "status" : "alert"} className={`mt-3 text-micro font-medium ${note.ok ? "text-moss" : "text-coral-ink"}`}>
           {note.text}
         </p>
       ) : null}

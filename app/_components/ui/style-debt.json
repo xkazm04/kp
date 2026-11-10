@@ -49,9 +49,8 @@
       "raw-table": 1
     },
     "_components/GithubAnalysisPanel.tsx": {
-      "raw-text-size": 34,
-      "raw-status-hue": 10,
-      "raw-button": 1
+      "raw-text-size": 1,
+      "raw-status-hue": 2
     },
     "_components/IconAction.tsx": {
       "raw-stone-text": 1
@@ -169,27 +168,18 @@
       "raw-text-size": 5
     },
     "_components/results/compare/CompareTab.tsx": {
-      "raw-text-size": 21,
-      "raw-status-hue": 2,
       "raw-table": 1
     },
     "_components/results/extraction/ExtractionTab.tsx": {
       "raw-text-size": 15
     },
     "_components/results/interview/InterviewTab.tsx": {
-      "raw-text-size": 19,
-      "raw-status-hue": 2,
-      "raw-button": 3
+      "raw-text-size": 1
     },
     "_components/results/interview/SoftSignalsSection.tsx": {
       "raw-text-size": 7,
       "raw-status-hue": 2,
       "raw-button": 1
-    },
-    "_components/results/job-fit/JobFitTab.tsx": {
-      "raw-text-size": 17,
-      "raw-status-hue": 6,
-      "bare-rounded": 2
     },
     "_components/results/job-fit/MissingSkillsTiers.tsx": {
       "raw-text-size": 5,
@@ -361,7 +351,6 @@
     "features/hiring/decisions/DecisionsAnalysisParts.tsx": {
       "below-floor-text": 2,
       "arbitrary-text-size": 2,
-      "raw-text-size": 19,
       "raw-status-hue": 10,
       "raw-button": 1,
       "bare-rounded": 5
@@ -489,7 +478,6 @@
       "raw-button": 4
     },
     "features/hiring/pipeline/PassPreviewModal.tsx": {
-      "raw-text-size": 16,
       "raw-status-hue": 4,
       "raw-button": 3
     },
@@ -509,7 +497,6 @@
       "raw-text-size": 5
     },
     "features/hiring/pipeline/PipelineDegradedIntakeBanner.tsx": {
-      "raw-text-size": 5,
       "raw-status-hue": 13,
       "raw-button": 3,
       "bare-rounded": 1
@@ -763,7 +750,6 @@
       "raw-status-hue": 2
     },
     "features/hiring/schedule/ScheduleInviteAttentionSection.tsx": {
-      "raw-text-size": 1,
       "raw-status-hue": 18,
       "raw-button": 7
     },
@@ -1209,8 +1195,7 @@
       "raw-status-hue": 2
     },
     "features/library/jds/JdsLedgerDetailPanels.tsx": {
-      "raw-text-size": 17,
-      "raw-status-hue": 10,
+      "raw-status-hue": 2,
       "raw-button": 1
     },
     "features/library/jds/JdsLedgerDetailRail.tsx": {
@@ -1416,9 +1401,8 @@
       "raw-button": 3
     },
     "features/library/jobs/JobsPostingModalFooter.tsx": {
-      "raw-text-size": 13,
-      "raw-status-hue": 3,
-      "raw-button": 8
+      "raw-status-hue": 2,
+      "raw-button": 4
     },
     "features/library/jobs/JobsPublishDialog.tsx": {
       "raw-text-size": 5
@@ -1554,16 +1538,8 @@
     "features/settings/integrations/IntegrationsAtsRow.tsx": {
       "raw-text-size": 6
     },
-    "features/settings/integrations/IntegrationsCalendarPanel.tsx": {
-      "raw-text-size": 27,
-      "raw-status-hue": 3
-    },
     "features/settings/integrations/IntegrationsCallbackBanner.tsx": {
       "raw-text-size": 2,
-      "raw-status-hue": 3
-    },
-    "features/settings/integrations/IntegrationsPersonasPanel.tsx": {
-      "raw-text-size": 22,
       "raw-status-hue": 3
     },
     "features/settings/integrations/IntegrationsWebhookFields.tsx": {
@@ -1584,10 +1560,6 @@
     },
     "features/settings/models/ModelsKeysPanel.tsx": {
       "raw-text-size": 4
-    },
-    "features/settings/models/ModelsQualityOverview.tsx": {
-      "raw-text-size": 22,
-      "raw-status-hue": 1
     },
     "features/settings/models/ModelsRoutingPanel.tsx": {
       "raw-text-size": 4,
@@ -2272,11 +2244,7 @@
       "raw-button": 1
     },
     "features/tools/profile/ProfileEditor.tsx": {
-      "raw-text-size": 9,
-      "raw-status-hue": 7,
-      "raw-button": 6,
-      "bare-rounded": 1,
-      "literal-page-header": 1
+      "raw-button": 1
     },
     "features/tools/profile/ProfileEditorAiDraft.tsx": {
       "raw-text-size": 5,
@@ -2315,9 +2283,8 @@
       "raw-text-size": 13
     },
     "features/tools/profile/ProfileRosterRow.tsx": {
-      "raw-text-size": 8,
-      "raw-status-hue": 13,
-      "raw-button": 6
+      "raw-status-hue": 10,
+      "raw-button": 4
     },
     "features/tools/profile/ProfileRosterTable.tsx": {
       "raw-text-size": 2,

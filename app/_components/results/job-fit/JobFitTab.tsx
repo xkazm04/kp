@@ -6,7 +6,7 @@ import { Meter } from "@/app/_components/Meter";
 import { ScoreDial } from "@/app/_components/ScoreDial";
 import type { Analysis } from "@/app/_lib/schemas";
 import { dedupe, dedupeBy } from "@/app/_lib/dedupe";
-import { PANEL } from "@/app/_components/ui/recipes";
+import { META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { hiddenByCap } from "./jobFitView.ts";
 import { ListBlock } from "../shared";
 import { SkillChips } from "./SkillChips";
@@ -19,7 +19,7 @@ export function JobFitTab({ analysis }: { analysis: Analysis }) {
     return (
       <div className={`${PANEL} p-5`}>
         <h3 className="font-serif text-h3 text-ink">{t("panel.jobFit")}</h3>
-        <p className="mt-3 text-base leading-6 text-steel">{t("panel.jobFitPlaceholder")}</p>
+        <p className="mt-3 text-body text-steel">{t("panel.jobFitPlaceholder")}</p>
       </div>
     );
   }
@@ -34,7 +34,7 @@ export function JobFitTab({ analysis }: { analysis: Analysis }) {
                 <BriefcaseBusiness className="h-5 w-5 text-coral-ink" aria-hidden />
                 <h3 className="font-serif text-h3 text-ink">{t("panel.jobFit")}</h3>
               </div>
-              <p className="mt-3 text-base leading-6 text-ink">{analysis.jobFit.summary}</p>
+              <p className="mt-3 text-body text-ink">{analysis.jobFit.summary}</p>
             </div>
             {/* jobFit.score is a standalone 0-100 role-fit scalar, NOT the
                 experience+skills+… breakdown total — there is no FactorChart
@@ -81,12 +81,12 @@ export function JobFitTab({ analysis }: { analysis: Analysis }) {
       <div className="space-y-5">
         <div className={`${PANEL} p-5`}>
           <h3 className="font-serif text-h3 text-ink">{t("panel.alignment")}</h3>
-          <div className="mt-4 space-y-3 text-base leading-6 text-ink">
+          <div className="mt-4 space-y-3 text-body text-ink">
             <p>{analysis.jobFit.seniorityAlignment}</p>
             <p>{analysis.jobFit.roleAlignment}</p>
             <p>{analysis.jobFit.salaryAssessment}</p>
           </div>
-          <div className="mt-4 rounded-md bg-limewash p-3 text-base leading-6 text-ink">{analysis.jobFit.negotiationAngle}</div>
+          <div className="mt-4 rounded-md bg-limewash p-3 text-body text-ink">{analysis.jobFit.negotiationAngle}</div>
         </div>
         <ListBlock
           title={t("panel.riskFlags")}
@@ -142,18 +142,18 @@ function UnprovenSkillsBlock({
   return (
     <div className="mt-4">
       <p className="text-meta uppercase tracking-wide text-steel">{t("unprovenTitle")}</p>
-      <p className="mt-0.5 text-sm text-steel">{t("unprovenHelp")}</p>
+      <p className="mt-0.5 text-micro text-steel">{t("unprovenHelp")}</p>
       <div className="mt-1.5 flex flex-wrap gap-1.5">
         {skills.map((s) => {
           const st = strength[s];
           return (
             <span
               key={`u-${s}`}
-              className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-sm text-amber-800"
+              className="inline-flex items-center gap-1 rounded-md bg-dial-amber/10 px-1.5 py-0.5 text-micro text-ink"
               title={st != null ? t("unprovenStrengthTitle", { pct: Math.round(st * 100) }) : undefined}
             >
               {s}
-              <span className="rounded bg-amber-100 px-1 text-meta uppercase text-amber-800">{t(unprovenLabelKey(reason[s]))}</span>
+              <span className="rounded-md bg-dial-amber/20 px-1 text-meta uppercase text-ink">{t(unprovenLabelKey(reason[s]))}</span>
             </span>
           );
         })}
@@ -182,7 +182,7 @@ function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
     <div className={`${PANEL} p-5`}>
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-serif text-h3 text-ink">{t("panel.keywordCoverage")}</h3>
-        <span className="text-base font-semibold text-ink nums">
+        <span className="text-body font-semibold text-ink nums">
           {coverage.coveragePercent}%
         </span>
       </div>
@@ -200,18 +200,18 @@ function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
           <MoreIndicator count={hitsHidden} />
         </>
       ) : (
-        <p className="mt-4 text-base leading-6 text-steel">{t("panel.noKeywords")}</p>
+        <p className="mt-4 text-body text-steel">{t("panel.noKeywords")}</p>
       )}
 
       {missing.length ? (
         <div className="mt-5">
-          <p className="text-base font-semibold text-ink">{t("panel.keywordsMissing")}</p>
-          <p className="mt-1 text-sm leading-5 text-steel">{t("panel.keywordsMissingHint")}</p>
+          <p className="text-body font-semibold text-ink">{t("panel.keywordsMissing")}</p>
+          <p className="mt-1 text-micro leading-5 text-steel">{t("panel.keywordsMissingHint")}</p>
           <ul className="mt-2 flex flex-wrap gap-2">
             {missing.map((keyword, i) => (
               <li
                 key={`${keyword}-${i}`}
-                className="rounded-full border border-coral/40 bg-red-50 px-3 py-1 text-sm font-semibold text-ink"
+                className="rounded-full border border-coral/40 bg-coral/10 px-3 py-1 text-micro font-semibold text-ink"
               >
                 {keyword}
               </li>
@@ -225,14 +225,14 @@ function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
         <div className="mt-5 rounded-md bg-paper p-3">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-coral-ink" aria-hidden />
-            <p className="text-base font-semibold text-ink">{t("panel.keywordStuffing")}</p>
+            <p className="text-body font-semibold text-ink">{t("panel.keywordStuffing")}</p>
           </div>
-          <p className="mt-1 text-sm leading-5 text-steel">{t("panel.keywordStuffingHint")}</p>
+          <p className="mt-1 text-micro leading-5 text-steel">{t("panel.keywordStuffingHint")}</p>
           <ul className="mt-2 flex flex-wrap gap-2">
             {overUsed.map((keyword, i) => (
               <li
                 key={`${keyword}-${i}`}
-                className="rounded-full border border-stone-300 bg-white px-3 py-1 text-sm font-semibold text-ink"
+                className="rounded-full border border-stone-300 bg-white px-3 py-1 text-micro font-semibold text-ink"
               >
                 {keyword}
               </li>
@@ -249,7 +249,7 @@ function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
 function MoreIndicator({ count }: { count: number }) {
   const t = useTranslations("report");
   if (count <= 0) return null;
-  return <p className="mt-2 text-sm text-steel">{t("panel.moreHidden", { count })}</p>;
+  return <p className="mt-2 text-micro text-steel">{t("panel.moreHidden", { count })}</p>;
 }
 
 // Chip color is keyed off the single server-computed `status` enum (so the legend,
@@ -264,7 +264,7 @@ type KeywordStatusKey = NonNullable<KeywordCoverage["hits"][number]["status"]> |
 
 const KEYWORD_STATUS_CLS: Record<KeywordStatusKey, string> = {
   matched: "border-moss/40 bg-moss/10 text-ink",
-  missing: "border-coral/40 bg-red-50 text-ink",
+  missing: "border-coral/40 bg-coral/10 text-ink",
   over_used: "border-dial-amber/50 bg-dial-amber/10 text-ink",
   unknown: "border-stone-200 bg-stone-50 text-steel",
 };
@@ -279,9 +279,9 @@ function KeywordRow({ hit }: { hit: KeywordCoverage["hits"][number] }) {
   const t = useTranslations("report");
   const status: KeywordStatusKey = hit.status ?? "unknown";
   return (
-    <div className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-base ${KEYWORD_STATUS_CLS[status]}`}>
+    <div className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-body ${KEYWORD_STATUS_CLS[status]}`}>
       <span className="truncate font-medium">{hit.keyword}</span>
-      <span className="shrink-0 text-sm font-semibold uppercase tracking-wide text-steel">
+      <span className={`${META_LABEL} shrink-0`}>
         {t("panel.kwJdCv", { jd: hit.inJd, cv: hit.inCv })} · {t(KEYWORD_STATUS_KEY[status] as Parameters<typeof t>[0])}
       </span>
     </div>

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Bot } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { BTN_PRIMARY, BTN_SECONDARY, CARD_PAD, DIVIDER, META_LABEL, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { BTN_PRIMARY, BTN_SECONDARY, CARD_PAD, DIVIDER, META_LABEL, NOTICE, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { TextInput } from "@/app/_components/TextInput";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import type { BridgeConfigPublic } from "@/app/_lib/agent-hire/bridge-store";
@@ -36,12 +36,12 @@ export function IntegrationsPersonasPanel() {
       <h3 className="flex items-center gap-2 font-serif text-h3 text-ink">
         <Bot size={16} className="text-coral-ink" aria-hidden /> {t("title")}
       </h3>
-      <p className="mt-1 max-w-3xl text-sm text-steel">{t("intro")}</p>
+      <p className="mt-1 max-w-3xl text-micro text-steel">{t("intro")}</p>
 
       {error ? (
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <p className="text-base text-coral-ink">{error}</p>
-          <button type="button" onClick={reload} className={`${BTN_SECONDARY} h-8 px-3 text-sm`}>
+          <p className="text-body text-coral-ink">{error}</p>
+          <button type="button" onClick={reload} className={`${BTN_SECONDARY} h-8 px-3 text-micro`}>
             {t("retry")}
           </button>
         </div>
@@ -52,37 +52,37 @@ export function IntegrationsPersonasPanel() {
       {bridge ? (
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
           <span aria-hidden className={`h-2 w-2 rounded-full ${dot}`} />
-          <span className="text-base font-semibold text-ink">
+          <span className="text-body font-semibold text-ink">
             {connected ? t("statusConnected") : t("statusNotConnected")}
           </span>
-          <span className="break-all font-mono text-sm text-steel">{bridge.baseUrl}</span>
+          <span className="break-all font-mono text-micro text-steel">{bridge.baseUrl}</span>
           {connected && bridge.lastOkAt ? (
-            <span className="text-sm text-steel">{t("lastOk", { time: format.dateTime(new Date(bridge.lastOkAt), { dateStyle: "medium", timeStyle: "short" }) })}</span>
+            <span className="text-micro text-steel">{t("lastOk", { time: format.dateTime(new Date(bridge.lastOkAt), { dateStyle: "medium", timeStyle: "short" }) })}</span>
           ) : null}
         </div>
       ) : null}
 
-      {bridge && envManaged ? <p className={`${PANEL_SUNKEN} mt-3 p-3 text-sm text-steel`}>{t("envManaged")}</p> : null}
+      {bridge && envManaged ? <p className={`${PANEL_SUNKEN} mt-3 p-3 text-micro text-steel`}>{t("envManaged")}</p> : null}
 
       {waiting ? (
         <div className={`${PANEL_SUNKEN} mt-3 p-4`} role="status">
-          <p className="flex items-center gap-2 text-base font-semibold text-ink">
+          <p className="flex items-center gap-2 text-body font-semibold text-ink">
             <span aria-hidden className="h-3 w-3 animate-spin rounded-full border-2 border-coral border-t-transparent" />
             {t("waitingTitle")}
           </p>
-          <p className="mt-1 text-sm text-steel">{t("waitingBody")}</p>
-          {remainingS != null ? <p className="mt-1 nums text-sm text-steel">{t("waitingRemaining", { count: remainingS })}</p> : null}
-          <button type="button" onClick={pairing.cancel} className={`${BTN_SECONDARY} mt-3 h-8 px-3 text-sm`}>
+          <p className="mt-1 text-micro text-steel">{t("waitingBody")}</p>
+          {remainingS != null ? <p className="mt-1 nums text-micro text-steel">{t("waitingRemaining", { count: remainingS })}</p> : null}
+          <button type="button" onClick={pairing.cancel} className={`${BTN_SECONDARY} mt-3 h-8 px-3 text-micro`}>
             {t("waitingCancel")}
           </button>
         </div>
       ) : null}
 
       {pairing.state.phase === "timeout" ? (
-        <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-900" role="alert">
-          <p className="text-base font-semibold">{t("timeoutTitle")}</p>
-          <p className="mt-0.5 text-sm">{t("timeoutBody")}</p>
-          <button type="button" onClick={() => void pairing.start(baseUrl)} className={`${BTN_SECONDARY} mt-2 h-8 px-3 text-sm`}>
+        <div className={`${NOTICE("amber")} mt-3 p-3`} role="alert">
+          <p className="text-body font-semibold">{t("timeoutTitle")}</p>
+          <p className="mt-0.5 text-micro">{t("timeoutBody")}</p>
+          <button type="button" onClick={() => void pairing.start(baseUrl)} className={`${BTN_SECONDARY} mt-2 h-8 px-3 text-micro`}>
             {t("retryPair")}
           </button>
         </div>
@@ -90,8 +90,8 @@ export function IntegrationsPersonasPanel() {
 
       {pairing.state.phase === "error" ? (
         <div className="mt-3 flex flex-wrap items-center gap-3" role="alert">
-          <p className="text-sm font-medium text-coral-ink">{pairing.state.message}</p>
-          <button type="button" onClick={() => void pairing.start(baseUrl)} className={`${BTN_SECONDARY} h-8 px-3 text-sm`}>
+          <p className="text-micro font-medium text-coral-ink">{pairing.state.message}</p>
+          <button type="button" onClick={() => void pairing.start(baseUrl)} className={`${BTN_SECONDARY} h-8 px-3 text-micro`}>
             {t("retryPair")}
           </button>
         </div>
@@ -102,19 +102,19 @@ export function IntegrationsPersonasPanel() {
           <div className="flex flex-wrap items-center gap-3">
             {connected ? (
               <>
-                <button type="button" onClick={() => void pairing.start(baseUrl)} className={`${BTN_SECONDARY} h-9 px-4 text-sm`}>
+                <button type="button" onClick={() => void pairing.start(baseUrl)} className={`${BTN_SECONDARY} h-9 px-4 text-micro`}>
                   {t("repair")}
                 </button>
-                <button type="button" onClick={() => void pairing.disconnect()} disabled={pairing.busy} className={`${BTN_SECONDARY} h-9 px-4 text-sm`}>
+                <button type="button" onClick={() => void pairing.disconnect()} disabled={pairing.busy} className={`${BTN_SECONDARY} h-9 px-4 text-micro`}>
                   {pairing.busy ? t("disconnecting") : t("disconnect")}
                 </button>
               </>
             ) : (
               <>
-                <button type="button" onClick={() => void pairing.start(baseUrl)} className={`${BTN_PRIMARY} h-9 px-4 text-sm`}>
+                <button type="button" onClick={() => void pairing.start(baseUrl)} className={`${BTN_PRIMARY} h-9 px-4 text-micro`}>
                   {t("connect")}
                 </button>
-                <p className="text-sm text-steel">{t("connectHint")}</p>
+                <p className="text-micro text-steel">{t("connectHint")}</p>
               </>
             )}
           </div>
@@ -134,7 +134,7 @@ export function IntegrationsPersonasPanel() {
               sizeVariant="sm"
               className="mt-1 font-mono"
             />
-            <p className="mt-1 text-sm text-steel">{t("baseUrlHint")}</p>
+            <p className="mt-1 text-micro text-steel">{t("baseUrlHint")}</p>
           </div>
         </div>
       ) : null}
@@ -142,7 +142,7 @@ export function IntegrationsPersonasPanel() {
       {pairing.note ? (
         <p
           role={pairing.note.ok ? "status" : "alert"}
-          className={`mt-3 text-sm font-medium ${pairing.note.ok ? "text-moss" : "text-coral-ink"}`}
+          className={`mt-3 text-micro font-medium ${pairing.note.ok ? "text-moss" : "text-coral-ink"}`}
         >
           {pairing.note.text}
         </p>

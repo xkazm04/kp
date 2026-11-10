@@ -37,7 +37,7 @@ export function PipelineDegradedIntakeBanner({
       <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-red-700">
         <AlertTriangle size={13} /> {t("intakeDegradedTitle")}
       </p>
-      <p className="mt-1 text-sm text-ink">
+      <p className="mt-1 text-micro text-ink">
         {t.rich("intakeDegradedBody", { b: (chunks) => <span className="font-semibold">{chunks}</span> })}
       </p>
       {reasonText ? (
@@ -48,23 +48,23 @@ export function PipelineDegradedIntakeBanner({
           type="button"
           onClick={onResolve}
           disabled={resolving}
-          className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+          className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-white px-2.5 py-1.5 text-micro font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
         >
           <Wrench size={13} aria-hidden /> {resolving ? t("resolving") : t("markCaptured")}
         </button>
         {onOpenProfile ? (
-          <button type="button" onClick={onOpenProfile} className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-red-700 hover:bg-red-100">
+          <button type="button" onClick={onOpenProfile} className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-white px-2.5 py-1.5 text-micro font-semibold text-red-700 hover:bg-red-100">
             <ExternalLink size={13} aria-hidden /> {tAction("openProfile")}
           </button>
         ) : null}
         {candidateId ? (
-          <button type="button" onClick={() => router.push(buildUrl({ tab: "archetypes", edit: candidateId }, search.toString()))} className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-red-700 hover:bg-red-100">
+          <button type="button" onClick={() => router.push(buildUrl({ tab: "archetypes", edit: candidateId }, search.toString()))} className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-white px-2.5 py-1.5 text-micro font-semibold text-red-700 hover:bg-red-100">
             <Pencil size={13} aria-hidden /> {t("editProfile")}
           </button>
         ) : null}
       </div>
       <p className="mt-1 text-meta text-steel">{t("clearsFlagNote")}</p>
-      {intakeErr ? <p role="alert" className="mt-1.5 text-sm text-red-700">{intakeErr}</p> : null}
+      {intakeErr ? <p role="alert" className="mt-1.5 text-micro text-red-700">{intakeErr}</p> : null}
     </div>
   );
 }

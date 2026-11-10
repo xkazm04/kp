@@ -16,7 +16,7 @@ import type { Entry } from "@/app/features/shared/decisionsTypes";
 import type { useAnalysisSummaryData } from "./decisionsAnalysisSummaryData";
 import type { SealedMatchVerdict } from "@/app/_lib/decision-attribution";
 import { renderMatchReasons, type MatchReasonsTranslator } from "@/app/features/insights/matrix/focus/matchReasons";
-import { BTN_AFFIRM } from "@/app/_components/ui/recipes";
+import { BTN_AFFIRM, META_LABEL } from "@/app/_components/ui/recipes";
 
 export type SummaryData = ReturnType<typeof useAnalysisSummaryData>;
 export type SummaryT = ReturnType<typeof useTranslations<"decisions.summary">>;
@@ -45,13 +45,13 @@ export function FitReadout({ data, entry, t }: { data: SummaryData; entry: Entry
   const { match } = data;
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
-      <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink">
+      <span className="inline-flex items-center gap-1.5 text-micro font-semibold text-ink">
         {t("fit")} <ScoreBadge score={match?.total ?? entry.matchScore ?? null} />
       </span>
       <FitTierBadge tier={match?.fitTier} score={match?.total ?? entry.matchScore ?? undefined} labels={fitLabels} />
       {match?.confidence ? (
         <span className="inline-flex items-center gap-1.5">
-          <ConfidenceRange low={match.confidence.low} high={match.confidence.high} drivers={match.confidence.drivers} copy={bandCopy} className="nums text-sm text-steel" />
+          <ConfidenceRange low={match.confidence.low} high={match.confidence.high} drivers={match.confidence.drivers} copy={bandCopy} className="nums text-micro text-steel" />
           <ConfidenceBandBadge level={match.confidence.level} drivers={match.confidence.drivers} copy={bandCopy} />
         </span>
       ) : null}
@@ -65,10 +65,10 @@ export function FactChips({ data, t, enumLabel }: { data: SummaryData; t: Summar
   if (!payload) return null;
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
-      {payload.seniority ? <span className="rounded-md bg-paper px-2 py-1 text-sm text-ink">{enumLabel("seniority", payload.seniority)}</span> : null}
-      {payload.yearsExperience != null ? <span className="rounded-md bg-paper px-2 py-1 text-sm text-ink">{t("years", { years: payload.yearsExperience })}</span> : null}
-      {payload.educationLevel ? <span className="rounded-md bg-paper px-2 py-1 text-sm text-ink">{enumLabel("education", payload.educationLevel)}</span> : null}
-      {payload.location ? <span className="rounded-md bg-paper px-2 py-1 text-sm text-steel">{payload.location}</span> : null}
+      {payload.seniority ? <span className="rounded-md bg-paper px-2 py-1 text-micro text-ink">{enumLabel("seniority", payload.seniority)}</span> : null}
+      {payload.yearsExperience != null ? <span className="rounded-md bg-paper px-2 py-1 text-micro text-ink">{t("years", { years: payload.yearsExperience })}</span> : null}
+      {payload.educationLevel ? <span className="rounded-md bg-paper px-2 py-1 text-micro text-ink">{enumLabel("education", payload.educationLevel)}</span> : null}
+      {payload.location ? <span className="rounded-md bg-paper px-2 py-1 text-micro text-steel">{payload.location}</span> : null}
     </span>
   );
 }
@@ -87,7 +87,7 @@ export function RoleSkillsChips({ data, t, enumLabel }: { data: SummaryData; t: 
         return (
           <span
             key={s}
-            className="inline-flex items-center gap-1 rounded bg-green-50 px-1.5 py-0.5 text-sm text-green-700"
+            className="inline-flex items-center gap-1 rounded bg-green-50 px-1.5 py-0.5 text-micro text-green-700"
             title={strength != null ? t("skillStrengthTitle", { pct: Math.round(strength * 100) }) : undefined}
           >
             {s}
@@ -96,7 +96,7 @@ export function RoleSkillsChips({ data, t, enumLabel }: { data: SummaryData; t: 
         );
       })}
       {(match.missingSkills ?? []).map((s) => (
-        <span key={`x-${s}`} className="rounded bg-red-50 px-1.5 py-0.5 text-sm text-red-700">{`✗ ${s}`}</span>
+        <span key={`x-${s}`} className="rounded bg-red-50 px-1.5 py-0.5 text-micro text-red-700">{`✗ ${s}`}</span>
       ))}
     </div>
   );
@@ -113,7 +113,7 @@ export function UnprovenChips({ data, t }: { data: SummaryData; t: SummaryT }) {
         return (
           <span
             key={`u-${s}`}
-            className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-sm text-amber-800"
+            className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-micro text-amber-800"
             title={strength != null ? t("unprovenStrengthTitle", { pct: Math.round(strength * 100) }) : undefined}
           >
             {s}
@@ -128,7 +128,7 @@ export function UnprovenChips({ data, t }: { data: SummaryData; t: SummaryT }) {
 /** Profile facts: declared skills, aspirations, languages, education detail. */
 export function ProfileFacts({ data, t }: { data: SummaryData; t: SummaryT }) {
   const { loading, payload, skills } = data;
-  if (loading) return <p className="text-sm text-steel">{t("loadingAnalysis")}</p>;
+  if (loading) return <p className="text-micro text-steel">{t("loadingAnalysis")}</p>;
   return (
     <div className="space-y-4">
       {skills.length ? (
@@ -136,7 +136,7 @@ export function ProfileFacts({ data, t }: { data: SummaryData; t: SummaryT }) {
           <p className="text-meta uppercase tracking-wide text-steel">{t("profileSkills")}</p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {skills.map((s) => (
-              <span key={s} className="rounded-md bg-green-50 px-2 py-0.5 text-sm text-green-700">{s}</span>
+              <span key={s} className="rounded-md bg-green-50 px-2 py-0.5 text-micro text-green-700">{s}</span>
             ))}
           </div>
         </div>
@@ -144,7 +144,7 @@ export function ProfileFacts({ data, t }: { data: SummaryData; t: SummaryT }) {
       {payload?.aspirations?.length ? (
         <div>
           <p className="text-meta uppercase tracking-wide text-steel">{t("aspirations")}</p>
-          <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-ink">
+          <ul className="mt-1 list-disc space-y-0.5 pl-5 text-micro text-ink">
             {payload.aspirations.slice(0, 4).map((a, i) => (
               <li key={i}>{a}</li>
             ))}
@@ -152,16 +152,16 @@ export function ProfileFacts({ data, t }: { data: SummaryData; t: SummaryT }) {
         </div>
       ) : null}
       {payload?.languages?.length ? (
-        <p className="text-sm text-steel">
+        <p className="text-micro text-steel">
           <span className="font-semibold text-ink">{t("languagesLabel")}</span> {payload.languages.join(", ")}
         </p>
       ) : null}
       {payload?.educationDetail ? (
-        <p className="text-sm text-steel">
+        <p className="text-micro text-steel">
           <span className="font-semibold text-ink">{t("educationLabel")}</span> {payload.educationDetail}
         </p>
       ) : null}
-      <p className="text-sm text-steel">{t("summaryNote")}</p>
+      <p className="text-micro text-steel">{t("summaryNote")}</p>
     </div>
   );
 }
@@ -182,7 +182,7 @@ function NarrativeBlock({ prose, strengths, redFlags }: Narrative) {
             items.length ? (
               <ul key={tone} className="space-y-1">
                 {items.slice(0, 4).map((s, i) => (
-                  <li key={i} className="flex gap-1.5 text-sm text-ink">
+                  <li key={i} className="flex gap-1.5 text-micro text-ink">
                     <span className={tone}>•</span> {s}
                   </li>
                 ))}
@@ -249,14 +249,14 @@ export function DecisionFooter({ reason, onAccept, onReject, t }: { reason: stri
       <button
         type="button"
         onClick={() => onReject(reason)}
-        className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-coral-ink hover:bg-coral/5"
+        className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-micro font-semibold text-coral-ink hover:bg-coral/5"
       >
         <X size={15} /> {t("reject")}
       </button>
       <button
         type="button"
         onClick={() => onAccept(reason)}
-        className={`${BTN_AFFIRM} h-9 px-3 text-sm`}
+        className={`${BTN_AFFIRM} h-9 px-3 text-micro`}
       >
         <Check size={15} /> {t("advance")}
       </button>
@@ -270,7 +270,7 @@ export function SectionBand({ label, aside }: { label: string; aside?: React.Rea
   return (
     <div className="flex flex-wrap items-center gap-2 border-y border-stone-200 bg-paper/60 px-3 py-2">
       <span className="h-3.5 w-1 rounded-full bg-coral/50" aria-hidden />
-      <span className="text-sm font-semibold uppercase tracking-wide text-steel">{label}</span>
+      <span className={META_LABEL}>{label}</span>
       {aside}
     </div>
   );

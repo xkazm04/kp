@@ -550,6 +550,20 @@ top-level primitive with no importer outside itself fails `npm run test:unit`. A
 primitive nobody renders is not free: it is read as live vocabulary, copied by
 new code, and it accrues fixes for bugs no user can hit.
 
+**Style-debt pay-down on the worst surfaces (2026-11-10).** `style-debt.json` 3,965 →
+3,654 raw steps over the fifteen heaviest files. The type swap is the kit's own
+spelling (`kit.css`: Tailwind's 14px is `text-micro`): `text-sm` → `text-micro`,
+`text-base` → `text-body`, the uppercase `text-sm … tracking-wide` label →
+`text-meta uppercase`; shot before/after in both themes it moves nothing but the
+0.4px leading difference. Hand-rolled buttons became `BTN_SECONDARY` / `BTN_PRIMARY`
+/ `BTN_GHOST` / `toggleBtn` (they gain the Spark Dark sticker), tinted strips became
+`NOTICE(tone)`, and red/amber chip tints became the brand tints their siblings
+already used (`bg-coral/10`, `bg-dial-amber/10`, model bars on `score-*`). Left on
+purpose: amber TEXT lines (no amber foreground role exists; `dial-amber` fails AA as
+text), the destructive red confirm and the amber Rebuild button in the profile roster,
+the quiet Close-role button, and the roster's 27px icon buttons (`IconAction` is a
+36px rail square and grew every row by 4px).
+
 ### Three words for the layers above the page (2026-09-04)
 
 | Word | Replaces |

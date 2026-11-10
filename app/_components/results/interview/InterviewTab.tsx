@@ -10,7 +10,7 @@ import { dedupe } from "@/app/_lib/dedupe";
 import { copyText } from "@/app/_lib/export-utils";
 import { useCopyFeedback } from "@/app/_components/ui/useCopyFeedback";
 import { SoftSignalsSection } from "./SoftSignalsSection";
-import { PANEL } from "@/app/_components/ui/recipes";
+import { BTN_SECONDARY, META_LABEL, PANEL, toggleBtn } from "@/app/_components/ui/recipes";
 import {
   classifyBucket,
   groupBuckets,
@@ -88,7 +88,7 @@ export function InterviewTab({ analysis, prepEntryId }: { analysis: Analysis; pr
         <SoftSignalsSection panel={analysis.softSignals} />
         <div className={`${PANEL} p-5`}>
           <h3 className="font-serif text-h3 text-ink">{t("panel.mockInterview")}</h3>
-          <p className="mt-3 text-base leading-6 text-steel">{t("panel.mockPlaceholder")}</p>
+          <p className="mt-3 text-body text-steel">{t("panel.mockPlaceholder")}</p>
         </div>
       </div>
     );
@@ -133,14 +133,14 @@ export function InterviewTab({ analysis, prepEntryId }: { analysis: Analysis; pr
               <MessagesSquare className="h-5 w-5 text-coral-ink" aria-hidden />
               <h3 className="font-serif text-h3 text-ink">{t("panel.mockInterview")}</h3>
             </div>
-            <p className="mt-2 text-base leading-6 text-ink">{summary}</p>
-            <p className="mt-1 text-sm leading-5 text-steel">{t("panel.mockSubhead")}</p>
+            <p className="mt-2 text-body text-ink">{summary}</p>
+            <p className="mt-1 text-micro leading-5 text-steel">{t("panel.mockSubhead")}</p>
           </div>
           <div className={`grid gap-2 text-center sm:gap-3 ${tileGridCols(groups.length)}`}>
             {groups.map((group) => {
               const meta = metaFor(group.key);
               return (
-                <div key={group.key} className={`rounded-md border px-3 py-2 text-sm font-medium ${meta.tone}`}>
+                <div key={group.key} className={`rounded-md border px-3 py-2 text-micro font-medium ${meta.tone}`}>
                   <div className="text-lg font-semibold">{group.count}</div>
                   <div className="mt-0.5 leading-tight">{bucketLabel(group.key)}</div>
                 </div>
@@ -156,15 +156,15 @@ export function InterviewTab({ analysis, prepEntryId }: { analysis: Analysis; pr
           <ImportToPrepButton entryId={prepEntryId} questions={[...questions.map((q) => q.question), ...signalProbes]} />
         ) : null}
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <button type="button" onClick={copyKit} className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 px-3 py-1.5 text-sm font-semibold text-steel hover:bg-paper hover:text-ink">
+          <button type="button" onClick={copyKit} className={`${BTN_SECONDARY} h-8 px-3 text-micro`}>
             {copied ? <Check size={14} aria-hidden /> : <ClipboardCopy size={14} aria-hidden />}
             {copied ? t("copyKitDone") : t("copyKit")}
           </button>
-          {copyFailed ? <span role="status" className="text-sm text-red-700">{t("copyKitFailed")}</span> : null}
+          {copyFailed ? <span role="status" className="text-micro text-coral-ink">{t("copyKitFailed")}</span> : null}
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1 text-sm font-medium uppercase tracking-wide text-steel">
+          <span className={`${META_LABEL} inline-flex items-center gap-1`}>
             <Filter className="h-3.5 w-3.5" aria-hidden />
             {t("panel.filter")}
           </span>
@@ -205,15 +205,15 @@ function QuestionCard({ question, index }: { question: InterviewQuestion; index:
     <article className={`${PANEL} p-5`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm font-semibold uppercase tracking-wide ${chip}`}>
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-meta uppercase ${chip}`}>
             <Icon className="h-3 w-3" aria-hidden />
             {label}
           </span>
-          <span className="text-sm font-medium text-steel">{t("panel.questionNumber", { n: index + 1 })}</span>
+          <span className="text-micro font-medium text-steel">{t("panel.questionNumber", { n: index + 1 })}</span>
         </div>
       </div>
-      <p className="mt-3 text-base font-semibold leading-6 text-ink">{question.question}</p>
-      <div className={`mt-3 rounded-md border px-3 py-2 text-sm leading-5 ${tone}`}>
+      <p className="mt-3 text-body font-semibold leading-6 text-ink">{question.question}</p>
+      <div className={`mt-3 rounded-md border px-3 py-2 text-micro leading-5 ${tone}`}>
         <span className="font-semibold uppercase tracking-wide">{t("panel.tiedTo")}</span> {question.evidenceGap}
       </div>
       <dl className="mt-4 space-y-3">
@@ -232,12 +232,12 @@ function ScaffoldRow({ label, title, body }: { label: string; title: string; bod
   }
   return (
     <div className="flex gap-3">
-      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-ink text-sm font-bold text-white">
+      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-ink text-micro font-bold text-white">
         {label}
       </div>
       <div className="min-w-0">
-        <p className="text-sm font-semibold uppercase tracking-wide text-steel">{title}</p>
-        <p className="mt-0.5 text-base leading-6 text-ink">{body}</p>
+        <p className={META_LABEL}>{title}</p>
+        <p className="mt-0.5 text-body text-ink">{body}</p>
       </div>
     </div>
   );
@@ -276,11 +276,11 @@ function ImportToPrepButton({ entryId, questions }: { entryId: string; questions
         type="button"
         onClick={onClick}
         disabled={state === "importing" || done || payload.length === 0}
-        className={`focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-sm font-semibold transition-colors ${
+        className={
           done
-            ? "cursor-default border-moss/40 bg-moss/10 text-moss"
-            : "border-stone-200 text-steel hover:bg-paper hover:text-ink disabled:opacity-50"
-        }`}
+            ? "focus-ring inline-flex h-8 cursor-default items-center gap-1.5 rounded-md border border-moss/40 bg-moss/10 px-3 text-micro font-semibold text-moss"
+            : `${BTN_SECONDARY} h-8 px-3 text-micro`
+        }
       >
         {state === "importing" ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
@@ -296,7 +296,7 @@ function ImportToPrepButton({ entryId, questions }: { entryId: string; questions
           a deep-link to the Schedule tab (the prep-pack generation home), reusing the
           shared tabHref grammar. No auto-generation — the recruiter acts there. */}
       {state === "noprep" ? (
-        <span role="status" className="inline-flex flex-wrap items-center gap-1.5 text-sm text-steel">
+        <span role="status" className="inline-flex flex-wrap items-center gap-1.5 text-micro text-steel">
           {t("importToPrepNoPrep")}{" "}
           <Link
             href={tabHref("schedule")}
@@ -308,7 +308,7 @@ function ImportToPrepButton({ entryId, questions }: { entryId: string; questions
         </span>
       ) : null}
       {state === "error" ? (
-        <span role="status" className="text-sm text-red-700">
+        <span role="status" className="text-micro text-coral-ink">
           {t("importToPrepFailed")}
         </span>
       ) : null}
@@ -332,12 +332,8 @@ function FilterButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`focus-ring inline-flex h-7 items-center rounded-full px-3 text-sm font-medium transition-colors ${
-        active
-          ? "bg-ink text-white"
-          : disabled
-            ? "cursor-not-allowed bg-paper text-steel"
-            : "bg-paper text-steel hover:bg-stone-100 hover:text-ink"
+      className={`focus-ring inline-flex h-7 items-center rounded-full px-3 text-micro font-medium transition-colors ${
+        active ? toggleBtn(true) : disabled ? "cursor-not-allowed bg-paper text-steel" : `bg-paper ${toggleBtn(false)} hover:text-ink`
       }`}
     >
       {label}

@@ -64,17 +64,16 @@
       "metaLabel": 2
     },
     "data/[token]/DataClient.tsx": {
-      "panel": 2,
-      "rawDate": 1
+      "panel": 2
     },
     "features/hiring/decisions/DecisionsAiReviewCardLadder.tsx": {
       "metaLabel": 1
     },
-    "features/hiring/decisions/DecisionsBatchBar.tsx": {
-      "noticeAmber": 1
-    },
     "features/hiring/decisions/DecisionsAnalysisModalBench.tsx": {
       "panel": 1
+    },
+    "features/hiring/decisions/DecisionsBatchBar.tsx": {
+      "noticeAmber": 1
     },
     "features/hiring/decisions/DecisionsRoleRow.tsx": {
       "panel": 1
@@ -99,9 +98,6 @@
     },
     "features/hiring/schedule/ScheduleInterviewPrepHeader.tsx": {
       "noticeAmber": 2
-    },
-    "features/hiring/schedule/ScheduleInterviewTranscriptTurns.tsx": {
-      "metaLabel": 1
     },
     "features/hiring/schedule/ScheduleInviteRecruiterControls.tsx": {
       "noticeAmber": 1
@@ -132,8 +128,7 @@
       "metaLabel": 1
     },
     "features/insights/matrix/focus/MatchResultsHeader.tsx": {
-      "noticeAmber": 1,
-      "rawDate": 1
+      "noticeAmber": 1
     },
     "features/insights/matrix/focus/MatrixCandidateFocus.tsx": {
       "panel": 1
@@ -156,9 +151,6 @@
     "features/library/jds/intake/JdsIntakeAttachmentsPane.tsx": {
       "panel": 1
     },
-    "features/library/jds/intake/JdsIntakePanel.tsx": {
-      "panel": 1
-    },
     "features/library/jobs/JobsAgentFitCoverage.tsx": {
       "noticeAmber": 1
     },
@@ -175,9 +167,6 @@
     "features/library/jobs/JobsIngestAdPanelResults.tsx": {
       "metaLabel": 1
     },
-    "features/library/jobs/JobsPostingModal.tsx": {
-      "metaLabel": 1
-    },
     "features/library/jobs/JobsShared.tsx": {
       "noticeAmber": 2
     },
@@ -185,16 +174,7 @@
       "panel": 1,
       "noticeAmber": 1
     },
-    "features/settings/billing/spend/SpendEngineFacts.tsx": {
-      "noticeAmber": 1
-    },
-    "features/settings/integrations/IntegrationsCalendarPanel.tsx": {
-      "noticeAmber": 1
-    },
     "features/settings/integrations/IntegrationsCallbackBanner.tsx": {
-      "noticeAmber": 1
-    },
-    "features/settings/integrations/IntegrationsPersonasPanel.tsx": {
       "noticeAmber": 1
     },
     "features/settings/models/ModelsKeyAddForm.tsx": {
@@ -242,9 +222,6 @@
     "features/shell/tasks/TasksTable.tsx": {
       "metaLabel": 1
     },
-    "features/tools/analyze/AnalyzeFileDropZone.tsx": {
-      "panel": 1
-    },
     "features/tools/analyze/AnalyzeFormFooter.tsx": {
       "noticeAmber": 1
     },
@@ -254,17 +231,11 @@
     "features/tools/analyze/AnalyzeTab.tsx": {
       "noticeAmber": 1
     },
-    "features/tools/analyze/history/HistoryTable.tsx": {
-      "rawDate": 1
-    },
     "features/tools/devcases/DevAnalysisDesignCard.tsx": {
       "noticeAmber": 1
     },
     "features/tools/devcases/DevCaseDetailInternal.tsx": {
       "noticeAmber": 1
-    },
-    "features/tools/devcases/DevLifecycleRow.tsx": {
-      "panel": 1
     },
     "features/tools/devcases/DevNeedForm.tsx": {
       "panel": 1,
@@ -291,10 +262,6 @@
     "features/tools/profile/CandidateMatrixBoard.tsx": {
       "metaLabel": 1
     },
-    "features/tools/profile/ProfileEditor.tsx": {
-      "panel": 1,
-      "noticeAmber": 1
-    },
     "features/tools/profile/ProfileRoster.tsx": {
       "panel": 1
     },
@@ -302,14 +269,8 @@
       "chipQuiet": 1,
       "noticeAmber": 1
     },
-    "history/[slug]/page.tsx": {
-      "rawDate": 2
-    },
     "interview-lab/page.tsx": {
       "panel": 2
-    },
-    "interview/[token]/page.tsx": {
-      "panel": 1
     },
     "jds/[slug]/JdBody.tsx": {
       "panel": 1
@@ -322,7 +283,6 @@
       "rawDate": 2
     },
     "trust/TrustContent.tsx": {
-      "metaLabel": 2,
       "noticeAmber": 1
     }
   }

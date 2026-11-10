@@ -7,6 +7,7 @@
 import { Pencil, RefreshCw, Trash2, Zap } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { Meter } from "@/app/_components/Meter";
+import { BTN_GHOST, BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { scoreTone } from "@/app/_lib/format";
 import { archetypeDisplayKey } from "@/app/_lib/archetypes";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -45,10 +46,9 @@ export function ProfileRosterRow({
   const format = useFormatter();
   const enumLabel = useEnumLabel();
   const pct = Math.round((p.completeness ?? 0) * 100);
-  const iconBtn = "focus-ring rounded-md p-1.5 text-steel";
 
   return (
-    <tr className="border-b border-stone-100 text-sm transition-colors last:border-0 hover:bg-paper/70">
+    <tr className="border-b border-stone-100 text-micro transition-colors last:border-0 hover:bg-paper/70">
       <td className="max-w-0 truncate px-3 py-2 font-semibold text-ink">{p.label}</td>
 
       <td className="px-3 py-2">
@@ -64,7 +64,7 @@ export function ProfileRosterRow({
       <td className="px-3 py-2">
         <span className="flex items-center gap-2">
           <Meter value={pct} tone={scoreTone(pct)} className="h-1.5 w-20" aria-label={t("completenessAria", { pct })} />
-          <span className="nums text-sm text-steel">{t("completenessPct", { pct })}</span>
+          <span className="nums text-micro text-steel">{t("completenessPct", { pct })}</span>
         </span>
       </td>
 
@@ -90,7 +90,7 @@ export function ProfileRosterRow({
             <RefreshCw size={11} aria-hidden /> {t("staleBadge")}
           </span>
         ) : (
-          <span className="text-sm text-steel">{t("status_current")}</span>
+          <span className="text-micro text-steel">{t("status_current")}</span>
         )}
       </td>
 
@@ -101,12 +101,12 @@ export function ProfileRosterRow({
             role="group"
             aria-label={t("deleteGroupAria", { name: p.label })}
           >
-            <span className="text-sm font-semibold text-red-700">{t("deletePrompt")}</span>
+            <span className="text-micro font-semibold text-coral-ink">{t("deletePrompt")}</span>
             <button
               type="button"
               onClick={() => onConfirmDelete(p.id)}
               disabled={busy}
-              className="focus-ring rounded-md border border-red-300 bg-red-50 px-2.5 py-1 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+              className="focus-ring rounded-md border border-red-300 bg-red-50 px-2.5 py-1 text-micro font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
             >
               {busy ? t("deleting") : t("deleteConfirm")}
             </button>
@@ -114,7 +114,7 @@ export function ProfileRosterRow({
               type="button"
               autoFocus
               onClick={onCancelDelete}
-              className="focus-ring rounded-md px-2.5 py-1 text-sm font-semibold text-steel hover:bg-stone-100"
+              className={`${BTN_GHOST} px-2.5 py-1 text-micro font-semibold`}
             >
               {t("cancel")}
             </button>
@@ -125,7 +125,7 @@ export function ProfileRosterRow({
               <button
                 type="button"
                 onClick={() => onRebuild(p.id, staleInfo.newerSlug)}
-                className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 text-sm font-semibold text-amber-800 hover:bg-amber-100"
+                className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 text-micro font-semibold text-amber-800 hover:bg-amber-100"
                 title={t("rebuildTitle", { name: p.label })}
               >
                 <RefreshCw size={14} /> {t("rebuild")}
@@ -134,15 +134,16 @@ export function ProfileRosterRow({
             <button
               type="button"
               onClick={() => onMatch(p.id)}
-              className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border border-stone-200 px-2.5 text-sm font-semibold text-ink hover:border-coral/40 hover:text-coral-ink"
+              className={`${BTN_SECONDARY} h-8 px-2.5 text-micro font-semibold`}
               title={t("matchTitle", { name: p.label })}
             >
               <Zap size={14} /> {t("match")}
             </button>
+            {/* Kept at 27px, not IconAction's 36px rail square: that grew every roster row by 4px. */}
             <button
               type="button"
               onClick={() => onEdit(p.id)}
-              className={`${iconBtn} hover:bg-stone-100 hover:text-ink`}
+              className="focus-ring rounded-md p-1.5 text-steel hover:bg-stone-100 hover:text-ink"
               title={t("editTitle", { name: p.label })}
             >
               <Pencil size={15} />
@@ -150,7 +151,7 @@ export function ProfileRosterRow({
             <button
               type="button"
               onClick={() => onStartDelete(p.id)}
-              className={`${iconBtn} hover:bg-red-50 hover:text-red-700`}
+              className="focus-ring rounded-md p-1.5 text-steel hover:bg-coral/10 hover:text-coral-ink"
               title={t("deleteTitle", { name: p.label })}
             >
               <Trash2 size={15} />
