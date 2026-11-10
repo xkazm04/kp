@@ -19746,30 +19746,31 @@
       "subject": "companion-identity",
       "bundle": "software-engineering",
       "state": "unknown",
-      "evaluatedAt": "2026-10-24",
-      "evaluatedTs": "2026-10-24T22:50:08.342Z",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T00:38:31.513Z",
       "techniques": [
         {
           "technique": "disk-truth-db-index",
           "verdict": "deviation",
-          "evidence": "app/_lib/db/companion.ts:568 The derived index names a rebuild that is not implemented. upsertBrainEntry is called only by a test."
+          "evidence": "app/_lib/db/companion.ts:568 The documents are the truth (line 15: 'POINTER TABLE'), which is right. But the technique requires a rebuild that the person can run, that is total and that is safe to repeat. Here a 'reindex' is only mentioned; no caller or command exists. And a check that matters (implicit consent, line 624) reads only the derived copy."
         },
         {
           "technique": "brain-adoption-consent",
           "verdict": "conformant",
-          "evidence": "app/_lib/db/companion.ts:620 Implicit consent is keyed to kp's own workspace-tagged writes (one indexed COUNT), never to a brain merely being present."
+          "evidence": "app/_lib/db/workspaces.ts:135 No 'declined' state. The implicit arm (companion.ts:621) is keyed to kp's own episodes and filtered by workspace_id, never to whether a brain merely exists."
         },
         {
           "technique": "one-mind-many-mouths",
           "verdict": "conformant",
-          "evidence": "app/_lib/db/companion.ts:125 A proposal (unit of work) links to a conversation through a nullable reference rather than being owned by it, so digest-born work needs no invented thread."
+          "evidence": "app/_lib/db/companion.ts:95 A proposal (work) points to a conversation only optionally. Conversations and tasks are separate rows, and neither owns the other."
         }
       ],
+      "registryProposal": "Two techniques pull against each other. brain-adoption-consent tells the implicit-consent arm to be 'one indexed count'. disk-truth-db-index says 'every check reads the documents' and forbids index-only state that carries meaning. In kp the cheap index count IS the consent signal, so an index reset (the very operation disk-truth makes routine) revokes consent without telling anyone. The standard should say whether the own-writes arm must be derivable from the documents (for example, episodes carrying the app's session tag) and rebuilt with the index, or name it as operational scratch the rebuild resets.",
       "withdrawn": {
-        "worker": "e879c13e-5d65-4839-a12d-7d1b0ba8e4bd",
+        "worker": "625880a5-adce-4cfe-b52a-6d82d7137634",
         "state": "deviation",
-        "at": "2026-10-24T22:51:31.924422+00:00",
-        "reason": "reviewer (sonnet): app/_lib/db/companion.ts is mapped to the context nearest named db-jobs-devcase-interviews, not db-org-users-channels. The code claims themselves (no rebuild, upsertBrainEntry only called from a test, count-based implicit consent) are true, but they belong to another context."
+        "at": "2026-11-10T00:38:47.945478+00:00",
+        "reason": "reviewer (sonnet): The deviation is about companion.ts (brain index, reindex, countBrainEntries), which is not one of this context's files (users, workspaces, organizations, memberships, org-benchmarks, channels); the only in-context anchor, workspaces.ts:135, is the consent scalar and does not show the claimed rebuil"
       }
     },
     "9e9394dd-7db6-4f2a-b864-614fb416d9e9/companion-identity": {
