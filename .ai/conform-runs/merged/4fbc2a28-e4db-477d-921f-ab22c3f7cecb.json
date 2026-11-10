@@ -1,0 +1,48 @@
+{
+  "schema": "conform-run/1",
+  "worker": "4fbc2a28-e4db-477d-921f-ab22c3f7cecb",
+  "subject": "client-fetch-cache",
+  "evaluatedAt": "2026-11-10T00:25:42.248257+00:00",
+  "provider": "claude",
+  "model": "claude-opus-5-5",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "client-fetch-cache",
+      "context": "profile-roster-matrix",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "client-fetch-cache",
+      "context": "workspace-member-admin",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "client-fetch-cache",
+      "context": "shell-palette-preview",
+      "reason": "withdrawn after review: reviewer (sonnet): The claim that a past-TTL entry makes the pane show a loading miss is contradicted by usePalettePreview.ts: the mount's `results` state (lines 42, 65, 78) keeps the old preview under that key and previewStateFor (line 105) renders it as ready while the refetch runs (stale-while-revalidate within a m"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-11-10T00:25:42.248257+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "client-fetch-cache"
+      ],
+      "techniques": [
+        "admission-hypothesis",
+        "cache-key-discipline",
+        "in-flight-dedup",
+        "plural-policy-claims",
+        "sibling-entry-warmth",
+        "swr-design",
+        "warm-remount-caches"
+      ],
+      "deviations": 1,
+      "context": "shell-palette-preview",
+      "via": "curator-multi:claude",
+      "model": "claude-opus-5-5"
+    }
+  ]
+}

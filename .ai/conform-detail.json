@@ -30218,6 +30218,57 @@
         "at": "2026-11-10T00:12:50.251245+00:00",
         "reason": "reviewer (sonnet): The anchor app/features/hiring/pipeline/schedulerRunState.ts:14 is a comment line about the liveness-chip bug and doesn't show that the subject's precondition is absent; the 'hiring pipeline, not delivery pipeline' and 'client UI state' claims rest on other lines and on a GitHub-Actions-only grep."
       }
+    },
+    "c6367667-9117-4b74-8800-3bdd54e304f2/client-fetch-cache": {
+      "context": "shell-palette-preview",
+      "subject": "client-fetch-cache",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T00:25:42.248Z",
+      "techniques": [
+        {
+          "technique": "swr-design",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/palette/previewCache.ts:47 One number (fresh only), no stale ceiling; past TTL the entry is deleted (line 48) and a cold fetch blocks the paint. A hit within TTL never revalidates."
+        },
+        {
+          "technique": "cache-key-discipline",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/palette/previewCache.ts:36 There is one key builder over (workspace, query) with an unambiguous NUL delimiter. A null tenant is never a key (lines 44, 57), so a tenant leak is ruled out by construction."
+        },
+        {
+          "technique": "warm-remount-caches",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/palette/previewCache.ts:40 It is module-scoped, keyed and cleared when the identity changes (line 82). It has a test hatch, and live-refresh can invalidate it. But it has no size cap over entity ids, and expired entries are only removed when that same key is read again."
+        },
+        {
+          "technique": "admission-hypothesis",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/palette/previewCache.ts:30 The bet is stated where the cache is built: recency of access, i.e. re-showing a row on the way back up the list. Failed outcomes are never admitted (usePalettePreview.ts:79)."
+        },
+        {
+          "technique": "in-flight-dedup",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/usePalettePreview.ts:71 There is a single consumer (one pane), and each fetch is debounced and aborted when the highlight changes. No concurrent identical callers exist to join."
+        },
+        {
+          "technique": "sibling-entry-warmth",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/palette/PalettePreviewPane.tsx:32 The highlighted palette item, which plays the list row, already paints the title and eyebrow. The preview read is never suppressed."
+        },
+        {
+          "technique": "plural-policy-claims",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/PalettePreviewPane.tsx:30 Only one claimant reads the memo, with one fixed TTL."
+        }
+      ],
+      "withdrawn": {
+        "worker": "4fbc2a28-e4db-477d-921f-ab22c3f7cecb",
+        "state": "deviation",
+        "at": "2026-11-10T00:26:03.102824+00:00",
+        "reason": "reviewer (sonnet): The claim that a past-TTL entry makes the pane show a loading miss is contradicted by usePalettePreview.ts: the mount's `results` state (lines 42, 65, 78) keeps the old preview under that key and previewStateFor (line 105) renders it as ready while the refetch runs (stale-while-revalidate within a m"
+      }
     }
   }
 }
