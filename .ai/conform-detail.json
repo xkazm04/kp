@@ -17712,34 +17712,43 @@
       "subject": "docs-content-model",
       "bundle": "software-engineering",
       "state": "not-applicable",
-      "evaluatedAt": "2026-10-22",
-      "evaluatedTs": "2026-10-22T00:14:15.121Z",
-      "worker": "e6211c9f-8aa8-42a9-a213-688936f4e519",
+      "evaluatedAt": "2026-11-10",
+      "evaluatedTs": "2026-11-10T00:53:23.268Z",
+      "worker": "4d523da8-60d1-4422-b258-a9945cec0ef0",
       "techniques": [
         {
           "technique": "catalog-referential-invariants",
           "verdict": "not-applicable",
-          "evidence": "scripts/docs/check-adrs.mjs:120 ADR metadata is parsed from the same Markdown text that holds its prose; this is not the separate topic-record/body-module catalog governed by this technique."
+          "evidence": "scripts/docs/check-adrs.mjs:216 A record-to-index bijection check exists, but it compares a hand-maintained markdown index with ADR files on disk. There is no typed topic table or body map for it to guard. This is the file-substrate lint the golden path hands to knowledge-vault."
         },
         {
           "technique": "derived-navigation-projection",
           "verdict": "not-applicable",
-          "evidence": "scripts/docs/api-reference.mjs:122 The generated inventory derives from API handler files, not a documentation topic catalog supplying navigation, neighbours, or topic counts."
-        },
-        {
-          "technique": "draft-visibility-gating",
-          "verdict": "not-applicable",
-          "evidence": "scripts/docs/check-adrs.mjs:242 The gate enumerates Markdown decision files for validation; this context does not publish or resolve documentation topics whose drafts require production visibility gating."
+          "evidence": "scripts/docs/api-reference.mjs:14 The API reference is generated from route files, not from a docs catalog, so there is no nav, sequence or count projection to judge. The 'not a second list' spirit is there, but it is aimed at routes, not topics."
         },
         {
           "technique": "per-topic-freshness-metadata",
           "verdict": "not-applicable",
-          "evidence": "scripts/docs/check-doc-sync.mjs:126 Source globs drive change-boundary synchronization checks, which the standard explicitly separates from freshness fields on typed topic records."
+          "evidence": "scripts/docs/check-adrs.mjs:13 ADR front matter has `sources:` and `date`, which look like watched-sources and review-date fields. But they are frontmatter on files, read by a drift gate, and the golden path assigns that gate to docs-synchronization. There is no typed topic record with optional fields whose absence carries a declared meaning."
+        },
+        {
+          "technique": "draft-visibility-gating",
+          "verdict": "not-applicable",
+          "evidence": "scripts/docs/check-adrs.mjs:27 This is a decision-lifecycle vocabulary for internal ADRs. Nothing gets published, so there is no visibility predicate or build-time flag for draft topics to gate."
         },
         {
           "technique": "product-location-mapping",
           "verdict": "not-applicable",
-          "evidence": "scripts/docs/__tests__/check-doc-sync.test.mjs:31 The mapping couples source paths to Markdown documents for synchronization; it does not declare product navigation locations on documentation topic records."
+          "evidence": "scripts/docs/check-doc-sync.mjs:22 The feature-doc-map couples source globs to doc files so a change-boundary drift hook can use it. That is docs-sync stewardship, not a typed product-area handle on a topic record."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "scripts/docs/check-adrs.mjs:245 These gates validate file-backed documentation and synchronization mappings; context and repository searches found no topicCatalog, bodyMap, watchedSources, checkedAgainst, or reviewDate identifiers establishing the standard's typed documentation catalog precondition.",
+          "evaluatedAt": "2026-10-22T00:14:15.121Z",
+          "worker": "e6211c9f-8aa8-42a9-a213-688936f4e519",
+          "reason": "replaced by 4d523da8-60d1-4422-b258-a9945cec0ef0"
         }
       ]
     },

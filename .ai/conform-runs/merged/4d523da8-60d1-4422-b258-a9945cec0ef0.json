@@ -1,0 +1,72 @@
+{
+ "schema": "conform-run/1",
+ "worker": "4d523da8-60d1-4422-b258-a9945cec0ef0",
+ "subject": "docs-content-model",
+ "evaluatedAt": "2026-11-10T00:53:23.268982+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "ci-doc-gates",
+   "subject": "docs-content-model",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "scripts/docs/check-adrs.mjs:245 These gates read internal engineering markdown files from disk (a directory walk plus front-matter parse), so the subject's precondition is missing: there is no typed category/topic/body catalog in the app's module graph serving a published docs surface. Searching scripts/ and app/ for topicCatalog, bodyMap, watchedSources, checkedAgainst and isTopicVisible found nothing; the record/index and sources checks that do exist are a lint over a file-based corpus, which belongs to the knowledge-vault and docs-synchronization subjects.",
+   "techniques": [
+    {
+     "technique": "catalog-referential-invariants",
+     "verdict": "not-applicable",
+     "evidence": "scripts/docs/check-adrs.mjs:216 A record-to-index bijection check exists, but it compares a hand-maintained markdown index with ADR files on disk. There is no typed topic table or body map for it to guard. This is the file-substrate lint the golden path hands to knowledge-vault."
+    },
+    {
+     "technique": "derived-navigation-projection",
+     "verdict": "not-applicable",
+     "evidence": "scripts/docs/api-reference.mjs:14 The API reference is generated from route files, not from a docs catalog, so there is no nav, sequence or count projection to judge. The 'not a second list' spirit is there, but it is aimed at routes, not topics."
+    },
+    {
+     "technique": "per-topic-freshness-metadata",
+     "verdict": "not-applicable",
+     "evidence": "scripts/docs/check-adrs.mjs:13 ADR front matter has `sources:` and `date`, which look like watched-sources and review-date fields. But they are frontmatter on files, read by a drift gate, and the golden path assigns that gate to docs-synchronization. There is no typed topic record with optional fields whose absence carries a declared meaning."
+    },
+    {
+     "technique": "draft-visibility-gating",
+     "verdict": "not-applicable",
+     "evidence": "scripts/docs/check-adrs.mjs:27 This is a decision-lifecycle vocabulary for internal ADRs. Nothing gets published, so there is no visibility predicate or build-time flag for draft topics to gate."
+    },
+    {
+     "technique": "product-location-mapping",
+     "verdict": "not-applicable",
+     "evidence": "scripts/docs/check-doc-sync.mjs:22 The feature-doc-map couples source globs to doc files so a change-boundary drift hook can use it. That is docs-sync stewardship, not a typed product-area handle on a topic record."
+    }
+   ],
+   "absenceTerms": [
+    "topicCatalog",
+    "bodyMap",
+    "watchedSources",
+    "checkedAgainst",
+    "isTopicVisible"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-11-10T00:53:23.268982+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "docs-content-model"
+   ],
+   "techniques": [
+    "catalog-referential-invariants",
+    "derived-navigation-projection",
+    "draft-visibility-gating",
+    "per-topic-freshness-metadata",
+    "product-location-mapping"
+   ],
+   "deviations": 0,
+   "context": "ci-doc-gates",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
