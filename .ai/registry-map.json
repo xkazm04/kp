@@ -4171,12 +4171,11 @@
           "changedAt": "2026-10-31",
           "confidence": "strong",
           "state": "not-applicable",
-          "evidence": "app/features/insights/analytics/sections/analyticsSections.ts:8 The former long scroll was replaced by a ?sec= tab switcher that renders only the active section, so there are no named in-page locations to scroll to. A search of the sections directory (and of all of app/features/insights/analytics) found no scrollIntoView, IntersectionObserver, location.hash, getElementById or scroll-mt, which means this page has no scroll address space for the subject to govern.",
-          "evaluatedAt": "2026-10-28",
-          "evaluatedAgainst": "sha256-b2:bc574aa9e5f8c74c",
-          "evaluatedRevision": 3,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/features/insights/analytics/sections/analyticsSections.ts:7 The analytics surface is a ?sec= view switcher that renders only the active section (AnalyticsTab.tsx renders one section per value), not a long page with named scroll locations. A search of the sections directory for scrollIntoView, IntersectionObserver, location.hash, scroll-mt, scrollTo and useInView found nothing, and the only ids elsewhere in analytics/ are form and aria-labelledby ids. So there is no scroll address space here for this subject to govern.",
+          "evaluatedAt": "2026-11-10",
+          "evaluatedAgainst": "sha256-b2:d8bb8cfa97d2f2fd",
+          "evaluatedRevision": 4,
+          "revisionsBehind": 1
         },
         {
           "subject": "test-harness",
